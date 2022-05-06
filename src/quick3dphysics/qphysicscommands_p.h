@@ -1,0 +1,220 @@
+/****************************************************************************
+**
+** Copyright (C) 2021 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
+**
+** This file is part of the Qt Quick 3D Physics Module.
+**
+** $QT_BEGIN_LICENSE:GPL$
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
+** Software or, alternatively, in accordance with the terms contained in
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
+**
+** GNU General Public License Usage
+** Alternatively, this file may be used under the terms of the GNU
+** General Public License version 3 or (at your option) any later version
+** approved by the KDE Free Qt Foundation. The licenses are as published by
+** the Free Software Foundation and appearing in the file LICENSE.GPL3
+** included in the packaging of this file. Please review the following
+** information to ensure the GNU General Public License requirements will
+** be met: https://www.gnu.org/licenses/gpl-3.0.html.
+**
+** $QT_END_LICENSE$
+**
+****************************************************************************/
+
+#ifndef QPHYSICSCOMMANDS_H
+#define QPHYSICSCOMMANDS_H
+
+//
+//  W A R N I N G
+//  -------------
+//
+// This file is not part of the Qt API.  It exists purely as an
+// implementation detail.  This header file may change from version to
+// version without notice, or even be removed.
+//
+// We mean it.
+//
+
+#include <QtQuick3DPhysics/qtquick3dphysicsglobal.h>
+
+#include <QtCore/QList>
+#include <QtGui/QVector3D>
+#include <QQuaternion>
+
+class QDynamicRigidBody;
+namespace physx {
+class PxRigidBody;
+}
+
+QT_BEGIN_NAMESPACE
+
+class QPhysicsCommand
+{
+public:
+    enum class CommandType {
+        ApplyCentralForce,
+        ApplyForce,
+        ApplyTorque,
+        ApplyCentralImpulse,
+        ApplyImpulse,
+        ApplyTorqueImpulse,
+        SetAngularVelocity,
+        SetLinearVelocity,
+        SetMass,
+        SetDensity,
+        SetIsKinematic,
+        SetGravityEnabled,
+        Reset
+    };
+
+    QPhysicsCommand(CommandType type);
+    virtual ~QPhysicsCommand();
+    CommandType commandType() const;
+    virtual void execute(const QDynamicRigidBody &rigidBody, physx::PxRigidBody &body) = 0;
+
+private:
+    CommandType m_type;
+};
+
+class QPhysicsCommandApplyCentralForce : public QPhysicsCommand
+{
+public:
+    QPhysicsCommandApplyCentralForce(const QVector3D &inForce);
+    void execute(const QDynamicRigidBody &rigidBody, physx::PxRigidBody &body) override;
+
+private:
+    QVector3D force;
+};
+
+class QPhysicsCommandApplyForce : public QPhysicsCommand
+{
+public:
+    QPhysicsCommandApplyForce(const QVector3D &inForce, const QVector3D &inPosition);
+    void execute(const QDynamicRigidBody &rigidBody, physx::PxRigidBody &body) override;
+
+private:
+    QVector3D force;
+    QVector3D position;
+};
+
+class QPhysicsCommandApplyTorque : public QPhysicsCommand
+{
+public:
+    QPhysicsCommandApplyTorque(const QVector3D &inTorque);
+    void execute(const QDynamicRigidBody &rigidBody, physx::PxRigidBody &body) override;
+
+private:
+    QVector3D torque;
+};
+
+class QPhysicsCommandApplyCentralImpulse : public QPhysicsCommand
+{
+public:
+    QPhysicsCommandApplyCentralImpulse(const QVector3D &inImpulse);
+    void execute(const QDynamicRigidBody &rigidBody, physx::PxRigidBody &body) override;
+
+private:
+    QVector3D impulse;
+};
+
+class QPhysicsCommandApplyImpulse : public QPhysicsCommand
+{
+public:
+    QPhysicsCommandApplyImpulse(const QVector3D &inImpulse, const QVector3D &inPosition);
+    void execute(const QDynamicRigidBody &rigidBody, physx::PxRigidBody &body) override;
+
+private:
+    QVector3D impulse;
+    QVector3D position;
+};
+
+class QPhysicsCommandApplyTorqueImpulse : public QPhysicsCommand
+{
+public:
+    QPhysicsCommandApplyTorqueImpulse(const QVector3D &inImpulse);
+    void execute(const QDynamicRigidBody &rigidBody, physx::PxRigidBody &body) override;
+
+private:
+    QVector3D impulse;
+};
+
+class QPhysicsCommandSetAngularVelocity : public QPhysicsCommand
+{
+public:
+    QPhysicsCommandSetAngularVelocity(const QVector3D &inAngularVelocity);
+    void execute(const QDynamicRigidBody &rigidBody, physx::PxRigidBody &body) override;
+
+private:
+    QVector3D angularVelocity;
+};
+
+class QPhysicsCommandSetLinearVelocity : public QPhysicsCommand
+{
+public:
+    QPhysicsCommandSetLinearVelocity(const QVector3D &inLinearVelocity);
+    void execute(const QDynamicRigidBody &rigidBody, physx::PxRigidBody &body) override;
+
+private:
+    QVector3D linearVelocity;
+};
+
+class QPhysicsCommandSetMass : public QPhysicsCommand
+{
+public:
+    QPhysicsCommandSetMass(float inMass);
+    void execute(const QDynamicRigidBody &rigidBody, physx::PxRigidBody &body) override;
+
+private:
+    float mass;
+};
+
+class QPhysicsCommandSetDensity : public QPhysicsCommand
+{
+public:
+    QPhysicsCommandSetDensity(float inDensity);
+    void execute(const QDynamicRigidBody &rigidBody, physx::PxRigidBody &body) override;
+
+private:
+    float density;
+};
+
+class QPhysicsCommandSetIsKinematic : public QPhysicsCommand
+{
+public:
+    QPhysicsCommandSetIsKinematic(bool inIsKinematic);
+    void execute(const QDynamicRigidBody &rigidBody, physx::PxRigidBody &body) override;
+
+private:
+    bool isKinematic;
+};
+
+class QPhysicsCommandSetGravityEnabled : public QPhysicsCommand
+{
+public:
+    QPhysicsCommandSetGravityEnabled(bool inGravityEnabled);
+    void execute(const QDynamicRigidBody &rigidBody, physx::PxRigidBody &body) override;
+
+private:
+    bool gravityEnabled;
+};
+
+class QPhysicsCommandReset : public QPhysicsCommand
+{
+public:
+    QPhysicsCommandReset(QVector3D inPosition, QVector3D inEulerRotation);
+    void execute(const QDynamicRigidBody &rigidBody, physx::PxRigidBody &body) override;
+
+private:
+    QVector3D position;
+    QVector3D eulerRotation;
+};
+
+QT_END_NAMESPACE
+
+#endif // QPHYSICSCOMMANDS_H

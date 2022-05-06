@@ -1,0 +1,5 @@
+add_subdirectory(charactercontroller)
+add_subdirectory(convexmesh)
+add_subdirectory(friction)
+add_subdirectory(scaling)
+add_subdirectory(spawn)

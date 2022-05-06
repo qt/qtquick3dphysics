@@ -1,0 +1,5 @@
+qt_internal_add_example(cannon)
+qt_internal_add_example(compoundshapes)
+qt_internal_add_example(impeller)
+qt_internal_add_example(material)
+qt_internal_add_example(simple)

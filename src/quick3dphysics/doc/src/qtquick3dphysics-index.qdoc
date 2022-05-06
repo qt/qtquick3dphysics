@@ -1,0 +1,92 @@
+/****************************************************************************
+**
+** Copyright (C) 2022 The Qt Company Ltd.
+** Contact: https://www.qt.io/licensing/
+**
+** This file is part of the documentation of the Qt Toolkit.
+**
+** $QT_BEGIN_LICENSE:FDL$
+** Commercial License Usage
+** Licensees holding valid commercial Qt licenses may use this file in
+** accordance with the commercial license agreement provided with the
+** Software or, alternatively, in accordance with the terms contained in
+** a written agreement between you and The Qt Company. For licensing terms
+** and conditions see https://www.qt.io/terms-conditions. For further
+** information use the contact form at https://www.qt.io/contact-us.
+**
+** GNU Free Documentation License Usage
+** Alternatively, this file may be used under the terms of the GNU Free
+** Documentation License version 1.3 as published by the Free Software
+** Foundation and appearing in the file included in the packaging of
+** this file. Please review the following information to ensure
+** the GNU Free Documentation License version 1.3 requirements
+** will be met: https://www.gnu.org/licenses/fdl-1.3.html.
+** $QT_END_LICENSE$
+**
+****************************************************************************/
+
+/*!
+\page qtquick3dphysics-index.html
+\title Qt Quick 3D Physics
+\brief Provides API for physics on 3D items using QML.
+
+Qt Quick 3D Physics provides a high-level API for physics simulation.
+It supports simulating interactive rigid bodies as well as static meshes and non-colliding bodies used for detecting overlaps.
+Every simulated body can have its own physical properties like mass, density and friction.
+
+\image physics.jpg
+
+
+\section1 Using the Module
+
+\section2 QML API
+
+\include {module-use.qdocinc} {using the qml api} {QtQuick3D.Physics}
+
+This a pure QML module and it does not have a C++ API.
+
+
+\section1 Articles and Guides
+
+\list
+    \li \l{Qt Quick 3D Physics Units}{Qt Quick 3D Physics Units}
+\endlist
+
+\section1 Examples
+
+The best way to see what Qt Quick 3D Physics can do is to check out the examples:
+
+\list
+    \li \l{Qt Quick 3D Physics - Simple Example}{Simple}
+    \li \l{Qt Quick 3D Physics - Material Example}{Material}
+    \li \l{Qt Quick 3D Physics - Compound Shapes Example}{Compound Shapes}
+    \li \l{Qt Quick 3D Physics - Cannon Example}{Cannon}
+    \li \l{Qt Quick 3D Physics - Impeller Example}{Impeller}
+\endlist
+
+\section1 Reference
+\list
+    \li \l{Qt Quick 3D Physics QML Types}
+\endlist
+
+
+\section1 Related Modules
+
+\list
+    \li \l{Qt Quick}
+    \li \l{Qt Quick 3D}
+\endlist
+
+\section1 License and Attributions
+
+Qt Quick 3D Physics is available under the commercial license from \l {The Qt Company}.
+In addition, it is available under the
+\l{GNU General Public License, version 3}.
+See \l {Qt Licensing} for further details.
+
+Furthermore Qt Quick 3D Physics contains third party modules
+under the following permissive licenses:
+
+\generatelist{groupsbymodule attributions-qtquick3dphysics}
+
+*/

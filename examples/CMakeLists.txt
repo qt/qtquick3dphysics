@@ -1,0 +1,3 @@
+qt_examples_build_begin(EXTERNAL_BUILD)
+add_subdirectory(quick3dphysics)
+qt_examples_build_end()
