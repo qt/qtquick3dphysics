@@ -58,29 +58,8 @@ class QDynamicRigidBody;
 class QPhysicsCommand
 {
 public:
-    enum class CommandType {
-        ApplyCentralForce,
-        ApplyForce,
-        ApplyTorque,
-        ApplyCentralImpulse,
-        ApplyImpulse,
-        ApplyTorqueImpulse,
-        SetAngularVelocity,
-        SetLinearVelocity,
-        SetMass,
-        SetDensity,
-        SetIsKinematic,
-        SetGravityEnabled,
-        Reset
-    };
-
-    QPhysicsCommand(CommandType type);
-    virtual ~QPhysicsCommand();
-    CommandType commandType() const;
+    virtual ~QPhysicsCommand() = default;
     virtual void execute(const QDynamicRigidBody &rigidBody, physx::PxRigidBody &body) = 0;
-
-private:
-    CommandType m_type;
 };
 
 class QPhysicsCommandApplyCentralForce : public QPhysicsCommand

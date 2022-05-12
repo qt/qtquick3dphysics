@@ -35,17 +35,8 @@
 
 QT_BEGIN_NAMESPACE
 
-QPhysicsCommand::QPhysicsCommand(CommandType type) : m_type(type) { }
-
-QPhysicsCommand::~QPhysicsCommand() { }
-
-QPhysicsCommand::CommandType QPhysicsCommand::commandType() const
-{
-    return m_type;
-}
-
 QPhysicsCommandApplyCentralForce::QPhysicsCommandApplyCentralForce(const QVector3D &inForce)
-    : QPhysicsCommand(CommandType::ApplyCentralForce), force(inForce)
+    : QPhysicsCommand(), force(inForce)
 {
 }
 
@@ -61,7 +52,7 @@ void QPhysicsCommandApplyCentralForce::execute(const QDynamicRigidBody &rigidBod
 
 QPhysicsCommandApplyForce::QPhysicsCommandApplyForce(const QVector3D &inForce,
                                                      const QVector3D &inPosition)
-    : QPhysicsCommand(CommandType::ApplyForce), force(inForce), position(inPosition)
+    : QPhysicsCommand(), force(inForce), position(inPosition)
 {
 }
 
@@ -77,7 +68,7 @@ void QPhysicsCommandApplyForce::execute(const QDynamicRigidBody &rigidBody,
 }
 
 QPhysicsCommandApplyTorque::QPhysicsCommandApplyTorque(const QVector3D &inTorque)
-    : QPhysicsCommand(CommandType::ApplyTorque), torque(inTorque)
+    : QPhysicsCommand(), torque(inTorque)
 {
 }
 
@@ -92,7 +83,7 @@ void QPhysicsCommandApplyTorque::execute(const QDynamicRigidBody &rigidBody,
 }
 
 QPhysicsCommandApplyCentralImpulse::QPhysicsCommandApplyCentralImpulse(const QVector3D &inImpulse)
-    : QPhysicsCommand(CommandType::ApplyCentralImpulse), impulse(inImpulse)
+    : QPhysicsCommand(), impulse(inImpulse)
 {
 }
 
@@ -108,7 +99,7 @@ void QPhysicsCommandApplyCentralImpulse::execute(const QDynamicRigidBody &rigidB
 
 QPhysicsCommandApplyImpulse::QPhysicsCommandApplyImpulse(const QVector3D &inImpulse,
                                                          const QVector3D &inPosition)
-    : QPhysicsCommand(CommandType::ApplyImpulse), impulse(inImpulse), position(inPosition)
+    : QPhysicsCommand(), impulse(inImpulse), position(inPosition)
 {
 }
 
@@ -125,7 +116,7 @@ void QPhysicsCommandApplyImpulse::execute(const QDynamicRigidBody &rigidBody,
 }
 
 QPhysicsCommandApplyTorqueImpulse::QPhysicsCommandApplyTorqueImpulse(const QVector3D &inImpulse)
-    : QPhysicsCommand(CommandType::ApplyTorqueImpulse), impulse(inImpulse)
+    : QPhysicsCommand(), impulse(inImpulse)
 {
 }
 
@@ -141,7 +132,7 @@ void QPhysicsCommandApplyTorqueImpulse::execute(const QDynamicRigidBody &rigidBo
 
 QPhysicsCommandSetAngularVelocity::QPhysicsCommandSetAngularVelocity(
         const QVector3D &inAngularVelocity)
-    : QPhysicsCommand(CommandType::SetAngularVelocity), angularVelocity(inAngularVelocity)
+    : QPhysicsCommand(), angularVelocity(inAngularVelocity)
 {
 }
 
@@ -154,7 +145,7 @@ void QPhysicsCommandSetAngularVelocity::execute(const QDynamicRigidBody &rigidBo
 
 QPhysicsCommandSetLinearVelocity::QPhysicsCommandSetLinearVelocity(
         const QVector3D &inLinearVelocity)
-    : QPhysicsCommand(CommandType::SetLinearVelocity), linearVelocity(inLinearVelocity)
+    : QPhysicsCommand(), linearVelocity(inLinearVelocity)
 {
 }
 
@@ -165,10 +156,7 @@ void QPhysicsCommandSetLinearVelocity::execute(const QDynamicRigidBody &rigidBod
     body.setLinearVelocity(QPhysicsUtils::toPhysXType(linearVelocity));
 }
 
-QPhysicsCommandSetMass::QPhysicsCommandSetMass(float inMass)
-    : QPhysicsCommand(CommandType::SetMass), mass(inMass)
-{
-}
+QPhysicsCommandSetMass::QPhysicsCommandSetMass(float inMass) : QPhysicsCommand(), mass(inMass) { }
 
 void QPhysicsCommandSetMass::execute(const QDynamicRigidBody &rigidBody, physx::PxRigidBody &body)
 {
@@ -177,7 +165,7 @@ void QPhysicsCommandSetMass::execute(const QDynamicRigidBody &rigidBody, physx::
 }
 
 QPhysicsCommandSetDensity::QPhysicsCommandSetDensity(float inDensity)
-    : QPhysicsCommand(CommandType::SetDensity), density(inDensity)
+    : QPhysicsCommand(), density(inDensity)
 {
 }
 
@@ -189,7 +177,7 @@ void QPhysicsCommandSetDensity::execute(const QDynamicRigidBody &rigidBody,
 }
 
 QPhysicsCommandSetIsKinematic::QPhysicsCommandSetIsKinematic(bool inIsKinematic)
-    : QPhysicsCommand(CommandType::SetIsKinematic), isKinematic(inIsKinematic)
+    : QPhysicsCommand(), isKinematic(inIsKinematic)
 {
 }
 
@@ -201,7 +189,7 @@ void QPhysicsCommandSetIsKinematic::execute(const QDynamicRigidBody &rigidBody,
 }
 
 QPhysicsCommandSetGravityEnabled::QPhysicsCommandSetGravityEnabled(bool inGravityEnabled)
-    : QPhysicsCommand(CommandType::SetGravityEnabled), gravityEnabled(inGravityEnabled)
+    : QPhysicsCommand(), gravityEnabled(inGravityEnabled)
 {
 }
 
@@ -213,7 +201,7 @@ void QPhysicsCommandSetGravityEnabled::execute(const QDynamicRigidBody &rigidBod
 }
 
 QPhysicsCommandReset::QPhysicsCommandReset(QVector3D inPosition, QVector3D inEulerRotation)
-    : QPhysicsCommand(CommandType::Reset), position(inPosition), eulerRotation(inEulerRotation)
+    : QPhysicsCommand(), position(inPosition), eulerRotation(inEulerRotation)
 {
 }
 
