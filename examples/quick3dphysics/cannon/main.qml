@@ -212,6 +212,12 @@ Window {
                 text: "Reset scene"
                 onClicked: shapeSpawner.reset()
             }
+            Button {
+                id: fireButton
+                Layout.alignment: Qt.AlignHCenter
+                text: "Fire!"
+                onClicked: shapeSpawner.createBall(camera.position, camera.forward)
+            }
         }
     }
 
