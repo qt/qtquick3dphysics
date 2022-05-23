@@ -39,7 +39,7 @@ using namespace physx;
 namespace
 {
 
-#define SN_NUM_BINARY_PLATFORMS 17
+#define SN_NUM_BINARY_PLATFORMS 19
 const PxU32 sBinaryPlatformTags[SN_NUM_BINARY_PLATFORMS] =
 {
 	PX_MAKE_FOURCC('W','_','3','2'),
@@ -58,6 +58,8 @@ const PxU32 sBinaryPlatformTags[SN_NUM_BINARY_PLATFORMS] =
 	PX_MAKE_FOURCC('L','A','6','4'),
 	PX_MAKE_FOURCC('W','A','3','2'),
 	PX_MAKE_FOURCC('W','A','6','4'),
+	PX_MAKE_FOURCC('L','A','3','2'),
+	PX_MAKE_FOURCC('U','N','K','_'),
 };
 
 const char* sBinaryPlatformNames[SN_NUM_BINARY_PLATFORMS] =
@@ -78,7 +80,9 @@ const char* sBinaryPlatformNames[SN_NUM_BINARY_PLATFORMS] =
 	"linuxaarch64",
 	"uwparm",
 	"uwparm64",
-	"macarm"
+	"macarm",
+	"linuxarm",
+	"unknown",
 };
 
 }
@@ -121,8 +125,10 @@ PxU32 getBinaryPlatformTag()
 	return sBinaryPlatformTags[15];
 #elif PX_OSX && PX_A64
     return sBinaryPlatformTags[16];
+#elif PX_LINUX && PX_ARM
+	return sBinaryPlatformTags[17];
 #else
-	#error Unknown binary platform
+	return sBinaryPlatformTags[18];
 #endif
 }
 

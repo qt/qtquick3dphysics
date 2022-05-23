@@ -13,7 +13,7 @@ for path in Path('.').rglob('*.cpp'):
         files_windows.append(path)
     elif str(path).lower().find('unix') != -1 or str(path).lower().find('linux') != -1:
         files_unix.append(path)
-    else:
+    elif str(path).find('CmMathUtils.cpp') == -1:
         files.append(path)
 
 for path in Path('.').rglob('*.h'):

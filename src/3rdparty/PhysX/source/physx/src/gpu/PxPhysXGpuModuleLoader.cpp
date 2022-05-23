@@ -175,6 +175,11 @@ namespace physx
 		}
 	}
 
+#else
+	void PxLoadPhysxGPUModule(const char*)
+	{
+        Ps::getFoundation().error(PxErrorCode::eINTERNAL_ERROR, __FILE__, __LINE__, "GPU module disabled");
+	}
 #endif // PX_LINUX
 
 } // end physx namespace

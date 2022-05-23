@@ -208,7 +208,6 @@ qt_internal_extend_target(BundledPhysX
         source/common/src/CmFlushPool.h
         source/common/src/CmIDPool.h
         source/common/src/CmIO.h
-        source/common/src/CmMathUtils.cpp
         source/common/src/CmMatrix34.h
         source/common/src/CmPhysXCommon.h
         source/common/src/CmPool.h

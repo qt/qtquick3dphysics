@@ -125,6 +125,8 @@ Architecture defines, see http://sourceforge.net/p/predef/wiki/Architectures/
 #define PX_ARM 1
 #elif defined(__ppc__) || defined(_M_PPC) || defined(__CELLOS_LV2__)
 #define PX_PPC 1
+#elif defined(__mips__)
+#define PX_X64 1
 #else
 #error "Unknown architecture"
 #endif
@@ -142,6 +144,11 @@ SIMD defines
 #if defined(_M_PPC) || defined(__CELLOS_LV2__)
 #define PX_VMX 1
 #endif
+#endif
+
+/** Disable SIMD for webassembly, mips and arm64 */
+#if defined(__EMSCRIPTEN__) || defined(__mips__) || defined(_M_ARM64) || defined(_M_ARM)
+#define PX_SIMD_DISABLED 1
 #endif
 
 /**
@@ -466,35 +473,6 @@ template <class T>
 PX_CUDA_CALLABLE PX_INLINE void PX_UNUSED(T const&)
 {
 }
-
-// Ensure that the application hasn't tweaked the pack value to less than 8, which would break
-// matching between the API headers and the binaries
-// This assert works on win32/win64, but may need further specialization on other platforms.
-// Some GCC compilers need the compiler flag -malign-double to be set.
-// Apparently the apple-clang-llvm compiler doesn't support malign-double.
-#if PX_PS4 || PX_APPLE_FAMILY || (PX_CLANG && !PX_ARM)
-struct PxPackValidation
-{
-	char _;
-	long a;
-};
-#elif PX_ANDROID || (PX_CLANG && PX_ARM)
-struct PxPackValidation
-{
-	char _;
-	double a;
-};
-#else
-struct PxPackValidation
-{
-	char _;
-	long long a;
-};
-#endif
-// clang (as of version 3.9) cannot align doubles on 8 byte boundary  when compiling for Intel 32 bit target
-#if !PX_APPLE_FAMILY && !PX_EMSCRIPTEN && !(PX_CLANG && PX_X86)
-PX_COMPILE_TIME_ASSERT(PX_OFFSET_OF(PxPackValidation, a) == 8);
-#endif
 
 // use in a cpp file to suppress LNK4221
 #if PX_VC

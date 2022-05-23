@@ -73,7 +73,7 @@ PX_FORCE_INLINE uint32_t hash(const int32_t key)
 
 // Thomas Wang's 64 bit mix
 // http://www.cris.com/~Ttwang/tech/inthash.htm
-PX_FORCE_INLINE uint32_t hash(const uint64_t key)
+PX_FORCE_INLINE uint32_t hash(const unsigned long key)
 {
 	uint64_t k = key;
 	k += ~(k << 32);
@@ -87,17 +87,15 @@ PX_FORCE_INLINE uint32_t hash(const uint64_t key)
 	return uint32_t(UINT32_MAX & k);
 }
 
-#if PX_APPLE_FAMILY
-// hash for size_t, to make gcc happy
-PX_INLINE uint32_t hash(const size_t key)
+PX_FORCE_INLINE uint32_t hash(const unsigned long long key)
 {
-#if PX_P64_FAMILY
-	return hash(uint64_t(key));
-#else
-	return hash(uint32_t(key));
-#endif
+    return hash(uint64_t(key));
 }
-#endif
+
+PX_FORCE_INLINE uint32_t hash(const int64_t key)
+{
+    return hash(uint64_t(key));
+}
 
 // Hash function for pointers
 PX_INLINE uint32_t hash(const void* ptr)

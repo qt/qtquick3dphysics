@@ -46,8 +46,8 @@ QT_BEGIN_NAMESPACE
 #    endif
 #endif
 
-QT_END_NAMESPACE
-
 void Q_QUICK3DPHYSICS_EXPORT qml_register_types_QtQuick3D_Physics();
+
+QT_END_NAMESPACE
 
 #endif // QTQUICK3DPHYSICSGLOBAL_H

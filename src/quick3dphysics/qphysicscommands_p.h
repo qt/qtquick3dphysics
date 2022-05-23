@@ -47,12 +47,13 @@
 #include <QtGui/QVector3D>
 #include <QQuaternion>
 
-class QDynamicRigidBody;
 namespace physx {
 class PxRigidBody;
 }
 
 QT_BEGIN_NAMESPACE
+
+class QDynamicRigidBody;
 
 class QPhysicsCommand
 {
