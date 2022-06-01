@@ -48,15 +48,22 @@ QT_BEGIN_NAMESPACE
 
 /*!
     \qmlproperty float DynamicRigidBody::mass
-    This property defines the mass of the body. If the value is less than or equal to zero then the
-    \c density property is used instead. Default value is \c -1.
+    This property defines the mass of the body. Note that this is only used when
+   \l{DynamicRigidBody::massMode}{massMode} is not \c Density. Note that a value of 0 is interpreted
+   as infinite mass and that negative numbers are not allowed.
+
+    Default value is \c 1.
+    \sa DynamicRigidBody::massMode
 */
 
 /*!
     \qmlproperty float DynamicRigidBody::density
-    This property defines the density of the body. This is only used when \c mass is a non-positive
-    value. When this property is non-positive, this body will use the \l {DynamicsWorld::}
-    {defaultDensity} value. Default value is \c -1.
+    This property defines the density of the body. This is only used when
+   \l{DynamicsWorld::}{massMode} is set to \c Density. When this property is less than or equal to
+   zero, this body will use the \l {DynamicsWorld::}{defaultDensity} value.
+
+    Default value is \c -1.
+    \sa DynamicRigidBody::massMode
 */
 
 /*!
@@ -113,6 +120,81 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
+    \qmlproperty MassMode DynamicRigidBody::massMode
+
+    This property holds the enum which describes how mass and inertia are calculated for this body.
+
+    By default, \c DynamicRigidBody.Density is used.
+
+    Available options:
+
+    \value DynamicRigidBody.Density
+    Use the specified density to calculate mass and inertia assuming a uniform density. If density
+   is non-positive then the \l{DynamicRigidBody::defaultDensity}{defaultDensity} property in
+   DynamicsWorld will be used.
+
+    \value DynamicRigidBody.Mass
+    Use the specified mass to calculate inertia assuming a uniform density.
+
+    \value DynamicRigidBody.MassAndInertiaTensor
+    Use the specified mass value and inertia tensor.
+
+    \value DynamicRigidBody.MassAndInertiaMatrix
+    Use the specified mass value and calculate inertia from the specified inertia matrix.
+*/
+
+/*!
+    \qmlproperty vector3d DynamicRigidBody::inertiaTensor
+
+    Defines the inertia tensor vector, using a parameter specified in mass space coordinates.
+
+    This is the diagonal vector of a 3x3 diagonal matrix, if you have a non diagonal world/actor
+   space inertia tensor then you should use \l{DynamicRigidBody::inertiaMatrix}{inertiaMatrix}
+   instead.
+
+    The inertia tensor components must be positive and a value of 0 in any component is
+   interpreted as infinite inertia along that axis. Note that this is only used when
+   \l{DynamicRigidBody::massMode}{massMode} is set to \c DynamicRigidBody.MassAndInertiaTensor.
+
+    Default value is (1, 1, 1)
+
+    \sa DynamicRigidBody::massMode
+    \sa DynamicRigidBody::inertiaMatrix
+*/
+
+/*!
+    \qmlproperty vector3d DynamicRigidBody::centerOfMassPosition
+
+    Defines the position of the center of mass relative to the body. Note that this is only
+   used when \l{DynamicRigidBody::massMode}{massMode} is set to \c DynamicRigidBody.MassAndInertiaTensor.
+
+    \sa DynamicRigidBody::massMode
+    \sa DynamicRigidBody::inertiaTensor
+*/
+
+/*!
+    \qmlproperty quaternion DynamicRigidBody::centerOfMassRotation
+
+    Defines the rotation of the center of mass pose, i.e. it specifies the orientation of the body's
+   principal inertia axes relative to the body. Note that this is only used when
+   \l{DynamicRigidBody::massMode}{massMode} is set to \c DynamicRigidBody.MassAndInertiaTensor.
+
+    \sa DynamicRigidBody::massMode
+    \sa DynamicRigidBody::inertiaTensor
+*/
+
+/*!
+    \qmlproperty list<float> DynamicRigidBody::inertiaMatrix
+
+    Defines the inertia tensor matrix. This is a 3x3 matrix in column-major order. Note that this
+   matrix is expected to be diagonalizable. Note that this is only used when
+   \l{DynamicRigidBody::massMode}{massMode} is set to \c DynamicRigidBody.MassAndInertiaMatrix.
+
+    \sa DynamicRigidBody::massMode
+    \sa DynamicRigidBody::inertiaTensor
+*/
+
+/*!
     \qmlmethod DynamicRigidBody::applyCentralForce(vector3d force)
     Apply a \a force on the center of the body.
 */
@@ -155,6 +237,143 @@ QDynamicRigidBody::~QDynamicRigidBody()
     m_commandQueue.clear();
 }
 
+const QQuaternion &QDynamicRigidBody::centerOfMassRotation() const
+{
+    return m_centerOfMassRotation;
+}
+
+void QDynamicRigidBody::setCenterOfMassRotation(const QQuaternion &newCenterOfMassRotation)
+{
+    if (qFuzzyCompare(m_centerOfMassRotation, newCenterOfMassRotation))
+        return;
+    m_centerOfMassRotation = newCenterOfMassRotation;
+
+    // Only inertia tensor is using rotation
+    if (m_massMode == MassMode::MassAndInertiaTensor)
+        m_commandQueue.enqueue(new QPhysicsCommandSetMassAndInertiaTensor(m_mass, m_inertiaTensor));
+
+    emit centerOfMassRotationChanged();
+}
+
+const QVector3D &QDynamicRigidBody::centerOfMassPosition() const
+{
+    return m_centerOfMassPosition;
+}
+
+void QDynamicRigidBody::setCenterOfMassPosition(const QVector3D &newCenterOfMassPosition)
+{
+    if (qFuzzyCompare(m_centerOfMassPosition, newCenterOfMassPosition))
+        return;
+
+    switch (m_massMode) {
+    case MassMode::MassAndInertiaTensor: {
+        m_commandQueue.enqueue(new QPhysicsCommandSetMassAndInertiaTensor(m_mass, m_inertiaTensor));
+        break;
+    }
+    case MassMode::MassAndInertiaMatrix: {
+        m_commandQueue.enqueue(new QPhysicsCommandSetMassAndInertiaMatrix(m_mass, m_inertiaMatrix));
+        break;
+    }
+    case MassMode::Density:
+    case MassMode::Mass:
+        break;
+    }
+
+    m_centerOfMassPosition = newCenterOfMassPosition;
+    emit centerOfMassPositionChanged();
+}
+
+QDynamicRigidBody::MassMode QDynamicRigidBody::massMode() const
+{
+    return m_massMode;
+}
+
+void QDynamicRigidBody::setMassMode(const MassMode newMassMode)
+{
+    if (m_massMode == newMassMode)
+        return;
+
+    switch (newMassMode) {
+    case MassMode::Density: {
+        const float density =
+                m_density < 0.f ? QDynamicsWorld::getWorld()->defaultDensity() : m_density;
+        m_commandQueue.enqueue(new QPhysicsCommandSetDensity(density));
+        break;
+    }
+    case MassMode::Mass: {
+        m_commandQueue.enqueue(new QPhysicsCommandSetMass(m_mass));
+        break;
+    }
+    case MassMode::MassAndInertiaTensor: {
+        m_commandQueue.enqueue(new QPhysicsCommandSetMassAndInertiaTensor(m_mass, m_inertiaTensor));
+        break;
+    }
+    case MassMode::MassAndInertiaMatrix: {
+        m_commandQueue.enqueue(new QPhysicsCommandSetMassAndInertiaMatrix(m_mass, m_inertiaMatrix));
+        break;
+    }
+    }
+
+    m_massMode = newMassMode;
+    emit massModeChanged();
+}
+
+const QVector3D &QDynamicRigidBody::inertiaTensor() const
+{
+    return m_inertiaTensor;
+}
+
+void QDynamicRigidBody::setInertiaTensor(const QVector3D &newInertiaTensor)
+{
+    if (qFuzzyCompare(m_inertiaTensor, newInertiaTensor))
+        return;
+    m_inertiaTensor = newInertiaTensor;
+
+    if (m_massMode == MassMode::MassAndInertiaTensor)
+        m_commandQueue.enqueue(new QPhysicsCommandSetMassAndInertiaTensor(m_mass, m_inertiaTensor));
+
+    emit inertiaTensorChanged();
+}
+
+const QList<float> &QDynamicRigidBody::readInertiaMatrix() const
+{
+    return m_inertiaMatrixList;
+}
+
+static bool fuzzyEquals(const QList<float> &a, const QList<float> &b)
+{
+    if (a.length() != b.length())
+        return false;
+
+    const int length = a.length();
+    for (int i = 0; i < length; i++)
+        if (!qFuzzyCompare(a[i], b[i]))
+            return false;
+
+    return true;
+}
+
+void QDynamicRigidBody::setInertiaMatrix(const QList<float> &newInertiaMatrix)
+{
+    if (fuzzyEquals(m_inertiaMatrixList, newInertiaMatrix))
+        return;
+
+    m_inertiaMatrixList = newInertiaMatrix;
+    const int elemsToCopy = qMin(m_inertiaMatrixList.length(), 9);
+    memcpy(m_inertiaMatrix.data(), m_inertiaMatrixList.data(), elemsToCopy * sizeof(float));
+    memset(m_inertiaMatrix.data() + elemsToCopy, 0, (9 - elemsToCopy) * sizeof(float));
+
+    if (m_massMode == MassMode::MassAndInertiaMatrix)
+        m_commandQueue.enqueue(new QPhysicsCommandSetMassAndInertiaMatrix(m_mass, m_inertiaMatrix));
+
+    emit inertiaMatrixChanged();
+}
+
+const QMatrix3x3 &QDynamicRigidBody::inertiaMatrix() const
+{
+    return m_inertiaMatrix;
+}
+
 float QDynamicRigidBody::mass() const
 {
     return m_mass;
@@ -177,11 +396,13 @@ bool QDynamicRigidBody::gravityEnabled() const
 
 void QDynamicRigidBody::setMass(float mass)
 {
-    if (qFuzzyCompare(m_mass, mass))
+    if (mass < 0.f || qFuzzyCompare(m_mass, mass))
         return;
 
-    if (!(m_mass <= 0.f && mass <= 0.f)) // Skip when sign is still non-positive
-        m_commandQueue.enqueue(new QPhysicsCommandSetMass(mass));
+    if (m_massMode == MassMode::MassAndInertiaMatrix)
+        m_commandQueue.enqueue(new QPhysicsCommandSetMassAndInertiaMatrix(mass, m_inertiaMatrix));
+    else if (m_massMode == MassMode::MassAndInertiaTensor)
+        m_commandQueue.enqueue(new QPhysicsCommandSetMassAndInertiaTensor(mass, m_inertiaTensor));
 
     m_mass = mass;
     emit massChanged(m_mass);
@@ -197,7 +418,7 @@ void QDynamicRigidBody::setDensity(float density)
     if (qFuzzyCompare(m_density, density))
         return;
 
-    if (!(m_density <= 0.f && density <= 0.f)) // Skip when sign is still non-positive
+    if (m_massMode == MassMode::Density && m_density > 0.f)
         m_commandQueue.enqueue(new QPhysicsCommandSetDensity(density));
 
     m_density = density;
@@ -333,7 +554,7 @@ QQueue<QPhysicsCommand *> &QDynamicRigidBody::commandQueue()
 
 void QDynamicRigidBody::updateDefaultDensity(float defaultDensity)
 {
-    if (m_density <= 0.f)
+    if (m_massMode == MassMode::Density && m_density <= 0.f)
         m_commandQueue.enqueue(new QPhysicsCommandSetDensity(defaultDensity));
 }
 

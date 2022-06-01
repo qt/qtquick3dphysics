@@ -52,6 +52,15 @@ class QPhysicsCommand;
 
 class Q_QUICK3DPHYSICS_EXPORT QDynamicRigidBody : public QAbstractPhysicsBody
 {
+public:
+    enum class MassMode {
+        Density,
+        Mass,
+        MassAndInertiaTensor,
+        MassAndInertiaMatrix,
+    };
+    Q_ENUM(MassMode)
+
     Q_OBJECT
     Q_PROPERTY(float mass READ mass WRITE setMass NOTIFY massChanged)
     Q_PROPERTY(float density READ density WRITE setDensity NOTIFY densityChanged)
@@ -78,6 +87,16 @@ class Q_QUICK3DPHYSICS_EXPORT QDynamicRigidBody : public QAbstractPhysicsBody
     Q_PROPERTY(bool gravityEnabled READ gravityEnabled WRITE setGravityEnabled NOTIFY
                        gravityEnabledChanged)
 
+    Q_PROPERTY(MassMode massMode READ massMode WRITE setMassMode NOTIFY massModeChanged)
+    Q_PROPERTY(QVector3D inertiaTensor READ inertiaTensor WRITE setInertiaTensor NOTIFY
+                       inertiaTensorChanged)
+    Q_PROPERTY(QVector3D centerOfMassPosition READ centerOfMassPosition WRITE
+                       setCenterOfMassPosition NOTIFY centerOfMassPositionChanged)
+    Q_PROPERTY(QQuaternion centerOfMassRotation READ centerOfMassRotation WRITE
+                       setCenterOfMassRotation NOTIFY centerOfMassRotationChanged)
+    Q_PROPERTY(QList<float> inertiaMatrix READ readInertiaMatrix WRITE setInertiaMatrix NOTIFY
+                       inertiaMatrixChanged);
+
     // clang-format off
 //    // ??? separate simulation control object? --- some of these have default values in the engine, so we need tristate
 //    Q_PROPERTY(float sleepThreshold READ sleepThreshold WRITE setSleepThreshold NOTIFY sleepThresholdChanged)
@@ -90,6 +109,7 @@ class Q_QUICK3DPHYSICS_EXPORT QDynamicRigidBody : public QAbstractPhysicsBody
 //    Q_PROPERTY(int minVelocityIterationCount READ minVelocityIterationCount WRITE setMinVelocityIterationCount NOTIFY minVelocityIterationCountChanged)
     // clang-format on
     QML_NAMED_ELEMENT(DynamicRigidBody)
+
 public:
     QDynamicRigidBody();
     ~QDynamicRigidBody();
@@ -143,6 +163,22 @@ public:
 
     void updateDefaultDensity(float defaultDensity);
 
+    MassMode massMode() const;
+    void setMassMode(const MassMode newMassMode);
+
+    const QVector3D &inertiaTensor() const;
+    void setInertiaTensor(const QVector3D &newInertiaTensor);
+
+    const QVector3D &centerOfMassPosition() const;
+    void setCenterOfMassPosition(const QVector3D &newCenterOfMassPosition);
+
+    const QQuaternion &centerOfMassRotation() const;
+    void setCenterOfMassRotation(const QQuaternion &newCenterOfMassRotation);
+
+    const QList<float> &readInertiaMatrix() const;
+    void setInertiaMatrix(const QList<float> &newInertiaMatrix);
+    const QMatrix3x3 &inertiaMatrix() const;
+
 Q_SIGNALS:
     void massChanged(float mass);
     void densityChanged(float density);
@@ -156,10 +192,21 @@ Q_SIGNALS:
     void axisLockAngularYChanged();
     void axisLockAngularZChanged();
     void gravityEnabledChanged();
+    void massModeChanged();
+    void inertiaTensorChanged();
+    void centerOfMassPositionChanged();
+    void centerOfMassRotationChanged();
+    void inertiaMatrixChanged();
 
 private:
-    float m_mass = -1.f;
+    float m_mass = 1.f;
     float m_density = -1.f;
+    QVector3D m_centerOfMassPosition;
+    QQuaternion m_centerOfMassRotation;
+    QList<float> m_inertiaMatrixList;
+    QMatrix3x3 m_inertiaMatrix;
+    QVector3D m_inertiaTensor;
+
     QVector3D m_linearVelocity;
     bool m_isKinematic = false;
     QVector3D m_angularVelocity;
@@ -171,6 +218,7 @@ private:
     bool m_axisLockAngularZ = false;
     QQueue<QPhysicsCommand *> m_commandQueue;
     bool m_gravityEnabled = true;
+    MassMode m_massMode = MassMode::Density;
 };
 
 class Q_QUICK3DPHYSICS_EXPORT QStaticRigidBody : public QAbstractPhysicsBody

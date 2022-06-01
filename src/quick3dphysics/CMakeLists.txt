@@ -28,7 +28,7 @@ qt_internal_add_qml_module(Quick3DPhysics
         qphysicsmaterial.cpp qphysicsmaterial_p.h
         qabstractphysicsbody.cpp qabstractphysicsbody_p.h
         qphysicscommands.cpp qphysicscommands_p.h
-        qphysicsutils.cpp qphysicsutils_p.h
+        qphysicsutils_p.h
         qdebugdrawhelper.cpp qdebugdrawhelper_p.h
         qtquick3dphysicsglobal.h
         qtquick3dphysicsglobal_p.h

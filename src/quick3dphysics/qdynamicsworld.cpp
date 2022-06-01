@@ -113,7 +113,8 @@ QT_BEGIN_NAMESPACE
     unit. This is equal to the weight of a cube with side \c 1.
 
     The default value is \c 0.001, corresponding to 1 g/cm³: the density of water. If your unit of
-    measurement is meters, a good value would be \c 1000.
+    measurement is meters, a good value would be \c 1000. Note that only positive values are
+   allowed.
 */
 
 /*!
@@ -769,6 +770,8 @@ float QDynamicsWorld::defaultDensity() const
 
 void QDynamicsWorld::setDefaultDensity(float defaultDensity)
 {
+    // Make sure the default density is not too small
+    defaultDensity = qMax(0.0000001, defaultDensity);
     if (qFuzzyCompare(m_defaultDensity, defaultDensity))
         return;
     m_defaultDensity = defaultDensity;
@@ -993,8 +996,33 @@ void QDynamicsWorld::initPhysXBody(QPhysXBody *physXBody)
     // Density must be set after shapes so the inertia tensor is set
     if (dynamicBody && !triggerBody) {
         QDynamicRigidBody *drb = static_cast<QDynamicRigidBody *>(collisionNode);
-        QPhysicsUtils::setBodyMassDensity(*dynamicBody, drb->mass(), drb->density(),
-                                          m_defaultDensity);
+        QPhysicsCommand *command = nullptr;
+
+        switch (drb->massMode()) {
+        case QDynamicRigidBody::MassMode::Density: {
+            const float density = drb->density() < 0.f ? m_defaultDensity : drb->density();
+            command = new QPhysicsCommandSetDensity(density);
+            break;
+        }
+        case QDynamicRigidBody::MassMode::Mass: {
+            const float mass = qMax(drb->mass(), 0.f);
+            command = new QPhysicsCommandSetMass(mass);
+            break;
+        }
+        case QDynamicRigidBody::MassMode::MassAndInertiaTensor: {
+            const float mass = qMax(drb->mass(), 0.f);
+            command = new QPhysicsCommandSetMassAndInertiaTensor(mass, drb->inertiaTensor());
+            break;
+        }
+        case QDynamicRigidBody::MassMode::MassAndInertiaMatrix: {
+            const float mass = qMax(drb->mass(), 0.f);
+            command = new QPhysicsCommandSetMassAndInertiaMatrix(mass, drb->inertiaMatrix());
+            break;
+        }
+        }
+
+        drb->commandQueue().enqueue(command);
+
         dynamicBody->setRigidBodyFlag(physx::PxRigidBodyFlag::eKINEMATIC, drb->isKinematic());
 
         if (m_enableCCD && !drb->isKinematic()) // CCD not supported for kinematic bodies

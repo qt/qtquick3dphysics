@@ -160,8 +160,38 @@ QPhysicsCommandSetMass::QPhysicsCommandSetMass(float inMass) : QPhysicsCommand()
 
 void QPhysicsCommandSetMass::execute(const QDynamicRigidBody &rigidBody, physx::PxRigidBody &body)
 {
-    QPhysicsUtils::setBodyMassDensity(body, mass, rigidBody.density(),
-                                      QDynamicsWorld::getWorld()->defaultDensity());
+    Q_UNUSED(rigidBody)
+    physx::PxRigidBodyExt::setMassAndUpdateInertia(body, mass);
+}
+
+void QPhysicsCommandSetMassAndInertiaTensor::execute(const QDynamicRigidBody &rigidBody,
+                                                     physx::PxRigidBody &body)
+{
+    body.setMass(mass);
+    body.setCMassLocalPose(
+            physx::PxTransform(QPhysicsUtils::toPhysXType(rigidBody.centerOfMassPosition()),
+                               QPhysicsUtils::toPhysXType(rigidBody.centerOfMassRotation())));
+    body.setMassSpaceInertiaTensor(QPhysicsUtils::toPhysXType(inertia));
+}
+
+QPhysicsCommandSetMassAndInertiaMatrix::QPhysicsCommandSetMassAndInertiaMatrix(
+        float inMass, const QMatrix3x3 &inInertia)
+    : QPhysicsCommand(), mass(inMass), inertia(inInertia)
+{
+}
+
+void QPhysicsCommandSetMassAndInertiaMatrix::execute(const QDynamicRigidBody &rigidBody,
+                                                     physx::PxRigidBody &body)
+{
+    physx::PxQuat massFrame;
+    physx::PxVec3 diagTensor = physx::PxDiagonalize(QPhysicsUtils::toPhysXType(inertia), massFrame);
+    if ((diagTensor.x <= 0.0f) || (diagTensor.y <= 0.0f) || (diagTensor.z <= 0.0f))
+        return; // FIXME: print error?
+
+    body.setCMassLocalPose(physx::PxTransform(
+            QPhysicsUtils::toPhysXType(rigidBody.centerOfMassPosition()), massFrame));
+    body.setMass(mass);
+    body.setMassSpaceInertiaTensor(diagTensor);
 }
 
 QPhysicsCommandSetDensity::QPhysicsCommandSetDensity(float inDensity)
@@ -172,8 +202,8 @@ QPhysicsCommandSetDensity::QPhysicsCommandSetDensity(float inDensity)
 void QPhysicsCommandSetDensity::execute(const QDynamicRigidBody &rigidBody,
                                         physx::PxRigidBody &body)
 {
-    QPhysicsUtils::setBodyMassDensity(body, rigidBody.mass(), density,
-                                      QDynamicsWorld::getWorld()->defaultDensity());
+    Q_UNUSED(rigidBody)
+    physx::PxRigidBodyExt::updateMassAndInertia(body, density);
 }
 
 QPhysicsCommandSetIsKinematic::QPhysicsCommandSetIsKinematic(bool inIsKinematic)
@@ -213,6 +243,12 @@ void QPhysicsCommandReset::execute(const QDynamicRigidBody &rigidBody, physx::Px
     body.setGlobalPose(physx::PxTransform(
             QPhysicsUtils::toPhysXType(position),
             QPhysicsUtils::toPhysXType(QQuaternion::fromEulerAngles(eulerRotation))));
+}
+
+QPhysicsCommandSetMassAndInertiaTensor::QPhysicsCommandSetMassAndInertiaTensor(
+        float inMass, const QVector3D &inInertia)
+    : QPhysicsCommand(), mass(inMass), inertia(inInertia)
+{
 }
 
 QT_END_NAMESPACE

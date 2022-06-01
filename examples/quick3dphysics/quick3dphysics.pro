@@ -4,4 +4,5 @@ SUBDIRS += \
     simple \
     material \
     impeller \
-    cannon
+    cannon \
+    mass

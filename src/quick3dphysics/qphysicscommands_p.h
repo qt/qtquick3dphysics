@@ -154,6 +154,28 @@ private:
     float mass;
 };
 
+class QPhysicsCommandSetMassAndInertiaTensor : public QPhysicsCommand
+{
+public:
+    QPhysicsCommandSetMassAndInertiaTensor(float inMass, const QVector3D &inInertia);
+    void execute(const QDynamicRigidBody &rigidBody, physx::PxRigidBody &body) override;
+
+private:
+    float mass;
+    QVector3D inertia;
+};
+
+class QPhysicsCommandSetMassAndInertiaMatrix : public QPhysicsCommand
+{
+public:
+    QPhysicsCommandSetMassAndInertiaMatrix(float inMass, const QMatrix3x3 &inInertia);
+    void execute(const QDynamicRigidBody &rigidBody, physx::PxRigidBody &body) override;
+
+private:
+    float mass;
+    QMatrix3x3 inertia;
+};
+
 class QPhysicsCommandSetDensity : public QPhysicsCommand
 {
 public:

@@ -59,6 +59,7 @@ The best way to see what Qt Quick 3D Physics can do is to check out the examples
 \list
     \li \l{Qt Quick 3D Physics - Simple Example}{Simple}
     \li \l{Qt Quick 3D Physics - Material Example}{Material}
+    \li \l{Qt Quick 3D Physics - Mass Example}{Mass}
     \li \l{Qt Quick 3D Physics - Compound Shapes Example}{Compound Shapes}
     \li \l{Qt Quick 3D Physics - Cannon Example}{Cannon}
     \li \l{Qt Quick 3D Physics - Impeller Example}{Impeller}

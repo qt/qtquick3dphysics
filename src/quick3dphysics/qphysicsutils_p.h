@@ -43,16 +43,15 @@
 
 #include <QVector3D>
 #include <QQuaternion>
-#include "foundation/PxQuat.h"
-#include "foundation/PxVec3.h"
+#include <foundation/PxMat33.h>
+#include <foundation/PxQuat.h>
+#include <foundation/PxVec3.h>
 
 namespace physx {
 class PxRigidBody;
 }
 
 namespace QPhysicsUtils {
-void setBodyMassDensity(physx::PxRigidBody &body, const float mass, const float density,
-                        const float defaultDensity);
 
 Q_ALWAYS_INLINE physx::PxVec3 toPhysXType(const QVector3D &qvec)
 {
@@ -62,6 +61,11 @@ Q_ALWAYS_INLINE physx::PxVec3 toPhysXType(const QVector3D &qvec)
 Q_ALWAYS_INLINE physx::PxQuat toPhysXType(const QQuaternion &qquat)
 {
     return physx::PxQuat(qquat.x(), qquat.y(), qquat.z(), qquat.scalar());
+}
+
+Q_ALWAYS_INLINE physx::PxMat33 toPhysXType(const QMatrix3x3 &m)
+{
+    return physx::PxMat33(const_cast<float *>(m.constData()));
 }
 
 Q_ALWAYS_INLINE QVector3D toQtType(const physx::PxVec3 &vec)
