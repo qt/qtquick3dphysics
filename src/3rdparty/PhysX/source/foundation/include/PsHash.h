@@ -66,14 +66,9 @@ PX_FORCE_INLINE uint32_t hash(const uint32_t key)
 	return uint32_t(k);
 }
 
-PX_FORCE_INLINE uint32_t hash(const int32_t key)
-{
-	return hash(uint32_t(key));
-}
-
 // Thomas Wang's 64 bit mix
 // http://www.cris.com/~Ttwang/tech/inthash.htm
-PX_FORCE_INLINE uint32_t hash(const unsigned long key)
+PX_FORCE_INLINE uint32_t hash(const uint64_t key)
 {
 	uint64_t k = key;
 	k += ~(k << 32);
@@ -87,18 +82,9 @@ PX_FORCE_INLINE uint32_t hash(const unsigned long key)
 	return uint32_t(UINT32_MAX & k);
 }
 
-PX_FORCE_INLINE uint32_t hash(const unsigned long long key)
-{
-    return hash(uint64_t(key));
-}
-
-PX_FORCE_INLINE uint32_t hash(const int64_t key)
-{
-    return hash(uint64_t(key));
-}
-
 // Hash function for pointers
-PX_INLINE uint32_t hash(const void* ptr)
+template <typename T>
+PX_INLINE uint32_t hash(T* ptr)
 {
 #if PX_P64_FAMILY
 	return hash(uint64_t(ptr));
@@ -114,6 +100,14 @@ PX_INLINE uint32_t hash(const Pair<F, S>& p)
 	uint32_t seed = 0x876543;
 	uint32_t m = 1000007;
 	return hash(p.second) ^ (m * (hash(p.first) ^ (m * seed)));
+}
+
+template <typename T>
+PX_FORCE_INLINE uint32_t hash(const T key)
+{
+    if (sizeof(T) == 4)
+        return hash(uint32_t(key));
+    return hash(uint64_t(key));
 }
 
 // hash object for hash map template parameter
