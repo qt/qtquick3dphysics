@@ -26,7 +26,7 @@
 ****************************************************************************/
 
 /*!
-\qmlmodule QtQuick3D
+\qmlmodule QtQuick3DPhysics
 \title Qt Quick 3D Physics QML Types
 \brief Provides the QML types to include physics items into a Qt Quick scene.
 
