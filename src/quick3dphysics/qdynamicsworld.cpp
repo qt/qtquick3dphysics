@@ -592,6 +592,7 @@ void QDynamicsWorld::updateDebugDraw()
                 model->setParent(sceneRoot);
                 model->setCastsShadows(false);
                 model->setReceivesShadows(false);
+                model->setCastsReflections(false);
                 QQmlListReference materialsRef(model, "materials");
                 materialsRef.append(m_debugMaterial);
             }
