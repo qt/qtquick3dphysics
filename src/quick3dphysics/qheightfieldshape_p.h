@@ -54,7 +54,7 @@ class PxTriangleMesh;
 class PxTriangleMeshGeometry;
 class PxHeightFieldGeometry;
 class PxHeightField;
-class PxHeightFieldSample;
+struct PxHeightFieldSample;
 }
 
 QT_BEGIN_NAMESPACE

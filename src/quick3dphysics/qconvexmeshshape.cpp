@@ -59,12 +59,13 @@ physx::PxConvexMesh *QQuick3DPhysicsMesh::convexMesh()
         if (thePhysics == nullptr)
             return nullptr;
 
-        static QByteArray meshCachePath = qgetenv("QT_PHYSX_CACHE_PATH");
+        static QString meshCachePath = qEnvironmentVariable("QT_PHYSX_CACHE_PATH");
         static bool cachingEnabled = !meshCachePath.isEmpty();
 
-        QString fn = cachingEnabled
-                ? QString { meshCachePath + '/' + QFileInfo(m_meshPath).fileName() + ".physx" }
-                : QString { m_meshPath + ".physx" };
+        QString fn = cachingEnabled ? QString::fromUtf8("%1/%2.mesh_physx")
+                                              .arg(meshCachePath, QFileInfo(m_meshPath).fileName())
+                                    : QString::fromUtf8("%1.mesh_physx").arg(m_meshPath);
+
         QFile f(fn);
 
         if (f.open(QIODevice::ReadOnly)) {
@@ -138,12 +139,12 @@ physx::PxTriangleMesh *QQuick3DPhysicsMesh::triangleMesh()
     if (thePhysics == nullptr)
         return nullptr;
 
-    static QByteArray meshCachePath = qgetenv("QT_PHYSX_CACHE_PATH");
+    static QString meshCachePath = qEnvironmentVariable("QT_PHYSX_CACHE_PATH");
     static bool cachingEnabled = !meshCachePath.isEmpty();
 
-    QString fn = cachingEnabled
-            ? QString { meshCachePath + '/' + QFileInfo(m_meshPath).fileName() + ".triangle_physx" }
-            : QString { m_meshPath + ".triangle_physx" };
+    QString fn = cachingEnabled ? QString::fromUtf8("%1/%2.triangle_physx")
+                                          .arg(meshCachePath, QFileInfo(m_meshPath).fileName())
+                                : QString::fromUtf8("%1.triangle_physx").arg(m_meshPath);
     QFile f(fn);
 
     if (f.open(QIODevice::ReadOnly)) {

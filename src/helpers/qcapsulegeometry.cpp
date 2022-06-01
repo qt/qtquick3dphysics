@@ -156,7 +156,7 @@ void CapsuleGeometry::updateData()
     uint32_t verifLonsp1 = verifLons + 1;
     uint32_t lonsHalfLatn1 = halfLatsn1 * verifLons;
     uint32_t lonsRingsp1 = verifRingsp1 * verifLons;
-    float halfDepth = verifDepth * 0.5;
+    float halfDepth = verifDepth * 0.5f;
     float summit = halfDepth + verifRad;
 
     // Index offsets for coordinates.
@@ -207,20 +207,20 @@ void CapsuleGeometry::updateData()
     auto faces = QList<std::array<Face, 3>>(facesLen);
 
     // North pole.
-    vertices[0] = QVector3D(-summit, 0.0, 0.0);
-    vertexNormals[0] = QVector3D(-1, 0.0, 0.0);
+    vertices[0] = QVector3D(-summit, 0.f, 0.f);
+    vertexNormals[0] = QVector3D(-1.f, 0.f, 0.f);
 
     // South pole.
-    vertices[idxVSouthPole] = QVector3D(summit, 0.0, 0.0);
-    vertexNormals[idxVnSouthPole] = QVector3D(1.0, 0.0, 0.0);
+    vertices[idxVSouthPole] = QVector3D(summit, 0.f, 0.f);
+    vertexNormals[idxVnSouthPole] = QVector3D(1.f, 0.f, 0.f);
 
     // Calculate polar texture coordinates, equatorial coordinates.
     QList<float> sinThetaCache = QList<float>(verifLons);
     QList<float> cosThetaCache = QList<float>(verifLons);
     float toTheta = 2 * M_PI / verifLons;
     float toPhi = M_PI / verifLats;
-    float toTexHorizontal = 1.0 / verifLons;
-    float toTexVertical = 1.0 / halfLats;
+    float toTexHorizontal = 1.f / verifLons;
+    float toTexVertical = 1.f / halfLats;
 
     for (uint32_t j = 0; j < verifLons; ++j) {
 
@@ -232,9 +232,9 @@ void CapsuleGeometry::updateData()
         cosThetaCache[j] = cosTheta;
 
         // Texture coordinates at North and South pole.
-        float sTex = (j + 0.5) * toTexHorizontal;
-        vertexTextures[j] = QVector2D(sTex, 1.0);
-        vertexTextures[idxVtSCap + j] = QVector2D(sTex, 0.0);
+        float sTex = (j + 0.5f) * toTexHorizontal;
+        vertexTextures[j] = QVector2D(sTex, 1.f);
+        vertexTextures[idxVtSCap + j] = QVector2D(sTex, 0.f);
 
         // Multiply by radius to get equatorial x and y.
         float x = verifRad * cosTheta;
@@ -245,7 +245,7 @@ void CapsuleGeometry::updateData()
         vertices[idxVSEquator + j] = QVector3D(halfDepth, x, -z);
 
         // Set equatorial normals.
-        vertexNormals[idxVNEquator + j] = QVector3D(0.0, cosTheta, -sinTheta);
+        vertexNormals[idxVNEquator + j] = QVector3D(0.f, cosTheta, -sinTheta);
 
         // Set polar indices.
         uint32_t jNextVt = j + 1;
@@ -267,7 +267,7 @@ void CapsuleGeometry::updateData()
     float vtAspectRatio = 0.f;
     switch (m_uvProfile) {
     case CapsuleGeometry::UvProfile::Fixed:
-        vtAspectRatio = 1.0 / 3.0;
+        vtAspectRatio = 0.33333333f;
         break;
     case CapsuleGeometry::UvProfile::Aspect:
         vtAspectRatio = verifRad / (verifDepth + verifRad + verifRad);
@@ -277,7 +277,7 @@ void CapsuleGeometry::updateData()
         break;
     }
     float vtAspectSouth = vtAspectRatio;
-    float vtAspectNorth = 1.0 - vtAspectRatio;
+    float vtAspectNorth = 1.f - vtAspectRatio;
 
     // Cache horizontal measure.
     QList<float> sTexCache = QList<float>(verifLonsp1);
@@ -301,7 +301,7 @@ void CapsuleGeometry::updateData()
 
     for (uint32_t i = 0; i < halfLatsn1; ++i) {
         uint32_t iLonsCurr = i * verifLons;
-        float ip1f = i + 1.0;
+        float ip1f = i + 1.f;
         float phi = ip1f * toPhi;
         float sinPhiSouth = sin(phi);
         float cosPhiSouth = cos(phi);
@@ -433,8 +433,8 @@ void CapsuleGeometry::updateData()
         // North aspect ratio; and from South pole to South
         // aspect ratio.
         float tTexFac = ip1f * toTexVertical;
-        float tTexNorth = 1.0 - tTexFac + tTexFac * vtAspectNorth;
-        float tTexSouth = vtAspectSouth * (1.0 - tTexFac);
+        float tTexNorth = 1.f - tTexFac + tTexFac * vtAspectNorth;
+        float tTexSouth = vtAspectSouth * (1.f - tTexFac);
 
         // Texture coordinates.
         for (uint32_t j = 0; j < verifLonsp1; ++j) {
@@ -454,12 +454,12 @@ void CapsuleGeometry::updateData()
         // Linear interpolation must exclude the origin (North equator)
         // and the destination (South equator), so step must never equal
         // 0.0 or 1.0 .
-        float toFac = 1.0 / verifRingsp1;
+        float toFac = 1.f / verifRingsp1;
         uint32_t vCylOffset = idxVCyl;
         uint32_t vtCylOffset = idxVtCyl;
         for (uint32_t m = 1; m < verifRingsp1; ++m) {
             float fac = m * toFac;
-            float cmplFac = 1.0 - fac;
+            float cmplFac = 1.f - fac;
 
             // Coordinates.
             for (uint32_t j = 0; j < verifLons; ++j) {

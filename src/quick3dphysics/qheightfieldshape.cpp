@@ -153,11 +153,11 @@ physx::PxHeightField *QQuick3DPhysicsHeightField::heightField()
     if (!m_heightField) {
         physx::PxPhysics *thePhysics = QDynamicsWorld::getPhysics();
 
-        static QByteArray cachePath = qgetenv("QT_PHYSX_CACHE_PATH");
+        static QString cachePath = qEnvironmentVariable("QT_PHYSX_CACHE_PATH");
         static bool cachingEnabled = !cachePath.isEmpty();
-        QString fn = cachingEnabled ? QString { cachePath + '/' + QFileInfo(m_sourcePath).fileName()
-                                                + ".heightfield_physx" }
-                                    : QString { m_sourcePath + ".physx" };
+        QString fn = cachingEnabled ? QString::fromUtf8("%1/%2.heightfield_physx")
+                                              .arg(cachePath, QFileInfo(m_sourcePath).fileName())
+                                    : QString::fromUtf8("%1.heightfield_physx").arg(m_sourcePath);
 
         QFile f(fn);
 
