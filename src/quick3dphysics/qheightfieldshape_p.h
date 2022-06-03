@@ -80,6 +80,7 @@ public:
 
     const QVector3D &extents() const;
     void setExtents(const QVector3D &newExtents);
+    bool isStaticShape() const override { return true; }
 
 signals:
     void heightMapChanged();

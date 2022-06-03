@@ -63,6 +63,7 @@ public:
     ~QPlaneShape();
 
     physx::PxGeometry *getPhysXGeometry() override;
+    bool isStaticShape() const override { return true; }
 
 private:
     void updatePhysXGeometry();

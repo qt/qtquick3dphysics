@@ -193,6 +193,7 @@ void QAbstractCollisionNode::qmlAppendShape(QQmlListProperty<QAbstractCollisionS
         return;
     QAbstractCollisionNode *self = static_cast<QAbstractCollisionNode *>(list->object);
     self->m_collisionShapes.push_back(shape);
+    self->m_hasStaticShapes = self->m_hasStaticShapes || shape->isStaticShape();
 
     if (shape->parentItem() == nullptr) {
         // If the material has no parent, check if it has a hierarchical parent that's a
@@ -238,6 +239,7 @@ void QAbstractCollisionNode::qmlClearShapes(QQmlListProperty<QAbstractCollisionS
             QQuick3DObjectPrivate::get(shape)->derefSceneManager();
         shape->disconnect(self, SLOT(onMaterialDestroyed(QObject *)));
     }
+    self->m_hasStaticShapes = false;
     self->m_collisionShapes.clear();
 }
 

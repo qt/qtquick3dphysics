@@ -93,6 +93,8 @@ public:
     bool enableTriggerReports() const;
     void setEnableTriggerReports(bool enableTriggerReports);
 
+    bool hasStaticShapes() const { return m_hasStaticShapes; }
+
 private Q_SLOTS:
     void onShapeDestroyed(QObject *object);
     void onShapeNeedsRebuild(QObject *object);
@@ -117,6 +119,7 @@ private:
     bool m_sendContactReports = false;
     bool m_receiveContactReports = false;
     bool m_enableTriggerReports = false;
+    bool m_hasStaticShapes = false;
 
     friend class QPhysXBody;
     friend class QDynamicsWorld; // for register/deregister TODO: cleaner mechanism

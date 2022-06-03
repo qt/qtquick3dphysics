@@ -65,6 +65,7 @@ public:
     QVector3D extents() const;
 
     physx::PxGeometry *getPhysXGeometry() override;
+    bool isStaticShape() const override { return false; }
 
 public slots:
     void setExtents(QVector3D extents);

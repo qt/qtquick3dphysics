@@ -62,6 +62,7 @@ public:
     float diameter() const;
 
     physx::PxGeometry *getPhysXGeometry() override;
+    bool isStaticShape() const override { return false; }
 
 public Q_SLOTS:
     void setDiameter(float diameter);

@@ -68,6 +68,7 @@ public:
     void setHeight(float newHeight);
 
     physx::PxGeometry *getPhysXGeometry() override;
+    bool isStaticShape() const override { return false; }
 
 Q_SIGNALS:
     void diameterChanged();

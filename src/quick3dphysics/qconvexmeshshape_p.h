@@ -69,6 +69,7 @@ public:
 
     const QUrl &meshSource() const;
     void setMeshSource(const QUrl &newMeshSource);
+    bool isStaticShape() const override { return false; }
 
 signals:
     void meshSourceChanged();
