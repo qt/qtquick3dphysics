@@ -65,6 +65,8 @@ public:
     virtual physx::PxGeometry *getPhysXGeometry() = 0;
     bool enableDebugView() const;
 
+    virtual bool isStaticShape() const = 0;
+
 public slots:
     void setEnableDebugView(bool enableDebugView);
 

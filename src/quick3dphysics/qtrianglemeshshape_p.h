@@ -70,6 +70,7 @@ public:
     physx::PxGeometry *getPhysXGeometry() override;
     const QUrl &meshSource() const;
     void setMeshSource(const QUrl &newMeshSource);
+    bool isStaticShape() const override { return true; }
 
 signals:
     void meshSourceChanged();
