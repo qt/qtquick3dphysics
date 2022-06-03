@@ -399,10 +399,19 @@ void QDynamicRigidBody::setMass(float mass)
     if (mass < 0.f || qFuzzyCompare(m_mass, mass))
         return;
 
-    if (m_massMode == MassMode::MassAndInertiaMatrix)
-        m_commandQueue.enqueue(new QPhysicsCommandSetMassAndInertiaMatrix(mass, m_inertiaMatrix));
-    else if (m_massMode == MassMode::MassAndInertiaTensor)
+    switch (m_massMode) {
+    case QDynamicRigidBody::MassMode::Mass:
+        m_commandQueue.enqueue(new QPhysicsCommandSetMass(mass));
+        break;
+    case QDynamicRigidBody::MassMode::MassAndInertiaTensor:
         m_commandQueue.enqueue(new QPhysicsCommandSetMassAndInertiaTensor(mass, m_inertiaTensor));
+        break;
+    case QDynamicRigidBody::MassMode::MassAndInertiaMatrix:
+        m_commandQueue.enqueue(new QPhysicsCommandSetMassAndInertiaMatrix(mass, m_inertiaMatrix));
+        break;
+    case QDynamicRigidBody::MassMode::Density:
+        break;
+    }
 
     m_mass = mass;
     emit massChanged(m_mass);
