@@ -35,6 +35,11 @@
 
 QT_BEGIN_NAMESPACE
 
+static bool isKinematicBody(physx::PxRigidBody &body)
+{
+    return static_cast<bool>(body.getRigidBodyFlags() & physx::PxRigidBodyFlag::eKINEMATIC);
+}
+
 QPhysicsCommandApplyCentralForce::QPhysicsCommandApplyCentralForce(const QVector3D &inForce)
     : QPhysicsCommand(), force(inForce)
 {
@@ -44,10 +49,9 @@ void QPhysicsCommandApplyCentralForce::execute(const QDynamicRigidBody &rigidBod
                                                physx::PxRigidBody &body)
 {
     Q_UNUSED(rigidBody)
-    const auto isKinematic =
-            static_cast<bool>(body.getRigidBodyFlags() & physx::PxRigidBodyFlag::eKINEMATIC);
-    if (!isKinematic)
-        body.addForce(QPhysicsUtils::toPhysXType(force));
+    if (isKinematicBody(body))
+        return;
+    body.addForce(QPhysicsUtils::toPhysXType(force));
 }
 
 QPhysicsCommandApplyForce::QPhysicsCommandApplyForce(const QVector3D &inForce,
@@ -60,11 +64,10 @@ void QPhysicsCommandApplyForce::execute(const QDynamicRigidBody &rigidBody,
                                         physx::PxRigidBody &body)
 {
     Q_UNUSED(rigidBody)
-    const auto isKinematic =
-            static_cast<bool>(body.getRigidBodyFlags() & physx::PxRigidBodyFlag::eKINEMATIC);
-    if (!isKinematic)
-        physx::PxRigidBodyExt::addForceAtPos(body, QPhysicsUtils::toPhysXType(force),
-                                             QPhysicsUtils::toPhysXType(position));
+    if (isKinematicBody(body))
+        return;
+    physx::PxRigidBodyExt::addForceAtPos(body, QPhysicsUtils::toPhysXType(force),
+                                         QPhysicsUtils::toPhysXType(position));
 }
 
 QPhysicsCommandApplyTorque::QPhysicsCommandApplyTorque(const QVector3D &inTorque)
@@ -76,10 +79,9 @@ void QPhysicsCommandApplyTorque::execute(const QDynamicRigidBody &rigidBody,
                                          physx::PxRigidBody &body)
 {
     Q_UNUSED(rigidBody)
-    const auto isKinematic =
-            static_cast<bool>(body.getRigidBodyFlags() & physx::PxRigidBodyFlag::eKINEMATIC);
-    if (!isKinematic)
-        body.addTorque(QPhysicsUtils::toPhysXType(torque));
+    if (isKinematicBody(body))
+        return;
+    body.addTorque(QPhysicsUtils::toPhysXType(torque));
 }
 
 QPhysicsCommandApplyCentralImpulse::QPhysicsCommandApplyCentralImpulse(const QVector3D &inImpulse)
@@ -91,10 +93,9 @@ void QPhysicsCommandApplyCentralImpulse::execute(const QDynamicRigidBody &rigidB
                                                  physx::PxRigidBody &body)
 {
     Q_UNUSED(rigidBody)
-    const auto isKinematic =
-            static_cast<bool>(body.getRigidBodyFlags() & physx::PxRigidBodyFlag::eKINEMATIC);
-    if (!isKinematic)
-        body.addForce(QPhysicsUtils::toPhysXType(impulse), physx::PxForceMode::eIMPULSE);
+    if (isKinematicBody(body))
+        return;
+    body.addForce(QPhysicsUtils::toPhysXType(impulse), physx::PxForceMode::eIMPULSE);
 }
 
 QPhysicsCommandApplyImpulse::QPhysicsCommandApplyImpulse(const QVector3D &inImpulse,
@@ -107,12 +108,11 @@ void QPhysicsCommandApplyImpulse::execute(const QDynamicRigidBody &rigidBody,
                                           physx::PxRigidBody &body)
 {
     Q_UNUSED(rigidBody)
-    const auto isKinematic =
-            static_cast<bool>(body.getRigidBodyFlags() & physx::PxRigidBodyFlag::eKINEMATIC);
-    if (!isKinematic)
-        physx::PxRigidBodyExt::addForceAtPos(body, QPhysicsUtils::toPhysXType(impulse),
-                                             QPhysicsUtils::toPhysXType(position),
-                                             physx::PxForceMode::eIMPULSE);
+    if (isKinematicBody(body))
+        return;
+    physx::PxRigidBodyExt::addForceAtPos(body, QPhysicsUtils::toPhysXType(impulse),
+                                         QPhysicsUtils::toPhysXType(position),
+                                         physx::PxForceMode::eIMPULSE);
 }
 
 QPhysicsCommandApplyTorqueImpulse::QPhysicsCommandApplyTorqueImpulse(const QVector3D &inImpulse)
@@ -124,10 +124,10 @@ void QPhysicsCommandApplyTorqueImpulse::execute(const QDynamicRigidBody &rigidBo
                                                 physx::PxRigidBody &body)
 {
     Q_UNUSED(rigidBody)
-    const auto isKinematic =
-            static_cast<bool>(body.getRigidBodyFlags() & physx::PxRigidBodyFlag::eKINEMATIC);
-    if (!isKinematic)
-        body.addTorque(QPhysicsUtils::toPhysXType(impulse), physx::PxForceMode::eIMPULSE);
+    if (isKinematicBody(body))
+        return;
+
+    body.addTorque(QPhysicsUtils::toPhysXType(impulse), physx::PxForceMode::eIMPULSE);
 }
 
 QPhysicsCommandSetAngularVelocity::QPhysicsCommandSetAngularVelocity(
