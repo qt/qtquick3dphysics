@@ -267,8 +267,13 @@ void QPhysicsCommandReset::execute(const QDynamicRigidBody &rigidBody, physx::Px
     Q_UNUSED(rigidBody)
     body.setLinearVelocity(physx::PxVec3(0, 0, 0));
     body.setAngularVelocity(physx::PxVec3(0, 0, 0));
+
+    auto *parentNode = rigidBody.parentNode();
+    QVector3D scenePosition = parentNode ? parentNode->mapPositionToScene(position) : position;
+    // TODO: rotation also needs to be mapped
+
     body.setGlobalPose(physx::PxTransform(
-            QPhysicsUtils::toPhysXType(position),
+            QPhysicsUtils::toPhysXType(scenePosition),
             QPhysicsUtils::toPhysXType(QQuaternion::fromEulerAngles(eulerRotation))));
 }
 
