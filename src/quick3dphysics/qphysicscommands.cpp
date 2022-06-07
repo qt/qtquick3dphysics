@@ -160,13 +160,24 @@ QPhysicsCommandSetMass::QPhysicsCommandSetMass(float inMass) : QPhysicsCommand()
 
 void QPhysicsCommandSetMass::execute(const QDynamicRigidBody &rigidBody, physx::PxRigidBody &body)
 {
-    Q_UNUSED(rigidBody)
+    if (rigidBody.hasStaticShapes()) {
+        qWarning() << "Cannot set mass or density on a body containing trimesh/heightfield/plane, "
+                      "ignoring.";
+        return;
+    }
+
     physx::PxRigidBodyExt::setMassAndUpdateInertia(body, mass);
 }
 
 void QPhysicsCommandSetMassAndInertiaTensor::execute(const QDynamicRigidBody &rigidBody,
                                                      physx::PxRigidBody &body)
 {
+    if (rigidBody.hasStaticShapes()) {
+        qWarning() << "Cannot set mass or density on a body containing trimesh/heightfield/plane, "
+                      "ignoring.";
+        return;
+    }
+
     body.setMass(mass);
     body.setCMassLocalPose(
             physx::PxTransform(QPhysicsUtils::toPhysXType(rigidBody.centerOfMassPosition()),
@@ -183,6 +194,12 @@ QPhysicsCommandSetMassAndInertiaMatrix::QPhysicsCommandSetMassAndInertiaMatrix(
 void QPhysicsCommandSetMassAndInertiaMatrix::execute(const QDynamicRigidBody &rigidBody,
                                                      physx::PxRigidBody &body)
 {
+    if (rigidBody.hasStaticShapes()) {
+        qWarning() << "Cannot set mass or density on a body containing trimesh/heightfield/plane, "
+                      "ignoring.";
+        return;
+    }
+
     physx::PxQuat massFrame;
     physx::PxVec3 diagTensor = physx::PxDiagonalize(QPhysicsUtils::toPhysXType(inertia), massFrame);
     if ((diagTensor.x <= 0.0f) || (diagTensor.y <= 0.0f) || (diagTensor.z <= 0.0f))
@@ -202,7 +219,12 @@ QPhysicsCommandSetDensity::QPhysicsCommandSetDensity(float inDensity)
 void QPhysicsCommandSetDensity::execute(const QDynamicRigidBody &rigidBody,
                                         physx::PxRigidBody &body)
 {
-    Q_UNUSED(rigidBody)
+    if (rigidBody.hasStaticShapes()) {
+        qWarning() << "Cannot set mass or density on a body containing trimesh/heightfield/plane, "
+                      "ignoring.";
+        return;
+    }
+
     physx::PxRigidBodyExt::updateMassAndInertia(body, density);
 }
 
