@@ -214,7 +214,12 @@ QPhysicsCommandSetIsKinematic::QPhysicsCommandSetIsKinematic(bool inIsKinematic)
 void QPhysicsCommandSetIsKinematic::execute(const QDynamicRigidBody &rigidBody,
                                             physx::PxRigidBody &body)
 {
-    Q_UNUSED(rigidBody)
+    if (rigidBody.hasStaticShapes() && !isKinematic) {
+        qWarning() << "Cannot make a body containing trimesh/heightfield/plane non-kinematic, "
+                      "ignoring.";
+        return;
+    }
+
     body.setRigidBodyFlag(physx::PxRigidBodyFlag::eKINEMATIC, isKinematic);
 }
 

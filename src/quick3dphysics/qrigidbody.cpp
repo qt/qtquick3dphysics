@@ -166,7 +166,8 @@ QT_BEGIN_NAMESPACE
     \qmlproperty vector3d DynamicRigidBody::centerOfMassPosition
 
     Defines the position of the center of mass relative to the body. Note that this is only
-   used when \l{DynamicRigidBody::massMode}{massMode} is set to \c DynamicRigidBody.MassAndInertiaTensor.
+   used when \l{DynamicRigidBody::massMode}{massMode} is set to \c
+   DynamicRigidBody.MassAndInertiaTensor.
 
     \sa DynamicRigidBody::massMode
     \sa DynamicRigidBody::inertiaTensor
@@ -448,6 +449,12 @@ void QDynamicRigidBody::setIsKinematic(bool isKinematic)
 {
     if (m_isKinematic == isKinematic)
         return;
+
+    if (hasStaticShapes() && !isKinematic) {
+        qWarning()
+                << "Cannot make body containing trimesh/heightfield/plane non-kinematic, ignoring.";
+        return;
+    }
 
     m_isKinematic = isKinematic;
     m_commandQueue.enqueue(new QPhysicsCommandSetIsKinematic(m_isKinematic));

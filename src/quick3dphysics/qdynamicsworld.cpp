@@ -997,32 +997,40 @@ void QDynamicsWorld::initPhysXBody(QPhysXBody *physXBody)
     // Density must be set after shapes so the inertia tensor is set
     if (dynamicBody && !triggerBody) {
         QDynamicRigidBody *drb = static_cast<QDynamicRigidBody *>(collisionNode);
-        QPhysicsCommand *command = nullptr;
+        if (!drb->hasStaticShapes()) {
+            // Body with only dynamic shapes, set/calculate mass
+            QPhysicsCommand *command = nullptr;
 
-        switch (drb->massMode()) {
-        case QDynamicRigidBody::MassMode::Density: {
-            const float density = drb->density() < 0.f ? m_defaultDensity : drb->density();
-            command = new QPhysicsCommandSetDensity(density);
-            break;
-        }
-        case QDynamicRigidBody::MassMode::Mass: {
-            const float mass = qMax(drb->mass(), 0.f);
-            command = new QPhysicsCommandSetMass(mass);
-            break;
-        }
-        case QDynamicRigidBody::MassMode::MassAndInertiaTensor: {
-            const float mass = qMax(drb->mass(), 0.f);
-            command = new QPhysicsCommandSetMassAndInertiaTensor(mass, drb->inertiaTensor());
-            break;
-        }
-        case QDynamicRigidBody::MassMode::MassAndInertiaMatrix: {
-            const float mass = qMax(drb->mass(), 0.f);
-            command = new QPhysicsCommandSetMassAndInertiaMatrix(mass, drb->inertiaMatrix());
-            break;
-        }
-        }
+            switch (drb->massMode()) {
+            case QDynamicRigidBody::MassMode::Density: {
+                const float density = drb->density() < 0.f ? m_defaultDensity : drb->density();
+                command = new QPhysicsCommandSetDensity(density);
+                break;
+            }
+            case QDynamicRigidBody::MassMode::Mass: {
+                const float mass = qMax(drb->mass(), 0.f);
+                command = new QPhysicsCommandSetMass(mass);
+                break;
+            }
+            case QDynamicRigidBody::MassMode::MassAndInertiaTensor: {
+                const float mass = qMax(drb->mass(), 0.f);
+                command = new QPhysicsCommandSetMassAndInertiaTensor(mass, drb->inertiaTensor());
+                break;
+            }
+            case QDynamicRigidBody::MassMode::MassAndInertiaMatrix: {
+                const float mass = qMax(drb->mass(), 0.f);
+                command = new QPhysicsCommandSetMassAndInertiaMatrix(mass, drb->inertiaMatrix());
+                break;
+            }
+            }
 
-        drb->commandQueue().enqueue(command);
+            drb->commandQueue().enqueue(command);
+        } else if (!drb->isKinematic()) {
+            // Body with static shapes that is not kinematic, this is disallowed
+            qWarning() << "Cannot make body containing trimesh/heightfield/plane non-kinematic, "
+                          "forcing kinematic.";
+            drb->setIsKinematic(true);
+        }
 
         dynamicBody->setRigidBodyFlag(physx::PxRigidBodyFlag::eKINEMATIC, drb->isKinematic());
 
