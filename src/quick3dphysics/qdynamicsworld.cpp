@@ -449,7 +449,6 @@ void QDynamicsWorld::setGravity(QVector3D gravity)
 
     m_gravity = gravity;
     if (m_physx->scene) {
-        qDebug() << "changing G" << m_gravity;
         m_physx->scene->setGravity(QPhysicsUtils::toPhysXType(m_gravity));
     }
     emit gravityChanged(m_gravity);
