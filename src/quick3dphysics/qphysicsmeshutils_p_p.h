@@ -42,7 +42,7 @@ public:
     {
         loadSsgMesh();
         if (m_ssgMesh.isValid()) {
-            auto b = m_ssgMesh.subsets().first().bounds;
+            auto b = m_ssgMesh.subsets().constFirst().bounds;
             return { b.min, b.max };
         }
         return {};

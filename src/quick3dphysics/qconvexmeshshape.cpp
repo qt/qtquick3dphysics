@@ -172,7 +172,7 @@ void QQuick3DPhysicsMesh::loadSsgMesh()
     }
 
     if (m_ssgMesh.isValid()) {
-        auto sub = m_ssgMesh.subsets().first();
+        auto sub = m_ssgMesh.subsets().constFirst();
         qCDebug(lcQuick3dPhysics) << "..." << sub.name << "count" << sub.count << "bounds"
                                   << sub.bounds.min << sub.bounds.max << "offset" << sub.offset;
     }
