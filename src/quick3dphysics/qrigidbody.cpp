@@ -16,28 +16,31 @@ QT_BEGIN_NAMESPACE
 
     This is the dynamic rigid body. A dynamic rigid body is an object that is part of the physics
     scene and behaves like a physical object with mass and velocity. Note that triangle mesh,
-    heightfield and plane geometry shapes are only allowed as collision shapes when \l
-    {DynamicRigidBody::} {isKinematic} is \c true.
+    heightfield and plane geometry shapes are only allowed as collision shapes when \l isKinematic
+    is \c true.
 */
 
 /*!
     \qmlproperty float DynamicRigidBody::mass
-    This property defines the mass of the body. Note that this is only used when
-   \l{DynamicRigidBody::massMode}{massMode} is not \c Density. Note that a value of 0 is interpreted
-   as infinite mass and that negative numbers are not allowed.
+
+    This property defines the mass of the body. Note that this is only used when massMode is not
+    \c {DynamicRigidBody.Density}. Also note that a value of 0 is interpreted as infinite mass
+    and that negative numbers are not allowed.
 
     Default value is \c 1.
-    \sa DynamicRigidBody::massMode
+
+    \sa massMode
 */
 
 /*!
     \qmlproperty float DynamicRigidBody::density
-    This property defines the density of the body. This is only used when
-   \l{DynamicsWorld::}{massMode} is set to \c Density. When this property is less than or equal to
-   zero, this body will use the \l {DynamicsWorld::}{defaultDensity} value.
+
+    This property defines the density of the body. This is only used when massMode is set to \c
+    {DynamicRigidBody.Density}. When this property is less than or equal to zero, this body will
+    use the \l {DynamicsWorld::}{defaultDensity} value.
 
     Default value is \c -1.
-    \sa DynamicRigidBody::massMode
+    \sa massMode
 */
 
 /*!
@@ -102,19 +105,20 @@ QT_BEGIN_NAMESPACE
 
     Available options:
 
-    \value DynamicRigidBody.Density
-    Use the specified density to calculate mass and inertia assuming a uniform density. If density
-   is non-positive then the \l{DynamicRigidBody::defaultDensity}{defaultDensity} property in
-   DynamicsWorld will be used.
+    \value  DynamicRigidBody.Density
+            Use the specified density to calculate mass and inertia assuming a uniform density.
+            If density is non-positive then the \l {DynamicsWorld::}{defaultDensity} property in
+            DynamicsWorld is used.
 
-    \value DynamicRigidBody.Mass
-    Use the specified mass to calculate inertia assuming a uniform density.
+    \value  DynamicRigidBody.Mass
+            Use the specified mass to calculate inertia assuming a uniform density.
 
-    \value DynamicRigidBody.MassAndInertiaTensor
-    Use the specified mass value and inertia tensor.
+    \value  DynamicRigidBody.MassAndInertiaTensor
+            Use the specified mass value and inertia tensor.
 
-    \value DynamicRigidBody.MassAndInertiaMatrix
-    Use the specified mass value and calculate inertia from the specified inertia matrix.
+    \value  DynamicRigidBody.MassAndInertiaMatrix
+            Use the specified mass value and calculate inertia from the specified inertia
+            matrix.
 */
 
 /*!
@@ -123,85 +127,87 @@ QT_BEGIN_NAMESPACE
     Defines the inertia tensor vector, using a parameter specified in mass space coordinates.
 
     This is the diagonal vector of a 3x3 diagonal matrix, if you have a non diagonal world/actor
-   space inertia tensor then you should use \l{DynamicRigidBody::inertiaMatrix}{inertiaMatrix}
-   instead.
+    space inertia tensor then you should use \l{DynamicRigidBody::inertiaMatrix}{inertiaMatrix}
+    instead.
 
     The inertia tensor components must be positive and a value of 0 in any component is
-   interpreted as infinite inertia along that axis. Note that this is only used when
-   \l{DynamicRigidBody::massMode}{massMode} is set to \c DynamicRigidBody.MassAndInertiaTensor.
+    interpreted as infinite inertia along that axis. Note that this is only used when
+    massMode is set to \c DynamicRigidBody.MassAndInertiaTensor.
 
-    Default value is (1, 1, 1)
+    Default value is (1, 1, 1).
 
-    \sa DynamicRigidBody::massMode
-    \sa DynamicRigidBody::inertiaMatrix
+    \sa massMode, inertiaMatrix
 */
 
 /*!
     \qmlproperty vector3d DynamicRigidBody::centerOfMassPosition
 
-    Defines the position of the center of mass relative to the body. Note that this is only
-   used when \l{DynamicRigidBody::massMode}{massMode} is set to \c
-   DynamicRigidBody.MassAndInertiaTensor.
+    Defines the position of the center of mass relative to the body. Note that this is only used
+    when massMode is set to \c DynamicRigidBody.MassAndInertiaTensor.
 
-    \sa DynamicRigidBody::massMode
-    \sa DynamicRigidBody::inertiaTensor
+    \sa massMode, inertiaTensor
 */
 
 /*!
     \qmlproperty quaternion DynamicRigidBody::centerOfMassRotation
 
     Defines the rotation of the center of mass pose, i.e. it specifies the orientation of the body's
-   principal inertia axes relative to the body. Note that this is only used when
-   \l{DynamicRigidBody::massMode}{massMode} is set to \c DynamicRigidBody.MassAndInertiaTensor.
+    principal inertia axes relative to the body. Note that this is only used when massMode is set to
+    \c DynamicRigidBody.MassAndInertiaTensor.
 
-    \sa DynamicRigidBody::massMode
-    \sa DynamicRigidBody::inertiaTensor
+    \sa massMode, inertiaTensor
 */
 
 /*!
     \qmlproperty list<float> DynamicRigidBody::inertiaMatrix
 
     Defines the inertia tensor matrix. This is a 3x3 matrix in column-major order. Note that this
-   matrix is expected to be diagonalizable. Note that this is only used when
-   \l{DynamicRigidBody::massMode}{massMode} is set to \c DynamicRigidBody.MassAndInertiaMatrix.
+    matrix is expected to be diagonalizable. Note that this is only used when massMode is set to
+    \c DynamicRigidBody.MassAndInertiaMatrix.
 
-    \sa DynamicRigidBody::massMode
-    \sa DynamicRigidBody::inertiaTensor
+    \sa massMode, inertiaTensor
 */
 
 /*!
     \qmlmethod DynamicRigidBody::applyCentralForce(vector3d force)
-    Apply a \a force on the center of the body.
+
+    Applies  a \a force on the center of the body.
 */
 
 /*!
     \qmlmethod DynamicRigidBody::applyForce(vector3d force, vector3d position)
-    Apply a \a force at a \a position on the body.
+
+    Applies a \a force at a \a position on the body.
 */
 
 /*!
     \qmlmethod DynamicRigidBody::applyTorque(vector3d torque)
-    Apply \a torque on the body.
+
+    Applies a \a torque on the body.
 */
 
 /*!
     \qmlmethod DynamicRigidBody::applyCentralImpulse(vector3d impulse)
-    Apply an \a impulse on the center of the body.
+
+    Applies an \a impulse on the center of the body.
 */
 
 /*!
     \qmlmethod DynamicRigidBody::applyImpulse(vector3d impulse, vector3d position)
-    Apply an \a impulse at a \a position on the body.
+
+    Applies an \a impulse at a \a position on the body.
 */
 
 /*!
     \qmlmethod DynamicRigidBody::applyTorqueImpulse(vector3d impulse)
-    Apply a torque \a impulse on the body.
+
+    Applies a torque \a impulse on the body.
 */
 
 /*!
     \qmlmethod DynamicRigidBody::reset(vector3d position, vector3d eulerRotation)
-    Reset the body's \a position and \a eulerRotation.
+
+    Resets the body's \a position and \a eulerRotation.
 */
 
 QDynamicRigidBody::QDynamicRigidBody() = default;
