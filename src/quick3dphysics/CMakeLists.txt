@@ -5,7 +5,7 @@
 qt_internal_add_qml_module(Quick3DPhysics
     URI "QtQuick3D.Physics"
         VERSION "${PROJECT_VERSION}"
-        CLASSNAME QtQuick3DPhysicsPlugin
+        CLASS_NAME QtQuick3DPhysicsPlugin
         PLUGIN_TARGET qquick3dphysicsplugin
         NO_PLUGIN_OPTIONAL
         NO_GENERATE_PLUGIN_SOURCE

@@ -5,7 +5,7 @@
 qt_internal_add_qml_module(Quick3DPhysicsHelpers
     URI "QtQuick3D.Physics.Helpers"
     VERSION "${PROJECT_VERSION}"
-    CLASSNAME QtQuick3DPhysicsHelpersPlugin
+    CLASS_NAME QtQuick3DPhysicsHelpersPlugin
     PLUGIN_TARGET qtquick3dphysicshelpersplugin
     SOURCES
         qcapsulegeometry.cpp qcapsulegeometry_p.h
