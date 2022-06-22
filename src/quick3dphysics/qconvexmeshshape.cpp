@@ -1,6 +1,7 @@
 // Copyright (C) 2021 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
+#include "qcacheutils_p.h"
 #include "qconvexmeshshape_p.h"
 
 #include <QFile>
@@ -25,83 +26,55 @@ QT_BEGIN_NAMESPACE
 
 physx::PxConvexMesh *QQuick3DPhysicsMesh::convexMesh()
 {
-    if (!m_convexMesh) {
+    if (m_convexMesh != nullptr)
+        return m_convexMesh;
 
-        //### hacky accessors
-        //            physx::PxCooking *theCooking = QDynamicsWorld::getCooking();
-        physx::PxPhysics *thePhysics = QDynamicsWorld::getPhysics();
-        if (thePhysics == nullptr)
-            return nullptr;
+    physx::PxPhysics *thePhysics = QDynamicsWorld::getPhysics();
+    if (thePhysics == nullptr)
+        return nullptr;
 
-        static QString meshCachePath = qEnvironmentVariable("QT_PHYSX_CACHE_PATH");
-        static bool cachingEnabled = !meshCachePath.isEmpty();
+    m_convexMesh = QCacheUtils::readCachedConvexMesh(m_meshPath, *thePhysics);
 
-        QString fn = cachingEnabled ? QString::fromUtf8("%1/%2.mesh_physx")
-                                              .arg(meshCachePath, QFileInfo(m_meshPath).fileName())
-                                    : QString::fromUtf8("%1.mesh_physx").arg(m_meshPath);
+    if (m_convexMesh != nullptr)
+        return m_convexMesh;
 
-        QFile f(fn);
+    loadSsgMesh();
 
-        if (f.open(QIODevice::ReadOnly)) {
-            auto size = f.size();
-            auto *data = f.map(0, size);
-            physx::PxDefaultMemoryInputData input(data, size);
-            m_convexMesh = thePhysics->createConvexMesh(input);
-            qCDebug(lcQuick3dPhysics) << "Read convex mesh" << m_convexMesh << "from file" << fn;
-        }
+    if (!m_ssgMesh.isValid())
+        return nullptr;
 
-        if (!m_convexMesh) {
-            loadSsgMesh();
-            if (!m_ssgMesh.isValid())
-                return nullptr;
+    physx::PxDefaultMemoryOutputStream buf;
+    physx::PxConvexMeshCookingResult::Enum result;
+    int vStride = m_ssgMesh.vertexBuffer().stride;
+    int vCount = m_ssgMesh.vertexBuffer().data.size() / vStride;
+    const auto *vd = m_ssgMesh.vertexBuffer().data.constData();
 
-            physx::PxDefaultMemoryOutputStream buf;
-            physx::PxConvexMeshCookingResult::Enum result;
-            int vStride = m_ssgMesh.vertexBuffer().stride;
-            int vCount = m_ssgMesh.vertexBuffer().data.size() / vStride;
-            const auto *vd = m_ssgMesh.vertexBuffer().data.constData();
+    qCDebug(lcQuick3dPhysics) << "prepare cooking" << vCount << "verts";
 
-            qCDebug(lcQuick3dPhysics) << "prepare cooking" << vCount << "verts";
+    QVector<physx::PxVec3> verts;
 
-            QVector<physx::PxVec3> verts;
+    for (int i = 0; i < vCount; ++i) {
+        auto *vp = reinterpret_cast<const QVector3D *>(vd + vStride * i + m_posOffset);
+        verts << physx::PxVec3 { vp->x(), vp->y(), vp->z() };
+    }
 
-            for (int i = 0; i < vCount; ++i) {
-                auto *vp = reinterpret_cast<const QVector3D *>(vd + vStride * i + m_posOffset);
-                verts << physx::PxVec3 { vp->x(), vp->y(), vp->z() };
-            }
+    const auto *convexVerts = verts.constData();
 
-            const auto *convexVerts = verts.constData();
+    physx::PxConvexMeshDesc convexDesc;
+    convexDesc.points.count = vCount;
+    convexDesc.points.stride = sizeof(physx::PxVec3);
+    convexDesc.points.data = convexVerts;
+    convexDesc.flags = physx::PxConvexFlag::eCOMPUTE_CONVEX;
 
-            physx::PxConvexMeshDesc convexDesc;
-            convexDesc.points.count = vCount;
-            convexDesc.points.stride = sizeof(physx::PxVec3);
-            convexDesc.points.data = convexVerts;
-            convexDesc.flags = physx::PxConvexFlag::eCOMPUTE_CONVEX;
-
-            if (QDynamicsWorld::getCooking()->cookConvexMesh(convexDesc, buf, &result)) {
-                auto size = buf.getSize();
-                auto *data = buf.getData();
-
-                if (cachingEnabled) {
-                    if (f.open(QIODevice::WriteOnly)) {
-                        f.write(reinterpret_cast<char *>(data), size);
-                        f.close();
-                        qCDebug(lcQuick3dPhysics) << "Wrote" << size << "bytes to" << f.fileName();
-                    } else {
-                        qCWarning(lcQuick3dPhysics)
-                                << "Could not open" << f.fileName() << "for writing.";
-                    }
-                }
-
-                physx::PxDefaultMemoryInputData input(data, size);
-                m_convexMesh = thePhysics->createConvexMesh(input);
-
-                qCDebug(lcQuick3dPhysics)
-                        << "Created convex mesh" << m_convexMesh << "for mesh" << this;
-            } else {
-                qCWarning(lcQuick3dPhysics) << "Could not create convex mesh from" << m_meshPath;
-            }
-        }
+    if (QDynamicsWorld::getCooking()->cookConvexMesh(convexDesc, buf, &result)) {
+        auto size = buf.getSize();
+        auto *data = buf.getData();
+        physx::PxDefaultMemoryInputData input(data, size);
+        m_convexMesh = thePhysics->createConvexMesh(input);
+        qCDebug(lcQuick3dPhysics) << "Created convex mesh" << m_convexMesh << "for mesh" << this;
+        QCacheUtils::writeCachedConvexMesh(m_meshPath, buf);
+    } else {
+        qCWarning(lcQuick3dPhysics) << "Could not create convex mesh from" << m_meshPath;
     }
 
     return m_convexMesh;
@@ -109,79 +82,58 @@ physx::PxConvexMesh *QQuick3DPhysicsMesh::convexMesh()
 
 physx::PxTriangleMesh *QQuick3DPhysicsMesh::triangleMesh()
 {
+
+    if (m_triangleMesh != nullptr)
+        return m_triangleMesh;
+
     physx::PxPhysics *thePhysics = QDynamicsWorld::getPhysics();
     if (thePhysics == nullptr)
         return nullptr;
 
-    static QString meshCachePath = qEnvironmentVariable("QT_PHYSX_CACHE_PATH");
-    static bool cachingEnabled = !meshCachePath.isEmpty();
+    m_triangleMesh = QCacheUtils::readCachedTriangleMesh(m_meshPath, *thePhysics);
 
-    QString fn = cachingEnabled ? QString::fromUtf8("%1/%2.triangle_physx")
-                                          .arg(meshCachePath, QFileInfo(m_meshPath).fileName())
-                                : QString::fromUtf8("%1.triangle_physx").arg(m_meshPath);
-    QFile f(fn);
+    if (m_triangleMesh != nullptr)
+        return m_triangleMesh;
 
-    if (f.open(QIODevice::ReadOnly)) {
-        auto size = f.size();
-        auto *data = f.map(0, size);
+    loadSsgMesh();
+    if (!m_ssgMesh.isValid())
+        return nullptr;
+
+    physx::PxDefaultMemoryOutputStream buf;
+    physx::PxTriangleMeshCookingResult::Enum result;
+    const int vStride = m_ssgMesh.vertexBuffer().stride;
+    const int vCount = m_ssgMesh.vertexBuffer().data.size() / vStride;
+    const auto *vd = m_ssgMesh.vertexBuffer().data.constData();
+
+    const int iStride =
+            m_ssgMesh.indexBuffer().componentType == QSSGMesh::Mesh::ComponentType::UnsignedInt16
+            ? 2
+            : 4;
+    const int iCount = m_ssgMesh.indexBuffer().data.size() / iStride;
+
+    qCDebug(lcQuick3dPhysics) << "prepare cooking" << vCount << "verts" << iCount << "idxs";
+
+    physx::PxTriangleMeshDesc triangleDesc;
+    triangleDesc.points.count = vCount;
+    triangleDesc.points.stride = vStride;
+    triangleDesc.points.data = vd + m_posOffset;
+
+    triangleDesc.flags = {}; //??? physx::PxMeshFlag::eFLIPNORMALS or
+                             // physx::PxMeshFlag::e16_BIT_INDICES
+    triangleDesc.triangles.count = iCount / 3;
+    triangleDesc.triangles.stride = iStride * 3;
+    triangleDesc.triangles.data = m_ssgMesh.indexBuffer().data.constData();
+
+    if (QDynamicsWorld::getCooking()->cookTriangleMesh(triangleDesc, buf, &result)) {
+        auto size = buf.getSize();
+        auto *data = buf.getData();
         physx::PxDefaultMemoryInputData input(data, size);
         m_triangleMesh = thePhysics->createTriangleMesh(input);
-        qCDebug(lcQuick3dPhysics) << "Read triangle mesh" << m_triangleMesh << "from file" << fn;
-    }
-
-    if (!m_triangleMesh) {
-        loadSsgMesh();
-        if (!m_ssgMesh.isValid())
-            return nullptr;
-
-        physx::PxDefaultMemoryOutputStream buf;
-        physx::PxTriangleMeshCookingResult::Enum result;
-        const int vStride = m_ssgMesh.vertexBuffer().stride;
-        const int vCount = m_ssgMesh.vertexBuffer().data.size() / vStride;
-        const auto *vd = m_ssgMesh.vertexBuffer().data.constData();
-
-        const int iStride = m_ssgMesh.indexBuffer().componentType
-                        == QSSGMesh::Mesh::ComponentType::UnsignedInt16
-                ? 2
-                : 4;
-        const int iCount = m_ssgMesh.indexBuffer().data.size() / iStride;
-
-        qCDebug(lcQuick3dPhysics) << "prepare cooking" << vCount << "verts" << iCount << "idxs";
-
-        physx::PxTriangleMeshDesc triangleDesc;
-        triangleDesc.points.count = vCount;
-        triangleDesc.points.stride = vStride;
-        triangleDesc.points.data = vd + m_posOffset;
-
-        triangleDesc.flags = {}; //??? physx::PxMeshFlag::eFLIPNORMALS or
-                                 // physx::PxMeshFlag::e16_BIT_INDICES
-        triangleDesc.triangles.count = iCount / 3;
-        triangleDesc.triangles.stride = iStride * 3;
-        triangleDesc.triangles.data = m_ssgMesh.indexBuffer().data.constData();
-
-        if (QDynamicsWorld::getCooking()->cookTriangleMesh(triangleDesc, buf, &result)) {
-            auto size = buf.getSize();
-            auto *data = buf.getData();
-
-            if (cachingEnabled) {
-                if (f.open(QIODevice::WriteOnly)) {
-                    f.write(reinterpret_cast<char *>(data), size);
-                    f.close();
-                    qCDebug(lcQuick3dPhysics) << "Wrote" << size << "bytes to" << f.fileName();
-                } else {
-                    qCWarning(lcQuick3dPhysics)
-                            << "Could not open" << f.fileName() << "for writing.";
-                }
-            }
-
-            physx::PxDefaultMemoryInputData input(data, size);
-            m_triangleMesh = thePhysics->createTriangleMesh(input);
-
-            qCDebug(lcQuick3dPhysics)
-                    << "Created triangle mesh" << m_triangleMesh << "for mesh" << this;
-        } else {
-            qCWarning(lcQuick3dPhysics) << "Could not create triangle mesh from" << m_meshPath;
-        }
+        qCDebug(lcQuick3dPhysics) << "Created triangle mesh" << m_triangleMesh << "for mesh"
+                                  << this;
+        QCacheUtils::writeCachedTriangleMesh(m_meshPath, buf);
+    } else {
+        qCWarning(lcQuick3dPhysics) << "Could not create triangle mesh from" << m_meshPath;
     }
 
     return m_triangleMesh;

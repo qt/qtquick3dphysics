@@ -25,6 +25,7 @@ qt_internal_add_qml_module(Quick3DPhysics
         qdynamicsworld.cpp qdynamicsworld_p.h
         qrigidbody.cpp qrigidbody_p.h
         qsphereshape.cpp qsphereshape_p.h
+        qcacheutils.cpp qcacheutils_p.h
         qphysicsmaterial.cpp qphysicsmaterial_p.h
         qabstractphysicsbody.cpp qabstractphysicsbody_p.h
         qphysicscommands.cpp qphysicscommands_p.h

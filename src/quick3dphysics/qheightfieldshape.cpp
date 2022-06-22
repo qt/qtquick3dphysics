@@ -1,6 +1,7 @@
 // Copyright (C) 2022 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
+#include "qcacheutils_p.h"
 #include "qheightfieldshape_p.h"
 
 #include <QFileInfo>
@@ -124,68 +125,45 @@ physx::PxHeightFieldSample *QQuick3DPhysicsHeightField::getSamples()
 
 physx::PxHeightField *QQuick3DPhysicsHeightField::heightField()
 {
-    if (!m_heightField) {
-        physx::PxPhysics *thePhysics = QDynamicsWorld::getPhysics();
+    if (m_heightField)
+        return m_heightField;
 
-        static QString cachePath = qEnvironmentVariable("QT_PHYSX_CACHE_PATH");
-        static bool cachingEnabled = !cachePath.isEmpty();
-        QString fn = cachingEnabled ? QString::fromUtf8("%1/%2.heightfield_physx")
-                                              .arg(cachePath, QFileInfo(m_sourcePath).fileName())
-                                    : QString::fromUtf8("%1.heightfield_physx").arg(m_sourcePath);
+    physx::PxPhysics *thePhysics = QDynamicsWorld::getPhysics();
+    if (thePhysics == nullptr)
+        return nullptr;
 
-        QFile f(fn);
-
-        if (f.open(QIODevice::ReadOnly)) {
-            auto size = f.size();
-            auto *data = f.map(0, size);
-            physx::PxDefaultMemoryInputData input(data, size);
-            m_heightField = thePhysics->createHeightField(input);
-            m_rows = m_heightField->getNbRows();
-            m_columns = m_heightField->getNbColumns();
-            qCDebug(lcQuick3dPhysics) << "Read height field" << m_heightField << "from file" << fn
-                                      << "dimensions" << m_columns << "x" << m_rows;
-        }
-
-        if (!m_heightField) {
-            physx::PxCooking *theCooking = QDynamicsWorld::getCooking();
-            getSamples();
-            int numRows = m_rows;
-            int numCols = m_columns;
-            auto samples = m_samples;
-
-            physx::PxHeightFieldDesc hfDesc;
-            hfDesc.format = physx::PxHeightFieldFormat::eS16_TM;
-            hfDesc.nbColumns = numRows;
-            hfDesc.nbRows = numCols;
-            hfDesc.samples.data = samples;
-            hfDesc.samples.stride = sizeof(physx::PxHeightFieldSample);
-
-            physx::PxDefaultMemoryOutputStream buf;
-            if (numRows && numCols && theCooking->cookHeightField(hfDesc, buf)) {
-                auto size = buf.getSize();
-                auto *data = buf.getData();
-
-                if (cachingEnabled) {
-                    if (f.open(QIODevice::WriteOnly)) {
-                        f.write(reinterpret_cast<char *>(data), size);
-                        f.close();
-                        qCDebug(lcQuick3dPhysics) << "Wrote" << size << "bytes to" << f.fileName();
-                    } else {
-                        qCWarning(lcQuick3dPhysics)
-                                << "Could not open" << f.fileName() << "for writing.";
-                    }
-                }
-
-                physx::PxDefaultMemoryInputData input(data, size);
-                m_heightField = thePhysics->createHeightField(input);
-
-                qCDebug(lcQuick3dPhysics) << "created height field" << m_heightField << numCols
-                                          << numRows << "from" << m_sourcePath;
-            } else {
-                qCWarning(lcQuick3dPhysics) << "Could not create height field from" << m_sourcePath;
-            }
-        }
+    m_heightField = QCacheUtils::readCachedHeightField(m_sourcePath, *thePhysics);
+    if (m_heightField != nullptr) {
+        m_rows = m_heightField->getNbRows();
+        m_columns = m_heightField->getNbColumns();
+        return m_heightField;
     }
+
+    getSamples();
+    int numRows = m_rows;
+    int numCols = m_columns;
+    auto samples = m_samples;
+
+    physx::PxHeightFieldDesc hfDesc;
+    hfDesc.format = physx::PxHeightFieldFormat::eS16_TM;
+    hfDesc.nbColumns = numRows;
+    hfDesc.nbRows = numCols;
+    hfDesc.samples.data = samples;
+    hfDesc.samples.stride = sizeof(physx::PxHeightFieldSample);
+
+    physx::PxDefaultMemoryOutputStream buf;
+    if (numRows && numCols && QDynamicsWorld::getCooking()->cookHeightField(hfDesc, buf)) {
+        auto size = buf.getSize();
+        auto *data = buf.getData();
+        physx::PxDefaultMemoryInputData input(data, size);
+        m_heightField = thePhysics->createHeightField(input);
+        qCDebug(lcQuick3dPhysics) << "created height field" << m_heightField << numCols << numRows
+                                  << "from" << m_sourcePath;
+        QCacheUtils::writeCachedHeightField(m_sourcePath, buf);
+    } else {
+        qCWarning(lcQuick3dPhysics) << "Could not create height field from" << m_sourcePath;
+    }
+
     return m_heightField;
 }
 
