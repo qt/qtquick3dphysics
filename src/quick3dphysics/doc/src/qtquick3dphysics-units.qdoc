@@ -14,26 +14,31 @@ Despite the module being unit-less all physical properties have default values t
 
 \section1 Custom units
 
-Using custom units is possible but you need to make sure all relevant properties are updated accordingly. Below is a table of the default properties adjusted for a meter based scale:
+Using custom units is possible but you need to make sure all relevant properties are updated accordingly. Below is a table showing the equivalent values of some properties in both a meter and a centimeter based scale:
 
 \table
 \header
     \li Property
-    \li Value
+    \li Value (cm)
+    \li Value (m)
 \row
     \li \l {DynamicsWorld::} {gravity}
+    \li \c 981
     \li \c 9.81
 \row
     \li \l {DynamicsWorld::} {typicalLength}
+    \li \c 100
     \li \c 1
 \row
     \li \l {DynamicsWorld::} {typicalSpeed}
+    \li \c 1000
     \li \c 10
 \row
     \li \l {DynamicRigidBody::} {density}
+    \li \c 0.001
     \li \c 1000
 \endtable
 
-Obviously, all the positions and dimensions of objects need to be adjusted as well as any impulses and forces.
+If converting from a centimeter to a meter based scale then all the positions and dimensions of objects as well as impulses and forces would need to be scaled by a factor of \c 0.01.
 
 */
