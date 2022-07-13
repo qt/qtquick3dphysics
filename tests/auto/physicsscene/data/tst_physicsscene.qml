@@ -64,6 +64,7 @@ Item {
 
                 TestCube {
                     id: fallingBox
+                    y: 1
                     color: "yellow"
                 }
             }
@@ -308,8 +309,8 @@ Item {
         when: fallingBox.stable
         function test_stable_position() {
             fuzzyCompare(fallingBox.y, 0, 0.0001)
-            fuzzyCompare(fallingBox.eulerRotation.x, 0, 0.1)
-            fuzzyCompare(fallingBox.eulerRotation.z, 0, 0.1)
+            fuzzyCompare(fallingBox.eulerRotation.x, 0, 1)
+            fuzzyCompare(fallingBox.eulerRotation.z, 0, 1)
         }
     }
 
