@@ -214,8 +214,8 @@ Item {
                 StaticRigidBody {
                     position: "0, 0, 0"
                     collisionShapes: HeightFieldShape {
-                        extents: Qt.vector3d(4, 4, 4)
                         heightMap: "hf.png"
+                        extents: "8, 2, 4"
                     }
                     physicsMaterial: frictionMaterial
                 }
@@ -223,7 +223,7 @@ Item {
                 DynamicRigidBody {
                     density: 1000
                     scale: "0.5, 0.5, 0.5"
-                    position: Qt.vector3d(1, 2, 1)
+                    position: Qt.vector3d(-3, 1, 0)
                     id: hfBall
 
                     collisionShapes: SphereShape {
@@ -257,7 +257,9 @@ Item {
                     name: "HeightField"
                     when: hfBall.stable
                     function test_ball_position() {
-                        fuzzyCompare(hfBall.y, -1.75, 0.01)
+                        fuzzyCompare(hfBall.x, 2, 0.5)
+                        fuzzyCompare(hfBall.y, -0.75, 0.1)
+                        fuzzyCompare(hfBall.z, 0, 0.5)
                     }
                 }
             }
