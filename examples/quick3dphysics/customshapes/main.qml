@@ -17,7 +17,7 @@ Window {
         id: physicsWorld
         running: false
         forceDebugView: false
-        typicalLength: 10
+        typicalLength: 2
         enableCCD: true
     }
 
@@ -189,7 +189,7 @@ Window {
                                                randomInRange(0, 360),
                                                randomInRange(0, 360))
 
-                    property vector3d initialPosition:  Qt.vector3d( 11, 20 + index * 3, 0)
+                    property vector3d initialPosition:  Qt.vector3d( 11 + 1.5*Math.cos(index/(Math.PI/4)), 5 + index * 1.5, 0)
                     position: initialPosition
 
                     property real sf: randomInRange(0.8, 1.4)
