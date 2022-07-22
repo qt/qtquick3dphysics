@@ -305,24 +305,482 @@ struct PhysXWorld
         x = nullptr;                                                                               \
     }
 
-class QPhysXBody
+class QAbstractPhysXNode
 {
 public:
-    QPhysXBody(QAbstractCollisionNode *node) : frontendNode(node) { node->m_backendObject = this; }
-
-    physx::PxRigidDynamic *dynamicActor()
+    QAbstractPhysXNode(QAbstractCollisionNode *node) : frontendNode(node)
     {
-        return isDynamic ? static_cast<physx::PxRigidDynamic *>(actor) : nullptr;
+        node->m_backendObject = this;
     }
+    virtual ~QAbstractPhysXNode() { }
+
+    bool cleanupIfRemoved(PhysXWorld *physX); // TODO rename??
+
+    virtual void init(QDynamicsWorld *world, PhysXWorld *physX) = 0;
+    virtual void updateDefaultDensity(float /*density*/) { }
+    virtual void createMaterial(PhysXWorld *physX);
+    virtual void markDirtyShapes() { }
+    virtual void rebuildDirtyShapes(QDynamicsWorld *, PhysXWorld *) { }
+
+    virtual void sync(float deltaTime) = 0;
+    virtual void cleanup(PhysXWorld *)
+    {
+        for (auto *shape : shapes)
+            PHYSX_RELEASE(shape);
+        if (material != defaultMaterial)
+            PHYSX_RELEASE(material);
+    }
+    virtual bool hasActor() { return false; } // TODO: refactor debug geometry!!!
+
+    bool shapesDirty() const { return frontendNode && frontendNode->m_shapesDirty; }
+    void setShapesDirty(bool dirty) { frontendNode->m_shapesDirty = dirty; }
 
     QVector<physx::PxShape *> shapes;
     physx::PxMaterial *material = nullptr;
-    physx::PxRigidActor *actor = nullptr;
-    physx::PxController *controller = nullptr; // TODO: do we want to have the controller here?
     QAbstractCollisionNode *frontendNode = nullptr;
-    bool isDynamic = true;
     bool isRemoved = false;
+    static physx::PxMaterial *defaultMaterial;
 };
+
+physx::PxMaterial *QAbstractPhysXNode::defaultMaterial = nullptr;
+
+bool QAbstractPhysXNode::cleanupIfRemoved(PhysXWorld *physX)
+{
+    if (isRemoved) {
+        cleanup(physX);
+        delete this;
+        return true;
+    }
+    return false;
+}
+
+class QPhysXCharacterController : public QAbstractPhysXNode
+{
+public:
+    QPhysXCharacterController(QCharacterController *frontEnd) : QAbstractPhysXNode(frontEnd) { }
+    void init(QDynamicsWorld *world, PhysXWorld *physX) override;
+
+    void sync(float deltaTime) override;
+    void createMaterial(PhysXWorld *physX) override;
+
+private:
+    physx::PxController *controller = nullptr;
+};
+
+class QPhysXActorBody : public QAbstractPhysXNode
+{
+public:
+    QPhysXActorBody(QAbstractCollisionNode *frontEnd) : QAbstractPhysXNode(frontEnd) { }
+    void cleanup(PhysXWorld *physX) override
+    {
+        if (actor) {
+            physX->scene->removeActor(*actor);
+            PHYSX_RELEASE(actor);
+        }
+        QAbstractPhysXNode::cleanup(physX);
+    }
+    void init(QDynamicsWorld *world, PhysXWorld *physX) override;
+    void sync(float) override;
+    void markDirtyShapes() override;
+    void rebuildDirtyShapes(QDynamicsWorld *world, PhysXWorld *physX) override;
+
+    bool hasActor() override { return true; }
+
+    void buildShapes(PhysXWorld *physX);
+
+    physx::PxRigidActor *actor = nullptr;
+};
+
+class QPhysXRigidBody : public QPhysXActorBody
+{
+public:
+    QPhysXRigidBody(QAbstractPhysicsBody *frontEnd) : QPhysXActorBody(frontEnd) { }
+    void createMaterial(PhysXWorld *physX) override;
+};
+
+class QPhysXStaticBody : public QPhysXRigidBody
+{
+public:
+    QPhysXStaticBody(QStaticRigidBody *frontEnd) : QPhysXRigidBody(frontEnd) { }
+
+    void sync(float deltaTime) override;
+};
+
+class QPhysXDynamicBody : public QPhysXRigidBody
+{
+public:
+    QPhysXDynamicBody(QDynamicRigidBody *frontEnd) : QPhysXRigidBody(frontEnd) { }
+
+    void sync(float deltaTime) override;
+    void rebuildDirtyShapes(QDynamicsWorld *world, PhysXWorld *physX) override;
+    void updateDefaultDensity(float density) override;
+};
+
+class QPhysXTriggerBody : public QPhysXActorBody
+{
+public:
+    QPhysXTriggerBody(QTriggerBody *frontEnd) : QPhysXActorBody(frontEnd) { }
+
+    void sync(float deltaTime) override;
+};
+
+class QPhysXFactory
+{
+public:
+    static QAbstractPhysXNode *createBackend(QAbstractCollisionNode *node)
+    { // TODO: virtual function in QAbstractCollisionNode??
+
+        if (auto *rigidBody = qobject_cast<QDynamicRigidBody *>(node))
+            return new QPhysXDynamicBody(rigidBody);
+        if (auto *staticBody = qobject_cast<QStaticRigidBody *>(node))
+            return new QPhysXStaticBody(staticBody);
+        if (auto *triggerBody = qobject_cast<QTriggerBody *>(node))
+            return new QPhysXTriggerBody(triggerBody);
+        if (auto *controller = qobject_cast<QCharacterController *>(node))
+            return new QPhysXCharacterController(controller);
+        Q_UNREACHABLE();
+    }
+};
+
+/*
+   NOTE
+   The inheritance hierarchy is not ideal, since both controller and rigid body have materials,
+   but trigger doesn't. AND both trigger and rigid body have actors, but controller doesn't.
+
+   TODO: defaultMaterial isn't used for rigid bodies, since they always create their own
+   QPhysicsMaterial with default values. We should only have a qt material when set explicitly.
+   */
+
+void QAbstractPhysXNode::createMaterial(PhysXWorld *physX)
+{
+    if (!defaultMaterial) {
+        defaultMaterial = physX->physics->createMaterial(QPhysicsMaterial::defaultStaticFriction,
+                                                         QPhysicsMaterial::defaultDynamicFriction,
+                                                         QPhysicsMaterial::defaultRestitution);
+    }
+    material = defaultMaterial;
+}
+
+static physx::PxMaterial *createMaterial(PhysXWorld *physX, QPhysicsMaterial *qtMaterial)
+{
+    return physX->physics->createMaterial(qtMaterial->staticFriction(),
+                                          qtMaterial->dynamicFriction(),
+                                          qtMaterial->restitution());
+}
+
+void QPhysXCharacterController::createMaterial(PhysXWorld *physX)
+{
+    auto *characterController = static_cast<QCharacterController *>(frontendNode);
+    if (auto *qtMaterial = characterController->physicsMaterial())
+        material = ::createMaterial(physX, qtMaterial);
+    else
+        QAbstractPhysXNode::createMaterial(physX);
+}
+
+void QPhysXRigidBody::createMaterial(PhysXWorld *physX)
+{
+    auto *rigidBody = static_cast<QAbstractPhysicsBody *>(frontendNode);
+    if (auto *qtMaterial = rigidBody->physicsMaterial())
+        material = ::createMaterial(physX, qtMaterial);
+    else
+        QAbstractPhysXNode::createMaterial(physX);
+}
+
+void QPhysXActorBody::init(QDynamicsWorld *, PhysXWorld *physX)
+{
+    Q_ASSERT(!actor);
+
+    //### Should probably have a virtual function for creating the actor
+    // TODO: make this more future proof
+    const bool isStatic = qobject_cast<QStaticRigidBody *>(frontendNode) != nullptr;
+    createMaterial(physX);
+
+    physx::PxTransform trf = getPhysXWorldTransform(frontendNode);
+
+    if (isStatic)
+        actor = physX->physics->createRigidStatic(trf);
+    else
+        actor = physX->physics->createRigidDynamic(trf);
+
+    actor->userData = reinterpret_cast<void *>(frontendNode);
+    physX->scene->addActor(*actor);
+    setShapesDirty(true);
+}
+
+void QPhysXCharacterController::init(QDynamicsWorld *world, PhysXWorld *physX)
+{
+    Q_ASSERT(!controller);
+
+    auto *characterController = static_cast<QCharacterController *>(frontendNode);
+
+    auto shapes = characterController->getCollisionShapesList();
+    if (shapes.empty())
+        return;
+    auto *capsule = qobject_cast<QCapsuleShape *>(shapes.first());
+    if (!capsule)
+        return;
+
+    auto *mgr = world->controllerManager();
+    if (!mgr)
+        return;
+
+    createMaterial(physX);
+
+    const QVector3D s = characterController->sceneScale();
+    const qreal hs = s.y();
+    const qreal rs = s.x();
+    physx::PxCapsuleControllerDesc desc;
+    desc.radius = rs * capsule->diameter() / 2;
+    desc.height = hs * capsule->height();
+    desc.stepOffset = desc.height / 4; // TODO: API
+
+    desc.material = material;
+    const QVector3D pos = characterController->scenePosition();
+    desc.position = { pos.x(), pos.y(), pos.z() };
+    controller = mgr->createController(desc);
+}
+
+void QPhysXDynamicBody::updateDefaultDensity(float density)
+{
+    QDynamicRigidBody *rigidBody = static_cast<QDynamicRigidBody *>(frontendNode);
+    rigidBody->updateDefaultDensity(density);
+}
+
+void QPhysXActorBody::markDirtyShapes()
+{
+    if (!frontendNode || !actor)
+        return;
+
+    // Go through the shapes and look for a change in pose (rotation, position)
+    // TODO: it is likely cheaper to connect a signal for changes on the position and rotation
+    // property and mark the node dirty then.
+    if (!shapesDirty()) {
+        const auto &collisionShapes = frontendNode->getCollisionShapesList();
+        const auto &physXShapes = shapes;
+
+        const int len = collisionShapes.size();
+        if (physXShapes.size() != len) {
+            // This should not really happen but check it anyway
+            setShapesDirty(true);
+        } else {
+
+            for (int i = 0; i < len; i++) {
+                auto poseNew = getPhysXLocalTransform(collisionShapes[i]);
+                auto poseOld = physXShapes[i]->getLocalPose();
+
+                if (!fuzzyEquals(poseNew, poseOld)) {
+                    setShapesDirty(true);
+                    break;
+                }
+            }
+        }
+    }
+}
+
+void QPhysXActorBody::buildShapes(PhysXWorld *physX)
+{
+    auto body = actor;
+    for (auto *shape : shapes) {
+        body->detachShape(*shape);
+        PHYSX_RELEASE(shape);
+    }
+
+    // TODO: Only remove changed shapes?
+    shapes.clear();
+
+    //### TODO: qobject_cast considered harmful
+    auto *triggerBody = qobject_cast<QTriggerBody *>(frontendNode);
+
+    for (const auto &collisionShape : frontendNode->getCollisionShapesList()) {
+        // TODO: shapes can be shared between multiple actors.
+        // Do we need to create new ones for every body?
+        auto *geom = collisionShape->getPhysXGeometry();
+        if (!geom || !material)
+            continue;
+        auto physXShape = physX->physics->createShape(*geom, *material);
+
+        if (triggerBody) {
+            physXShape->setFlag(physx::PxShapeFlag::eSIMULATION_SHAPE, false);
+            physXShape->setFlag(physx::PxShapeFlag::eTRIGGER_SHAPE, true);
+        }
+
+        shapes.push_back(physXShape);
+        physXShape->setLocalPose(getPhysXLocalTransform(collisionShape));
+        body->attachShape(*physXShape);
+    }
+}
+
+void QPhysXActorBody::rebuildDirtyShapes(QDynamicsWorld *, PhysXWorld *physX)
+{
+    if (!shapesDirty())
+        return;
+    buildShapes(physX);
+    setShapesDirty(false);
+}
+
+void QPhysXDynamicBody::rebuildDirtyShapes(QDynamicsWorld *world, PhysXWorld *physX)
+{
+    if (!shapesDirty())
+        return;
+
+    buildShapes(physX);
+
+    QDynamicRigidBody *drb = static_cast<QDynamicRigidBody *>(frontendNode);
+
+    // Density must be set after shapes so the inertia tensor is set
+    if (!drb->hasStaticShapes()) {
+        // Body with only dynamic shapes, set/calculate mass
+        QPhysicsCommand *command = nullptr;
+        switch (drb->massMode()) {
+        case QDynamicRigidBody::MassMode::Density: {
+            const float density = drb->density() < 0.f ? world->defaultDensity() : drb->density();
+            command = new QPhysicsCommandSetDensity(density);
+            break;
+        }
+        case QDynamicRigidBody::MassMode::Mass: {
+            const float mass = qMax(drb->mass(), 0.f);
+            command = new QPhysicsCommandSetMass(mass);
+            break;
+        }
+        case QDynamicRigidBody::MassMode::MassAndInertiaTensor: {
+            const float mass = qMax(drb->mass(), 0.f);
+            command = new QPhysicsCommandSetMassAndInertiaTensor(mass, drb->inertiaTensor());
+            break;
+        }
+        case QDynamicRigidBody::MassMode::MassAndInertiaMatrix: {
+            const float mass = qMax(drb->mass(), 0.f);
+            command = new QPhysicsCommandSetMassAndInertiaMatrix(mass, drb->inertiaMatrix());
+            break;
+        }
+        }
+
+        drb->commandQueue().enqueue(command);
+    } else if (!drb->isKinematic()) {
+        // Body with static shapes that is not kinematic, this is disallowed
+        qWarning() << "Cannot make body containing trimesh/heightfield/plane non-kinematic, "
+                      "forcing kinematic.";
+        drb->setIsKinematic(true);
+    }
+
+    auto *dynamicBody = static_cast<physx::PxRigidDynamic *>(actor);
+    dynamicBody->setRigidBodyFlag(physx::PxRigidBodyFlag::eKINEMATIC, drb->isKinematic());
+
+    if (world->enableCCD() && !drb->isKinematic()) // CCD not supported for kinematic bodies
+        dynamicBody->setRigidBodyFlag(physx::PxRigidBodyFlag::eENABLE_CCD, true);
+
+    setShapesDirty(false);
+}
+
+static void processCommandQueue(QQueue<QPhysicsCommand *> &commandQueue,
+                                const QDynamicRigidBody &rigidBody, physx::PxRigidBody &body)
+{
+    for (auto command : commandQueue) {
+        command->execute(rigidBody, body);
+        delete command;
+    }
+
+    commandQueue.clear();
+}
+
+static physx::PxRigidDynamicLockFlags getLockFlags(QDynamicRigidBody *body)
+{
+    const int flags =
+            (body->axisLockAngularX() ? physx::PxRigidDynamicLockFlag::eLOCK_ANGULAR_X : 0)
+            | (body->axisLockAngularY() ? physx::PxRigidDynamicLockFlag::eLOCK_ANGULAR_Y : 0)
+            | (body->axisLockAngularZ() ? physx::PxRigidDynamicLockFlag::eLOCK_ANGULAR_Z : 0)
+            | (body->axisLockLinearX() ? physx::PxRigidDynamicLockFlag::eLOCK_LINEAR_X : 0)
+            | (body->axisLockLinearY() ? physx::PxRigidDynamicLockFlag::eLOCK_LINEAR_Y : 0)
+            | (body->axisLockLinearZ() ? physx::PxRigidDynamicLockFlag::eLOCK_LINEAR_Z : 0);
+    return static_cast<physx::PxRigidDynamicLockFlags>(flags);
+}
+
+static void updatePhysXMaterial(const QPhysicsMaterial *qtMaterial,
+                                physx::PxMaterial *physXMaterial)
+{
+    const float staticFriction = qtMaterial->staticFriction();
+    const float dynamicFriction = qtMaterial->dynamicFriction();
+    const float restitution = qtMaterial->restitution();
+    if (physXMaterial->getStaticFriction() != staticFriction)
+        physXMaterial->setStaticFriction(staticFriction);
+    if (physXMaterial->getDynamicFriction() != dynamicFriction)
+        physXMaterial->setDynamicFriction(dynamicFriction);
+    if (physXMaterial->getRestitution() != restitution)
+        physXMaterial->setRestitution(restitution);
+}
+
+void QPhysXActorBody::sync(float)
+{
+    auto *body = static_cast<QAbstractPhysicsBody *>(frontendNode);
+    if (QPhysicsMaterial *qtMaterial = body->physicsMaterial()) {
+        updatePhysXMaterial(qtMaterial, material);
+    }
+}
+
+void QPhysXTriggerBody::sync(float)
+{
+    auto *triggerBody = static_cast<QTriggerBody *>(frontendNode);
+    actor->setGlobalPose(getPhysXWorldTransform(triggerBody));
+}
+
+void QPhysXDynamicBody::sync(float deltaTime)
+{
+    auto *dynamicRigidBody = static_cast<QDynamicRigidBody *>(frontendNode);
+    // first update front end node from physx simulation
+    if (!dynamicRigidBody->isKinematic())
+        dynamicRigidBody->updateFromPhysicsTransform(actor->getGlobalPose());
+
+    auto *dynamicActor = static_cast<physx::PxRigidDynamic *>(actor);
+    processCommandQueue(dynamicRigidBody->commandQueue(), *dynamicRigidBody, *dynamicActor);
+    if (dynamicRigidBody->isKinematic())
+        dynamicActor->setKinematicTarget(getPhysXWorldTransform(dynamicRigidBody));
+    else
+        dynamicActor->setRigidDynamicLockFlags(getLockFlags(dynamicRigidBody));
+
+    QPhysXActorBody::sync(deltaTime);
+}
+
+void QPhysXCharacterController::sync(float deltaTime)
+{
+    Q_ASSERT(controller);
+    auto pos = controller->getPosition();
+    QVector3D qtPosition(pos.x, pos.y, pos.z);
+    auto *characterController = static_cast<QCharacterController *>(frontendNode);
+
+    // update node from physX
+    const QQuick3DNode *parentNode = static_cast<QQuick3DNode *>(characterController->parentItem());
+    if (!parentNode) {
+        // then it is the same space
+        characterController->setPosition(qtPosition);
+    } else {
+        characterController->setPosition(parentNode->mapPositionFromScene(qtPosition));
+    }
+    QVector3D teleportPos;
+    bool teleport = characterController->getTeleport(teleportPos);
+    if (teleport) {
+        controller->setPosition({ teleportPos.x(), teleportPos.y(), teleportPos.z() });
+    } else if (deltaTime > 0) {
+        const auto movement = characterController->getMovement(deltaTime);
+        physx::PxVec3 displacement(movement.x(), movement.y(), movement.z());
+        auto collisions =
+                controller->move(displacement, displacement.magnitude() / 100, deltaTime, {});
+        characterController->setCollisions(QCharacterController::Collisions(uint(collisions)));
+    }
+    // QCharacterController has a material property, but we don't inherit from
+    // QPhysXMaterialBody, so we create the material manually in init()
+    // TODO: handle material changes
+}
+
+void QPhysXStaticBody::sync(float deltaTime)
+{
+    auto *staticBody = static_cast<QStaticRigidBody *>(frontendNode);
+    const physx::PxTransform poseNew = getPhysXWorldTransform(staticBody);
+    const physx::PxTransform poseOld = actor->getGlobalPose();
+
+    // For performance we only update static objects if they have been moved
+    if (!fuzzyEquals(poseNew, poseOld))
+        actor->setGlobalPose(poseNew);
+    QPhysXActorBody::sync(deltaTime);
+}
 
 QDynamicsWorld::QDynamicsWorld(QObject *parent) : QObject(parent)
 {
@@ -427,11 +885,12 @@ bool QDynamicsWorld::hasReceiveContactReports(QAbstractCollisionNode *object) co
 
 void QDynamicsWorld::registerNode(QAbstractCollisionNode *collisionNode)
 {
-    m_physXBodies.push_back(new QPhysXBody(collisionNode));
+    m_newCollisionNodes.push_back(collisionNode);
 }
 
 void QDynamicsWorld::deregisterNode(QAbstractCollisionNode *collisionNode)
 {
+    m_newCollisionNodes.removeAll(collisionNode);
     if (collisionNode->m_backendObject)
         collisionNode->m_backendObject->isRemoved = true;
 
@@ -534,7 +993,12 @@ void QDynamicsWorld::updateDebugDraw()
 
     m_hasIndividualDebugView = false;
 
-    for (QPhysXBody *body : m_physXBodies) {
+    for (QAbstractPhysXNode *node : m_physXBodies) {
+        // TODO: refactor debug geometry handling as well
+        if (!node->hasActor())
+            continue;
+        auto *body = static_cast<QPhysXActorBody *>(node);
+
         const auto &collisionShapes = body->frontendNode->getCollisionShapesList();
         const int length = collisionShapes.length();
         if (body->shapes.length() < length)
@@ -667,7 +1131,8 @@ void QDynamicsWorld::disableDebugDraw()
 
     m_hasIndividualDebugView = false;
 
-    for (QPhysXBody *body : m_physXBodies) {
+    for (QAbstractPhysXNode *body : m_physXBodies) {
+        // TODO: refactor debug geometry handling as well
         const auto &collisionShapes = body->frontendNode->getCollisionShapesList();
         const int length = collisionShapes.length();
         for (int idx = 0; idx < length; idx++) {
@@ -751,11 +1216,8 @@ void QDynamicsWorld::setDefaultDensity(float defaultDensity)
     m_defaultDensity = defaultDensity;
 
     // Go through all dynamic rigid bodies and update the default density
-    for (QPhysXBody *body : m_physXBodies) {
-        QDynamicRigidBody *rigidBody = qobject_cast<QDynamicRigidBody *>(body->frontendNode);
-        if (rigidBody)
-            rigidBody->updateDefaultDensity(m_defaultDensity);
-    }
+    for (QAbstractPhysXNode *body : m_physXBodies)
+        body->updateDefaultDensity(m_defaultDensity);
 
     emit defaultDensityChanged(defaultDensity);
 }
@@ -764,86 +1226,6 @@ void QDynamicsWorld::timerEvent(QTimerEvent *event)
 {
     if (event->timerId() == m_updateTimer.timerId())
         updatePhysics();
-}
-
-static void processCommandQueue(QQueue<QPhysicsCommand *> &commandQueue,
-                                const QDynamicRigidBody &rigidBody, physx::PxRigidBody &body)
-{
-    for (auto command : commandQueue) {
-        command->execute(rigidBody, body);
-        delete command;
-    }
-
-    commandQueue.clear();
-}
-
-void QDynamicsWorld::markDirtyShapes(QPhysXBody *physXBody)
-{
-    // This method goes through the shapes and look for a change in pose (rotation, position)
-    // TODO: it is likely cheaper to connect a signal for changes on the position and rotation
-    // property and mark the node dirty then. This method can then be removed.
-    if (!physXBody || !physXBody->frontendNode || !physXBody->actor
-        || physXBody->frontendNode->m_shapesDirty)
-        return;
-
-    const auto &collisionShapes = physXBody->frontendNode->getCollisionShapesList();
-    const auto &physXShapes = physXBody->shapes;
-
-    const int len = collisionShapes.size();
-    if (physXShapes.size() != len) {
-        // This should not really happen but check it anyway
-        physXBody->frontendNode->m_shapesDirty = true;
-        return;
-    }
-
-    for (int i = 0; i < len; i++) {
-        auto poseNew = getPhysXLocalTransform(collisionShapes[i]);
-        auto poseOld = physXShapes[i]->getLocalPose();
-
-        if (!fuzzyEquals(poseNew, poseOld)) {
-            physXBody->frontendNode->m_shapesDirty = true;
-            return;
-        }
-    }
-}
-
-void QDynamicsWorld::rebuildDirtyShapes(QPhysXBody *physXBody)
-{
-    if (!(physXBody && physXBody->frontendNode && physXBody->actor
-          && physXBody->frontendNode->m_shapesDirty))
-        return;
-
-    // TODO: Only remove changed shapes?
-    auto body = physXBody->actor;
-    for (auto *shape : physXBody->shapes) {
-        body->detachShape(*shape);
-        PHYSX_RELEASE(shape);
-    }
-    physXBody->shapes.clear();
-
-    auto *collisionNode = physXBody->frontendNode;
-    auto *triggerBody = qobject_cast<QTriggerBody *>(collisionNode);
-
-    for (const auto &collisionShape : collisionNode->getCollisionShapesList()) {
-        // TODO: shapes can be shared between multiple actors.
-        // Do we need to create new ones for every body?
-        auto *geom = collisionShape->getPhysXGeometry();
-        auto *material = physXBody->material;
-        if (!geom || !material)
-            continue;
-        auto physXShape = m_physx->physics->createShape(*geom, *material);
-
-        if (triggerBody) {
-            physXShape->setFlag(physx::PxShapeFlag::eSIMULATION_SHAPE, false);
-            physXShape->setFlag(physx::PxShapeFlag::eTRIGGER_SHAPE, true);
-        }
-
-        physXBody->shapes.push_back(physXShape);
-        physXShape->setLocalPose(getPhysXLocalTransform(collisionShape));
-        body->attachShape(*physXShape);
-    }
-
-    physXBody->frontendNode->m_shapesDirty = false;
 }
 
 void QDynamicsWorld::findSceneView()
@@ -869,199 +1251,13 @@ void QDynamicsWorld::findSceneView()
     }
 }
 
-void QDynamicsWorld::initPhysXBody(QPhysXBody *physXBody)
-{
-    if (physXBody->actor || physXBody->controller)
-        return;
-
-    auto *characterController = qobject_cast<QCharacterController *>(physXBody->frontendNode);
-    if (characterController) {
-        // TODO: move character controller code out of this function
-
-        auto shapes = characterController->getCollisionShapesList();
-        if (shapes.empty())
-            return;
-        auto *capsule = qobject_cast<QCapsuleShape *>(shapes.first());
-        if (!capsule)
-            return;
-
-        auto *mgr = controllerManager();
-        if (!mgr)
-            return;
-
-        auto *material = characterController->physicsMaterial();
-        float staticFriction = QPhysicsMaterial::defaultStaticFriction;
-        float dynamicFriction = QPhysicsMaterial::defaultDynamicFriction;
-        float restitution = QPhysicsMaterial::defaultRestitution;
-
-        if (material) {
-            staticFriction = material->staticFriction();
-            dynamicFriction = material->dynamicFriction();
-            restitution = material->restitution();
-        }
-        const QVector3D s = characterController->sceneScale();
-        const qreal hs = s.y();
-        const qreal rs = s.x();
-        physx::PxCapsuleControllerDesc desc;
-        desc.radius = rs * capsule->diameter() / 2;
-        desc.height = hs * capsule->height();
-        desc.stepOffset = desc.height / 4; // TODO: API
-
-        desc.material =
-                m_physx->physics->createMaterial(staticFriction, dynamicFriction, restitution);
-        const QVector3D pos = characterController->scenePosition();
-        desc.position = { pos.x(), pos.y(), pos.z() };
-        auto *controller = mgr->createController(desc);
-
-        physXBody->controller = controller;
-        return;
-    }
-
-    auto *collisionNode = physXBody->frontendNode;
-    auto *rigidNode = qobject_cast<QAbstractPhysicsBody *>(collisionNode);
-    auto *triggerBody = qobject_cast<QTriggerBody *>(collisionNode);
-    QPhysicsMaterial *physicsMaterial = rigidNode ? rigidNode->physicsMaterial() : nullptr;
-    const bool isStatic = qobject_cast<QStaticRigidBody *>(rigidNode) != nullptr;
-    physx::PxRigidDynamic *dynamicBody = nullptr;
-
-    float staticFriction = QPhysicsMaterial::defaultStaticFriction;
-    float dynamicFriction = QPhysicsMaterial::defaultDynamicFriction;
-    float restitution = QPhysicsMaterial::defaultRestitution;
-
-    if (physicsMaterial) {
-        staticFriction = physicsMaterial->staticFriction();
-        dynamicFriction = physicsMaterial->dynamicFriction();
-        restitution = physicsMaterial->restitution();
-    }
-
-    // TODO: share physx materials
-    physXBody->material =
-            m_physx->physics->createMaterial(staticFriction, dynamicFriction, restitution);
-
-    physx::PxTransform trf = getPhysXWorldTransform(collisionNode);
-    physx::PxRigidActor *body;
-    if (rigidNode && isStatic) {
-        body = m_physx->physics->createRigidStatic(trf);
-        physXBody->isDynamic = false;
-    } else {
-        body = dynamicBody = m_physx->physics->createRigidDynamic(trf);
-    }
-    body->userData = reinterpret_cast<void *>(collisionNode);
-
-    for (const auto &collisionShape : collisionNode->getCollisionShapesList()) {
-        // TODO: shapes can be shared between multiple actors.
-        // Do we need to create new ones for every body?
-        auto *geom = collisionShape->getPhysXGeometry();
-        auto *material = physXBody->material;
-        if (!geom || !material)
-            continue;
-        auto physXShape = m_physx->physics->createShape(*geom, *material);
-
-        if (triggerBody) {
-            physXShape->setFlag(physx::PxShapeFlag::eSIMULATION_SHAPE, false);
-            physXShape->setFlag(physx::PxShapeFlag::eTRIGGER_SHAPE, true);
-        }
-
-        physXBody->shapes.push_back(physXShape);
-        physXShape->setLocalPose(getPhysXLocalTransform(collisionShape));
-        body->attachShape(*physXShape);
-    }
-
-    // Density must be set after shapes so the inertia tensor is set
-    if (dynamicBody && !triggerBody) {
-        QDynamicRigidBody *drb = static_cast<QDynamicRigidBody *>(collisionNode);
-        if (!drb->hasStaticShapes()) {
-            // Body with only dynamic shapes, set/calculate mass
-            QPhysicsCommand *command = nullptr;
-
-            switch (drb->massMode()) {
-            case QDynamicRigidBody::MassMode::Density: {
-                const float density = drb->density() < 0.f ? m_defaultDensity : drb->density();
-                command = new QPhysicsCommandSetDensity(density);
-                break;
-            }
-            case QDynamicRigidBody::MassMode::Mass: {
-                const float mass = qMax(drb->mass(), 0.f);
-                command = new QPhysicsCommandSetMass(mass);
-                break;
-            }
-            case QDynamicRigidBody::MassMode::MassAndInertiaTensor: {
-                const float mass = qMax(drb->mass(), 0.f);
-                command = new QPhysicsCommandSetMassAndInertiaTensor(mass, drb->inertiaTensor());
-                break;
-            }
-            case QDynamicRigidBody::MassMode::MassAndInertiaMatrix: {
-                const float mass = qMax(drb->mass(), 0.f);
-                command = new QPhysicsCommandSetMassAndInertiaMatrix(mass, drb->inertiaMatrix());
-                break;
-            }
-            }
-
-            drb->commandQueue().enqueue(command);
-        } else if (!drb->isKinematic()) {
-            // Body with static shapes that is not kinematic, this is disallowed
-            qWarning() << "Cannot make body containing trimesh/heightfield/plane non-kinematic, "
-                          "forcing kinematic.";
-            drb->setIsKinematic(true);
-        }
-
-        dynamicBody->setRigidBodyFlag(physx::PxRigidBodyFlag::eKINEMATIC, drb->isKinematic());
-
-        if (m_enableCCD && !drb->isKinematic()) // CCD not supported for kinematic bodies
-            dynamicBody->setRigidBodyFlag(physx::PxRigidBodyFlag::eENABLE_CCD, true);
-    }
-
-    m_physx->scene->addActor(*body);
-    physXBody->actor = body;
-    physXBody->frontendNode->m_shapesDirty = false;
-}
-
-static physx::PxRigidDynamicLockFlags getLockFlags(QDynamicRigidBody *body)
-{
-    const int flags =
-            (body->axisLockAngularX() ? physx::PxRigidDynamicLockFlag::eLOCK_ANGULAR_X : 0)
-            | (body->axisLockAngularY() ? physx::PxRigidDynamicLockFlag::eLOCK_ANGULAR_Y : 0)
-            | (body->axisLockAngularZ() ? physx::PxRigidDynamicLockFlag::eLOCK_ANGULAR_Z : 0)
-            | (body->axisLockLinearX() ? physx::PxRigidDynamicLockFlag::eLOCK_LINEAR_X : 0)
-            | (body->axisLockLinearY() ? physx::PxRigidDynamicLockFlag::eLOCK_LINEAR_Y : 0)
-            | (body->axisLockLinearZ() ? physx::PxRigidDynamicLockFlag::eLOCK_LINEAR_Z : 0);
-    return static_cast<physx::PxRigidDynamicLockFlags>(flags);
-}
-
-static void updatePhysXMaterial(const QPhysicsMaterial *qtMaterial,
-                                physx::PxMaterial *physXMaterial)
-{
-    const float staticFriction = qtMaterial->staticFriction();
-    const float dynamicFriction = qtMaterial->dynamicFriction();
-    const float restitution = qtMaterial->restitution();
-    if (physXMaterial->getStaticFriction() != staticFriction)
-        physXMaterial->setStaticFriction(staticFriction);
-    if (physXMaterial->getDynamicFriction() != dynamicFriction)
-        physXMaterial->setDynamicFriction(dynamicFriction);
-    if (physXMaterial->getRestitution() != restitution)
-        physXMaterial->setRestitution(restitution);
-}
-
 // Remove physics world items that no longer exist
 
 void QDynamicsWorld::cleanupRemovedNodes()
 {
-    auto cleanup = [this](QPhysXBody *body) -> bool {
-        if (body->isRemoved) {
-            PHYSX_RELEASE(body->material);
-            for (auto *shape : body->shapes)
-                PHYSX_RELEASE(shape);
-            if (body->actor) {
-                m_physx->scene->removeActor(*body->actor);
-                PHYSX_RELEASE(body->actor);
-            }
-            delete body;
-            return true;
-        }
-        return false;
-    };
-
-    m_physXBodies.removeIf(cleanup);
+    m_physXBodies.removeIf([this](QAbstractPhysXNode *body) {
+                               return body->cleanupIfRemoved(m_physx);
+                           });
     m_removedCollisionNodes.clear();
 }
 
@@ -1111,6 +1307,12 @@ void QDynamicsWorld::updatePhysics()
         return;
 
     cleanupRemovedNodes();
+    for (auto *node : qAsConst(m_newCollisionNodes)) {
+        auto *body = QPhysXFactory::createBackend(node);
+        body->init(this, m_physx);
+        m_physXBodies.push_back(body);
+    }
+    m_newCollisionNodes.clear();
 
     // Calculate time step
     constexpr float MAX_DELTA = 0.033f; // 30 fps
@@ -1119,74 +1321,11 @@ void QDynamicsWorld::updatePhysics()
 
     // TODO: Use dirty flag/dirty list to avoid redoing things that didn't change
     for (auto *physXBody : qAsConst(m_physXBodies)) {
-        markDirtyShapes(physXBody);
-        rebuildDirtyShapes(physXBody);
-        initPhysXBody(physXBody);
+        physXBody->markDirtyShapes();
+        physXBody->rebuildDirtyShapes(this, m_physx);
 
-        // Sync the physics world with the scene
-        // ### maybe do more
-        auto *characterController = qobject_cast<QCharacterController *>(physXBody->frontendNode);
-        auto *rigidBody = qobject_cast<QDynamicRigidBody *>(physXBody->frontendNode);
-        auto *staticBody = qobject_cast<QStaticRigidBody *>(physXBody->frontendNode);
-        auto *triggerBody = qobject_cast<QTriggerBody *>(physXBody->frontendNode);
-
-        if (rigidBody && !rigidBody->isKinematic())
-            rigidBody->updateFromPhysicsTransform(physXBody->actor->getGlobalPose());
-
-        // Make sure the physics world items are up-to-date
-
-        if (characterController) {
-            Q_ASSERT(physXBody->controller);
-            auto pos = physXBody->controller->getPosition();
-            QVector3D qtPosition(pos.x, pos.y, pos.z);
-
-            // update node from physX
-            const QQuick3DNode *parentNode =
-                    static_cast<QQuick3DNode *>(characterController->parentItem());
-            if (!parentNode) {
-                // then it is the same space
-                characterController->setPosition(qtPosition);
-            } else {
-                characterController->setPosition(parentNode->mapPositionFromScene(qtPosition));
-            }
-            QVector3D teleportPos;
-            bool teleport = characterController->getTeleport(teleportPos);
-            if (teleport) {
-                physXBody->controller->setPosition(
-                        { teleportPos.x(), teleportPos.y(), teleportPos.z() });
-            } else if (deltaTime > 0) {
-                const auto movement = characterController->getMovement(deltaTime);
-                physx::PxVec3 displacement(movement.x(), movement.y(), movement.z());
-                auto collisions = physXBody->controller->move(
-                        displacement, displacement.magnitude() / 100, deltaTime, {});
-                characterController->setCollisions(
-                        QCharacterController::Collisions(uint(collisions)));
-            }
-        } else if (triggerBody) {
-            physXBody->actor->setGlobalPose(getPhysXWorldTransform(triggerBody));
-        } else if (rigidBody) {
-            QDynamicRigidBody *dynamicBody = qobject_cast<QDynamicRigidBody *>(rigidBody);
-            if (dynamicBody) {
-                processCommandQueue(dynamicBody->commandQueue(), *dynamicBody,
-                                    *physXBody->dynamicActor());
-                if (dynamicBody->isKinematic())
-                    physXBody->dynamicActor()->setKinematicTarget(
-                            getPhysXWorldTransform(rigidBody));
-                else
-                    physXBody->dynamicActor()->setRigidDynamicLockFlags(getLockFlags(dynamicBody));
-            }
-
-            // Sync material
-            if (QPhysicsMaterial *physicsMaterial = rigidBody->physicsMaterial())
-                updatePhysXMaterial(physicsMaterial, physXBody->material);
-        } else if (staticBody) {
-            const physx::PxTransform poseNew = getPhysXWorldTransform(staticBody);
-            const physx::PxTransform poseOld = physXBody->actor->getGlobalPose();
-
-            // For performance we only update static objects if they have been moved
-            if (!fuzzyEquals(poseNew, poseOld))
-                physXBody->actor->setGlobalPose(poseNew);
-        }
+        // Sync the physics world and the scene
+        physXBody->sync(deltaTime);
     }
 
     updateDebugDraw();

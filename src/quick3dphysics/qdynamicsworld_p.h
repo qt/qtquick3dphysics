@@ -45,7 +45,7 @@ Q_DECLARE_LOGGING_CATEGORY(lcQuick3dPhysics);
 class QAbstractCollisionNode;
 class QAbstractCollisionShape;
 class QAbstractRigidBody;
-class QPhysXBody;
+class QAbstractPhysXNode;
 class QQuick3DModel;
 class QQuick3DDefaultMaterial;
 struct PhysXWorld;
@@ -99,6 +99,8 @@ public:
     QQuick3DViewport *sceneView() const;
 
     void setHasIndividualDebugView();
+
+    physx::PxControllerManager *controllerManager();
 
 public slots:
     void setGravity(QVector3D gravity);
@@ -155,8 +157,8 @@ private:
         void setColumnScale(float columnScale) { data.setZ(columnScale); }
     };
 
-    QList<QPhysXBody *> m_physXBodies;
-    QList<QAbstractCollisionShape *> m_collisionShapes;
+    QList<QAbstractPhysXNode *> m_physXBodies;
+    QList<QAbstractCollisionNode *> m_newCollisionNodes;
     QMap<QAbstractCollisionShape *, DebugModelHolder> m_collisionShapeDebugModels;
     QSet<QAbstractCollisionNode *> m_removedCollisionNodes;
 
@@ -187,10 +189,6 @@ private:
     static physx::PxPhysics *getPhysics();
     static physx::PxCooking *getCooking();
     physx::PxCooking *cooking();
-    physx::PxControllerManager *controllerManager();
-    void initPhysXBody(QPhysXBody *);
-    void markDirtyShapes(QPhysXBody *physXBody);
-    void rebuildDirtyShapes(QPhysXBody *physXBody);
     void findSceneView();
 };
 

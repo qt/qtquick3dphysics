@@ -28,7 +28,7 @@ class PxShape;
 
 QT_BEGIN_NAMESPACE
 
-class QPhysXBody;
+class QAbstractPhysXNode;
 
 class Q_QUICK3DPHYSICS_EXPORT QAbstractCollisionNode : public QQuick3DNode
 {
@@ -50,8 +50,6 @@ public:
 
     QQmlListProperty<QAbstractCollisionShape> collisionShapes();
     const QVector<QAbstractCollisionShape *> &getCollisionShapesList() const;
-
-    physx::PxGeometry *getPhysXGeometry();
 
     void updateFromPhysicsTransform(const physx::PxTransform &transform);
 
@@ -95,9 +93,9 @@ private:
     bool m_enableTriggerReports = false;
     bool m_hasStaticShapes = false;
 
-    friend class QPhysXBody;
+    friend class QAbstractPhysXNode;
     friend class QDynamicsWorld; // for register/deregister TODO: cleaner mechanism
-    QPhysXBody *m_backendObject = nullptr;
+    QAbstractPhysXNode *m_backendObject = nullptr;
 };
 
 QT_END_NAMESPACE
