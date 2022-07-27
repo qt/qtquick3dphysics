@@ -6,7 +6,7 @@ qt_internal_add_test(tst_physicsscene
     QMLTEST
     SOURCES
         tst_physicsscene.cpp
-    PUBLIC_LIBRARIES
+    LIBRARIES
         Qt::Core
         Qt::Qml
     TESTDATA

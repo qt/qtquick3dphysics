@@ -5,7 +5,7 @@ qt_internal_add_manual_test(test_charactercontroller
     GUI
     SOURCES
         main.cpp
-    PUBLIC_LIBRARIES
+    LIBRARIES
         Qt::Gui
         Qt::Quick
         Qt::Quick3D
