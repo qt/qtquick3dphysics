@@ -330,7 +330,10 @@ public:
         if (material != defaultMaterial)
             PHYSX_RELEASE(material);
     }
-    virtual bool hasActor() { return false; } // TODO: refactor debug geometry!!!
+    virtual bool debugGeometryCapability() { return false; }
+    virtual physx::PxTransform getGlobalPose() { return {}; }
+
+    virtual bool useTriggerFlag() { return false; }
 
     bool shapesDirty() const { return frontendNode && frontendNode->m_shapesDirty; }
     void setShapesDirty(bool dirty) { frontendNode->m_shapesDirty = dirty; }
@@ -384,8 +387,8 @@ public:
     void markDirtyShapes() override;
     void rebuildDirtyShapes(QDynamicsWorld *world, PhysXWorld *physX) override;
 
-    bool hasActor() override { return true; }
-
+    bool debugGeometryCapability() override { return true; }
+    physx::PxTransform getGlobalPose() override { return actor->getGlobalPose(); }
     void buildShapes(PhysXWorld *physX);
 
     physx::PxRigidActor *actor = nullptr;
@@ -422,6 +425,7 @@ public:
     QPhysXTriggerBody(QTriggerBody *frontEnd) : QPhysXActorBody(frontEnd) { }
 
     void sync(float deltaTime) override;
+    bool useTriggerFlag() override { return true; }
 };
 
 class QPhysXFactory
@@ -588,9 +592,6 @@ void QPhysXActorBody::buildShapes(PhysXWorld *physX)
     // TODO: Only remove changed shapes?
     shapes.clear();
 
-    //### TODO: qobject_cast considered harmful
-    auto *triggerBody = qobject_cast<QTriggerBody *>(frontendNode);
-
     for (const auto &collisionShape : frontendNode->getCollisionShapesList()) {
         // TODO: shapes can be shared between multiple actors.
         // Do we need to create new ones for every body?
@@ -599,7 +600,7 @@ void QPhysXActorBody::buildShapes(PhysXWorld *physX)
             continue;
         auto physXShape = physX->physics->createShape(*geom, *material);
 
-        if (triggerBody) {
+        if (useTriggerFlag()) {
             physXShape->setFlag(physx::PxShapeFlag::eSIMULATION_SHAPE, false);
             physXShape->setFlag(physx::PxShapeFlag::eTRIGGER_SHAPE, true);
         }
@@ -974,14 +975,6 @@ void QDynamicsWorld::updateDebugDraw()
     if (sceneRoot == nullptr)
         return;
 
-    physx::PxBoxGeometry boxGeometry;
-    physx::PxSphereGeometry sphereGeometry;
-    physx::PxCapsuleGeometry capsuleGeometry;
-    physx::PxPlaneGeometry planeGeometry;
-    physx::PxHeightFieldGeometry heightFieldGeometry;
-    physx::PxConvexMeshGeometry convexMeshGeometry;
-    physx::PxTriangleMeshGeometry triangleMeshGeometry;
-
     if (!m_debugMaterial) {
         m_debugMaterial = new QQuick3DDefaultMaterial();
         m_debugMaterial->setParentItem(sceneRoot);
@@ -994,18 +987,16 @@ void QDynamicsWorld::updateDebugDraw()
     m_hasIndividualDebugView = false;
 
     for (QAbstractPhysXNode *node : m_physXBodies) {
-        // TODO: refactor debug geometry handling as well
-        if (!node->hasActor())
+        if (!node->debugGeometryCapability())
             continue;
-        auto *body = static_cast<QPhysXActorBody *>(node);
 
-        const auto &collisionShapes = body->frontendNode->getCollisionShapesList();
+        const auto &collisionShapes = node->frontendNode->getCollisionShapesList();
         const int length = collisionShapes.length();
-        if (body->shapes.length() < length)
+        if (node->shapes.length() < length)
             continue; // CharacterController has shapes, but not PhysX shapes
         for (int idx = 0; idx < length; idx++) {
             const auto collisionShape = collisionShapes[idx];
-            const auto physXShape = body->shapes[idx];
+            const auto physXShape = node->shapes[idx];
 
             DebugModelHolder &holder = m_collisionShapeDebugModels[collisionShape];
             auto &model = holder.model;
@@ -1034,7 +1025,10 @@ void QDynamicsWorld::updateDebugDraw()
                 materialsRef.append(m_debugMaterial);
             }
 
-            if (physXShape->getBoxGeometry(boxGeometry)) {
+            switch (physXShape->getGeometryType()) {
+            case physx::PxGeometryType::eBOX: {
+                physx::PxBoxGeometry boxGeometry;
+                physXShape->getBoxGeometry(boxGeometry);
                 const auto &halfExtentsOld = holder.halfExtents();
                 const auto halfExtents = QPhysicsUtils::toQtType(boxGeometry.halfExtents);
                 if (!qFuzzyCompare(halfExtentsOld, halfExtents)) {
@@ -1042,14 +1036,25 @@ void QDynamicsWorld::updateDebugDraw()
                     model->setGeometry(geom);
                     holder.setHalfExtents(halfExtents);
                 }
-            } else if (physXShape->getSphereGeometry(sphereGeometry)) {
+
+            }
+                break;
+
+            case physx::PxGeometryType::eSPHERE: {
+                physx::PxSphereGeometry sphereGeometry;
+                physXShape->getSphereGeometry(sphereGeometry);
                 const float radius = holder.radius();
                 if (!qFuzzyCompare(sphereGeometry.radius, radius)) {
                     auto geom = QDebugDrawHelper::generateSphereGeometry(sphereGeometry.radius);
                     model->setGeometry(geom);
                     holder.setRadius(sphereGeometry.radius);
                 }
-            } else if (physXShape->getCapsuleGeometry(capsuleGeometry)) {
+            }
+                break;
+
+            case physx::PxGeometryType::eCAPSULE: {
+                physx::PxCapsuleGeometry capsuleGeometry;
+                physXShape->getCapsuleGeometry(capsuleGeometry);
                 const float radius = holder.radius();
                 const float halfHeight = holder.halfHeight();
 
@@ -1061,7 +1066,12 @@ void QDynamicsWorld::updateDebugDraw()
                     holder.setRadius(capsuleGeometry.radius);
                     holder.setHalfHeight(capsuleGeometry.halfHeight);
                 }
-            } else if (physXShape->getPlaneGeometry(planeGeometry)) {
+            }
+                break;
+
+            case physx::PxGeometryType::ePLANE:{
+                physx::PxPlaneGeometry planeGeometry;
+                physXShape->getPlaneGeometry(planeGeometry);
                 // Special rotation
                 const QQuaternion rotation =
                         kMinus90YawRotation * QPhysicsUtils::toQtType(localPose.q);
@@ -1071,7 +1081,12 @@ void QDynamicsWorld::updateDebugDraw()
                     auto geom = QDebugDrawHelper::generatePlaneGeometry();
                     model->setGeometry(geom);
                 }
-            } else if (physXShape->getHeightFieldGeometry(heightFieldGeometry)) {
+            }
+                break;
+
+            case physx::PxGeometryType::eHEIGHTFIELD: {
+                physx::PxHeightFieldGeometry heightFieldGeometry;
+                physXShape->getHeightFieldGeometry(heightFieldGeometry);
                 const float heightScale = holder.heightScale();
                 const float rowScale = holder.rowScale();
                 const float columnScale = holder.columnScale();
@@ -1088,7 +1103,12 @@ void QDynamicsWorld::updateDebugDraw()
                     holder.setRowScale(heightFieldGeometry.rowScale);
                     holder.setColumnScale(heightFieldGeometry.columnScale);
                 }
-            } else if (physXShape->getConvexMeshGeometry(convexMeshGeometry)) {
+            }
+                break;
+
+            case physx::PxGeometryType::eCONVEXMESH: {
+                physx::PxConvexMeshGeometry convexMeshGeometry;
+                physXShape->getConvexMeshGeometry(convexMeshGeometry);
                 const auto rotation = convexMeshGeometry.scale.rotation * localPose.q;
                 localPose = physx::PxTransform(localPose.p, rotation);
                 model->setScale(QPhysicsUtils::toQtType(convexMeshGeometry.scale.scale));
@@ -1098,7 +1118,12 @@ void QDynamicsWorld::updateDebugDraw()
                             convexMeshGeometry.convexMesh);
                     model->setGeometry(geom);
                 }
-            } else if (physXShape->getTriangleMeshGeometry(triangleMeshGeometry)) {
+            }
+                break;
+
+            case physx::PxGeometryType::eTRIANGLEMESH: {
+                physx::PxTriangleMeshGeometry triangleMeshGeometry;
+                physXShape->getTriangleMeshGeometry(triangleMeshGeometry);
                 const auto rotation = triangleMeshGeometry.scale.rotation * localPose.q;
                 localPose = physx::PxTransform(localPose.p, rotation);
                 model->setScale(QPhysicsUtils::toQtType(triangleMeshGeometry.scale.scale));
@@ -1108,14 +1133,19 @@ void QDynamicsWorld::updateDebugDraw()
                             triangleMeshGeometry.triangleMesh);
                     model->setGeometry(geom);
                 }
-            } else {
-                Q_ASSERT(false);
+            }
+                break;
+
+            case physx::PxGeometryType::eINVALID:
+            case physx::PxGeometryType::eGEOMETRY_COUNT:
+                // should not happen
+                Q_UNREACHABLE();
             }
 
             model->setParent(collisionShape);
             model->setVisible(true);
 
-            auto globalPose = body->actor->getGlobalPose();
+            auto globalPose = node->getGlobalPose();
             auto finalPose = globalPose.transform(localPose);
 
             model->setRotation(QPhysicsUtils::toQtType(finalPose.q));
