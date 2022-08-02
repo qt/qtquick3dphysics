@@ -319,6 +319,7 @@ public:
     virtual void init(QDynamicsWorld *world, PhysXWorld *physX) = 0;
     virtual void updateDefaultDensity(float /*density*/) { }
     virtual void createMaterial(PhysXWorld *physX);
+    void createMaterialFromQtMaterial(PhysXWorld *physX, QPhysicsMaterial *qtMaterial);
     virtual void markDirtyShapes() { }
     virtual void rebuildDirtyShapes(QDynamicsWorld *, PhysXWorld *) { }
 
@@ -386,6 +387,7 @@ public:
     void sync(float) override;
     void markDirtyShapes() override;
     void rebuildDirtyShapes(QDynamicsWorld *world, PhysXWorld *physX) override;
+    virtual void createActor(PhysXWorld *physX);
 
     bool debugGeometryCapability() override { return true; }
     physx::PxTransform getGlobalPose() override { return actor->getGlobalPose(); }
@@ -407,6 +409,7 @@ public:
     QPhysXStaticBody(QStaticRigidBody *frontEnd) : QPhysXRigidBody(frontEnd) { }
 
     void sync(float deltaTime) override;
+    void createActor(PhysXWorld *physX) override;
 };
 
 class QPhysXDynamicBody : public QPhysXRigidBody
@@ -455,56 +458,55 @@ public:
    QPhysicsMaterial with default values. We should only have a qt material when set explicitly.
    */
 
-void QAbstractPhysXNode::createMaterial(PhysXWorld *physX)
+void QAbstractPhysXNode::createMaterialFromQtMaterial(PhysXWorld *physX, QPhysicsMaterial *qtMaterial)
 {
-    if (!defaultMaterial) {
-        defaultMaterial = physX->physics->createMaterial(QPhysicsMaterial::defaultStaticFriction,
-                                                         QPhysicsMaterial::defaultDynamicFriction,
-                                                         QPhysicsMaterial::defaultRestitution);
+    if (qtMaterial) {
+        material =  physX->physics->createMaterial(qtMaterial->staticFriction(),
+                                                   qtMaterial->dynamicFriction(),
+                                                   qtMaterial->restitution());
+    } else {
+        if (!defaultMaterial) {
+            defaultMaterial = physX->physics->createMaterial(QPhysicsMaterial::defaultStaticFriction,
+                                                             QPhysicsMaterial::defaultDynamicFriction,
+                                                             QPhysicsMaterial::defaultRestitution);
+        }
+        material = defaultMaterial;
     }
-    material = defaultMaterial;
 }
 
-static physx::PxMaterial *createMaterial(PhysXWorld *physX, QPhysicsMaterial *qtMaterial)
+void QAbstractPhysXNode::createMaterial(PhysXWorld *physX)
 {
-    return physX->physics->createMaterial(qtMaterial->staticFriction(),
-                                          qtMaterial->dynamicFriction(),
-                                          qtMaterial->restitution());
+    createMaterialFromQtMaterial(physX, nullptr);
 }
 
 void QPhysXCharacterController::createMaterial(PhysXWorld *physX)
 {
-    auto *characterController = static_cast<QCharacterController *>(frontendNode);
-    if (auto *qtMaterial = characterController->physicsMaterial())
-        material = ::createMaterial(physX, qtMaterial);
-    else
-        QAbstractPhysXNode::createMaterial(physX);
+    createMaterialFromQtMaterial(physX, static_cast<QCharacterController *>(frontendNode)->physicsMaterial());
 }
 
 void QPhysXRigidBody::createMaterial(PhysXWorld *physX)
 {
-    auto *rigidBody = static_cast<QAbstractPhysicsBody *>(frontendNode);
-    if (auto *qtMaterial = rigidBody->physicsMaterial())
-        material = ::createMaterial(physX, qtMaterial);
-    else
-        QAbstractPhysXNode::createMaterial(physX);
+    createMaterialFromQtMaterial(physX, static_cast<QAbstractPhysicsBody *>(frontendNode)->physicsMaterial());
+}
+
+void QPhysXActorBody::createActor(PhysXWorld *physX)
+{
+    physx::PxTransform trf = getPhysXWorldTransform(frontendNode);
+    actor = physX->physics->createRigidDynamic(trf);
+}
+
+void QPhysXStaticBody::createActor(PhysXWorld *physX)
+{
+    physx::PxTransform trf = getPhysXWorldTransform(frontendNode);
+    actor = physX->physics->createRigidStatic(trf);
 }
 
 void QPhysXActorBody::init(QDynamicsWorld *, PhysXWorld *physX)
 {
     Q_ASSERT(!actor);
 
-    //### Should probably have a virtual function for creating the actor
-    // TODO: make this more future proof
-    const bool isStatic = qobject_cast<QStaticRigidBody *>(frontendNode) != nullptr;
     createMaterial(physX);
-
-    physx::PxTransform trf = getPhysXWorldTransform(frontendNode);
-
-    if (isStatic)
-        actor = physX->physics->createRigidStatic(trf);
-    else
-        actor = physX->physics->createRigidDynamic(trf);
+    createActor(physX);
 
     actor->userData = reinterpret_cast<void *>(frontendNode);
     physX->scene->addActor(*actor);
