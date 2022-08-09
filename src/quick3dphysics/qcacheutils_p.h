@@ -15,7 +15,7 @@
 // We mean it.
 //
 
-#include <QtCore/qtnamespacemacros.h>
+#include <QtCore/qtconfigmacros.h>
 #include <QtCore/QString>
 
 namespace physx {
