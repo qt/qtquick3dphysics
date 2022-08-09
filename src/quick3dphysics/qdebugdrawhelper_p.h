@@ -15,7 +15,7 @@
 // We mean it.
 //
 
-#include "qtnamespacemacros.h"
+#include "qtconfigmacros.h"
 
 namespace physx {
 class PxHeightField;
