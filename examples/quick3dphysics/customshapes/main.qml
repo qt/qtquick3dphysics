@@ -7,50 +7,72 @@ import QtQuick3D.Helpers
 import QtQuick.Controls
 import QtQuick.Layouts
 
+//! [window]
 Window {
     width: 1280
     height: 720
     visible: true
     title: qsTr("QtQuick3DPhysics Custom Shapes")
 
+    //! [world]
     DynamicsWorld {
         id: physicsWorld
-        running: false
-        forceDebugView: false
+        running: true
         typicalLength: 2
         enableCCD: true
     }
-
-    Timer {
-        interval: 1000
-        running: true
-        onTriggered: physicsWorld.running = true
-    }
-
-    Texture {
-        id: proceduralSky
-        textureData: ProceduralSkyTextureData {
-            sunLongitude: -115
-        }
-    }
+    //! [world]
 
     View3D {
         id: viewport
         anchors.fill: parent
 
+        //! [environment]
         environment: SceneEnvironment {
             clearColor: "white"
-            backgroundMode: SceneEnvironment.Color
+            backgroundMode: SceneEnvironment.SkyBox
             antialiasingMode: SceneEnvironment.MSAA
             antialiasingQuality: SceneEnvironment.High
             lightProbe: proceduralSky
         }
+        //! [environment]
+
+        //! [textures]
+        Texture {
+            id: proceduralSky
+            textureData: ProceduralSkyTextureData {
+                sunLongitude: -115
+            }
+        }
+
+        Texture {
+            id: weaveNormal
+            source: "maps/weave.png"
+            scaleU: 200
+            scaleV: 200
+            generateMipmaps: true
+            mipFilter: Texture.Linear
+        }
+
+        Texture {
+            id: numberNormal
+            source: "maps/numbers-normal.png"
+        }
+
+        Texture {
+            id: numberFill
+            source: "maps/numbers.png"
+            generateMipmaps: true
+            mipFilter: Texture.Linear
+        }
+        //! [textures]
 
         Node {
-            id: scene1
-            scale: "2, 2, 2"
+            //! [scene]
+            id: scene
+            scale: Qt.vector3d(2, 2, 2)
             PerspectiveCamera {
-                id: camera1
+                id: camera
                 position: Qt.vector3d(-45, 20, 60)
                 eulerRotation: Qt.vector3d(-6, -13, 0)
                 clipFar: 1000
@@ -58,29 +80,14 @@ Window {
             }
 
             DirectionalLight {
-                eulerRotation.x: -45
-                eulerRotation.y: 25
+                eulerRotation: Qt.vector3d(-45, 25, 0)
                 castsShadow: true
                 brightness: 1
                 shadowMapQuality: Light.ShadowMapQualityVeryHigh
             }
+            //! [scene]
 
-            StaticRigidBody {
-                position: Qt.vector3d(0, -100, 0)
-                eulerRotation: Qt.vector3d(-90, 0, 0)
-                collisionShapes: PlaneShape {
-                }
-            }
-
-            Texture {
-                id: weaveNormal
-                source: "maps/weave.png"
-                scaleU: 200
-                scaleV: 200
-                generateMipmaps: true
-                mipFilter: Texture.Linear
-            }
-
+            //! [cloth]
             StaticRigidBody {
                 position: Qt.vector3d(-15, -8, 0)
                 id: tablecloth
@@ -106,7 +113,9 @@ Window {
                     heightMap: "maps/cloth-heightmap.png"
                 }
             }
+            //! [cloth]
 
+            //! [cup]
             DynamicRigidBody {
                 id: diceCup
                 isKinematic: true
@@ -133,7 +142,9 @@ Window {
                     PropertyAnimation { duration: 1500 }
                 }
             }
+            //! [cup]
 
+            //! [tower]
             StaticRigidBody {
                 id: diceTower
                 x: -4
@@ -159,18 +170,9 @@ Window {
                     meshSource: "meshes/tower.mesh"
                 }
             }
+            //! [tower]
 
-            Texture {
-                id: numberNormal
-                source: "maps/numbers-normal.png"
-
-            }
-            Texture {
-                id: numberFill
-                source: "maps/numbers.png"
-                generateMipmaps: true
-                mipFilter: Texture.Linear
-            }
+            //! [dices]
             Component {
                 id: diceComponent
 
@@ -184,16 +186,21 @@ Window {
                         reset(initialPosition, eulerRotation)
                     }
 
-                    scale: Qt.vector3d(sf, sf, sf)
+                    scale: Qt.vector3d(scaleFactor, scaleFactor, scaleFactor)
                     eulerRotation: Qt.vector3d(randomInRange(0, 360),
                                                randomInRange(0, 360),
                                                randomInRange(0, 360))
 
-                    property vector3d initialPosition:  Qt.vector3d( 11 + 1.5*Math.cos(index/(Math.PI/4)), 5 + index * 1.5, 0)
+                    property vector3d initialPosition: Qt.vector3d(11 + 1.5*Math.cos(index/(Math.PI/4)),
+                                                                   5 + index * 1.5,
+                                                                   0)
                     position: initialPosition
 
-                    property real sf: randomInRange(0.8, 1.4)
-                    property color baseCol: Qt.hsla(randomInRange(0, 1), randomInRange(0.6, 1.0), randomInRange(0.4, 0.7), 1.0)
+                    property real scaleFactor: randomInRange(0.8, 1.4)
+                    property color baseCol: Qt.hsla(randomInRange(0, 1),
+                                                    randomInRange(0.6, 1.0),
+                                                    randomInRange(0.4, 0.7),
+                                                    1.0)
 
                     collisionShapes: ConvexMeshShape {
                         id: diceShape
@@ -211,7 +218,7 @@ Window {
                             roughness: randomInRange(0.2, 0.6)
                             baseColor: baseCol
                             emissiveMap: numberFill
-                            emissiveFactor: "1,1,1"
+                            emissiveFactor: Qt.vector3d(1, 1, 1)
                             normalMap: numberNormal
                             normalStrength: 0.75
                         }
@@ -229,7 +236,9 @@ Window {
                     }
                 }
             }
+            //! [dices]
 
+            //! [animation]
             SequentialAnimation {
                 running: physicsWorld.running
                 PauseAnimation { duration: 1500 }
@@ -244,14 +253,16 @@ Window {
                 ScriptAction { script: dicePool.restore() }
                 loops: Animation.Infinite
             }
-
-        } // scene1
+            //! [animation]
+        } // scene
     } // View3D
 
+    //! [controller]
     WasdController {
         keysEnabled: true
-        controlledObject: camera1
+        controlledObject: camera
         speed: 0.2
     }
-
+    //! [controller]
 }
+//! [window]
