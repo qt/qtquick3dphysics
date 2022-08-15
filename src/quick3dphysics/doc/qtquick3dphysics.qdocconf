@@ -31,22 +31,8 @@ qhp.QtQuick3DPhysics.subprojects.classes.sortPages  = true
 
 depends += qtcore qtgui qtdoc qtqml qtqmlmodels qtquick qtquickcontrols qtshadertools qtquicktimeline qtquick3d
 
-#headerdirs  += .. \
-#               ../../quick3dparticles/
-#
-#headers += ../../helpers/gridgeometry_p.h \
-#           ../../helpers/randominstancing_p.h \
-#           ../../helpers/lookatnode_p.h \
-#           ../../assetutils/qquick3druntimeloader_p.h
-#
 sourcedirs  += .. \
                src
-#               ../../quick3dparticles/
-#
-#sources += ../../helpers/gridgeometry.cpp \
-#           ../../helpers/randominstancing.cpp \
-#           ../../helpers/lookatnode.cpp \
-#           ../../assetutils/qquick3druntimeloader.cpp
 
 exampledirs +=  ../../../examples/quick3dphysics
 
@@ -54,12 +40,6 @@ imagedirs   += images
 
 # Exclude private header files from the documentation build
 excludefiles += "*_p.h"
-
-#manifestmeta.highlighted.names = "QtQuick3D/Qt Quick 3D - Morphing Example" \
-#                                 "QtQuick3D/Qt Quick 3D - Particles 3D Testbed Example" \
-#                                 "QtQuick3D/Qt Quick 3D - Custom Instanced Rendering" \
-#                                 "QtQuick3D/Qt Quick 3D - Principled Material Example"
-
 navigation.landingpage = "Qt Quick 3D Physics"
 navigation.qmltypespage = "Qt Quick 3D Physics QML Types"
 navigation.cppclassespage = "Qt Quick 3D Physics C++ Classes"
