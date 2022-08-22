@@ -60,9 +60,6 @@ excludefiles += "*_p.h"
 #                                 "QtQuick3D/Qt Quick 3D - Custom Instanced Rendering" \
 #                                 "QtQuick3D/Qt Quick 3D - Principled Material Example"
 
-
-Cpp.ignoretokens += Q_QUICK3DPHYSICS_EXPORT
-
 navigation.landingpage = "Qt Quick 3D Physics"
 navigation.qmltypespage = "Qt Quick 3D Physics QML Types"
 navigation.cppclassespage = "Qt Quick 3D Physics C++ Classes"
