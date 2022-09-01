@@ -98,6 +98,18 @@ QT_BEGIN_NAMESPACE
     View3D found in any of this world's parents will be used.
 */
 
+/*!
+    \qmlproperty float DynamicsWorld::minTimestep
+    This property defines the minimum simulation timestep in milliseconds. The default value is
+    \c 16.667 which corresponds to \c 60 frames per second.
+*/
+
+/*!
+    \qmlproperty float DynamicsWorld::maxTimestep
+    This property defines the maximum simulation timestep in milliseconds. The default value is
+    \c 33.333 which corresponds to \c 30 frames per second.
+*/
+
 Q_LOGGING_CATEGORY(lcQuick3dPhysics, "qt.quick3d.physics");
 
 static const QQuaternion kMinus90YawRotation = QQuaternion::fromEulerAngles(0, -90, 0);
@@ -967,6 +979,32 @@ void QDynamicsWorld::setSceneView(QQuick3DViewport *sceneView)
     emit sceneViewChanged(m_sceneView);
 }
 
+void QDynamicsWorld::setMinTimestep(float minTimestep)
+{
+    if (qFuzzyCompare(m_minTimestep, minTimestep))
+        return;
+
+    m_minTimestep = minTimestep;
+
+    // Change timer refresh rate if running
+    if (m_running && m_updateTimer.isActive()) {
+        m_updateTimer.stop();
+        const int freq = qMax(1, int(m_minTimestep));
+        m_updateTimer.start(freq, this);
+    }
+
+    emit minTimestepChanged(minTimestep);
+}
+
+void QDynamicsWorld::setMaxTimestep(float maxTimestep)
+{
+    if (qFuzzyCompare(m_maxTimestep, maxTimestep))
+        return;
+
+    m_maxTimestep = maxTimestep;
+    emit maxTimestepChanged(maxTimestep);
+}
+
 void QDynamicsWorld::updateDebugDraw()
 {
     if (m_sceneView == nullptr || !(m_forceDebugView || m_hasIndividualDebugView))
@@ -1239,6 +1277,16 @@ float QDynamicsWorld::defaultDensity() const
     return m_defaultDensity;
 }
 
+float QDynamicsWorld::minTimestep() const
+{
+    return m_minTimestep;
+}
+
+float QDynamicsWorld::maxTimestep() const
+{
+    return m_maxTimestep;
+}
+
 void QDynamicsWorld::setDefaultDensity(float defaultDensity)
 {
     // Make sure the default density is not too small
@@ -1334,6 +1382,10 @@ void QDynamicsWorld::updatePhysics()
     if (!m_physicsInitialized)
         initPhysics();
 
+    // If not enough time has elapsed we return
+    if (m_deltaTime.elapsed() < m_minTimestep)
+        return;
+
     // Check if simulation is done
     if (m_physx->isRunning && !m_physx->scene->fetchResults())
         return;
@@ -1347,9 +1399,8 @@ void QDynamicsWorld::updatePhysics()
     m_newCollisionNodes.clear();
 
     // Calculate time step
-    constexpr float MAX_DELTA = 0.033f; // 30 fps
-    const auto delta = m_deltaTime.restart() * 0.001f; // convert milliseconds to seconds
-    const auto deltaTime = qMin(delta, MAX_DELTA);
+    const auto deltaMS = m_deltaTime.restart();
+    const auto deltaTime = qMin(float(deltaMS), m_maxTimestep) * 0.001f;
 
     // TODO: Use dirty flag/dirty list to avoid redoing things that didn't change
     for (auto *physXBody : qAsConst(m_physXBodies)) {
@@ -1374,7 +1425,8 @@ void QDynamicsWorld::maintainTimer()
         return;
 
     if (m_running) {
-        m_updateTimer.start(16, this);
+        const int freq = qMax(1, int(m_minTimestep));
+        m_updateTimer.start(freq, this);
         m_deltaTime.start();
     } else {
         m_updateTimer.stop();

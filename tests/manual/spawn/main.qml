@@ -19,6 +19,10 @@ Window {
         gravity: Qt.vector3d(0, -9.81, 0)
         running: false
         forceDebugView: true
+        minTimestep: minTimestepSlider.value
+        maxTimestep: maxTimestepSlider.value
+        typicalLength: 1
+        typicalSpeed: 10
     }
 
     View3D {
@@ -128,7 +132,7 @@ Window {
 
                 onBodyContact: (body, positions, impulses, normals) => {
                     for (var normal of normals) {
-                        let force = normal.times(-100);
+                        let force = normal.times(-0.001);
                         body.applyCentralImpulse(force);
                     }
                 }
@@ -393,6 +397,28 @@ Window {
         Button {
             text:  "Add impulse"
             onClicked: shapeSpawner.doImpulse()
+        }
+
+        Label {
+            text: "Min timestep: " + minTimestepSlider.value
+        }
+        Slider {
+            id: minTimestepSlider
+            focusPolicy: Qt.NoFocus
+            from: 1
+            to: 100
+            value: 5
+        }
+
+        Label {
+            text: "Max timestep: " + maxTimestepSlider.value
+        }
+        Slider {
+            id: maxTimestepSlider
+            focusPolicy: Qt.NoFocus
+            from: 1
+            to: 100
+            value: 50
         }
 
 
