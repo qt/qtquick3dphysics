@@ -66,6 +66,8 @@ class Q_QUICK3DPHYSICS_EXPORT QDynamicsWorld : public QObject
                        defaultDensityChanged)
     Q_PROPERTY(
             QQuick3DViewport *sceneView READ sceneView WRITE setSceneView NOTIFY sceneViewChanged)
+    Q_PROPERTY(float minTimestep READ minTimestep WRITE setMinTimestep NOTIFY minTimestepChanged)
+    Q_PROPERTY(float maxTimestep READ maxTimestep WRITE setMaxTimestep NOTIFY maxTimestepChanged)
 
     QML_NAMED_ELEMENT(DynamicsWorld)
 
@@ -81,6 +83,8 @@ public:
     float typicalLength() const;
     float typicalSpeed() const;
     float defaultDensity() const;
+    float minTimestep() const;
+    float maxTimestep() const;
 
     void registerOverlap(physx::PxRigidActor *triggerActor, physx::PxRigidActor *otherActor);
     void deregisterOverlap(physx::PxRigidActor *triggerActor, physx::PxRigidActor *otherActor);
@@ -111,6 +115,8 @@ public slots:
     void setTypicalSpeed(float typicalSpeed);
     void setDefaultDensity(float defaultDensity);
     void setSceneView(QQuick3DViewport *sceneView);
+    void setMinTimestep(float minTimestep);
+    void setMaxTimestep(float maxTimestep);
 
 signals:
     void gravityChanged(QVector3D gravity);
@@ -121,6 +127,8 @@ signals:
     void typicalSpeedChanged(float typicalSpeed);
     void defaultDensityChanged(float defaultDensity);
     void sceneViewChanged(QQuick3DViewport *sceneView);
+    void minTimestepChanged(float minTimestep);
+    void maxTimestepChanged(float maxTimestep);
 
 protected:
     void timerEvent(QTimerEvent *event) override;
@@ -166,6 +174,8 @@ private:
     float m_typicalLength = 100.f; // 100 cm
     float m_typicalSpeed = 1000.f; // 1000 cm/s
     float m_defaultDensity = 0.001f; // 1 g/cm^3
+    float m_minTimestep = 16.667f; // 60 fps
+    float m_maxTimestep = 33.333f; // 30 fps
 
     bool m_running = true;
     bool m_forceDebugView = false;

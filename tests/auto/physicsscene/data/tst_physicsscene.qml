@@ -18,6 +18,8 @@ Item {
         forceDebugView: true
         typicalLength: 1
         typicalSpeed: 10
+        minTimestep: 16.6667
+        maxTimestep: 16.6667
     }
     property bool simulationActuallyRunning: false
 
