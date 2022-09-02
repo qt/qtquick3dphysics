@@ -34,7 +34,10 @@ physx::PxConvexMesh *QQuick3DPhysicsMesh::convexMesh()
         return nullptr;
 
     m_convexMesh = QCacheUtils::readCachedConvexMesh(m_meshPath, *thePhysics);
+    if (m_convexMesh != nullptr)
+        return m_convexMesh;
 
+    m_convexMesh = QCacheUtils::readCookedConvexMesh(m_meshPath, *thePhysics);
     if (m_convexMesh != nullptr)
         return m_convexMesh;
 
@@ -91,7 +94,10 @@ physx::PxTriangleMesh *QQuick3DPhysicsMesh::triangleMesh()
         return nullptr;
 
     m_triangleMesh = QCacheUtils::readCachedTriangleMesh(m_meshPath, *thePhysics);
+    if (m_triangleMesh != nullptr)
+        return m_triangleMesh;
 
+    m_triangleMesh = QCacheUtils::readCookedTriangleMesh(m_meshPath, *thePhysics);
     if (m_triangleMesh != nullptr)
         return m_triangleMesh;
 

@@ -139,6 +139,13 @@ physx::PxHeightField *QQuick3DPhysicsHeightField::heightField()
         return m_heightField;
     }
 
+    m_heightField = QCacheUtils::readCookedHeightField(m_sourcePath, *thePhysics);
+    if (m_heightField != nullptr) {
+        m_rows = m_heightField->getNbRows();
+        m_columns = m_heightField->getNbColumns();
+        return m_heightField;
+    }
+
     getSamples();
     int numRows = m_rows;
     int numCols = m_columns;

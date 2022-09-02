@@ -52,7 +52,7 @@ static void readCachedMesh(const QString &meshFilename, physx::PxPhysics &physic
         if (cacheData)
             cacheFile.unmap(cacheData);
         if (meshData)
-            meshFile.unmap(cacheData);
+            meshFile.unmap(meshData);
         if (cacheFile.isOpen())
             cacheFile.close();
         if (meshFile.isOpen())
@@ -175,6 +175,48 @@ void writeCachedHeightField(const QString &filePath, physx::PxDefaultMemoryOutpu
     writeCachedMesh(filePath, buf, CacheGeometry::HeightField);
 }
 
+static void readCookedMesh(const QString &meshFilename, physx::PxPhysics &physics,
+                           physx::PxTriangleMesh *&triangleMesh, physx::PxConvexMesh *&convexMesh,
+                           physx::PxHeightField *&heightField, CacheGeometry geom)
+{
+    QFile file(meshFilename);
+    uchar *data = nullptr;
+
+    auto cleanup = qScopeGuard([&] {
+        if (data)
+            file.unmap(data);
+        if (file.isOpen())
+            file.close();
+    });
+
+    if (!file.open(QIODevice::ReadOnly)) {
+        qWarning() << "Could not open" << meshFilename;
+        return;
+    }
+
+    data = file.map(0, file.size());
+    if (!data) {
+        qWarning() << "Could not map" << meshFilename;
+        return;
+    }
+
+    physx::PxDefaultMemoryInputData input(data, physx::PxU32(file.size()));
+
+    switch (geom) {
+    case CacheGeometry::TriangleMesh: {
+        triangleMesh = physics.createTriangleMesh(input);
+        break;
+    }
+    case CacheGeometry::ConvexMesh: {
+        convexMesh = physics.createConvexMesh(input);
+        break;
+    }
+    case CacheGeometry::HeightField:
+        heightField = physics.createHeightField(input);
+        break;
+    }
+}
+
 physx::PxTriangleMesh *readCachedTriangleMesh(const QString &filePath, physx::PxPhysics &physics)
 {
     physx::PxTriangleMesh *triangleMesh = nullptr;
@@ -204,5 +246,36 @@ physx::PxHeightField *readCachedHeightField(const QString &filePath, physx::PxPh
                    CacheGeometry::HeightField);
     return heightField;
 }
+
+physx::PxTriangleMesh *readCookedTriangleMesh(const QString &filePath, physx::PxPhysics &physics)
+{
+    physx::PxTriangleMesh *triangleMesh = nullptr;
+    physx::PxConvexMesh *convexMesh = nullptr;
+    physx::PxHeightField *heightField = nullptr;
+    readCookedMesh(filePath, physics, triangleMesh, convexMesh, heightField,
+                   CacheGeometry::TriangleMesh);
+    return triangleMesh;
+}
+
+physx::PxConvexMesh *readCookedConvexMesh(const QString &filePath, physx::PxPhysics &physics)
+{
+    physx::PxTriangleMesh *triangleMesh = nullptr;
+    physx::PxConvexMesh *convexMesh = nullptr;
+    physx::PxHeightField *heightField = nullptr;
+    readCookedMesh(filePath, physics, triangleMesh, convexMesh, heightField,
+                   CacheGeometry::ConvexMesh);
+    return convexMesh;
+}
+
+physx::PxHeightField *readCookedHeightField(const QString &filePath, physx::PxPhysics &physics)
+{
+    physx::PxTriangleMesh *triangleMesh = nullptr;
+    physx::PxConvexMesh *convexMesh = nullptr;
+    physx::PxHeightField *heightField = nullptr;
+    readCookedMesh(filePath, physics, triangleMesh, convexMesh, heightField,
+                   CacheGeometry::HeightField);
+    return heightField;
+}
+
 }
 QT_END_NAMESPACE
