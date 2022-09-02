@@ -32,6 +32,10 @@ void writeCachedTriangleMesh(const QString &filePath, physx::PxDefaultMemoryOutp
 void writeCachedConvexMesh(const QString &filePath, physx::PxDefaultMemoryOutputStream &buf);
 void writeCachedHeightField(const QString &filePath, physx::PxDefaultMemoryOutputStream &buf);
 
+physx::PxTriangleMesh *readCookedTriangleMesh(const QString &filePath, physx::PxPhysics &physics);
+physx::PxConvexMesh *readCookedConvexMesh(const QString &filePath, physx::PxPhysics &physics);
+physx::PxHeightField *readCookedHeightField(const QString &filePath, physx::PxPhysics &physics);
+
 physx::PxTriangleMesh *readCachedTriangleMesh(const QString &filePath, physx::PxPhysics &physics);
 physx::PxConvexMesh *readCachedConvexMesh(const QString &filePath, physx::PxPhysics &physics);
 physx::PxHeightField *readCachedHeightField(const QString &filePath, physx::PxPhysics &physics);
