@@ -19,7 +19,7 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty List<QtQuick3DPhysics::CollisionShape> CollisionNode::collisionShapes
+    \qmlproperty list<CollisionShape> CollisionNode::collisionShapes
 
     This property contains the list of collision shapes. These shapes will be combined and act as a
     single rigid body when colliding.

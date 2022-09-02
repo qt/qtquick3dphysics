@@ -29,7 +29,7 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty QUrl TriangleMeshShape::meshSource
+    \qmlproperty url TriangleMeshShape::meshSource
     This property defines the location of the mesh file used to define the shape.
 */
 

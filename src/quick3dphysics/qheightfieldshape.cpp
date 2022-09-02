@@ -196,7 +196,7 @@ int QQuick3DPhysicsHeightField::columns() const
 */
 
 /*!
-    \qmlproperty QUrl HeightFieldShape::heightMap
+    \qmlproperty url HeightFieldShape::heightMap
     This property defines the location of the heightMap file.
 */
 
