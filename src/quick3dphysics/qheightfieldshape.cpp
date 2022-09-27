@@ -34,6 +34,7 @@ class QQuick3DPhysicsHeightField
 {
 public:
     QQuick3DPhysicsHeightField(const QString &qmlSource);
+    ~QQuick3DPhysicsHeightField();
 
     void ref() { ++refCount; }
     int deref() { return --refCount; }
@@ -97,6 +98,11 @@ void QQuick3DPhysicsHeightFieldManager::releaseHeightField(QQuick3DPhysicsHeight
 QQuick3DPhysicsHeightField::QQuick3DPhysicsHeightField(const QString &qmlSource)
     : m_sourcePath(qmlSource)
 {
+}
+
+QQuick3DPhysicsHeightField::~QQuick3DPhysicsHeightField()
+{
+    free(m_samples);
 }
 
 physx::PxHeightFieldSample *QQuick3DPhysicsHeightField::getSamples()

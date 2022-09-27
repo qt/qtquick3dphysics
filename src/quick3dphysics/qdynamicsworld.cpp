@@ -821,6 +821,7 @@ QDynamicsWorld::~QDynamicsWorld()
     if (m_physx->isRunning)
         m_physx->scene->fetchResults(true);
 
+    PHYSX_RELEASE(m_physx->dispatcher);
     PHYSX_RELEASE(m_physx->controllerManager);
     PHYSX_RELEASE(m_physx->cooking);
     PHYSX_RELEASE(m_physx->physics);
