@@ -88,7 +88,7 @@ Gu::HeightField::~HeightField()
 void Gu::HeightField::onRefCountZero()
 {
 	PX_ASSERT(mMeshFactory);
-	if(mMeshFactory->removeHeightField(*this))
+	if ((!mData.samples) || mMeshFactory->removeHeightField(*this))
 	{
 		GuMeshFactory* mf = mMeshFactory;
 		Cm::deletePxBase(this);
