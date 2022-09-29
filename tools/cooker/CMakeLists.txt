@@ -1,9 +1,8 @@
 # Copyright (C) 2022 The Qt Company Ltd.
 # SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only WITH Qt-GPL-exception-1.0
 
-qt_get_tool_target_name(target_name cooker)
-qt_internal_add_tool(${target_name}
-    TOOLS_TARGET Quick3DPhysics
+set(target_name cooker)
+qt_internal_add_app(${target_name}
     SOURCES
         main.cpp
     LIBRARIES
@@ -14,8 +13,6 @@ qt_internal_add_tool(${target_name}
         Qt::Quick3DPhysicsPrivate
         Qt::BundledPhysX
 )
-qt_internal_return_unless_building_tools()
-
 target_include_directories(${target_name} SYSTEM
     PRIVATE
     ../../src/3rdparty/PhysX/include
