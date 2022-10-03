@@ -529,11 +529,11 @@ void CapsuleGeometry::updateData()
 
     uint32_t *indexPtr = reinterpret_cast<uint32_t *>(indexData.data());
 
-    for (uint32_t i = 0; i < vertices.length(); i++) {
+    for (qsizetype i = 0; i < vertices.length(); i++) {
         *getVertexPtr(i) = vertices[i];
     }
 
-    for (uint32_t i = 0; i < faces.length(); i++) {
+    for (qsizetype i = 0; i < faces.length(); i++) {
         const auto vertexIndices =
                 std::array<uint32_t, 3> { faces[i][0].vertexIdx, faces[i][1].vertexIdx,
                                           faces[i][2].vertexIdx };
