@@ -279,8 +279,11 @@ struct PxContactStreamIterator
 			pointSize = compressedModify ?  sizeof(PxExtendedContact) : modify ? sizeof(PxModifiableContact) : sizeof(PxContact);
 
 			response = (patch->internalFlags & PxContactPatch::eFORCE_NO_RESPONSE) == 0;
-		}
-
+        } else {
+			patch = nullptr;
+			contact = nullptr;
+			faceIndice = nullptr;
+        }
 
 		mStreamFormat = compressedModify ? eCOMPRESSED_MODIFIABLE_STREAM : modify ? eMODIFIABLE_STREAM : eSIMPLE_STREAM;
 		hasFaceIndices = PxU32(indices);
