@@ -162,8 +162,8 @@ void QQuick3DPhysicsMesh::loadSsgMesh()
     }
     qCDebug(lcQuick3dPhysics) << "Loaded SSG mesh from" << m_meshPath << m_ssgMesh.isValid()
                               << "draw" << int(m_ssgMesh.drawMode()) << "wind"
-                              << int(m_ssgMesh.winding()) << "subs" << m_ssgMesh.subsets().count()
-                              << "attrs" << m_ssgMesh.vertexBuffer().entries.count()
+                              << int(m_ssgMesh.winding()) << "subs" << m_ssgMesh.subsets().size()
+                              << "attrs" << m_ssgMesh.vertexBuffer().entries.size()
                               << m_ssgMesh.vertexBuffer().data.size() << "stride"
                               << m_ssgMesh.vertexBuffer().stride << "verts"
                               << m_ssgMesh.vertexBuffer().data.size()

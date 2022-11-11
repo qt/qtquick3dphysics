@@ -24,7 +24,7 @@ void QCollisionDebugMeshBuilder::addLine(const QVector3D &start, const QVector3D
 QByteArray QCollisionDebugMeshBuilder::generateVertexArray()
 {
     QByteArray output;
-    const int size = m_normals.count();
+    const int size = m_normals.size();
     output.resize(4 * 4 * sizeof(float) * size);
 
     float *data = reinterpret_cast<float *>(output.data());

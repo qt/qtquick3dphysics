@@ -202,7 +202,7 @@ QAbstractCollisionNode::qmlShapeAt(QQmlListProperty<QAbstractCollisionShape> *li
 qsizetype QAbstractCollisionNode::qmlShapeCount(QQmlListProperty<QAbstractCollisionShape> *list)
 {
     QAbstractCollisionNode *self = static_cast<QAbstractCollisionNode *>(list->object);
-    return self->m_collisionShapes.count();
+    return self->m_collisionShapes.size();
 }
 
 void QAbstractCollisionNode::qmlClearShapes(QQmlListProperty<QAbstractCollisionShape> *list)

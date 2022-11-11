@@ -323,10 +323,10 @@ const QList<float> &QDynamicRigidBody::readInertiaMatrix() const
 
 static bool fuzzyEquals(const QList<float> &a, const QList<float> &b)
 {
-    if (a.length() != b.length())
+    if (a.size() != b.size())
         return false;
 
-    const int length = a.length();
+    const int length = a.size();
     for (int i = 0; i < length; i++)
         if (!qFuzzyCompare(a[i], b[i]))
             return false;
@@ -340,7 +340,7 @@ void QDynamicRigidBody::setInertiaMatrix(const QList<float> &newInertiaMatrix)
         return;
 
     m_inertiaMatrixList = newInertiaMatrix;
-    const int elemsToCopy = qMin(m_inertiaMatrixList.length(), 9);
+    const int elemsToCopy = qMin(m_inertiaMatrixList.size(), 9);
     memcpy(m_inertiaMatrix.data(), m_inertiaMatrixList.data(), elemsToCopy * sizeof(float));
     memset(m_inertiaMatrix.data() + elemsToCopy, 0, (9 - elemsToCopy) * sizeof(float));
 

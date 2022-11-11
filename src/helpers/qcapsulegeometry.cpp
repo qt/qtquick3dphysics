@@ -514,8 +514,8 @@ void CapsuleGeometry::updateData()
         stride += 2 * sizeof(float);
     }
 
-    QByteArray vertexData(vertices.length() * stride, Qt::Initialization::Uninitialized);
-    QByteArray indexData(faces.length() * 3 * sizeof(quint32), Qt::Initialization::Uninitialized);
+    QByteArray vertexData(vertices.size() * stride, Qt::Initialization::Uninitialized);
+    QByteArray indexData(faces.size() * 3 * sizeof(quint32), Qt::Initialization::Uninitialized);
 
     const auto getVertexPtr = [&](const int vertexIdx) {
         return reinterpret_cast<QVector3D *>(vertexData.data() + stride * vertexIdx);
@@ -529,11 +529,11 @@ void CapsuleGeometry::updateData()
 
     uint32_t *indexPtr = reinterpret_cast<uint32_t *>(indexData.data());
 
-    for (qsizetype i = 0; i < vertices.length(); i++) {
+    for (qsizetype i = 0; i < vertices.size(); i++) {
         *getVertexPtr(i) = vertices[i];
     }
 
-    for (qsizetype i = 0; i < faces.length(); i++) {
+    for (qsizetype i = 0; i < faces.size(); i++) {
         const auto vertexIndices =
                 std::array<uint32_t, 3> { faces[i][0].vertexIdx, faces[i][1].vertexIdx,
                                           faces[i][2].vertexIdx };

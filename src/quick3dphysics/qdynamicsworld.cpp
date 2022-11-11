@@ -1032,8 +1032,8 @@ void QDynamicsWorld::updateDebugDraw()
             continue;
 
         const auto &collisionShapes = node->frontendNode->getCollisionShapesList();
-        const int length = collisionShapes.length();
-        if (node->shapes.length() < length)
+        const int length = collisionShapes.size();
+        if (node->shapes.size() < length)
             continue; // CharacterController has shapes, but not PhysX shapes
         for (int idx = 0; idx < length; idx++) {
             const auto collisionShape = collisionShapes[idx];
@@ -1205,7 +1205,7 @@ void QDynamicsWorld::disableDebugDraw()
     for (QAbstractPhysXNode *body : m_physXBodies) {
         // TODO: refactor debug geometry handling as well
         const auto &collisionShapes = body->frontendNode->getCollisionShapesList();
-        const int length = collisionShapes.length();
+        const int length = collisionShapes.size();
         for (int idx = 0; idx < length; idx++) {
             const auto collisionShape = collisionShapes[idx];
             DebugModelHolder &holder = m_collisionShapeDebugModels[collisionShape];

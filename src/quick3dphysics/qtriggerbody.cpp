@@ -57,7 +57,7 @@ void QTriggerBody::deregisterCollision(QAbstractCollisionNode *collision)
 
 int QTriggerBody::collisionCount() const
 {
-    return m_collisions.count();
+    return m_collisions.size();
 }
 
 QT_END_NAMESPACE
