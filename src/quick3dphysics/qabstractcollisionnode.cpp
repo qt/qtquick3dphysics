@@ -208,7 +208,7 @@ qsizetype QAbstractCollisionNode::qmlShapeCount(QQmlListProperty<QAbstractCollis
 void QAbstractCollisionNode::qmlClearShapes(QQmlListProperty<QAbstractCollisionShape> *list)
 {
     QAbstractCollisionNode *self = static_cast<QAbstractCollisionNode *>(list->object);
-    for (const auto &shape : qAsConst(self->m_collisionShapes)) {
+    for (const auto &shape : std::as_const(self->m_collisionShapes)) {
         if (shape->parentItem() == nullptr)
             QQuick3DObjectPrivate::get(shape)->derefSceneManager();
         shape->disconnect(self, SLOT(onMaterialDestroyed(QObject *)));
