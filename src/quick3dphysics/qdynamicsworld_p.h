@@ -50,9 +50,10 @@ class QQuick3DModel;
 class QQuick3DDefaultMaterial;
 struct PhysXWorld;
 
-class Q_QUICK3DPHYSICS_EXPORT QDynamicsWorld : public QObject
+class Q_QUICK3DPHYSICS_EXPORT QDynamicsWorld : public QObject, public QQmlParserStatus
 {
     Q_OBJECT
+    Q_INTERFACES(QQmlParserStatus)
     Q_PROPERTY(QVector3D gravity READ gravity WRITE setGravity NOTIFY gravityChanged)
     Q_PROPERTY(bool running READ running WRITE setRunning NOTIFY runningChanged)
     Q_PROPERTY(bool forceDebugView READ forceDebugView WRITE setForceDebugView NOTIFY
@@ -74,6 +75,9 @@ class Q_QUICK3DPHYSICS_EXPORT QDynamicsWorld : public QObject
 public:
     explicit QDynamicsWorld(QObject *parent = nullptr);
     ~QDynamicsWorld();
+
+    void classBegin() override;
+    void componentComplete() override;
 
     QVector3D gravity() const;
 
@@ -129,14 +133,11 @@ signals:
     void sceneViewChanged(QQuick3DViewport *sceneView);
     void minTimestepChanged(float minTimestep);
     void maxTimestepChanged(float maxTimestep);
-
-protected:
-    void timerEvent(QTimerEvent *event) override;
+    void simulateFrame(float minTimestep, float maxTimestep);
 
 private:
-    void updatePhysics();
+    void frameFinished(float deltaTime);
     void initPhysics();
-    void maintainTimer();
     void cleanupRemovedNodes();
     void updateDebugDraw();
     void disableDebugDraw();
@@ -185,8 +186,6 @@ private:
     bool m_physicsInitialized = false;
     bool m_enableCCD = false;
 
-    QBasicTimer m_updateTimer;
-    QElapsedTimer m_deltaTime;
     PhysXWorld *m_physx = nullptr;
     QQuick3DViewport *m_sceneView = nullptr;
     QQuick3DDefaultMaterial *m_debugMaterial = nullptr;
@@ -200,6 +199,7 @@ private:
     static physx::PxCooking *getCooking();
     physx::PxCooking *cooking();
     void findSceneView();
+    QThread m_workerThread;
 };
 
 QT_END_NAMESPACE

@@ -797,6 +797,50 @@ void QPhysXStaticBody::sync(float deltaTime)
     QPhysXActorBody::sync(deltaTime);
 }
 
+/////////////////////////////////////////////////////////////////////////////
+
+class SimulationWorker : public QObject
+{
+    Q_OBJECT
+public:
+    SimulationWorker(PhysXWorld *physx) : m_physx(physx) { }
+
+public slots:
+    void simulateFrame(float minTimestep, float maxTimestep)
+    {
+        if (!m_physx->isRunning) {
+            m_timer.start();
+            m_physx->isRunning = true;
+        }
+
+        constexpr auto MILLIONTH = 0.000001;
+
+        // If not enough time has elapsed we sleep until it has
+        auto deltaMS = m_timer.nsecsElapsed() * MILLIONTH;
+        while (deltaMS < minTimestep) {
+            auto sleepUSecs = (minTimestep - deltaMS) * 1000.f;
+            QThread::usleep(sleepUSecs);
+            deltaMS = m_timer.nsecsElapsed() * MILLIONTH;
+        }
+        m_timer.restart();
+
+        auto deltaSecs = qMin(float(deltaMS), maxTimestep) * 0.001f;
+        m_physx->scene->simulate(deltaSecs);
+        m_physx->scene->fetchResults(true);
+
+        emit frameDone(deltaSecs);
+    }
+
+signals:
+    void frameDone(float deltaTime);
+
+private:
+    PhysXWorld *m_physx = nullptr;
+    QElapsedTimer m_timer;
+};
+
+/////////////////////////////////////////////////////////////////////////////
+
 QDynamicsWorld::QDynamicsWorld(QObject *parent) : QObject(parent)
 {
     m_physx = new PhysXWorld;
@@ -813,13 +857,12 @@ QDynamicsWorld::QDynamicsWorld(QObject *parent) : QObject(parent)
 #endif
 
     self = this; // TODO: make a better internal access mechanism
-    maintainTimer();
 }
 
 QDynamicsWorld::~QDynamicsWorld()
 {
-    if (m_physx->isRunning)
-        m_physx->scene->fetchResults(true);
+    m_workerThread.quit();
+    m_workerThread.wait();
 
     PHYSX_RELEASE(m_physx->dispatcher);
     PHYSX_RELEASE(m_physx->controllerManager);
@@ -836,6 +879,16 @@ QDynamicsWorld::~QDynamicsWorld()
     for (auto body : m_physXBodies) {
         delete body;
     }
+}
+
+void QDynamicsWorld::classBegin() {}
+
+void QDynamicsWorld::componentComplete()
+{
+    if (!m_running || m_physicsInitialized)
+        return;
+    initPhysics();
+    emit simulateFrame(m_minTimestep, m_maxTimestep);
 }
 
 QVector3D QDynamicsWorld::gravity() const
@@ -935,7 +988,10 @@ void QDynamicsWorld::setRunning(bool running)
         return;
 
     m_running = running;
-    maintainTimer();
+    if (!m_physicsInitialized)
+        initPhysics();
+    if (m_running)
+        emit simulateFrame(m_minTimestep, m_maxTimestep);
     emit runningChanged(m_running);
 }
 
@@ -986,14 +1042,6 @@ void QDynamicsWorld::setMinTimestep(float minTimestep)
         return;
 
     m_minTimestep = minTimestep;
-
-    // Change timer refresh rate if running
-    if (m_running && m_updateTimer.isActive()) {
-        m_updateTimer.stop();
-        const int freq = qMax(1, int(m_minTimestep));
-        m_updateTimer.start(freq, this);
-    }
-
     emit minTimestepChanged(minTimestep);
 }
 
@@ -1008,7 +1056,12 @@ void QDynamicsWorld::setMaxTimestep(float maxTimestep)
 
 void QDynamicsWorld::updateDebugDraw()
 {
-    if (m_sceneView == nullptr || !(m_forceDebugView || m_hasIndividualDebugView))
+    if (!(m_forceDebugView || m_hasIndividualDebugView))
+        return;
+
+    findSceneView();
+
+    if (m_sceneView == nullptr)
         return;
 
     auto sceneRoot = m_sceneView->scene();
@@ -1303,12 +1356,6 @@ void QDynamicsWorld::setDefaultDensity(float defaultDensity)
     emit defaultDensityChanged(defaultDensity);
 }
 
-void QDynamicsWorld::timerEvent(QTimerEvent *event)
-{
-    if (event->timerId() == m_updateTimer.timerId())
-        updatePhysics();
-}
-
 void QDynamicsWorld::findSceneView()
 {
     // If we have not specified a scene view we find the first available one
@@ -1373,24 +1420,19 @@ void QDynamicsWorld::initPhysics()
     m_physx->scene = m_physx->physics->createScene(sceneDesc);
     m_physx->scene->setGravity(QPhysicsUtils::toPhysXType(m_gravity));
 
-    findSceneView();
+    // Setup worker thread
+    SimulationWorker *worker = new SimulationWorker(m_physx);
+    worker->moveToThread(&m_workerThread);
+    connect(&m_workerThread, &QThread::finished, worker, &QObject::deleteLater);
+    connect(this, &QDynamicsWorld::simulateFrame, worker, &SimulationWorker::simulateFrame);
+    connect(worker, &SimulationWorker::frameDone, this, &QDynamicsWorld::frameFinished);
+    m_workerThread.start();
 
     m_physicsInitialized = true;
 }
 
-void QDynamicsWorld::updatePhysics()
+void QDynamicsWorld::frameFinished(float deltaTime)
 {
-    if (!m_physicsInitialized)
-        initPhysics();
-
-    // If not enough time has elapsed we return
-    if (m_deltaTime.elapsed() < m_minTimestep)
-        return;
-
-    // Check if simulation is done
-    if (m_physx->isRunning && !m_physx->scene->fetchResults())
-        return;
-
     cleanupRemovedNodes();
     for (auto *node : std::as_const(m_newCollisionNodes)) {
         auto *body = QPhysXFactory::createBackend(node);
@@ -1398,10 +1440,6 @@ void QDynamicsWorld::updatePhysics()
         m_physXBodies.push_back(body);
     }
     m_newCollisionNodes.clear();
-
-    // Calculate time step
-    const auto deltaMS = m_deltaTime.restart();
-    const auto deltaTime = qMin(float(deltaMS), m_maxTimestep) * 0.001f;
 
     // TODO: Use dirty flag/dirty list to avoid redoing things that didn't change
     for (auto *physXBody : std::as_const(m_physXBodies)) {
@@ -1414,24 +1452,8 @@ void QDynamicsWorld::updatePhysics()
 
     updateDebugDraw();
 
-    // Start simulating next frame
-
-    m_physx->scene->simulate(deltaTime);
-    m_physx->isRunning = true;
-}
-
-void QDynamicsWorld::maintainTimer()
-{
-    if (m_running == m_updateTimer.isActive())
-        return;
-
-    if (m_running) {
-        const int freq = qMax(1, int(m_minTimestep));
-        m_updateTimer.start(freq, this);
-        m_deltaTime.start();
-    } else {
-        m_updateTimer.stop();
-    }
+    if (m_running)
+        emit simulateFrame(m_minTimestep, m_maxTimestep);
 }
 
 QDynamicsWorld *QDynamicsWorld::self = nullptr;
@@ -1465,3 +1487,5 @@ physx::PxControllerManager *QDynamicsWorld::controllerManager()
     return m_physx->controllerManager;
 }
 QT_END_NAMESPACE
+
+#include "qdynamicsworld.moc"
