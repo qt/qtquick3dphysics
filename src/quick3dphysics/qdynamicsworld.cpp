@@ -1392,7 +1392,7 @@ void QDynamicsWorld::updatePhysics()
         return;
 
     cleanupRemovedNodes();
-    for (auto *node : qAsConst(m_newCollisionNodes)) {
+    for (auto *node : std::as_const(m_newCollisionNodes)) {
         auto *body = QPhysXFactory::createBackend(node);
         body->init(this, m_physx);
         m_physXBodies.push_back(body);
@@ -1404,7 +1404,7 @@ void QDynamicsWorld::updatePhysics()
     const auto deltaTime = qMin(float(deltaMS), m_maxTimestep) * 0.001f;
 
     // TODO: Use dirty flag/dirty list to avoid redoing things that didn't change
-    for (auto *physXBody : qAsConst(m_physXBodies)) {
+    for (auto *physXBody : std::as_const(m_physXBodies)) {
         physXBody->markDirtyShapes();
         physXBody->rebuildDirtyShapes(this, m_physx);
 
