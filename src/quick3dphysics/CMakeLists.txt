@@ -38,6 +38,10 @@ qt_internal_add_qml_module(Quick3DPhysics
         qtquick3dphysicsglobal_p.h
     DEFINES
         QT_BUILD_QUICK3DPHYSICS_LIB
+        PX_PHYSX_STATIC_LIB
+    SYSTEM_INCLUDE_DIRECTORIES
+        ../3rdparty/PhysX/include
+        ../3rdparty/PhysX/pxshared/include
     LIBRARIES
         Qt::CorePrivate
         Qt::GuiPrivate
@@ -66,12 +70,6 @@ qt_internal_extend_target(qquick3dphysicsplugin
         Qt::Quick3DPhysicsPrivate
 )
 
-target_include_directories(Quick3DPhysics SYSTEM
-    PRIVATE
-    ../3rdparty/PhysX/include
-    ../3rdparty/PhysX/pxshared/include
-)
-
 if (UNIX)
     # Needed for PxPreprocessor.h error
     if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
@@ -80,8 +78,6 @@ if (UNIX)
         qt_internal_extend_target(Quick3DPhysics DEFINES NDEBUG)
     endif()
 endif()
-
-qt_internal_extend_target(Quick3DPhysics DEFINES PX_PHYSX_STATIC_LIB)
 
 qt_internal_add_docs(Quick3DPhysics
     doc/qtquick3dphysics.qdocconf
