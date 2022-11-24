@@ -81,7 +81,7 @@ struct PvdTypeToDataTypeMap
 	struct PvdDataTypeToNamespacedNameMap<type>                                                                        \
 	{                                                                                                                  \
 		NamespacedName Name;                                                                                           \
-		PvdDataTypeToNamespacedNameMap<type>() : Name("physx3_debugger_internal", #type)                               \
+		PvdDataTypeToNamespacedNameMap() : Name("physx3_debugger_internal", #type)                                     \
 		{                                                                                                              \
 		}                                                                                                              \
 	};
