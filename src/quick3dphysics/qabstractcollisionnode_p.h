@@ -96,6 +96,8 @@ private:
     friend class QAbstractPhysXNode;
     friend class QDynamicsWorld; // for register/deregister TODO: cleaner mechanism
     QAbstractPhysXNode *m_backendObject = nullptr;
+
+    QMetaObject::Connection m_rebuildConnection;
 };
 
 QT_END_NAMESPACE
