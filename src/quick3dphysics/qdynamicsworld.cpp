@@ -111,6 +111,14 @@ QT_BEGIN_NAMESPACE
     \c 33.333 which corresponds to \c 30 frames per second.
 */
 
+/*!
+    \qmlsignal DynamicsWorld::frameDone(float timestep)
+    \since 6.5
+
+    This signal is emitted when the physical simulation is done simulating a frame. The \a timestep
+    parameter is how long in milliseconds the timestep was in the simulation.
+*/
+
 Q_LOGGING_CATEGORY(lcQuick3dPhysics, "qt.quick3d.physics");
 
 static const QQuaternion kMinus90YawRotation = QQuaternion::fromEulerAngles(0, -90, 0);
@@ -1505,6 +1513,7 @@ void QDynamicsWorld::frameFinished(float deltaTime)
 
     if (m_running)
         emit simulateFrame(m_minTimestep, m_maxTimestep);
+    emit frameDone(deltaTime * 1000);
 }
 
 QDynamicsWorld *QDynamicsWorld::self = nullptr;

@@ -134,6 +134,7 @@ signals:
     void minTimestepChanged(float minTimestep);
     void maxTimestepChanged(float maxTimestep);
     void simulateFrame(float minTimestep, float maxTimestep);
+    Q_REVISION(6, 5) void frameDone(float timestep);
 
 private:
     void frameFinished(float deltaTime);
