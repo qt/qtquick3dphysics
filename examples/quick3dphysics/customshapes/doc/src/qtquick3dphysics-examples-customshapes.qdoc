@@ -56,7 +56,9 @@
     \snippet customshapes/main.qml dices
 
     \section2 Animation
-    To make the dices move from the cup to the dice tower we animate the cup and move it up and then tip it over. This is done using a SequentialAnimation:
+    To make the dices move from the cup to the dice tower we animate the cup and move it up and then tip it over.
+    To make sure that the animation stays in sync with the physical simulation we use an AnimationController which we connect
+    to the \c onFrameDone signal on the \l DynamicsWorld. After every simulated frame we progress the animation with the elapsed timestep.
 
     \snippet customshapes/main.qml animation
 

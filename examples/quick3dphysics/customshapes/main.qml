@@ -20,6 +20,7 @@ Window {
         running: true
         typicalLength: 2
         enableCCD: true
+        maxTimestep: 20
     }
     //! [world]
 
@@ -73,8 +74,8 @@ Window {
             scale: Qt.vector3d(2, 2, 2)
             PerspectiveCamera {
                 id: camera
-                position: Qt.vector3d(-45, 20, 60)
-                eulerRotation: Qt.vector3d(-6, -13, 0)
+                position: Qt.vector3d(-45, 25, 60)
+                eulerRotation: Qt.vector3d(-6, -33, 0)
                 clipFar: 1000
                 clipNear: 0.1
             }
@@ -120,10 +121,12 @@ Window {
                 id: diceCup
                 isKinematic: true
                 mass: 0
-                property vector3d restPos: Qt.vector3d(11, 6, 0)
-                position: restPos
+                property vector3d bottomPos: Qt.vector3d(11, 6, 0)
+                property vector3d topPos: Qt.vector3d(11, 45, 0)
+                property vector3d unloadPos: Qt.vector3d(0, 45, 0)
+                position: bottomPos
                 kinematicPivot: Qt.vector3d(0, 6, 0)
-                kinematicPosition: restPos
+                kinematicPosition: bottomPos
                 collisionShapes: TriangleMeshShape {
                     id: cupShape
                     meshSource: "meshes/simpleCup.mesh"
@@ -135,12 +138,6 @@ Window {
                         roughness: 0.3
                         metalness: 1
                     }
-                }
-                Behavior on kinematicEulerRotation.z {
-                    NumberAnimation { duration: 1500 }
-                }
-                Behavior on kinematicPosition {
-                    PropertyAnimation { duration: 1500 }
                 }
             }
             //! [cup]
@@ -193,7 +190,7 @@ Window {
                                                randomInRange(0, 360))
 
                     property vector3d initialPosition: Qt.vector3d(11 + 1.5*Math.cos(index/(Math.PI/4)),
-                                                                   5 + index * 1.5,
+                                                                   diceCup.bottomPos.y + index * 1.5,
                                                                    0)
                     position: initialPosition
 
@@ -240,19 +237,38 @@ Window {
             //! [dices]
 
             //! [animation]
-            SequentialAnimation {
-                running: physicsWorld.running
-                PauseAnimation { duration: 1500 }
-                ScriptAction { script: diceCup.kinematicPosition = Qt.vector3d(4, 45, 0) }
-                PauseAnimation { duration: 1500 }
-                ScriptAction { script: { diceCup.kinematicEulerRotation.z = 130; diceCup.kinematicPosition = Qt.vector3d(0, 45, 0) } }
-                PauseAnimation { duration: 3000 }
-                ScriptAction { script: { diceCup.kinematicEulerRotation.z = 0; diceCup.kinematicPosition = Qt.vector3d(4, 45, 0) } }
-                PauseAnimation { duration: 1500 }
-                ScriptAction { script: diceCup.kinematicPosition = diceCup.restPos }
-                PauseAnimation { duration: 2000 }
-                ScriptAction { script: dicePool.restore() }
-                loops: Animation.Infinite
+            Connections {
+                target: physicsWorld
+                property real totalAnimationTime : 7500
+                function onFrameDone(timeStep) {
+                    let progressStep = timeStep/totalAnimationTime;
+                    animationController.progress += progressStep;
+                    if (animationController.progress >= 1) {
+                        animationController.completeToEnd();
+                        animationController.reload();
+                        animationController.progress = 0;
+                    }
+                }
+            }
+
+            AnimationController {
+                id: animationController
+                animation: SequentialAnimation {
+                    PauseAnimation { duration: 2500 }
+                    PropertyAnimation { target: diceCup; property: "kinematicPosition"; to: diceCup.topPos; duration: 2500; }
+                    ParallelAnimation {
+                        PropertyAnimation { target: diceCup; property: "kinematicEulerRotation.z"; to: 130; duration: 1500 }
+                        PropertyAnimation { target: diceCup; property: "kinematicPosition"; to: diceCup.unloadPos; duration: 1500 }
+                    }
+                    PauseAnimation { duration: 1000 }
+                    ParallelAnimation {
+                        PropertyAnimation { target: diceCup; property: "kinematicEulerRotation.z"; to: 0; duration: 1500 }
+                        PropertyAnimation { target: diceCup; property: "kinematicPosition"; to: diceCup.topPos; duration: 1500 }
+                    }
+                    PropertyAnimation { target: diceCup; property: "kinematicPosition"; to: diceCup.bottomPos; duration: 1500 }
+                    PauseAnimation { duration: 2000 }
+                    ScriptAction { script: dicePool.restore() }
+                }
             }
             //! [animation]
         } // scene
