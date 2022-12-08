@@ -118,6 +118,7 @@ Window {
 
             DynamicRigidBody {
                 id: kinematicTorus
+                kinematicPosition: Qt.vector3d(-0.5, 2, 0.5)
                 position: Qt.vector3d(-0.5, 2, 0.5)
                 property bool inArea: false
 

@@ -122,7 +122,8 @@ Window {
                 mass: 0
                 property vector3d restPos: Qt.vector3d(11, 6, 0)
                 position: restPos
-                pivot: Qt.vector3d(0, 6, 0)
+                kinematicPivot: Qt.vector3d(0, 6, 0)
+                kinematicPosition: restPos
                 collisionShapes: TriangleMeshShape {
                     id: cupShape
                     meshSource: "meshes/simpleCup.mesh"
@@ -135,10 +136,10 @@ Window {
                         metalness: 1
                     }
                 }
-                Behavior on eulerRotation.z {
+                Behavior on kinematicEulerRotation.z {
                     NumberAnimation { duration: 1500 }
                 }
-                Behavior on position {
+                Behavior on kinematicPosition {
                     PropertyAnimation { duration: 1500 }
                 }
             }
@@ -242,13 +243,13 @@ Window {
             SequentialAnimation {
                 running: physicsWorld.running
                 PauseAnimation { duration: 1500 }
-                ScriptAction { script: diceCup.position = Qt.vector3d(4, 45, 0) }
+                ScriptAction { script: diceCup.kinematicPosition = Qt.vector3d(4, 45, 0) }
                 PauseAnimation { duration: 1500 }
-                ScriptAction { script: { diceCup.eulerRotation.z = 130; diceCup.position = Qt.vector3d(0, 45, 0) } }
+                ScriptAction { script: { diceCup.kinematicEulerRotation.z = 130; diceCup.kinematicPosition = Qt.vector3d(0, 45, 0) } }
                 PauseAnimation { duration: 3000 }
-                ScriptAction { script: { diceCup.eulerRotation.z = 0; diceCup.position = Qt.vector3d(4, 45, 0) } }
+                ScriptAction { script: { diceCup.kinematicEulerRotation.z = 0; diceCup.kinematicPosition = Qt.vector3d(4, 45, 0) } }
                 PauseAnimation { duration: 1500 }
-                ScriptAction { script: diceCup.position = diceCup.restPos }
+                ScriptAction { script: diceCup.kinematicPosition = diceCup.restPos }
                 PauseAnimation { duration: 2000 }
                 ScriptAction { script: dicePool.restore() }
                 loops: Animation.Infinite

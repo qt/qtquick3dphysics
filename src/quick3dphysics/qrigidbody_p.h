@@ -19,6 +19,7 @@
 #include <QtQml/QQmlEngine>
 
 #include <QtCore/QQueue>
+#include <QtQuick3DUtils/private/qssgutils_p.h>
 
 QT_BEGIN_NAMESPACE
 
@@ -70,6 +71,16 @@ public:
                        setCenterOfMassRotation NOTIFY centerOfMassRotationChanged)
     Q_PROPERTY(QList<float> inertiaMatrix READ readInertiaMatrix WRITE setInertiaMatrix NOTIFY
                        inertiaMatrixChanged);
+
+    Q_PROPERTY(QVector3D kinematicPosition READ kinematicPosition WRITE setKinematicPosition NOTIFY
+                       kinematicPositionChanged REVISION(6, 5));
+    Q_PROPERTY(QVector3D kinematicEulerRotation READ kinematicEulerRotation WRITE
+                       setKinematicEulerRotation NOTIFY kinematicEulerRotationChanged REVISION(6,
+                                                                                               5));
+    Q_PROPERTY(QQuaternion kinematicRotation READ kinematicRotation WRITE setKinematicRotation
+                       NOTIFY kinematicRotationChanged REVISION(6, 5));
+    Q_PROPERTY(QVector3D kinematicPivot READ kinematicPivot WRITE setKinematicPivot NOTIFY
+                       kinematicPivotChanged REVISION(6, 5));
 
     // clang-format off
 //    // ??? separate simulation control object? --- some of these have default values in the engine, so we need tristate
@@ -153,6 +164,18 @@ public:
     void setInertiaMatrix(const QList<float> &newInertiaMatrix);
     const QMatrix3x3 &inertiaMatrix() const;
 
+    Q_REVISION(6, 5) void setKinematicPosition(const QVector3D &position);
+    Q_REVISION(6, 5) QVector3D kinematicPosition() const;
+
+    Q_REVISION(6, 5) void setKinematicRotation(const QQuaternion &rotation);
+    Q_REVISION(6, 5) QQuaternion kinematicRotation() const;
+
+    Q_REVISION(6, 5) void setKinematicEulerRotation(const QVector3D &rotation);
+    Q_REVISION(6, 5) QVector3D kinematicEulerRotation() const;
+
+    Q_REVISION(6, 5) void setKinematicPivot(const QVector3D &pivot);
+    Q_REVISION(6, 5) QVector3D kinematicPivot() const;
+
 Q_SIGNALS:
     void massChanged(float mass);
     void densityChanged(float density);
@@ -171,6 +194,10 @@ Q_SIGNALS:
     void centerOfMassPositionChanged();
     void centerOfMassRotationChanged();
     void inertiaMatrixChanged();
+    Q_REVISION(6, 5) void kinematicPositionChanged(const QVector3D &kinematicPosition);
+    Q_REVISION(6, 5) void kinematicRotationChanged(const QQuaternion &kinematicRotation);
+    Q_REVISION(6, 5) void kinematicEulerRotationChanged(const QVector3D &kinematicEulerRotation);
+    Q_REVISION(6, 5) void kinematicPivotChanged(const QVector3D &kinematicPivot);
 
 private:
     float m_mass = 1.f;
@@ -193,6 +220,10 @@ private:
     QQueue<QPhysicsCommand *> m_commandQueue;
     bool m_gravityEnabled = true;
     MassMode m_massMode = MassMode::Density;
+
+    QVector3D m_kinematicPosition;
+    RotationData m_kinematicRotation;
+    QVector3D m_kinematicPivot;
 };
 
 class Q_QUICK3DPHYSICS_EXPORT QStaticRigidBody : public QAbstractPhysicsBody

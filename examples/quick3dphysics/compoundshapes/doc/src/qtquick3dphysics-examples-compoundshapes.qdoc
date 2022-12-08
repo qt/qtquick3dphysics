@@ -11,8 +11,7 @@
     This example demonstrates how to use more than one collision shape to create complex objects for collision detection.
     The scene consists of a green static plane and a series of links connected to each other.
     At the beginning, the simulation is disabled. After some time or when the user press the space key, the simulation will
-    start. An animation will start that causes the leftmost link to move horizontally. Since the leftmost link is
-    purely controlled by animation, the \l {DynamicRigidBody::} {isKinematic} property is set to true.
+    start. An animation will start that causes the leftmost link to move horizontally.
 
     \section1 Setup
 
@@ -35,8 +34,10 @@
     \snippet compoundshapes/main.qml link
 
     The first link which is on the left has its \l {DynamicRigidBody::} {isKinematic}
-    property set to true so that we can control it via animation. The other links are instanced with
-    some spacing between them.
+    property set to \c true so that we can control it via animation. Since it is a kinematic object we need to set the
+    \l {DynamicRigidBody::} {kinematicPosition} and \l {DynamicRigidBody::} {kinematicRotation} properties. We animate
+    it by animating the \l {DynamicRigidBody::} {kinematicPosition} property. The other links are instanced with some
+    spacing between them.
 
     The interesting part is what is happening inside the Mesh and Capsule Links files. Let's take a look at each
     one of them.

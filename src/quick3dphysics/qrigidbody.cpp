@@ -88,7 +88,10 @@ QT_BEGIN_NAMESPACE
     This property defines whether the object is kinematic or not. A kinematic object does not get
     influenced by external forces and can be seen as an object of infinite mass. If this property is
     set then in every simulation frame the physical object will be moved to its target position
-    regardless of external forces.
+    regardless of external forces. Note that to move and rotate the kinematic object you need to use
+    the kinematicPosition, kinematicRotation, kinematicEulerRotation and kinematicPivot properties.
+
+    \sa kinematicPosition, kinematicRotation, kinematicEulerRotation, kinematicPivot
 */
 
 /*!
@@ -166,6 +169,50 @@ QT_BEGIN_NAMESPACE
     \c DynamicRigidBody.MassAndInertiaMatrix.
 
     \sa massMode, inertiaTensor
+*/
+
+/*!
+    \qmlproperty vector3d DynamicRigidBody::kinematicPosition
+    \since 6.5
+
+    Defines the position of the object when it is kinematic, i.e. when \l isKinematic is set to \c
+    true. On each iteration of the simulation the physical object will be updated according to this
+    value.
+
+    \sa isKinematic, kinematicRotation, kinematicEulerRotation, kinematicPivot
+*/
+
+/*!
+    \qmlproperty vector3d DynamicRigidBody::kinematicRotation
+    \since 6.5
+
+    Defines the rotation of the object when it is kinematic, i.e. when \l isKinematic is set to \c
+    true. On each iteration of the simulation the physical object will be updated according to this
+    value.
+
+    \sa isKinematic, kinematicPosition, kinematicEulerRotation, kinematicPivot
+*/
+
+/*!
+    \qmlproperty vector4d DynamicRigidBody::kinematicEulerRotation
+    \since 6.5
+
+    Defines the euler rotation of the object when it is kinematic, i.e. when \l isKinematic is set to \c
+    true. On each iteration of the simulation the physical object will be updated according to this
+    value.
+
+    \sa isKinematic, kinematicPosition, kinematicEulerRotation, kinematicPivot
+*/
+
+/*!
+    \qmlproperty vector3d DynamicRigidBody::kinematicPivot
+    \since 6.5
+
+    Defines the pivot of the object when it is kinematic, i.e. when \l isKinematic is set to \c
+    true. On each iteration of the simulation the physical object will be updated according to this
+    value.
+
+    \sa isKinematic, kinematicPosition, kinematicEulerRotation, kinematicRotation
 */
 
 /*!
@@ -587,6 +634,58 @@ void QDynamicRigidBody::applyTorqueImpulse(const QVector3D &impulse)
 void QDynamicRigidBody::reset(const QVector3D &position, const QVector3D &eulerRotation)
 {
     m_commandQueue.enqueue(new QPhysicsCommandReset(position, eulerRotation));
+}
+
+void QDynamicRigidBody::setKinematicRotation(const QQuaternion &rotation)
+{
+    if (m_kinematicRotation == rotation)
+        return;
+
+    m_kinematicRotation = rotation;
+    emit kinematicRotationChanged(m_kinematicRotation);
+    emit kinematicEulerRotationChanged(m_kinematicRotation.getEulerRotation());
+}
+
+QQuaternion QDynamicRigidBody::kinematicRotation() const
+{
+    return m_kinematicRotation.getQuaternionRotation();
+}
+
+void QDynamicRigidBody::setKinematicEulerRotation(const QVector3D &rotation)
+{
+    if (m_kinematicRotation == rotation)
+        return;
+
+    m_kinematicRotation = rotation;
+    emit kinematicEulerRotationChanged(m_kinematicRotation);
+    emit kinematicRotationChanged(m_kinematicRotation.getQuaternionRotation());
+}
+
+QVector3D QDynamicRigidBody::kinematicEulerRotation() const
+{
+    return m_kinematicRotation.getEulerRotation();
+}
+
+void QDynamicRigidBody::setKinematicPivot(const QVector3D &pivot)
+{
+    m_kinematicPivot = pivot;
+    emit kinematicPivotChanged(m_kinematicPivot);
+}
+
+QVector3D QDynamicRigidBody::kinematicPivot() const
+{
+    return m_kinematicPivot;
+}
+
+void QDynamicRigidBody::setKinematicPosition(const QVector3D &position)
+{
+    m_kinematicPosition = position;
+    emit kinematicPositionChanged(m_kinematicPosition);
+}
+
+QVector3D QDynamicRigidBody::kinematicPosition() const
+{
+    return m_kinematicPosition;
 }
 
 /*!

@@ -82,17 +82,24 @@ Window {
 
         //! [link]
         MeshLink {
+            id: movingLink
             isKinematic: true
-            position: Qt.vector3d(-6 * viewport.ringDistance, viewport.ringY, 0)
-            eulerRotation: Qt.vector3d(90, 0, 0)
+            property vector3d startPos : Qt.vector3d(-6 * viewport.ringDistance, viewport.ringY, 0)
+            property vector3d startRot : Qt.vector3d(90, 0, 0)
+            kinematicPosition: startPos
+            position: startPos
+            kinematicEulerRotation: startRot
+            eulerRotation: startRot
             color: "red"
 
-            SequentialAnimation on x {
+            SequentialAnimation {
                 running: physicsWorld.running
                 PauseAnimation {
                     duration: 7000
                 }
                 NumberAnimation {
+                    target: movingLink
+                    property: "kinematicPosition.x"
                     from: -6 * viewport.ringDistance
                     to: -9 * viewport.ringDistance
                     duration: 3000
@@ -101,12 +108,16 @@ Window {
 
                 SequentialAnimation {
                     NumberAnimation {
+                        target: movingLink
+                        property: "kinematicPosition.x"
                         from: -9 * viewport.ringDistance
                         to: 3 * viewport.ringDistance
                         easing.type: Easing.InOutCubic
                         duration: 8000
                     }
                     NumberAnimation {
+                        target: movingLink
+                        property: "kinematicPosition.x"
                         to: -9 * viewport.ringDistance
                         from: 3 * viewport.ringDistance
                         easing.type: Easing.InOutCubic
@@ -173,8 +184,12 @@ Window {
 
         MeshLink {
             isKinematic: true
-            position: Qt.vector3d(6 * viewport.ringDistance, viewport.ringY, 0)
-            eulerRotation: Qt.vector3d(90, 0, 0)
+            property vector3d startPos : Qt.vector3d(6 * viewport.ringDistance, viewport.ringY, 0)
+            property vector3d startRot : Qt.vector3d(90, 0, 0)
+            kinematicPosition: startPos
+            position: startPos
+            kinematicEulerRotation: startRot
+            eulerRotation: startRot
             color: "red"
         }
         //! [link]

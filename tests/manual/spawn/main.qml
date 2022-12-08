@@ -114,8 +114,8 @@ Window {
                 SequentialAnimation {
                      running: physicsWorld.running
                      loops: Animation.Infinite;
-                     NumberAnimation {target: impeller; property: "x"; from: -3; to:  3; duration: 2000 }
-                     NumberAnimation {target: impeller; property: "x"; from:  3; to: -3; duration: 2000 }
+                     NumberAnimation {target: impeller; property: "kinematicPosition.x"; from: -3; to:  3; duration: 2000 }
+                     NumberAnimation {target: impeller; property: "kinematicPosition.x"; from:  3; to: -3; duration: 2000 }
                 }
 
                 Model {

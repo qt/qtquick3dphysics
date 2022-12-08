@@ -23,6 +23,7 @@
 #include <QtQuick3D/private/qquick3dnode_p.h>
 #include <QtQuick3D/private/qquick3dmodel_p.h>
 #include <QtQuick3D/private/qquick3ddefaultmaterial_p.h>
+#include <QtQuick3DUtils/private/qssgutils_p.h>
 
 #define PHYSX_ENABLE_PVD 0
 
@@ -125,6 +126,17 @@ static physx::PxTransform getPhysXWorldTransform(const QQuick3DNode *node)
 {
     const QQuaternion &rotation = node->sceneRotation();
     const QVector3D worldPosition = node->scenePosition();
+    return physx::PxTransform(QPhysicsUtils::toPhysXType(worldPosition),
+                              QPhysicsUtils::toPhysXType(rotation));
+}
+
+static physx::PxTransform getPhysXWorldTransform(const QMatrix4x4 transform)
+{
+    auto rotationMatrix = transform;
+    mat44::normalize(rotationMatrix);
+    auto rotation =
+            QQuaternion::fromRotationMatrix(mat44::getUpper3x3(rotationMatrix)).normalized();
+    const QVector3D worldPosition = mat44::getPosition(transform);
     return physx::PxTransform(QPhysicsUtils::toPhysXType(worldPosition),
                               QPhysicsUtils::toPhysXType(rotation));
 }
@@ -335,7 +347,7 @@ public:
     virtual void markDirtyShapes() { }
     virtual void rebuildDirtyShapes(QDynamicsWorld *, PhysXWorld *) { }
 
-    virtual void sync(float deltaTime) = 0;
+    virtual void sync(float deltaTime, QHash<QQuick3DNode *, QMatrix4x4> &transformCache) = 0;
     virtual void cleanup(PhysXWorld *)
     {
         for (auto *shape : shapes)
@@ -376,7 +388,7 @@ public:
     QPhysXCharacterController(QCharacterController *frontEnd) : QAbstractPhysXNode(frontEnd) { }
     void init(QDynamicsWorld *world, PhysXWorld *physX) override;
 
-    void sync(float deltaTime) override;
+    void sync(float deltaTime, QHash<QQuick3DNode *, QMatrix4x4> &transformCache) override;
     void createMaterial(PhysXWorld *physX) override;
 
 private:
@@ -396,7 +408,7 @@ public:
         QAbstractPhysXNode::cleanup(physX);
     }
     void init(QDynamicsWorld *world, PhysXWorld *physX) override;
-    void sync(float) override;
+    void sync(float deltaTime, QHash<QQuick3DNode *, QMatrix4x4> &transformCache) override;
     void markDirtyShapes() override;
     void rebuildDirtyShapes(QDynamicsWorld *world, PhysXWorld *physX) override;
     virtual void createActor(PhysXWorld *physX);
@@ -420,7 +432,7 @@ class QPhysXStaticBody : public QPhysXRigidBody
 public:
     QPhysXStaticBody(QStaticRigidBody *frontEnd) : QPhysXRigidBody(frontEnd) { }
 
-    void sync(float deltaTime) override;
+    void sync(float deltaTime, QHash<QQuick3DNode *, QMatrix4x4> &transformCache) override;
     void createActor(PhysXWorld *physX) override;
 };
 
@@ -429,7 +441,7 @@ class QPhysXDynamicBody : public QPhysXRigidBody
 public:
     QPhysXDynamicBody(QDynamicRigidBody *frontEnd) : QPhysXRigidBody(frontEnd) { }
 
-    void sync(float deltaTime) override;
+    void sync(float deltaTime, QHash<QQuick3DNode *, QMatrix4x4> &transformCache) override;
     void rebuildDirtyShapes(QDynamicsWorld *world, PhysXWorld *physX) override;
     void updateDefaultDensity(float density) override;
 };
@@ -439,7 +451,7 @@ class QPhysXTriggerBody : public QPhysXActorBody
 public:
     QPhysXTriggerBody(QTriggerBody *frontEnd) : QPhysXActorBody(frontEnd) { }
 
-    void sync(float deltaTime) override;
+    void sync(float deltaTime, QHash<QQuick3DNode *, QMatrix4x4> &transformCache) override;
     bool useTriggerFlag() override { return true; }
 };
 
@@ -697,6 +709,39 @@ static void processCommandQueue(QQueue<QPhysicsCommand *> &commandQueue,
     commandQueue.clear();
 }
 
+static QMatrix4x4 calculateKinematicNodeTransform(QQuick3DNode *node,
+                                                  QHash<QQuick3DNode *, QMatrix4x4> &transformCache)
+{
+    // already calculated transform
+    if (transformCache.contains(node))
+        return transformCache[node];
+
+    QMatrix4x4 localTransform;
+
+    // DynamicRigidBody vs StaticRigidBody use different values for calculating the local transform
+    if (auto drb = qobject_cast<const QDynamicRigidBody *>(node); drb != nullptr) {
+        if (!drb->isKinematic()) {
+            qWarning() << "Non-kinematic body as a parent of a kinematic body is unsupported";
+        }
+        localTransform = QSSGRenderNode::calculateTransformMatrix(
+                drb->kinematicPosition(), drb->scale(), drb->kinematicPivot(), drb->kinematicRotation());
+    } else {
+        localTransform = QSSGRenderNode::calculateTransformMatrix(node->position(), node->scale(),
+                                                                  node->pivot(), node->rotation());
+    }
+
+    QQuick3DNode *parent = node->parentNode();
+    if (!parent) // no parent, local transform is scene transform
+        return localTransform;
+
+    // calculate the parent scene transform and apply the nodes local transform
+    QMatrix4x4 parentTransform = calculateKinematicNodeTransform(parent, transformCache);
+    QMatrix4x4 sceneTransform = parentTransform * localTransform;
+
+    transformCache[node] = sceneTransform;
+    return sceneTransform;
+}
+
 static physx::PxRigidDynamicLockFlags getLockFlags(QDynamicRigidBody *body)
 {
     const int flags =
@@ -723,7 +768,7 @@ static void updatePhysXMaterial(const QPhysicsMaterial *qtMaterial,
         physXMaterial->setRestitution(restitution);
 }
 
-void QPhysXActorBody::sync(float)
+void QPhysXActorBody::sync(float /*deltaTime*/, QHash<QQuick3DNode *, QMatrix4x4> & /*transformCache*/)
 {
     auto *body = static_cast<QAbstractPhysicsBody *>(frontendNode);
     if (QPhysicsMaterial *qtMaterial = body->physicsMaterial()) {
@@ -731,30 +776,34 @@ void QPhysXActorBody::sync(float)
     }
 }
 
-void QPhysXTriggerBody::sync(float)
+void QPhysXTriggerBody::sync(float /*deltaTime*/, QHash<QQuick3DNode *, QMatrix4x4> & /*transformCache*/)
 {
     auto *triggerBody = static_cast<QTriggerBody *>(frontendNode);
     actor->setGlobalPose(getPhysXWorldTransform(triggerBody));
 }
 
-void QPhysXDynamicBody::sync(float deltaTime)
+void QPhysXDynamicBody::sync(float deltaTime, QHash<QQuick3DNode *, QMatrix4x4> &transformCache)
 {
     auto *dynamicRigidBody = static_cast<QDynamicRigidBody *>(frontendNode);
     // first update front end node from physx simulation
-    if (!dynamicRigidBody->isKinematic())
-        dynamicRigidBody->updateFromPhysicsTransform(actor->getGlobalPose());
+    dynamicRigidBody->updateFromPhysicsTransform(actor->getGlobalPose());
 
     auto *dynamicActor = static_cast<physx::PxRigidDynamic *>(actor);
     processCommandQueue(dynamicRigidBody->commandQueue(), *dynamicRigidBody, *dynamicActor);
-    if (dynamicRigidBody->isKinematic())
-        dynamicActor->setKinematicTarget(getPhysXWorldTransform(dynamicRigidBody));
-    else
+    if (dynamicRigidBody->isKinematic()) {
+        // Since this is a kinematic body we need to calculate the transform by hand and since
+        // bodies can occur in other bodies we need to calculate the tranform recursively for all
+        // parents. To save some computation we cache these transforms in 'transformCache'.
+        QMatrix4x4 transform = calculateKinematicNodeTransform(dynamicRigidBody, transformCache);
+        dynamicActor->setKinematicTarget(getPhysXWorldTransform(transform));
+    } else {
         dynamicActor->setRigidDynamicLockFlags(getLockFlags(dynamicRigidBody));
-
-    QPhysXActorBody::sync(deltaTime);
+    }
+    QPhysXActorBody::sync(deltaTime, transformCache);
 }
 
-void QPhysXCharacterController::sync(float deltaTime)
+void QPhysXCharacterController::sync(float deltaTime,
+                                     QHash<QQuick3DNode *, QMatrix4x4> & /*transformCache*/)
 {
     Q_ASSERT(controller);
     auto pos = controller->getPosition();
@@ -785,7 +834,7 @@ void QPhysXCharacterController::sync(float deltaTime)
     // TODO: handle material changes
 }
 
-void QPhysXStaticBody::sync(float deltaTime)
+void QPhysXStaticBody::sync(float deltaTime, QHash<QQuick3DNode *, QMatrix4x4> &transformCache)
 {
     auto *staticBody = static_cast<QStaticRigidBody *>(frontendNode);
     const physx::PxTransform poseNew = getPhysXWorldTransform(staticBody);
@@ -794,7 +843,7 @@ void QPhysXStaticBody::sync(float deltaTime)
     // For performance we only update static objects if they have been moved
     if (!fuzzyEquals(poseNew, poseOld))
         actor->setGlobalPose(poseNew);
-    QPhysXActorBody::sync(deltaTime);
+    QPhysXActorBody::sync(deltaTime, transformCache);
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -1441,13 +1490,15 @@ void QDynamicsWorld::frameFinished(float deltaTime)
     }
     m_newCollisionNodes.clear();
 
+    QHash<QQuick3DNode *, QMatrix4x4> transformCache;
+
     // TODO: Use dirty flag/dirty list to avoid redoing things that didn't change
     for (auto *physXBody : std::as_const(m_physXBodies)) {
         physXBody->markDirtyShapes();
         physXBody->rebuildDirtyShapes(this, m_physx);
 
         // Sync the physics world and the scene
-        physXBody->sync(deltaTime);
+        physXBody->sync(deltaTime, transformCache);
     }
 
     updateDebugDraw();
