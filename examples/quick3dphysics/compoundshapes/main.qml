@@ -16,21 +16,14 @@ Window {
     //! [world]
     DynamicsWorld {
         id: physicsWorld
-        running: false
         enableCCD: true
     }
     //! [world]
 
-    Timer {
-        running: true
-        interval: 5000
-        onTriggered: physicsWorld.running = true
-    }
-
     View3D {
         id: viewport
         property real ringY : 900
-        property real ringDistance : 135
+        property real ringDistance : 165
         anchors.fill: parent
 
         //! [environment]
@@ -44,7 +37,7 @@ Window {
 
         PerspectiveCamera {
             id: camera
-            position: Qt.vector3d(-200, 900, 1300)
+            position: Qt.vector3d(0, 900, 1500)
             eulerRotation: Qt.vector3d(-10, 0, 0)
             clipFar: 15500
             clipNear: 1
@@ -82,7 +75,7 @@ Window {
 
         //! [link]
         MeshLink {
-            id: movingLink
+            id: leftLink
             isKinematic: true
             property vector3d startPos : Qt.vector3d(-6 * viewport.ringDistance, viewport.ringY, 0)
             property vector3d startRot : Qt.vector3d(90, 0, 0)
@@ -91,41 +84,6 @@ Window {
             kinematicEulerRotation: startRot
             eulerRotation: startRot
             color: "red"
-
-            SequentialAnimation {
-                running: physicsWorld.running
-                PauseAnimation {
-                    duration: 7000
-                }
-                NumberAnimation {
-                    target: movingLink
-                    property: "kinematicPosition.x"
-                    from: -6 * viewport.ringDistance
-                    to: -9 * viewport.ringDistance
-                    duration: 3000
-                    easing.type: Easing.InOutQuad
-                }
-
-                SequentialAnimation {
-                    NumberAnimation {
-                        target: movingLink
-                        property: "kinematicPosition.x"
-                        from: -9 * viewport.ringDistance
-                        to: 3 * viewport.ringDistance
-                        easing.type: Easing.InOutCubic
-                        duration: 8000
-                    }
-                    NumberAnimation {
-                        target: movingLink
-                        property: "kinematicPosition.x"
-                        to: -9 * viewport.ringDistance
-                        from: 3 * viewport.ringDistance
-                        easing.type: Easing.InOutCubic
-                        duration: 8000
-                    }
-                    loops: Animation.Infinite
-                }
-            }
         }
 
         CapsuleLink {
@@ -183,6 +141,7 @@ Window {
         }
 
         MeshLink {
+            id : rightLink
             isKinematic: true
             property vector3d startPos : Qt.vector3d(6 * viewport.ringDistance, viewport.ringY, 0)
             property vector3d startRot : Qt.vector3d(90, 0, 0)
@@ -193,6 +152,60 @@ Window {
             color: "red"
         }
         //! [link]
+
+        //! [animation]
+        Connections {
+            target: physicsWorld
+            property real totalAnimationTime : 12000
+            function onFrameDone(timeStep) {
+                let progressStep = timeStep/totalAnimationTime;
+                animationController.progress += progressStep;
+                if (animationController.progress >= 1) {
+                    animationController.completeToEnd();
+                    animationController.reload();
+                    animationController.progress = 0;
+                }
+            }
+        }
+
+        AnimationController {
+            id: animationController
+            animation: SequentialAnimation {
+                NumberAnimation {
+                    target: leftLink
+                    property: "kinematicPosition.x"
+                    to: 3 * viewport.ringDistance
+                    from: -6 * viewport.ringDistance
+                    easing.type: Easing.InOutCubic
+                    duration: 1000
+                }
+                NumberAnimation {
+                    target: leftLink
+                    property: "kinematicPosition.x"
+                    from: 3 * viewport.ringDistance
+                    to: -6 * viewport.ringDistance
+                    easing.type: Easing.InOutCubic
+                    duration: 1000
+                }
+                NumberAnimation {
+                    target: rightLink
+                    property: "kinematicPosition.x"
+                    to: -3 * viewport.ringDistance
+                    from: 6 * viewport.ringDistance
+                    easing.type: Easing.InOutCubic
+                    duration: 1000
+                }
+                NumberAnimation {
+                    target: rightLink
+                    property: "kinematicPosition.x"
+                    from: -3  * viewport.ringDistance
+                    to: 6 * viewport.ringDistance
+                    easing.type: Easing.InOutCubic
+                    duration: 1000
+                }
+            }
+        }
+        //! [animation]
     }
 
     WasdController {
