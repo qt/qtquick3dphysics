@@ -62,7 +62,9 @@ QAbstractCollisionNode::QAbstractCollisionNode()
 
 QAbstractCollisionNode::~QAbstractCollisionNode()
 {
-    disconnect(m_rebuildConnection);
+    for (auto shape : std::as_const(m_collisionShapes))
+        shape->disconnect(this);
+
     if (auto world = QDynamicsWorld::getWorld(); world != nullptr)
         world->deregisterNode(this);
 }
@@ -189,7 +191,7 @@ void QAbstractCollisionNode::qmlAppendShape(QQmlListProperty<QAbstractCollisionS
             &QAbstractCollisionNode::onShapeDestroyed);
 
     // Connect to rebuild signal
-    self->m_rebuildConnection = connect(shape, &QAbstractCollisionShape::needsRebuild, self,
+    connect(shape, &QAbstractCollisionShape::needsRebuild, self,
             &QAbstractCollisionNode::onShapeNeedsRebuild);
 }
 
