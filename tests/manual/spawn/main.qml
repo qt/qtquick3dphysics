@@ -225,11 +225,11 @@ Window {
             function doImpulse() {
                 for (var i = 0; i < instancesBoxes.length; i++) {
                     let box = instancesBoxes[i];
-                    box.applyCentralImpulse(Qt.vector3d(0,100,0));
+                    box.applyCentralImpulse(Qt.vector3d(0,0.01,0));
                 }
                 for (i = 0; i < instancesSpheres.length; i++) {
                     let sphere = instancesSpheres[i];
-                    sphere.applyCentralImpulse(Qt.vector3d(0,100,0));
+                    sphere.applyCentralImpulse(Qt.vector3d(0,0.01,0));
                 }
             }
 
@@ -397,7 +397,6 @@ Window {
             onCheckedChanged: shapeSpawner.setKinematic()
         }
 
-
         Button {
             text:  "Add impulse"
             onClicked: shapeSpawner.doImpulse()
@@ -425,49 +424,6 @@ Window {
             value: 50
         }
 
-
-        Label {
-            text: "Sphere mass: " + massSlider.value
-        }
-        Slider {
-            id: massSlider
-            focusPolicy: Qt.NoFocus
-            from: 1
-            to: 360
-            value: 1
-        }
-        Label {
-            text: "Static friction: " + staticFrictionSlider.value
-        }
-        Slider {
-            id: staticFrictionSlider
-            focusPolicy: Qt.NoFocus
-            from: 0
-            to: 100000
-            value: 500
-        }
-
-        Label {
-            text: "Dynamic friction: " + dynamicFrictionSlider.value
-        }
-        Slider {
-            id: dynamicFrictionSlider
-            focusPolicy: Qt.NoFocus
-            from: 0
-            to: 100000
-            value: 500
-        }
-
-        Label {
-            text: "Restitution: " + restitutionSlider.value
-        }
-        Slider {
-            id: restitutionSlider
-            focusPolicy: Qt.NoFocus
-            from: 0
-            to: 1
-            value: 0
-        }
         Label {
             text: "Debug view (forced): " + physicsWorld.forceDebugDraw
         }
