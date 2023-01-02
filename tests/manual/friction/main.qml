@@ -18,8 +18,8 @@ Window {
         id: physicsWorld
         gravity: Qt.vector3d(0, -9.81, 0)
         running: false
-        typicalLength: toleranceLengthSlider.value
-        typicalSpeed: toleranceSpeedSlider.value
+        typicalLength: typicalLengthSlider.value
+        typicalSpeed: typicalSpeedSlider.value
     }
 
     View3D {
@@ -124,11 +124,9 @@ Window {
                     console.log("Set physics to", physicsWorld.running)
                 }
             } else if (event.key === Qt.Key_J) {
-                floor.eulerRotation.z++
-                console.log("Floor rotation", floor.eulerRotation.z)
+                floor.eulerRotation.x++
             } else if (event.key === Qt.Key_K) {
-                floor.eulerRotation.z--
-                console.log("Floor rotation", floor.eulerRotation.z)
+                floor.eulerRotation.x--
             } else if (event.key === Qt.Key_I) {
                 box.init()
             }
@@ -172,10 +170,10 @@ Window {
         }
 
         Label {
-            text: "Tolerance length: " + toleranceLengthSlider.value
+            text: "Typical length: " + typicalLengthSlider.value
         }
         Slider {
-            id: toleranceLengthSlider
+            id: typicalLengthSlider
             focusPolicy: Qt.NoFocus
             from: 0
             to: 10
@@ -183,10 +181,10 @@ Window {
         }
 
         Label {
-            text: "Tolerance speed: " + toleranceSpeedSlider.value
+            text: "Typical speed: " + typicalSpeedSlider.value
         }
         Slider {
-            id: toleranceSpeedSlider
+            id: typicalSpeedSlider
             focusPolicy: Qt.NoFocus
             from: 0
             to: 10
