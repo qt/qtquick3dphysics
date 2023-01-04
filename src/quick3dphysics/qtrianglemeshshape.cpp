@@ -29,7 +29,7 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty url TriangleMeshShape::meshSource
+    \qmlproperty url TriangleMeshShape::source
     This property defines the location of the mesh file used to define the shape.
 */
 
@@ -69,22 +69,22 @@ void QTriangleMeshShape::updatePhysXGeometry()
     m_dirtyPhysx = false;
 }
 
-const QUrl &QTriangleMeshShape::meshSource() const
+const QUrl &QTriangleMeshShape::source() const
 {
     return m_meshSource;
 }
 
-void QTriangleMeshShape::setMeshSource(const QUrl &newMeshSource)
+void QTriangleMeshShape::setSource(const QUrl &newSource)
 {
-    if (m_meshSource == newMeshSource)
+    if (m_meshSource == newSource)
         return;
-    m_meshSource = newMeshSource;
+    m_meshSource = newSource;
     m_mesh = QQuick3DPhysicsMeshManager::getMesh(m_meshSource, this);
 
     updatePhysXGeometry();
 
     emit needsRebuild(this);
-    emit meshSourceChanged();
+    emit sourceChanged();
 }
 
 QT_END_NAMESPACE

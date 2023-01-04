@@ -39,7 +39,7 @@ class Q_QUICK3DPHYSICS_EXPORT QHeightFieldShape : public QAbstractCollisionShape
 {
     Q_OBJECT
     Q_PROPERTY(QVector3D extents READ extents WRITE setExtents NOTIFY extentsChanged)
-    Q_PROPERTY(QUrl heightMap READ heightMap WRITE setHeightMap NOTIFY heightMapChanged)
+    Q_PROPERTY(QUrl source READ source WRITE setSource NOTIFY sourceChanged REVISION(6, 5))
     QML_NAMED_ELEMENT(HeightFieldShape)
 public:
     QHeightFieldShape();
@@ -47,8 +47,8 @@ public:
 
     physx::PxGeometry *getPhysXGeometry() override;
 
-    const QUrl &heightMap() const;
-    void setHeightMap(const QUrl &newHeightMap);
+    Q_REVISION(6, 5) const QUrl &source() const;
+    Q_REVISION(6, 5) void setSource(const QUrl &newSource);
 
     const QVector3D &hfOffset() const { return m_hfOffset; }
 
@@ -57,7 +57,7 @@ public:
     bool isStaticShape() const override { return true; }
 
 signals:
-    void heightMapChanged();
+    Q_REVISION(6, 5) void sourceChanged();
     void extentsChanged();
 
 private:

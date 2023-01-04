@@ -253,7 +253,7 @@ QHash<QString, QQuick3DPhysicsMesh *> QQuick3DPhysicsMeshManager::meshHash;
 */
 
 /*!
-  \qmlproperty url ConvexMeshShape::meshSource
+  \qmlproperty url ConvexMeshShape::source
   This property defines the location of the mesh file used to define the shape. If the
   mesh is not convex, the convex hull of the mesh will be used.
 */
@@ -292,23 +292,23 @@ void QConvexMeshShape::updatePhysXGeometry()
     m_dirtyPhysx = false;
 }
 
-const QUrl &QConvexMeshShape::meshSource() const
+const QUrl &QConvexMeshShape::source() const
 {
     return m_meshSource;
 }
 
-void QConvexMeshShape::setMeshSource(const QUrl &newMeshSource)
+void QConvexMeshShape::setSource(const QUrl &newSource)
 {
-    if (m_meshSource == newMeshSource)
+    if (m_meshSource == newSource)
         return;
-    m_meshSource = newMeshSource;
+    m_meshSource = newSource;
     m_mesh = QQuick3DPhysicsMeshManager::getMesh(m_meshSource, this);
     updatePhysXGeometry();
 
     m_dirtyPhysx = true;
 
     emit needsRebuild(this);
-    emit meshSourceChanged();
+    emit sourceChanged();
 }
 
 QT_END_NAMESPACE

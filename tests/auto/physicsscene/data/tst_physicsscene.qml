@@ -216,7 +216,7 @@ Item {
                 StaticRigidBody {
                     position: "0, 0, 0"
                     collisionShapes: HeightFieldShape {
-                        heightMap: "hf.png"
+                        source: "hf.png"
                         extents: "8, 2, 4"
                     }
                     physicsMaterial: frictionMaterial

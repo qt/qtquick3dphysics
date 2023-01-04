@@ -276,23 +276,23 @@ void QHeightFieldShape::updateExtents()
     }
 }
 
-const QUrl &QHeightFieldShape::heightMap() const
+const QUrl &QHeightFieldShape::source() const
 {
     return m_heightMapSource;
 }
 
-void QHeightFieldShape::setHeightMap(const QUrl &newHeightMap)
+void QHeightFieldShape::setSource(const QUrl &newSource)
 {
-    if (m_heightMapSource == newHeightMap)
+    if (m_heightMapSource == newSource)
         return;
-    m_heightMapSource = newHeightMap;
+    m_heightMapSource = newSource;
 
     m_heightField = QQuick3DPhysicsHeightFieldManager::getHeightField(m_heightMapSource, this);
 
     m_dirtyPhysx = true;
 
     emit needsRebuild(this);
-    emit heightMapChanged();
+    emit sourceChanged();
 }
 
 const QVector3D &QHeightFieldShape::extents() const

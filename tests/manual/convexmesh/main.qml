@@ -111,7 +111,7 @@ Window {
                 }
                 collisionShapes: ConvexMeshShape {
                     id: torusShape
-                    meshSource: "meshes/newConvexTorus.mesh"
+                    source: "meshes/newConvexTorus.mesh"
                     enableDebugView: viewport.debugView
                 }
             }
@@ -134,7 +134,7 @@ Window {
                 }
                 collisionShapes: TriangleMeshShape {
                     id: torusShape2
-                    meshSource: "meshes/newTorus.mesh"
+                    source: "meshes/newTorus.mesh"
                     enableDebugView: viewport.debugView
                 }
                 isKinematic: true
@@ -157,7 +157,7 @@ Window {
                 }
                 collisionShapes: ConvexMeshShape {
                     id: torusShape3
-                    meshSource: "meshes/newTorus.mesh"
+                    source: "meshes/newTorus.mesh"
                     enableDebugView: viewport.debugView
                 }
             }
@@ -204,7 +204,7 @@ Window {
                     id: hfModel
                     geometry: HeightFieldGeometry {
                         extents: Qt.vector3d(5, 2, 5).times(scaleSlider.value)
-                        heightMap: "maps/heightfield.png"
+                        source: "maps/heightfield.png"
                         smoothShading: false
                     }
                     materials: PrincipledMaterial {
@@ -217,7 +217,7 @@ Window {
                 collisionShapes: HeightFieldShape {
                     id: hfShape
                     extents: Qt.vector3d(5, 2, 5).times(scaleSlider.value)
-                    heightMap: "maps/heightfield.png"
+                    source: "maps/heightfield.png"
                     enableDebugView: viewport.debugView
                 }
             }
@@ -281,7 +281,7 @@ Window {
                 }
                 collisionShapes: TriangleMeshShape {
                     id: triShape
-                    meshSource: "meshes/field.mesh"
+                    source: "meshes/field.mesh"
                     enableDebugView: viewport.debugView
                 }
             }
@@ -376,7 +376,7 @@ Window {
                         }
 //                        collisionShapes: ConvexMeshShape {
 //                            id: torusShape
-//                            meshSource: "meshes/newConvexTorus.mesh"
+//                            source: "meshes/newConvexTorus.mesh"
 //                            meshScale: Qt.vector3d(sf, sf, sf)
 //                        }
                         collisionShapes: SphereShape {

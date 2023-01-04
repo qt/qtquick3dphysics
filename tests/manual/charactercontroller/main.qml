@@ -76,7 +76,7 @@ Window {
             StaticRigidBody {
                 collisionShapes: TriangleMeshShape {
                     id: roomShape
-                    meshSource: "meshes/room.mesh"
+                    source: "meshes/room.mesh"
                 }
 
                 Model {
@@ -94,7 +94,7 @@ Window {
                     z: 600
                 collisionShapes: TriangleMeshShape {
                     id: stairShape
-                    meshSource: "meshes/stairs.mesh"
+                    source: "meshes/stairs.mesh"
                 }
 
                 Model {
