@@ -54,33 +54,45 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty bool DynamicRigidBody::axisLockLinearX
-    This property locks the linear velocity of the body along the X-axis.
+    \qmlproperty int DynamicRigidBody::linearAxisLock
+
+    This property locks the linear velocity of the body along the axes defined by the
+    DynamicRigidBody.AxisLock enum. To lock several axes just bitwise-or their enum values.
+
+    Available options:
+
+    \value  DynamicRigidBody.None
+            No axis lock (default value).
+
+    \value  DynamicRigidBody.LockX
+            Lock X axis.
+
+    \value  DynamicRigidBody.LockY
+            Lock Y axis.
+
+    \value  DynamicRigidBody.LockZ
+            Lock Z axis.
 */
 
 /*!
-    \qmlproperty bool DynamicRigidBody::axisLockLinearY
-    This property locks the linear velocity of the body along the Y-axis.
-*/
+    \qmlproperty int DynamicRigidBody::angularAxisLock
 
-/*!
-    \qmlproperty bool DynamicRigidBody::axisLockLinearZ
-    This property locks the linear velocity of the body along the Z-axis.
-*/
+    This property locks the angular velocity of the body along the axes defined by the
+    DynamicRigidBody.AxisLock enum. To lock several axes just bitwise-or their enum values.
 
-/*!
-    \qmlproperty bool DynamicRigidBody::axisLockAngularX
-    This property locks the angular velocity of the body along the X-axis.
-*/
+    Available options:
 
-/*!
-    \qmlproperty bool DynamicRigidBody::axisLockAngularY
-    This property locks the angular velocity of the body along the Y-axis.
-*/
+    \value  DynamicRigidBody.None
+            No axis lock (default value).
 
-/*!
-    \qmlproperty bool DynamicRigidBody::axisLockAngularZ
-    This property locks the angular velocity of the body along the Z-axis.
+    \value  DynamicRigidBody.LockX
+            Lock X axis.
+
+    \value  DynamicRigidBody.LockY
+            Lock Y axis.
+
+    \value  DynamicRigidBody.LockZ
+            Lock Z axis.
 */
 
 /*!
@@ -512,82 +524,30 @@ void QDynamicRigidBody::setAngularVelocity(const QVector3D &newAngularVelocity)
     emit angularVelocityChanged();
 }
 
-bool QDynamicRigidBody::axisLockLinearX() const
+int QDynamicRigidBody::linearAxisLock() const
 {
-    return m_axisLockLinearX;
+    return m_linearAxisLock;
 }
 
-void QDynamicRigidBody::setAxisLockLinearX(bool newAxisLockLinearX)
+void QDynamicRigidBody::setLinearAxisLock(int newAxisLockLinear)
 {
-    if (m_axisLockLinearX == newAxisLockLinearX)
+    if (m_linearAxisLock == newAxisLockLinear)
         return;
-    m_axisLockLinearX = newAxisLockLinearX;
-    emit axisLockLinearXChanged();
+    m_linearAxisLock = static_cast<AxisLock>(newAxisLockLinear);
+    emit linearAxisLockChanged();
 }
 
-bool QDynamicRigidBody::axisLockLinearY() const
+int QDynamicRigidBody::angularAxisLock() const
 {
-    return m_axisLockLinearY;
+    return m_angularAxisLock;
 }
 
-void QDynamicRigidBody::setAxisLockLinearY(bool newAxisLockLinearY)
+void QDynamicRigidBody::setAngularAxisLock(int newAxisLockAngular)
 {
-    if (m_axisLockLinearY == newAxisLockLinearY)
+    if (m_angularAxisLock == newAxisLockAngular)
         return;
-    m_axisLockLinearY = newAxisLockLinearY;
-    emit axisLockLinearYChanged();
-}
-
-bool QDynamicRigidBody::axisLockLinearZ() const
-{
-    return m_axisLockLinearZ;
-}
-
-void QDynamicRigidBody::setAxisLockLinearZ(bool newAxisLockLinearZ)
-{
-    if (m_axisLockLinearZ == newAxisLockLinearZ)
-        return;
-    m_axisLockLinearZ = newAxisLockLinearZ;
-    emit axisLockLinearZChanged();
-}
-
-bool QDynamicRigidBody::axisLockAngularX() const
-{
-    return m_axisLockAngularX;
-}
-
-void QDynamicRigidBody::setAxisLockAngularX(bool newAxisLockAngularX)
-{
-    if (m_axisLockAngularX == newAxisLockAngularX)
-        return;
-    m_axisLockAngularX = newAxisLockAngularX;
-    emit axisLockAngularXChanged();
-}
-
-bool QDynamicRigidBody::axisLockAngularY() const
-{
-    return m_axisLockAngularY;
-}
-
-void QDynamicRigidBody::setAxisLockAngularY(bool newAxisLockAngularY)
-{
-    if (m_axisLockAngularY == newAxisLockAngularY)
-        return;
-    m_axisLockAngularY = newAxisLockAngularY;
-    emit axisLockAngularYChanged();
-}
-
-bool QDynamicRigidBody::axisLockAngularZ() const
-{
-    return m_axisLockAngularZ;
-}
-
-void QDynamicRigidBody::setAxisLockAngularZ(bool newAxisLockAngularZ)
-{
-    if (m_axisLockAngularZ == newAxisLockAngularZ)
-        return;
-    m_axisLockAngularZ = newAxisLockAngularZ;
-    emit axisLockAngularZChanged();
+    m_angularAxisLock = static_cast<AxisLock>(newAxisLockAngular);
+    emit angularAxisLockChanged();
 }
 
 QQueue<QPhysicsCommand *> &QDynamicRigidBody::commandQueue()

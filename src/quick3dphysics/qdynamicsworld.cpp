@@ -752,13 +752,26 @@ static QMatrix4x4 calculateKinematicNodeTransform(QQuick3DNode *node,
 
 static physx::PxRigidDynamicLockFlags getLockFlags(QDynamicRigidBody *body)
 {
-    const int flags =
-            (body->axisLockAngularX() ? physx::PxRigidDynamicLockFlag::eLOCK_ANGULAR_X : 0)
-            | (body->axisLockAngularY() ? physx::PxRigidDynamicLockFlag::eLOCK_ANGULAR_Y : 0)
-            | (body->axisLockAngularZ() ? physx::PxRigidDynamicLockFlag::eLOCK_ANGULAR_Z : 0)
-            | (body->axisLockLinearX() ? physx::PxRigidDynamicLockFlag::eLOCK_LINEAR_X : 0)
-            | (body->axisLockLinearY() ? physx::PxRigidDynamicLockFlag::eLOCK_LINEAR_Y : 0)
-            | (body->axisLockLinearZ() ? physx::PxRigidDynamicLockFlag::eLOCK_LINEAR_Z : 0);
+    const auto lockAngular = body->angularAxisLock();
+    const auto lockLinear = body->linearAxisLock();
+    const int flags = (lockAngular & QDynamicRigidBody::AxisLock::LockX
+                               ? physx::PxRigidDynamicLockFlag::eLOCK_ANGULAR_X
+                               : 0)
+            | (lockAngular & QDynamicRigidBody::AxisLock::LockY
+                       ? physx::PxRigidDynamicLockFlag::eLOCK_ANGULAR_Y
+                       : 0)
+            | (lockAngular & QDynamicRigidBody::AxisLock::LockZ
+                       ? physx::PxRigidDynamicLockFlag::eLOCK_ANGULAR_Z
+                       : 0)
+            | (lockLinear & QDynamicRigidBody::AxisLock::LockX
+                       ? physx::PxRigidDynamicLockFlag::eLOCK_LINEAR_X
+                       : 0)
+            | (lockLinear & QDynamicRigidBody::AxisLock::LockY
+                       ? physx::PxRigidDynamicLockFlag::eLOCK_LINEAR_Y
+                       : 0)
+            | (lockLinear & QDynamicRigidBody::AxisLock::LockZ
+                       ? physx::PxRigidDynamicLockFlag::eLOCK_LINEAR_Z
+                       : 0);
     return static_cast<physx::PxRigidDynamicLockFlags>(flags);
 }
 

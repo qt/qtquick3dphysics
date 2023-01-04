@@ -268,21 +268,25 @@ Window {
                 var i;
                 for (i = 0; i < instancesSpheres.length; i++) {
                     let sphere = instancesSpheres[i];
-                    sphere.axisLockAngularX = lockAngularX.checked;
-                    sphere.axisLockAngularY = lockAngularY.checked;
-                    sphere.axisLockAngularZ = lockAngularZ.checked;
-                    sphere.axisLockLinearX  = lockLinearX.checked;
-                    sphere.axisLockLinearY  = lockLinearY.checked;
-                    sphere.axisLockLinearZ  = lockLinearZ.checked;
+                    sphere.angularAxisLock =
+                            (lockAngularX.checked ? DynamicRigidBody.LockX : 0) |
+                            (lockAngularY.checked ? DynamicRigidBody.LockY : 0) |
+                            (lockAngularZ.checked ? DynamicRigidBody.LockZ : 0);
+                    sphere.linearAxisLock =
+                            (lockLinearX.checked ? DynamicRigidBody.LockX : 0) |
+                            (lockLinearY.checked ? DynamicRigidBody.LockY : 0) |
+                            (lockLinearZ.checked ? DynamicRigidBody.LockZ : 0);
                 }
                 for (i = 0; i < instancesBoxes.length; i++) {
                     let box = instancesBoxes[i];
-                    box.axisLockAngularX = lockAngularX.checked;
-                    box.axisLockAngularY = lockAngularY.checked;
-                    box.axisLockAngularZ = lockAngularZ.checked;
-                    box.axisLockLinearX  = lockLinearX.checked;
-                    box.axisLockLinearY  = lockLinearY.checked;
-                    box.axisLockLinearZ  = lockLinearZ.checked;
+                    box.angularAxisLock =
+                            (lockAngularX.checked ? DynamicRigidBody.LockX : 0) |
+                            (lockAngularY.checked ? DynamicRigidBody.LockY : 0) |
+                            (lockAngularZ.checked ? DynamicRigidBody.LockZ : 0);
+                    box.linearAxisLock =
+                            (lockLinearX.checked ? DynamicRigidBody.LockX : 0) |
+                            (lockLinearY.checked ? DynamicRigidBody.LockY : 0) |
+                            (lockLinearZ.checked ? DynamicRigidBody.LockZ : 0);
                 }
             }
 
