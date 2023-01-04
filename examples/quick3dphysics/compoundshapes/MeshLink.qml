@@ -26,40 +26,40 @@ DynamicRigidBody {
 
     collisionShapes: [
         ConvexMeshShape {
-            meshSource: "meshes/segmentedRing_001.mesh"
+            source: "meshes/segmentedRing_001.mesh"
         },
         ConvexMeshShape {
-            meshSource: "meshes/segmentedRing_002.mesh"
+            source: "meshes/segmentedRing_002.mesh"
         },
         ConvexMeshShape {
-            meshSource: "meshes/segmentedRing_003.mesh"
+            source: "meshes/segmentedRing_003.mesh"
         },
         ConvexMeshShape {
-            meshSource: "meshes/segmentedRing_004.mesh"
+            source: "meshes/segmentedRing_004.mesh"
         },
         ConvexMeshShape {
-            meshSource: "meshes/segmentedRing_005.mesh"
+            source: "meshes/segmentedRing_005.mesh"
         },
         ConvexMeshShape {
-            meshSource: "meshes/segmentedRing_006.mesh"
+            source: "meshes/segmentedRing_006.mesh"
         },
         ConvexMeshShape {
-            meshSource: "meshes/segmentedRing_007.mesh"
+            source: "meshes/segmentedRing_007.mesh"
         },
         ConvexMeshShape {
-            meshSource: "meshes/segmentedRing_008.mesh"
+            source: "meshes/segmentedRing_008.mesh"
         },
         ConvexMeshShape {
-            meshSource: "meshes/segmentedRing_009.mesh"
+            source: "meshes/segmentedRing_009.mesh"
         },
         ConvexMeshShape {
-            meshSource: "meshes/segmentedRing_010.mesh"
+            source: "meshes/segmentedRing_010.mesh"
         },
         ConvexMeshShape {
-            meshSource: "meshes/segmentedRing_011.mesh"
+            source: "meshes/segmentedRing_011.mesh"
         },
         ConvexMeshShape {
-            meshSource: "meshes/segmentedRing_012.mesh"
+            source: "meshes/segmentedRing_012.mesh"
         }
     ]
 }

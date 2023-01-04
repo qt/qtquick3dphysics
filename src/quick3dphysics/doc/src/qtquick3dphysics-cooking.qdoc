@@ -37,8 +37,8 @@ If the input is a mesh it will generate two files:
 \endlist
 
 One file is a cooked triangle mesh and the other a cooked convex mesh.
-These can then simply be used as the sources of TriangleMeshShape::meshSource and ConvexMeshShape::meshSource and the meshes will be loaded without any need for cooking.
-Similiarily, if the input is an image file a heightfield is generated called \c input.cooked.hf which can then be loaded by referencing it in the HeightFieldShape::heightMap property.
+These can then simply be used as the sources of TriangleMeshShape::source and ConvexMeshShape::source and the meshes will be loaded without any need for cooking.
+Similiarily, if the input is an image file a heightfield is generated called \c input.cooked.hf which can then be loaded by referencing it in the HeightFieldShape::source property.
 
 
 */

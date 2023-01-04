@@ -33,8 +33,7 @@ class QQuick3DPhysicsMesh;
 class Q_QUICK3DPHYSICS_EXPORT QTriangleMeshShape : public QAbstractCollisionShape
 {
     Q_OBJECT
-
-    Q_PROPERTY(QUrl meshSource READ meshSource WRITE setMeshSource NOTIFY meshSourceChanged)
+    Q_PROPERTY(QUrl source READ source WRITE setSource NOTIFY sourceChanged REVISION(6, 5))
 
     QML_NAMED_ELEMENT(TriangleMeshShape)
 public:
@@ -42,12 +41,12 @@ public:
     ~QTriangleMeshShape();
 
     physx::PxGeometry *getPhysXGeometry() override;
-    const QUrl &meshSource() const;
-    void setMeshSource(const QUrl &newMeshSource);
+    Q_REVISION(6, 5) const QUrl &source() const;
+    Q_REVISION(6, 5) void setSource(const QUrl &newSource);
     bool isStaticShape() const override { return true; }
 
 signals:
-    void meshSourceChanged();
+    Q_REVISION(6, 5) void sourceChanged();
 
 private:
     void updatePhysXGeometry();

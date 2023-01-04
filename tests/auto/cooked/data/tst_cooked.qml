@@ -47,7 +47,7 @@ Item {
 
         StaticRigidBody {
             collisionShapes: HeightFieldShape {
-                heightMap: "hf.cooked.hf"
+                source: "hf.cooked.hf"
                 extents: "8, 2, 4"
             }
             sendContactReports: true
@@ -56,7 +56,7 @@ Item {
         StaticRigidBody {
             position: Qt.vector3d(-6, 0, 0)
             collisionShapes: TriangleMeshShape {
-                meshSource: "tetrahedron.cooked.tri"
+                source: "tetrahedron.cooked.tri"
             }
             sendContactReports: true
         }
@@ -64,7 +64,7 @@ Item {
         StaticRigidBody {
             position: Qt.vector3d(6, 0, 0)
             collisionShapes: ConvexMeshShape {
-                meshSource: "tetrahedron.cooked.cvx"
+                source: "tetrahedron.cooked.cvx"
             }
             sendContactReports: true
         }

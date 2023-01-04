@@ -97,7 +97,7 @@ Window {
                     geometry: HeightFieldGeometry {
                         id: tableclothGeometry
                         extents: Qt.vector3d(150, 20, 150)
-                        heightMap: "maps/cloth-heightmap.png"
+                        source: "maps/cloth-heightmap.png"
                         smoothShading: false
                     }
                     materials: PrincipledMaterial {
@@ -111,7 +111,7 @@ Window {
                 collisionShapes: HeightFieldShape {
                     id: hfShape
                     extents: tableclothGeometry.extents
-                    heightMap: "maps/cloth-heightmap.png"
+                    source: "maps/cloth-heightmap.png"
                 }
             }
             //! [cloth]
@@ -129,7 +129,7 @@ Window {
                 kinematicPosition: bottomPos
                 collisionShapes: TriangleMeshShape {
                     id: cupShape
-                    meshSource: "meshes/simpleCup.mesh"
+                    source: "meshes/simpleCup.mesh"
                 }
                 Model {
                     source: "meshes/cup.mesh"
@@ -165,7 +165,7 @@ Window {
                 }
                 collisionShapes: TriangleMeshShape {
                     id: triShape
-                    meshSource: "meshes/tower.mesh"
+                    source: "meshes/tower.mesh"
                 }
             }
             //! [tower]
@@ -202,15 +202,15 @@ Window {
 
                     collisionShapes: ConvexMeshShape {
                         id: diceShape
-                        meshSource: Math.random() < 0.25 ? "meshes/icosahedron.mesh"
-                                  : Math.random() < 0.5 ? "meshes/dodecahedron.mesh"
-                                  : Math.random() < 0.75 ? "meshes/octahedron.mesh"
-                                                         : "meshes/tetrahedron.mesh"
+                        source: Math.random() < 0.25 ? "meshes/icosahedron.mesh"
+                              : Math.random() < 0.5 ? "meshes/dodecahedron.mesh"
+                              : Math.random() < 0.75 ? "meshes/octahedron.mesh"
+                                                     : "meshes/tetrahedron.mesh"
                     }
 
                     Model {
                         id: thisModel
-                        source: diceShape.meshSource
+                        source: diceShape.source
                         materials: PrincipledMaterial {
                             metalness: 1.0
                             roughness: randomInRange(0.2, 0.6)
