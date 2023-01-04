@@ -36,6 +36,14 @@ public:
     };
     Q_ENUM(MassMode)
 
+    enum AxisLock {
+        LockNone = 0,
+        LockX = 1,
+        LockY = 2,
+        LockZ = 4,
+    };
+    Q_ENUM(AxisLock)
+
     Q_OBJECT
     Q_PROPERTY(float mass READ mass WRITE setMass NOTIFY massChanged)
     Q_PROPERTY(float density READ density WRITE setDensity NOTIFY densityChanged)
@@ -45,18 +53,10 @@ public:
     Q_PROPERTY(QVector3D angularVelocity READ angularVelocity WRITE setAngularVelocity NOTIFY
                        angularVelocityChanged)
 
-    Q_PROPERTY(bool axisLockLinearX READ axisLockLinearX WRITE setAxisLockLinearX NOTIFY
-                       axisLockLinearXChanged)
-    Q_PROPERTY(bool axisLockLinearY READ axisLockLinearY WRITE setAxisLockLinearY NOTIFY
-                       axisLockLinearYChanged)
-    Q_PROPERTY(bool axisLockLinearZ READ axisLockLinearZ WRITE setAxisLockLinearZ NOTIFY
-                       axisLockLinearZChanged)
-    Q_PROPERTY(bool axisLockAngularX READ axisLockAngularX WRITE setAxisLockAngularX NOTIFY
-                       axisLockAngularXChanged)
-    Q_PROPERTY(bool axisLockAngularY READ axisLockAngularY WRITE setAxisLockAngularY NOTIFY
-                       axisLockAngularYChanged)
-    Q_PROPERTY(bool axisLockAngularZ READ axisLockAngularZ WRITE setAxisLockAngularZ NOTIFY
-                       axisLockAngularZChanged)
+    Q_PROPERTY(int linearAxisLock READ linearAxisLock WRITE setLinearAxisLock NOTIFY
+                       linearAxisLockChanged REVISION(6, 5))
+    Q_PROPERTY(int angularAxisLock READ angularAxisLock WRITE setAngularAxisLock NOTIFY
+                       angularAxisLockChanged REVISION(6, 5))
 
     Q_PROPERTY(bool isKinematic READ isKinematic WRITE setIsKinematic NOTIFY isKinematicChanged)
     Q_PROPERTY(bool gravityEnabled READ gravityEnabled WRITE setGravityEnabled NOTIFY
@@ -114,23 +114,11 @@ public:
     const QVector3D &angularVelocity() const;
     void setAngularVelocity(const QVector3D &newAngularVelocity);
 
-    bool axisLockLinearX() const;
-    void setAxisLockLinearX(bool newAxisLockLinearX);
+    Q_REVISION(6, 5) int linearAxisLock() const;
+    Q_REVISION(6, 5) void setLinearAxisLock(int newAxisLockLinear);
 
-    bool axisLockLinearY() const;
-    void setAxisLockLinearY(bool newAxisLockLinearY);
-
-    bool axisLockLinearZ() const;
-    void setAxisLockLinearZ(bool newAxisLockLinearZ);
-
-    bool axisLockAngularX() const;
-    void setAxisLockAngularX(bool newAxisLockAngularX);
-
-    bool axisLockAngularY() const;
-    void setAxisLockAngularY(bool newAxisLockAngularY);
-
-    bool axisLockAngularZ() const;
-    void setAxisLockAngularZ(bool newAxisLockAngularZ);
+    Q_REVISION(6, 5) int angularAxisLock() const;
+    Q_REVISION(6, 5) void setAngularAxisLock(int newAxisLockAngular);
 
     bool gravityEnabled() const;
     void setGravityEnabled(bool gravityEnabled);
@@ -182,12 +170,8 @@ Q_SIGNALS:
     void linearVelocityChanged(QVector3D linearVelocity);
     void isKinematicChanged(bool isKinematic);
     void angularVelocityChanged();
-    void axisLockLinearXChanged();
-    void axisLockLinearYChanged();
-    void axisLockLinearZChanged();
-    void axisLockAngularXChanged();
-    void axisLockAngularYChanged();
-    void axisLockAngularZChanged();
+    Q_REVISION(6, 5) void linearAxisLockChanged();
+    Q_REVISION(6, 5) void angularAxisLockChanged();
     void gravityEnabledChanged();
     void massModeChanged();
     void inertiaTensorChanged();
@@ -211,12 +195,8 @@ private:
     QVector3D m_linearVelocity;
     bool m_isKinematic = false;
     QVector3D m_angularVelocity;
-    bool m_axisLockLinearX = false;
-    bool m_axisLockLinearY = false;
-    bool m_axisLockLinearZ = false;
-    bool m_axisLockAngularX = false;
-    bool m_axisLockAngularY = false;
-    bool m_axisLockAngularZ = false;
+    AxisLock m_linearAxisLock = AxisLock::LockNone;
+    AxisLock m_angularAxisLock = AxisLock::LockNone;
     QQueue<QPhysicsCommand *> m_commandQueue;
     bool m_gravityEnabled = true;
     MassMode m_massMode = MassMode::Density;
