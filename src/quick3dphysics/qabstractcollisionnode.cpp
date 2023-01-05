@@ -39,8 +39,15 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty bool CollisionNode::enableTriggerReports
-    This property determines whether this body will report when entering or leaving a trigger body.
+    \qmlproperty bool CollisionNode::sendTriggerReports
+    This property determines whether this body will send reports when entering or leaving a trigger
+    body.
+*/
+
+/*!
+    \qmlproperty bool CollisionNode::receiveTriggerReports
+    This property determines whether this body will receive reports when entering or leaving a
+    trigger body.
 */
 
 /*!
@@ -52,6 +59,24 @@ QT_BEGIN_NAMESPACE
     {sendContactReports} is set to \c true in the colliding \a body. The parameters \a positions, \a
     impulses and \a normals contain the position, impulse force and normal for each contact point at
     the same index.
+*/
+
+/*!
+    \qmlsignal CollisionNode::enteredTriggerBody(TriggerBody *body)
+
+    This signal is emitted when this body enters the specified trigger \a body.
+
+    \note Only emitted when receiveTriggerReports is \c true
+    \sa receiveTriggerReports exitedTriggerBody
+*/
+
+/*!
+    \qmlsignal CollisionNode::exitedTriggerBody(TriggerBody *body)
+
+    This signal is emitted when this body exits the specified trigger \a body.
+
+    \note Only emitted when receiveTriggerReports is \c true
+    \sa receiveTriggerReports enteredTriggerBody
 */
 
 QAbstractCollisionNode::QAbstractCollisionNode()
@@ -131,18 +156,32 @@ void QAbstractCollisionNode::setReceiveContactReports(bool receiveContactReports
     emit receiveContactReportsChanged(m_receiveContactReports);
 }
 
-bool QAbstractCollisionNode::enableTriggerReports() const
+bool QAbstractCollisionNode::sendTriggerReports() const
 {
-    return m_enableTriggerReports;
+    return m_sendTriggerReports;
 }
 
-void QAbstractCollisionNode::setEnableTriggerReports(bool enableTriggerReports)
+void QAbstractCollisionNode::setSendTriggerReports(bool sendTriggerReports)
 {
-    if (m_enableTriggerReports == enableTriggerReports)
+    if (m_sendTriggerReports == sendTriggerReports)
         return;
 
-    m_enableTriggerReports = enableTriggerReports;
-    emit enableTriggerReportsChanged(m_enableTriggerReports);
+    m_sendTriggerReports = sendTriggerReports;
+    emit sendTriggerReportsChanged(m_sendTriggerReports);
+}
+
+bool QAbstractCollisionNode::receiveTriggerReports() const
+{
+    return m_receiveTriggerReports;
+}
+
+void QAbstractCollisionNode::setReceiveTriggerReports(bool receiveTriggerReports)
+{
+    if (m_receiveTriggerReports == receiveTriggerReports)
+        return;
+
+    m_receiveTriggerReports = receiveTriggerReports;
+    emit receiveTriggerReportsChanged(m_receiveTriggerReports);
 }
 
 void QAbstractCollisionNode::registerContact(QAbstractCollisionNode *body,

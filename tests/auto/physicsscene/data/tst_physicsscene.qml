@@ -96,7 +96,7 @@ Item {
                     id: collisionSphere
                     density: 1000
                     position: Qt.vector3d(0, 6, 0)
-                    enableTriggerReports: true
+                    sendTriggerReports: true
                     property bool inArea: false
 
                     collisionShapes: SphereShape {

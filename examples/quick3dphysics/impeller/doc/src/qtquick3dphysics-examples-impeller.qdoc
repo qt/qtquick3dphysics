@@ -36,14 +36,17 @@
     The property \c inArea is a custom property we use to keep track of when the sphere is overlapping the box trigger body.
     This is then used for the \c baseColor property to make the sphere yellow when it is overlapping the box and red otherwise.
     Since we want the sphere to partake in contact reporting the property \l {CollisionNode::} {sendContactReports} needs to be set to \c true.
+    Since we also want the sphere to get callbacks when entering and leaving a TriggerBody, the property
+    \l {CollisionNode::} {receiveContactReports} is also set to \c true.
+    We implement the \l {CollisionNode::} {enteredTriggerBody} and \l {CollisionNode::} {exitedTriggerBody} signal methods
+    on the sphere where we set the \c inArea property to \c true or \c false when entering or leaving the trigger body.
 
     Now let's look at the trigger body:
 
     \snippet impeller/main.qml box
 
-    The qml type is a TriggerBody which acts like a static body except it's collisions are inactive.
-    Instead it will trigger \l {TriggerBody::} {bodyEntered} and \l {TriggerBody::} {bodyExited} method calls.
-    In this case we check if the triggering body has a \c inArea property and if so set it to \c true or \c false.
+    The qml type is a TriggerBody which acts like a static body except its collisions are inactive.
+    Instead it will trigger \l {CollisionNode::} {enteredTriggerBody} and \l {CollisionNode::} {exitedTriggerBody} method calls on the sphere.
 
     Finally, lets look at the impeller:
 

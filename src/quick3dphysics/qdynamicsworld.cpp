@@ -228,15 +228,26 @@ public:
                    | physx::PxTriggerPairFlag::eREMOVED_SHAPE_OTHER))
                 continue;
 
+            QAbstractCollisionNode *triggerNode =
+                    static_cast<QAbstractCollisionNode *>(pairs[i].triggerActor->userData);
+
             QAbstractCollisionNode *otherNode =
                     static_cast<QAbstractCollisionNode *>(pairs[i].otherActor->userData);
-            if (!otherNode->enableTriggerReports())
-                continue;
 
             if (pairs->status == physx::PxPairFlag::eNOTIFY_TOUCH_FOUND) {
-                world->registerOverlap(pairs[i].triggerActor, pairs[i].otherActor);
+                if (otherNode->sendTriggerReports()) {
+                    world->registerOverlap(pairs[i].triggerActor, pairs[i].otherActor);
+                }
+                if (otherNode->receiveTriggerReports()) {
+                    emit otherNode->enteredTriggerBody(triggerNode);
+                }
             } else if (pairs->status == physx::PxPairFlag::eNOTIFY_TOUCH_LOST) {
-                world->deregisterOverlap(pairs[i].triggerActor, pairs[i].otherActor);
+                if (otherNode->sendTriggerReports()) {
+                    world->deregisterOverlap(pairs[i].triggerActor, pairs[i].otherActor);
+                }
+                if (otherNode->receiveTriggerReports()) {
+                    emit otherNode->exitedTriggerBody(triggerNode);
+                }
             }
         }
     }

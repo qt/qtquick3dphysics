@@ -65,7 +65,14 @@ Window {
             position: Qt.vector3d(0, 600, 0)
             property bool inArea: false
             sendContactReports: true
-            enableTriggerReports: true
+            receiveTriggerReports: true
+
+            onEnteredTriggerBody: {
+                inArea = true;
+            }
+            onExitedTriggerBody: {
+                inArea = false;
+            }
 
             collisionShapes: SphereShape {}
             Model {
@@ -91,15 +98,6 @@ Window {
                     baseColor: Qt.rgba(1, 0, 1, 0.2)
                     alphaMode: PrincipledMaterial.Blend
                 }
-            }
-
-            onBodyEntered: (body) => {
-                if (body.hasOwnProperty('inArea'))
-                    body.inArea = true;
-            }
-            onBodyExited: (body) => {
-                if (body.hasOwnProperty('inArea'))
-                    body.inArea = false;
             }
         }
         //! [box]

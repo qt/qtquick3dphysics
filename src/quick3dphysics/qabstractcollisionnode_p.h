@@ -39,8 +39,10 @@ class Q_QUICK3DPHYSICS_EXPORT QAbstractCollisionNode : public QQuick3DNode
                        sendContactReportsChanged)
     Q_PROPERTY(bool receiveContactReports READ receiveContactReports WRITE setReceiveContactReports
                        NOTIFY receiveContactReportsChanged)
-    Q_PROPERTY(bool enableTriggerReports READ enableTriggerReports WRITE setEnableTriggerReports
-                       NOTIFY enableTriggerReportsChanged)
+    Q_PROPERTY(bool sendTriggerReports READ sendTriggerReports WRITE setSendTriggerReports NOTIFY
+                       sendTriggerReportsChanged REVISION(6, 5))
+    Q_PROPERTY(bool receiveTriggerReports READ receiveTriggerReports WRITE setReceiveTriggerReports
+                       NOTIFY receiveTriggerReportsChanged REVISION(6, 5))
 
     QML_NAMED_ELEMENT(CollisionNode)
     QML_UNCREATABLE("abstract interface")
@@ -62,8 +64,11 @@ public:
     bool receiveContactReports() const;
     void setReceiveContactReports(bool receiveContactReports);
 
-    bool enableTriggerReports() const;
-    void setEnableTriggerReports(bool enableTriggerReports);
+    Q_REVISION(6, 5) bool sendTriggerReports() const;
+    Q_REVISION(6, 5) void setSendTriggerReports(bool sendTriggerReports);
+
+    Q_REVISION(6, 5) bool receiveTriggerReports() const;
+    Q_REVISION(6, 5) void setReceiveTriggerReports(bool receiveTriggerReports);
 
     bool hasStaticShapes() const { return m_hasStaticShapes; }
 
@@ -76,7 +81,10 @@ Q_SIGNALS:
                      const QVector<QVector3D> &impulses, const QVector<QVector3D> &normals);
     void sendContactReportsChanged(float sendContactReports);
     void receiveContactReportsChanged(float receiveContactReports);
-    void enableTriggerReportsChanged(float enableTriggerReports);
+    Q_REVISION(6, 5) void sendTriggerReportsChanged(float sendTriggerReports);
+    Q_REVISION(6, 5) void receiveTriggerReportsChanged(float receiveTriggerReports);
+    Q_REVISION(6, 5) void enteredTriggerBody(QAbstractCollisionNode *body);
+    Q_REVISION(6, 5) void exitedTriggerBody(QAbstractCollisionNode *body);
 
 private:
     static void qmlAppendShape(QQmlListProperty<QAbstractCollisionShape> *list,
@@ -90,7 +98,8 @@ private:
     bool m_shapesDirty = false;
     bool m_sendContactReports = false;
     bool m_receiveContactReports = false;
-    bool m_enableTriggerReports = false;
+    bool m_sendTriggerReports = false;
+    bool m_receiveTriggerReports = false;
     bool m_hasStaticShapes = false;
 
     friend class QAbstractPhysXNode;

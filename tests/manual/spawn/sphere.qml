@@ -10,7 +10,7 @@ DynamicRigidBody {
     position: Qt.vector3d(1, 2, 0)
 
     sendContactReports: true
-    enableTriggerReports: true
+    sendTriggerReports: true
 
     Model {
         source: "#Sphere"
