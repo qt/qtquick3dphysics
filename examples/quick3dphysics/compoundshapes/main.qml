@@ -17,6 +17,7 @@ Window {
     DynamicsWorld {
         id: physicsWorld
         enableCCD: true
+        maximumTimestep: 20
     }
     //! [world]
 
