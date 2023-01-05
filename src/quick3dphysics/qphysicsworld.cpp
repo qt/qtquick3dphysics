@@ -93,10 +93,11 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty View3D PhysicsWorld::sceneView
-    This property defines the viewport of the scene. If unset when the physical simulation is
-    started a View3D will try to be located among the parents of this world. The first and top-most
-    View3D found in any of this world's parents will be used.
+    \qmlproperty Node PhysicsWorld::sceneNode
+    This property defines the node of the scene. If unset when the physical simulation is
+    started a View3D will try to be located among the parents of this world and its scene will be
+    used as the scene node. The first and top-most View3D found in any of this world's parents
+    will be used.
 */
 
 /*!
@@ -1089,9 +1090,9 @@ void QPhysicsWorld::setForceDebugDraw(bool forceDebugDraw)
     emit forceDebugDrawChanged(m_forceDebugDraw);
 }
 
-QQuick3DViewport *QPhysicsWorld::sceneView() const
+QQuick3DNode *QPhysicsWorld::sceneNode() const
 {
-    return m_sceneView;
+    return m_sceneNode;
 }
 
 void QPhysicsWorld::setHasIndividualDebugDraw()
@@ -1099,12 +1100,12 @@ void QPhysicsWorld::setHasIndividualDebugDraw()
     m_hasIndividualDebugDraw = true;
 }
 
-void QPhysicsWorld::setSceneView(QQuick3DViewport *sceneView)
+void QPhysicsWorld::setSceneNode(QQuick3DNode *sceneNode)
 {
-    if (m_sceneView == sceneView)
+    if (m_sceneNode == sceneNode)
         return;
 
-    m_sceneView = sceneView;
+    m_sceneNode = sceneNode;
 
     // TODO: test this
     delete m_debugMaterial;
@@ -1114,7 +1115,7 @@ void QPhysicsWorld::setSceneView(QQuick3DViewport *sceneView)
     }
     m_collisionShapeDebugModels.clear();
 
-    emit sceneViewChanged(m_sceneView);
+    emit sceneNodeChanged(m_sceneNode);
 }
 
 void QPhysicsWorld::setMinimumTimestep(float minTimestep)
@@ -1142,18 +1143,13 @@ void QPhysicsWorld::updateDebugDraw()
 
     findSceneView();
 
-    if (m_sceneView == nullptr)
-        return;
-
-    auto sceneRoot = m_sceneView->scene();
-
-    if (sceneRoot == nullptr)
+    if (m_sceneNode == nullptr)
         return;
 
     if (!m_debugMaterial) {
         m_debugMaterial = new QQuick3DDefaultMaterial();
-        m_debugMaterial->setParentItem(sceneRoot);
-        m_debugMaterial->setParent(sceneRoot);
+        m_debugMaterial->setParentItem(m_sceneNode);
+        m_debugMaterial->setParent(m_sceneNode);
         m_debugMaterial->setDiffuseColor(QColor(3, 252, 219));
         m_debugMaterial->setLighting(QQuick3DDefaultMaterial::NoLighting);
         m_debugMaterial->setCullMode(QQuick3DMaterial::NoCulling);
@@ -1191,8 +1187,8 @@ void QPhysicsWorld::updateDebugDraw()
             // Create/Update debug view infrastructure
             if (!model) {
                 model = new QQuick3DModel();
-                model->setParentItem(sceneRoot);
-                model->setParent(sceneRoot);
+                model->setParentItem(m_sceneNode);
+                model->setParent(m_sceneNode);
                 model->setCastsShadows(false);
                 model->setReceivesShadows(false);
                 model->setCastsReflections(false);
@@ -1331,7 +1327,7 @@ void QPhysicsWorld::updateDebugDraw()
 
 void QPhysicsWorld::disableDebugDraw()
 {
-    if (m_sceneView == nullptr || m_sceneView->scene() == nullptr)
+    if (m_sceneNode == nullptr)
         return;
 
     m_hasIndividualDebugDraw = false;
@@ -1439,8 +1435,8 @@ void QPhysicsWorld::setDefaultDensity(float defaultDensity)
 
 void QPhysicsWorld::findSceneView()
 {
-    // If we have not specified a scene view we find the first available one
-    if (m_sceneView != nullptr)
+    // If we have not specified a scene node we find the first available one
+    if (m_sceneNode != nullptr)
         return;
 
     QObject *parent = this;
@@ -1453,7 +1449,7 @@ void QPhysicsWorld::findSceneView()
     while (!children.empty()) {
         auto child = children.takeFirst();
         if (auto converted = qobject_cast<QQuick3DViewport *>(child); converted != nullptr) {
-            m_sceneView = converted;
+            m_sceneNode = converted->scene();
             break;
         }
         children.append(child->children());
