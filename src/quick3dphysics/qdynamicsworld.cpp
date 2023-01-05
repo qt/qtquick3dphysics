@@ -100,13 +100,13 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty float DynamicsWorld::minTimestep
+    \qmlproperty float DynamicsWorld::minimumTimestep
     This property defines the minimum simulation timestep in milliseconds. The default value is
     \c 16.667 which corresponds to \c 60 frames per second.
 */
 
 /*!
-    \qmlproperty float DynamicsWorld::maxTimestep
+    \qmlproperty float DynamicsWorld::maximumTimestep
     This property defines the maximum simulation timestep in milliseconds. The default value is
     \c 33.333 which corresponds to \c 30 frames per second.
 */
@@ -1106,22 +1106,22 @@ void QDynamicsWorld::setSceneView(QQuick3DViewport *sceneView)
     emit sceneViewChanged(m_sceneView);
 }
 
-void QDynamicsWorld::setMinTimestep(float minTimestep)
+void QDynamicsWorld::setMinimumTimestep(float minTimestep)
 {
     if (qFuzzyCompare(m_minTimestep, minTimestep))
         return;
 
     m_minTimestep = minTimestep;
-    emit minTimestepChanged(minTimestep);
+    emit minimumTimestepChanged(m_minTimestep);
 }
 
-void QDynamicsWorld::setMaxTimestep(float maxTimestep)
+void QDynamicsWorld::setMaximumTimestep(float maxTimestep)
 {
     if (qFuzzyCompare(m_maxTimestep, maxTimestep))
         return;
 
     m_maxTimestep = maxTimestep;
-    emit maxTimestepChanged(maxTimestep);
+    emit maximumTimestepChanged(maxTimestep);
 }
 
 void QDynamicsWorld::updateDebugDraw()
@@ -1401,12 +1401,12 @@ float QDynamicsWorld::defaultDensity() const
     return m_defaultDensity;
 }
 
-float QDynamicsWorld::minTimestep() const
+float QDynamicsWorld::minimumTimestep() const
 {
     return m_minTimestep;
 }
 
-float QDynamicsWorld::maxTimestep() const
+float QDynamicsWorld::maximumTimestep() const
 {
     return m_maxTimestep;
 }

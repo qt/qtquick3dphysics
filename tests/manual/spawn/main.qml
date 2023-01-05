@@ -19,8 +19,8 @@ Window {
         gravity: Qt.vector3d(0, -9.81, 0)
         running: false
         forceDebugView: true
-        minTimestep: minTimestepSlider.value
-        maxTimestep: maxTimestepSlider.value
+        minimumTimestep: minTimestepSlider.value
+        maximumTimestep: maxTimestepSlider.value
         typicalLength: 1
         typicalSpeed: 10
     }
