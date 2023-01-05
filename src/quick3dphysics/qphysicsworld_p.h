@@ -66,7 +66,7 @@ class Q_QUICK3DPHYSICS_EXPORT QPhysicsWorld : public QObject, public QQmlParserS
     Q_PROPERTY(float defaultDensity READ defaultDensity WRITE setDefaultDensity NOTIFY
                        defaultDensityChanged)
     Q_PROPERTY(
-            QQuick3DViewport *sceneView READ sceneView WRITE setSceneView NOTIFY sceneViewChanged)
+            QQuick3DNode *sceneNode READ sceneNode WRITE setSceneNode NOTIFY sceneNodeChanged REVISION(6, 5))
     Q_PROPERTY(float minimumTimestep READ minimumTimestep WRITE setMinimumTimestep NOTIFY
                        minimumTimestepChanged REVISION(6, 5))
     Q_PROPERTY(float maximumTimestep READ maximumTimestep WRITE setMaximumTimestep NOTIFY
@@ -106,7 +106,7 @@ public:
     void registerNode(QAbstractCollisionNode *collisionNode);
     void deregisterNode(QAbstractCollisionNode *collisionNode);
 
-    QQuick3DViewport *sceneView() const;
+    Q_REVISION(6, 5) QQuick3DNode *sceneNode() const;
 
     void setHasIndividualDebugDraw();
 
@@ -120,7 +120,7 @@ public slots:
     void setTypicalLength(float typicalLength);
     void setTypicalSpeed(float typicalSpeed);
     void setDefaultDensity(float defaultDensity);
-    void setSceneView(QQuick3DViewport *sceneView);
+    Q_REVISION(6, 5) void setSceneNode(QQuick3DNode *sceneNode);
     Q_REVISION(6, 5) void setMinimumTimestep(float minTimestep);
     Q_REVISION(6, 5) void setMaximumTimestep(float maxTimestep);
 
@@ -132,7 +132,7 @@ signals:
     void typicalLengthChanged(float typicalLength);
     void typicalSpeedChanged(float typicalSpeed);
     void defaultDensityChanged(float defaultDensity);
-    void sceneViewChanged(QQuick3DViewport *sceneView);
+    Q_REVISION(6, 5) void sceneNodeChanged(QQuick3DNode *sceneNode);
     Q_REVISION(6, 5) void minimumTimestepChanged(float minimumTimestep);
     Q_REVISION(6, 5) void maximumTimestepChanged(float maxTimestep);
     void simulateFrame(float minTimestep, float maxTimestep);
@@ -190,7 +190,7 @@ private:
     bool m_enableCCD = false;
 
     PhysXWorld *m_physx = nullptr;
-    QQuick3DViewport *m_sceneView = nullptr;
+    QQuick3DNode *m_sceneNode = nullptr;
     QQuick3DDefaultMaterial *m_debugMaterial = nullptr;
 
     friend class QQuick3DPhysicsMesh; // TODO: better internal API
