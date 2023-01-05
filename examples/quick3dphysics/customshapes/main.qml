@@ -20,7 +20,7 @@ Window {
         running: true
         typicalLength: 2
         enableCCD: true
-        maxTimestep: 20
+        maximumTimestep: 20
     }
     //! [world]
 

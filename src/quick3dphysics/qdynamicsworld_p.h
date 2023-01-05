@@ -67,8 +67,10 @@ class Q_QUICK3DPHYSICS_EXPORT QDynamicsWorld : public QObject, public QQmlParser
                        defaultDensityChanged)
     Q_PROPERTY(
             QQuick3DViewport *sceneView READ sceneView WRITE setSceneView NOTIFY sceneViewChanged)
-    Q_PROPERTY(float minTimestep READ minTimestep WRITE setMinTimestep NOTIFY minTimestepChanged)
-    Q_PROPERTY(float maxTimestep READ maxTimestep WRITE setMaxTimestep NOTIFY maxTimestepChanged)
+    Q_PROPERTY(float minimumTimestep READ minimumTimestep WRITE setMinimumTimestep NOTIFY
+                       minimumTimestepChanged REVISION(6, 5))
+    Q_PROPERTY(float maximumTimestep READ maximumTimestep WRITE setMaximumTimestep NOTIFY
+                       maximumTimestepChanged REVISION(6, 5))
 
     QML_NAMED_ELEMENT(DynamicsWorld)
 
@@ -87,8 +89,8 @@ public:
     float typicalLength() const;
     float typicalSpeed() const;
     float defaultDensity() const;
-    float minTimestep() const;
-    float maxTimestep() const;
+    Q_REVISION(6, 5) float minimumTimestep() const;
+    Q_REVISION(6, 5) float maximumTimestep() const;
 
     void registerOverlap(physx::PxRigidActor *triggerActor, physx::PxRigidActor *otherActor);
     void deregisterOverlap(physx::PxRigidActor *triggerActor, physx::PxRigidActor *otherActor);
@@ -119,8 +121,8 @@ public slots:
     void setTypicalSpeed(float typicalSpeed);
     void setDefaultDensity(float defaultDensity);
     void setSceneView(QQuick3DViewport *sceneView);
-    void setMinTimestep(float minTimestep);
-    void setMaxTimestep(float maxTimestep);
+    Q_REVISION(6, 5) void setMinimumTimestep(float minTimestep);
+    Q_REVISION(6, 5) void setMaximumTimestep(float maxTimestep);
 
 signals:
     void gravityChanged(QVector3D gravity);
@@ -131,8 +133,8 @@ signals:
     void typicalSpeedChanged(float typicalSpeed);
     void defaultDensityChanged(float defaultDensity);
     void sceneViewChanged(QQuick3DViewport *sceneView);
-    void minTimestepChanged(float minTimestep);
-    void maxTimestepChanged(float maxTimestep);
+    Q_REVISION(6, 5) void minimumTimestepChanged(float minimumTimestep);
+    Q_REVISION(6, 5) void maximumTimestepChanged(float maxTimestep);
     void simulateFrame(float minTimestep, float maxTimestep);
     Q_REVISION(6, 5) void frameDone(float timestep);
 
