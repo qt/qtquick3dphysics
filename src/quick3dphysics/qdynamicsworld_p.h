@@ -56,8 +56,8 @@ class Q_QUICK3DPHYSICS_EXPORT QDynamicsWorld : public QObject, public QQmlParser
     Q_INTERFACES(QQmlParserStatus)
     Q_PROPERTY(QVector3D gravity READ gravity WRITE setGravity NOTIFY gravityChanged)
     Q_PROPERTY(bool running READ running WRITE setRunning NOTIFY runningChanged)
-    Q_PROPERTY(bool forceDebugView READ forceDebugView WRITE setForceDebugView NOTIFY
-                       forceDebugViewChanged)
+    Q_PROPERTY(bool forceDebugDraw READ forceDebugDraw WRITE setForceDebugDraw NOTIFY
+                       forceDebugDrawChanged)
     Q_PROPERTY(bool enableCCD READ enableCCD WRITE setEnableCCD NOTIFY enableCCDChanged)
     Q_PROPERTY(float typicalLength READ typicalLength WRITE setTypicalLength NOTIFY
                        typicalLengthChanged)
@@ -84,7 +84,7 @@ public:
     QVector3D gravity() const;
 
     bool running() const;
-    bool forceDebugView() const;
+    bool forceDebugDraw() const;
     bool enableCCD() const;
     float typicalLength() const;
     float typicalSpeed() const;
@@ -108,14 +108,14 @@ public:
 
     QQuick3DViewport *sceneView() const;
 
-    void setHasIndividualDebugView();
+    void setHasIndividualDebugDraw();
 
     physx::PxControllerManager *controllerManager();
 
 public slots:
     void setGravity(QVector3D gravity);
     void setRunning(bool running);
-    void setForceDebugView(bool forceDebugView);
+    void setForceDebugDraw(bool forceDebugDraw);
     void setEnableCCD(bool enableCCD);
     void setTypicalLength(float typicalLength);
     void setTypicalSpeed(float typicalSpeed);
@@ -128,7 +128,7 @@ signals:
     void gravityChanged(QVector3D gravity);
     void runningChanged(bool running);
     void enableCCDChanged(bool enableCCD);
-    void forceDebugViewChanged(bool forceDebugView);
+    void forceDebugDrawChanged(bool forceDebugDraw);
     void typicalLengthChanged(float typicalLength);
     void typicalSpeedChanged(float typicalSpeed);
     void defaultDensityChanged(float defaultDensity);
@@ -182,10 +182,10 @@ private:
     float m_maxTimestep = 33.333f; // 30 fps
 
     bool m_running = true;
-    bool m_forceDebugView = false;
+    bool m_forceDebugDraw = false;
     // For performance, used to keep track if we have indiviually enabled debug drawing for any
     // collision shape
-    bool m_hasIndividualDebugView = false;
+    bool m_hasIndividualDebugDraw = false;
     bool m_physicsInitialized = false;
     bool m_enableCCD = false;
 

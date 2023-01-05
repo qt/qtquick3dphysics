@@ -15,7 +15,7 @@ Window {
     DynamicsWorld {
         id: physicsWorld
         running: true
-        forceDebugView: true
+        forceDebugDraw: true
     }
 
     View3D {

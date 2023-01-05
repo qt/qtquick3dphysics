@@ -19,7 +19,7 @@ Window {
     DynamicsWorld {
         id: physicsWorld
         running: true
-        forceDebugView: false
+        forceDebugDraw: false
         //        enableCCD: true
     }
 

@@ -69,7 +69,7 @@ Window {
                 scale: Qt.vector3d(0.3, 0.3, 0.3)
                 physicsMaterial: testMaterial
                 collisionShapes: PlaneShape {
-                    enableDebugView: true
+                    enableDebugDraw: true
                 }
                 Model {
                     source: "#Rectangle"
@@ -99,7 +99,7 @@ Window {
                 }
                 collisionShapes: BoxShape {
                     extents: Qt.vector3d(1, 1, 1)
-                    enableDebugView: true
+                    enableDebugDraw: true
                 }
             }
         } // scene
