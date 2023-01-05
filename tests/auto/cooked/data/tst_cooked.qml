@@ -18,7 +18,7 @@ Item {
     DynamicsWorld {
         gravity: Qt.vector3d(0, -9.81, 0)
         running: true
-        forceDebugView: true
+        forceDebugDraw: true
         typicalLength: 1
         typicalSpeed: 10
     }

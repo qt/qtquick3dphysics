@@ -218,7 +218,7 @@ Window {
             if (event.key === Qt.Key_Space) {
                 physicsWorld.running = true
             } else if (event.key === Qt.Key_G) {
-                physicsWorld.forceDebugView = !physicsWorld.forceDebugView
+                physicsWorld.forceDebugDraw = !physicsWorld.forceDebugDraw
             }
         }
         Keys.onReleased: (event) => { if (keysEnabled) handleKeyRelease(event) }

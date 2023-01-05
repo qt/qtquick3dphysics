@@ -28,8 +28,8 @@ QT_BEGIN_NAMESPACE
 class Q_QUICK3DPHYSICS_EXPORT QAbstractCollisionShape : public QQuick3DNode
 {
     Q_OBJECT
-    Q_PROPERTY(bool enableDebugView READ enableDebugView WRITE setEnableDebugView NOTIFY
-                       enableDebugViewChanged)
+    Q_PROPERTY(bool enableDebugDraw READ enableDebugDraw WRITE setEnableDebugDraw NOTIFY
+                       enableDebugDrawChanged)
     QML_NAMED_ELEMENT(CollisionShape)
     QML_UNCREATABLE("abstract interface")
 public:
@@ -37,15 +37,15 @@ public:
     virtual ~QAbstractCollisionShape();
 
     virtual physx::PxGeometry *getPhysXGeometry() = 0;
-    bool enableDebugView() const;
+    bool enableDebugDraw() const;
 
     virtual bool isStaticShape() const = 0;
 
 public slots:
-    void setEnableDebugView(bool enableDebugView);
+    void setEnableDebugDraw(bool enableDebugDraw);
 
 signals:
-    void enableDebugViewChanged(bool enableDebugView);
+    void enableDebugDrawChanged(bool enableDebugDraw);
     void needsRebuild(QObject *);
 
 protected:
@@ -56,7 +56,7 @@ private slots:
     void handleScaleChange();
 
 private:
-    bool m_enableDebugView = false;
+    bool m_enableDebugDraw = false;
 };
 
 QT_END_NAMESPACE

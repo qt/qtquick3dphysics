@@ -53,7 +53,7 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty bool DynamicsWorld::forceDebugView
+    \qmlproperty bool DynamicsWorld::forceDebugDraw
     This property enables debug drawing of all active shapes in the physics world. The default value
     is \c false.
 */
@@ -982,9 +982,9 @@ bool QDynamicsWorld::running() const
     return m_running;
 }
 
-bool QDynamicsWorld::forceDebugView() const
+bool QDynamicsWorld::forceDebugDraw() const
 {
-    return m_forceDebugView;
+    return m_forceDebugDraw;
 }
 
 bool QDynamicsWorld::enableCCD() const
@@ -1076,17 +1076,17 @@ void QDynamicsWorld::setRunning(bool running)
     emit runningChanged(m_running);
 }
 
-void QDynamicsWorld::setForceDebugView(bool forceDebugView)
+void QDynamicsWorld::setForceDebugDraw(bool forceDebugDraw)
 {
-    if (m_forceDebugView == forceDebugView)
+    if (m_forceDebugDraw == forceDebugDraw)
         return;
 
-    m_forceDebugView = forceDebugView;
-    if (!m_forceDebugView)
+    m_forceDebugDraw = forceDebugDraw;
+    if (!m_forceDebugDraw)
         disableDebugDraw();
     else
         updateDebugDraw();
-    emit forceDebugViewChanged(m_forceDebugView);
+    emit forceDebugDrawChanged(m_forceDebugDraw);
 }
 
 QQuick3DViewport *QDynamicsWorld::sceneView() const
@@ -1094,9 +1094,9 @@ QQuick3DViewport *QDynamicsWorld::sceneView() const
     return m_sceneView;
 }
 
-void QDynamicsWorld::setHasIndividualDebugView()
+void QDynamicsWorld::setHasIndividualDebugDraw()
 {
-    m_hasIndividualDebugView = true;
+    m_hasIndividualDebugDraw = true;
 }
 
 void QDynamicsWorld::setSceneView(QQuick3DViewport *sceneView)
@@ -1137,7 +1137,7 @@ void QDynamicsWorld::setMaximumTimestep(float maxTimestep)
 
 void QDynamicsWorld::updateDebugDraw()
 {
-    if (!(m_forceDebugView || m_hasIndividualDebugView))
+    if (!(m_forceDebugDraw || m_hasIndividualDebugDraw))
         return;
 
     findSceneView();
@@ -1159,7 +1159,7 @@ void QDynamicsWorld::updateDebugDraw()
         m_debugMaterial->setCullMode(QQuick3DMaterial::NoCulling);
     }
 
-    m_hasIndividualDebugView = false;
+    m_hasIndividualDebugDraw = false;
 
     for (QAbstractPhysXNode *node : m_physXBodies) {
         if (!node->debugGeometryCapability())
@@ -1176,15 +1176,15 @@ void QDynamicsWorld::updateDebugDraw()
             DebugModelHolder &holder = m_collisionShapeDebugModels[collisionShape];
             auto &model = holder.model;
 
-            if (!m_forceDebugView && !collisionShape->enableDebugView()) {
+            if (!m_forceDebugDraw && !collisionShape->enableDebugDraw()) {
                 if (model) {
                     model->setVisible(false);
                 }
                 continue;
             }
 
-            m_hasIndividualDebugView =
-                    m_hasIndividualDebugView || collisionShape->enableDebugView();
+            m_hasIndividualDebugDraw =
+                    m_hasIndividualDebugDraw || collisionShape->enableDebugDraw();
 
             auto localPose = physXShape->getLocalPose();
 
@@ -1334,7 +1334,7 @@ void QDynamicsWorld::disableDebugDraw()
     if (m_sceneView == nullptr || m_sceneView->scene() == nullptr)
         return;
 
-    m_hasIndividualDebugView = false;
+    m_hasIndividualDebugDraw = false;
 
     for (QAbstractPhysXNode *body : m_physXBodies) {
         // TODO: refactor debug geometry handling as well
@@ -1344,12 +1344,12 @@ void QDynamicsWorld::disableDebugDraw()
             const auto collisionShape = collisionShapes[idx];
             DebugModelHolder &holder = m_collisionShapeDebugModels[collisionShape];
 
-            if (!collisionShape->enableDebugView()) {
+            if (!collisionShape->enableDebugDraw()) {
                 if (holder.model) {
                     holder.model->setVisible(false);
                 }
             } else {
-                m_hasIndividualDebugView = true;
+                m_hasIndividualDebugDraw = true;
             }
         }
     }

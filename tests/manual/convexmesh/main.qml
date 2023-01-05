@@ -17,7 +17,7 @@ Window {
         id: physicsWorld
         gravity: Qt.vector3d(0, -9.81, 0)
         running: false
-        forceDebugView: false
+        forceDebugDraw: false
         typicalLength: 1
         typicalSpeed: 10
     }
@@ -61,7 +61,7 @@ Window {
                 position: Qt.vector3d(0, -1, 0)
                 eulerRotation: Qt.vector3d(-90, 0, 0)
                 collisionShapes: PlaneShape {
-                    enableDebugView: viewport.debugView
+                    enableDebugDraw: viewport.debugView
                 }
 
                 Model {
@@ -82,7 +82,7 @@ Window {
 
                 collisionShapes: PlaneShape {
                     id: wallShape
-                    enableDebugView: viewport.debugView
+                    enableDebugDraw: viewport.debugView
                 }
                 Model {
                     source: "#Rectangle"
@@ -112,7 +112,7 @@ Window {
                 collisionShapes: ConvexMeshShape {
                     id: torusShape
                     source: "meshes/newConvexTorus.mesh"
-                    enableDebugView: viewport.debugView
+                    enableDebugDraw: viewport.debugView
                 }
             }
 
@@ -135,7 +135,7 @@ Window {
                 collisionShapes: TriangleMeshShape {
                     id: torusShape2
                     source: "meshes/newTorus.mesh"
-                    enableDebugView: viewport.debugView
+                    enableDebugDraw: viewport.debugView
                 }
                 isKinematic: true
             }
@@ -158,7 +158,7 @@ Window {
                 collisionShapes: ConvexMeshShape {
                     id: torusShape3
                     source: "meshes/newTorus.mesh"
-                    enableDebugView: viewport.debugView
+                    enableDebugDraw: viewport.debugView
                 }
             }
 
@@ -218,7 +218,7 @@ Window {
                     id: hfShape
                     extents: Qt.vector3d(5, 2, 5).times(scaleSlider.value)
                     source: "maps/heightfield.png"
-                    enableDebugView: viewport.debugView
+                    enableDebugDraw: viewport.debugView
                 }
             }
 
@@ -282,7 +282,7 @@ Window {
                 collisionShapes: TriangleMeshShape {
                     id: triShape
                     source: "meshes/field.mesh"
-                    enableDebugView: viewport.debugView
+                    enableDebugDraw: viewport.debugView
                 }
             }
 
@@ -381,7 +381,7 @@ Window {
 //                        }
                         collisionShapes: SphereShape {
                             diameter: sf
-                            enableDebugView: viewport.debugView
+                            enableDebugDraw: viewport.debugView
                         }
 
                     }
@@ -410,7 +410,7 @@ Window {
             } else if (event.key === Qt.Key_G) {
                 viewport.debugView = !viewport.debugView
             } else if (event.key === Qt.Key_H) {
-                physicsWorld.forceDebugView = !physicsWorld.forceDebugView
+                physicsWorld.forceDebugDraw = !physicsWorld.forceDebugDraw
             } else if (event.key === Qt.Key_T) {
                 tableShape.extents = "150, 100, 150"
                 tableModel.scale = "3, 2, 3"
@@ -450,7 +450,7 @@ Window {
             text: "Debug view: " + viewport.debugView
         }
         Label {
-            text: "Debug view (forced): " + physicsWorld.forceDebugView
+            text: "Debug view (forced): " + physicsWorld.forceDebugDraw
         }
         Label {
             text: "Scale: " + scaleSlider.value

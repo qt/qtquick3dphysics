@@ -18,7 +18,7 @@ Window {
         id: physicsWorld
         gravity: Qt.vector3d(0, -9.81, 0)
         running: false
-        forceDebugView: true
+        forceDebugDraw: true
         minimumTimestep: minTimestepSlider.value
         maximumTimestep: maxTimestepSlider.value
         typicalLength: 1
@@ -315,7 +315,7 @@ Window {
             if (event.key === Qt.Key_Space) {
                 physicsWorld.running = !physicsWorld.running
             } else if (event.key === Qt.Key_H) {
-                physicsWorld.forceDebugView = !physicsWorld.forceDebugView
+                physicsWorld.forceDebugDraw = !physicsWorld.forceDebugDraw
             }
             else if (event.key === Qt.Key_J) {
                 floor.eulerRotation.x = (360 + floor.eulerRotation.x - 1) % 360
@@ -469,7 +469,7 @@ Window {
             value: 0
         }
         Label {
-            text: "Debug view (forced): " + physicsWorld.forceDebugView
+            text: "Debug view (forced): " + physicsWorld.forceDebugDraw
         }
     }
 }
