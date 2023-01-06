@@ -192,14 +192,14 @@ Window {
                     console.log("Collision state:" + collisionText + " (" + collisions + ")")
                 }
 
-                speed.x: wasd.xFactor * 500;
-                speed.z: wasd.zFactor * 500;
-                speed.y: ((wasd.jump && jumpingAllowed) ? 500 : 0)
-                         + wasd.yFactor * 500
-                Behavior on speed.z {
+                movement.x: wasd.xFactor * 500;
+                movement.z: wasd.zFactor * 500;
+                movement.y: ((wasd.jump && jumpingAllowed) ? 500 : 0)
+                          + wasd.yFactor * 500
+                Behavior on movement.z {
                     PropertyAnimation { duration: 200 }
                 }
-                Behavior on speed.x {
+                Behavior on movement.x {
                     PropertyAnimation { duration: 200 }
                 }
 

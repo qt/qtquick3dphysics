@@ -856,8 +856,7 @@ void QPhysXCharacterController::sync(float deltaTime,
     if (teleport) {
         controller->setPosition({ teleportPos.x(), teleportPos.y(), teleportPos.z() });
     } else if (deltaTime > 0) {
-        const auto movement = characterController->getMovement(deltaTime);
-        physx::PxVec3 displacement(movement.x(), movement.y(), movement.z());
+        const auto displacement = QPhysicsUtils::toPhysXType(characterController->getDisplacement(deltaTime));
         auto collisions =
                 controller->move(displacement, displacement.magnitude() / 100, deltaTime, {});
         characterController->setCollisions(QCharacterController::Collisions(uint(collisions)));
