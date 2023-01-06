@@ -24,13 +24,13 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty vector3d CharacterController::speed
+    \qmlproperty vector3d CharacterController::movement
 
-    This property defines the controlled speed of the character. This is the speed the character
+    This property defines the controlled motion of the character. This is the velocity the character
     would move in the absence of gravity and without interacting with other physics objects.
 
     This property does not reflect the actual velocity of the character. If the character is stuck
-    against terrain, the character can move slower than the defined \c speed. Conversely, if the
+    against terrain, the character can move slower than the speed defined by \c movement. Conversely, if the
     character is in free fall, it may move much faster.
 
     The default value is \c{(0, 0, 0)}.
@@ -49,9 +49,9 @@ QT_BEGIN_NAMESPACE
 /*!
     \qmlproperty bool CharacterController::midAirControl
 
-    This property defines whether the \l speed property has effect when the character is in free
+    This property defines whether the \l movement property has effect when the character is in free
     fall. This is only relevant if \l gravity in not null. A value of \c true means that the
-    character will change direction in mid-air when \l speed changes. A value of \c false means that
+    character will change direction in mid-air when \c movement changes. A value of \c false means that
     the character will continue on its current trajectory until it hits another object. The default
     value is \c true.
 */
@@ -83,17 +83,17 @@ QT_BEGIN_NAMESPACE
 
 QCharacterController::QCharacterController() = default;
 
-const QVector3D &QCharacterController::speed() const
+const QVector3D &QCharacterController::movement() const
 {
-    return m_speed;
+    return m_movement;
 }
 
-void QCharacterController::setSpeed(const QVector3D &newSpeed)
+void QCharacterController::setMovement(const QVector3D &newMovement)
 {
-    if (m_speed == newSpeed)
+    if (m_movement == newMovement)
         return;
-    m_speed = newSpeed;
-    emit speedChanged();
+    m_movement = newMovement;
+    emit movementChanged();
 }
 
 const QVector3D &QCharacterController::gravity() const
@@ -109,12 +109,12 @@ void QCharacterController::setGravity(const QVector3D &newGravity)
     emit gravityChanged();
 }
 
-// Calculate move based on speed/gravity (later: also implement teleport)
+// Calculate move based on movement/gravity
 
-QVector3D QCharacterController::getMovement(float deltaTime)
+QVector3D QCharacterController::getDisplacement(float deltaTime)
 {
-    // movement based on speed()
-    QVector3D movement = sceneRotation() * m_speed * deltaTime;
+    // Start with basic movement, assuming no other factors
+    QVector3D displacement = sceneRotation() * m_movement * deltaTime;
 
     // modified based on gravity
     const auto g = m_gravity;
@@ -123,22 +123,22 @@ QVector3D QCharacterController::getMovement(float deltaTime)
 
         if (freeFalling) {
             if (!m_midAirControl)
-                movement = {}; // Ignore the speed() controls in true free fall
+                displacement = {}; // Ignore the movement() controls in true free fall
 
-            movement += m_freeFallVelocity * deltaTime;
+            displacement += m_freeFallVelocity * deltaTime;
             m_freeFallVelocity += g * deltaTime;
         } else {
-            m_freeFallVelocity = movement / deltaTime + g * deltaTime;
+            m_freeFallVelocity = displacement / deltaTime + g * deltaTime;
             if (m_midAirControl) // free fall only straight down
                 m_freeFallVelocity =
                         QVector3D::dotProduct(m_freeFallVelocity, g.normalized()) * g.normalized();
         }
         const QVector3D gravityAcceleration = 0.5 * deltaTime * deltaTime * g;
-        movement += gravityAcceleration; // always add gravitational acceleration, in case we start
-                                         // to fall
+        displacement += gravityAcceleration; // always add gravitational acceleration, in case we start
+                                             // to fall. If not, PhysX will move us back to the ground.
     }
 
-    return movement;
+    return displacement;
 }
 
 bool QCharacterController::midAirControl() const

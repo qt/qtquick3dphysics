@@ -25,7 +25,7 @@ QT_BEGIN_NAMESPACE
 class Q_QUICK3DPHYSICS_EXPORT QCharacterController : public QAbstractPhysicsBody
 {
     Q_OBJECT
-    Q_PROPERTY(QVector3D speed READ speed WRITE setSpeed NOTIFY speedChanged)
+    Q_PROPERTY(QVector3D movement READ movement WRITE setMovement NOTIFY movementChanged)
     Q_PROPERTY(QVector3D gravity READ gravity WRITE setGravity NOTIFY gravityChanged)
     Q_PROPERTY(bool midAirControl READ midAirControl WRITE setMidAirControl NOTIFY
                        midAirControlChanged)
@@ -43,11 +43,11 @@ public:
     Q_DECLARE_FLAGS(Collisions, Collision)
     Q_FLAG(Collisions)
 
-    const QVector3D &speed() const;
-    void setSpeed(const QVector3D &newSpeed);
+    const QVector3D &movement() const;
+    void setMovement(const QVector3D &newMovement);
     const QVector3D &gravity() const;
     void setGravity(const QVector3D &newGravity);
-    QVector3D getMovement(float deltaTime);
+    QVector3D getDisplacement(float deltaTime);
     bool getTeleport(QVector3D &position);
 
     bool midAirControl() const;
@@ -59,17 +59,15 @@ public:
     void setCollisions(const Collisions &newCollisions);
 
 signals:
-    void speedChanged();
+    void movementChanged();
     void gravityChanged();
 
     void midAirControlChanged();
 
-    void impulseChanged();
-
     void collisionsChanged();
 
 private:
-    QVector3D m_speed;
+    QVector3D m_movement;
     QVector3D m_gravity;
     bool m_midAirControl = true;
 
