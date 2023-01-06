@@ -14,7 +14,7 @@ Window {
     visible: true
     title: qsTr("Qt Quick 3D Physics - Cannon")
 
-    DynamicsWorld {}
+    PhysicsWorld {}
 
     View3D {
         width: parent.width

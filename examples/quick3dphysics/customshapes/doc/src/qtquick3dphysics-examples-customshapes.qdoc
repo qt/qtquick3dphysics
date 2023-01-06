@@ -19,7 +19,7 @@
     \snippet customshapes/main.qml window
 
     \section2 Enivronment
-    As usual it contains a DynamicsWorld and a View3D. In the View3D we have our environment which sets up a lightprobe:
+    As usual it contains a PhysicsWorld and a View3D. In the View3D we have our environment which sets up a lightprobe:
 
     \snippet customshapes/main.qml environment
 
@@ -58,7 +58,7 @@
     \section2 Animation
     To make the dices move from the cup to the dice tower we animate the cup and move it up and then tip it over.
     To make sure that the animation stays in sync with the physical simulation we use an AnimationController which we connect
-    to the \c onFrameDone signal on the \l DynamicsWorld. After every simulated frame we progress the animation with the elapsed timestep.
+    to the \c onFrameDone signal on the \l PhysicsWorld. After every simulated frame we progress the animation with the elapsed timestep.
 
     \snippet customshapes/main.qml animation
 

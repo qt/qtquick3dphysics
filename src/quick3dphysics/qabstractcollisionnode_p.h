@@ -103,7 +103,7 @@ private:
     bool m_hasStaticShapes = false;
 
     friend class QAbstractPhysXNode;
-    friend class QDynamicsWorld; // for register/deregister TODO: cleaner mechanism
+    friend class QPhysicsWorld; // for register/deregister TODO: cleaner mechanism
     QAbstractPhysXNode *m_backendObject = nullptr;
 };
 

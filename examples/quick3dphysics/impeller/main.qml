@@ -11,7 +11,7 @@ Window {
     title: qsTr("Qt Quick 3D Physics - Impeller")
 
     //! [world]
-    DynamicsWorld {
+    PhysicsWorld {
         gravity: Qt.vector3d(0, -490, 0)
     }
     //! [world]

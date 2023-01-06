@@ -12,7 +12,7 @@ Window {
     height: 600
     visible: true
 
-    DynamicsWorld {
+    PhysicsWorld {
         id: physicsWorld
         running: true
         forceDebugDraw: true

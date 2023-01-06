@@ -41,7 +41,7 @@ QT_BEGIN_NAMESPACE
 
     This property defines the gravitational acceleration that applies to the character.
     For a character that walks on the ground, it should typically be set to
-    \l{DynamicsWorld::gravity}{DynamicsWorld.gravity}. A floating character that has movement
+    \l{PhysicsWorld::gravity}{PhysicsWorld.gravity}. A floating character that has movement
     controls in three dimensions will normally have gravity \c{(0, 0, 0)}. The default value is
     \c{(0, 0, 0)}.
 */

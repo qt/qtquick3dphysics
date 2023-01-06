@@ -25,7 +25,7 @@ qt_internal_add_qml_module(Quick3DPhysics
         qtrianglemeshshape.cpp qtrianglemeshshape_p.h
         qheightfieldshape.cpp qheightfieldshape_p.h
         qplaneshape.cpp qplaneshape_p.h
-        qdynamicsworld.cpp qdynamicsworld_p.h
+        qphysicsworld.cpp qphysicsworld_p.h
         qrigidbody.cpp qrigidbody_p.h
         qsphereshape.cpp qsphereshape_p.h
         qcacheutils.cpp qcacheutils_p.h

@@ -1,7 +1,7 @@
 // Copyright (C) 2021 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
-#include "qdynamicsworld_p.h"
+#include "qphysicsworld_p.h"
 #include "qphysicscommands_p.h"
 #include "qphysicsutils_p.h"
 #include "qrigidbody_p.h"

@@ -12,7 +12,7 @@ Item {
     height: 480
     visible: true
 
-    DynamicsWorld {
+    PhysicsWorld {
         gravity: Qt.vector3d(0, -9.81, 0)
         running: true
         forceDebugDraw: true

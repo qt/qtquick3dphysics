@@ -22,15 +22,15 @@ Using custom units is possible but you need to make sure all relevant properties
     \li Value (cm)
     \li Value (m)
 \row
-    \li \l {DynamicsWorld::} {gravity}
+    \li \l {PhysicsWorld::} {gravity}
     \li \c 981
     \li \c 9.81
 \row
-    \li \l {DynamicsWorld::} {typicalLength}
+    \li \l {PhysicsWorld::} {typicalLength}
     \li \c 100
     \li \c 1
 \row
-    \li \l {DynamicsWorld::} {typicalSpeed}
+    \li \l {PhysicsWorld::} {typicalSpeed}
     \li \c 1000
     \li \c 10
 \row

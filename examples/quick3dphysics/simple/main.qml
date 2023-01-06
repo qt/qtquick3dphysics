@@ -12,7 +12,7 @@ Window {
     title: qsTr("Qt Quick 3D Physics - Simple")
 
     //! [world]
-    DynamicsWorld {
+    PhysicsWorld {
         running: true
     }
     //! [world]

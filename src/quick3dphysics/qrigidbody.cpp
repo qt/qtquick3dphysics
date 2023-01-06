@@ -3,7 +3,7 @@
 
 #include "qrigidbody_p.h"
 #include "qphysicscommands_p.h"
-#include "qdynamicsworld_p.h"
+#include "qphysicsworld_p.h"
 
 QT_BEGIN_NAMESPACE
 
@@ -37,7 +37,7 @@ QT_BEGIN_NAMESPACE
 
     This property defines the density of the body. This is only used when massMode is set to \c
     {DynamicRigidBody.Density}. When this property is less than or equal to zero, this body will
-    use the \l {DynamicsWorld::}{defaultDensity} value.
+    use the \l {PhysicsWorld::}{defaultDensity} value.
 
     Default value is \c -1.
     \sa massMode
@@ -122,8 +122,8 @@ QT_BEGIN_NAMESPACE
 
     \value  DynamicRigidBody.Density
             Use the specified density to calculate mass and inertia assuming a uniform density.
-            If density is non-positive then the \l {DynamicsWorld::}{defaultDensity} property in
-            DynamicsWorld is used.
+            If density is non-positive then the \l {PhysicsWorld::}{defaultDensity} property in
+            PhysicsWorld is used.
 
     \value  DynamicRigidBody.Mass
             Use the specified mass to calculate inertia assuming a uniform density.
@@ -336,7 +336,7 @@ void QDynamicRigidBody::setMassMode(const MassMode newMassMode)
     switch (newMassMode) {
     case MassMode::Density: {
         const float density =
-                m_density < 0.f ? QDynamicsWorld::getWorld()->defaultDensity() : m_density;
+                m_density < 0.f ? QPhysicsWorld::getWorld()->defaultDensity() : m_density;
         m_commandQueue.enqueue(new QPhysicsCommandSetDensity(density));
         break;
     }

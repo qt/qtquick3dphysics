@@ -23,7 +23,7 @@
 #include "geometry/PxHeightField.h"
 #include "geometry/PxHeightFieldDesc.h"
 
-#include "qdynamicsworld_p.h"
+#include "qphysicsworld_p.h"
 
 QT_BEGIN_NAMESPACE
 
@@ -134,7 +134,7 @@ physx::PxHeightField *QQuick3DPhysicsHeightField::heightField()
     if (m_heightField)
         return m_heightField;
 
-    physx::PxPhysics *thePhysics = QDynamicsWorld::getPhysics();
+    physx::PxPhysics *thePhysics = QPhysicsWorld::getPhysics();
     if (thePhysics == nullptr)
         return nullptr;
 
@@ -165,7 +165,7 @@ physx::PxHeightField *QQuick3DPhysicsHeightField::heightField()
     hfDesc.samples.stride = sizeof(physx::PxHeightFieldSample);
 
     physx::PxDefaultMemoryOutputStream buf;
-    if (numRows && numCols && QDynamicsWorld::getCooking()->cookHeightField(hfDesc, buf)) {
+    if (numRows && numCols && QPhysicsWorld::getCooking()->cookHeightField(hfDesc, buf)) {
         auto size = buf.getSize();
         auto *data = buf.getData();
         physx::PxDefaultMemoryInputData input(data, size);

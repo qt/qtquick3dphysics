@@ -14,7 +14,7 @@
 
     \section1 Setup
 
-    As usual we need to add our DynamicsWorld:
+    As usual we need to add our PhysicsWorld:
 
     \snippet impeller/main.qml world
 

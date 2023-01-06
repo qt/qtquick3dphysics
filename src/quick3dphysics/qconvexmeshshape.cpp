@@ -18,7 +18,7 @@
 #include <QtQml/qqmlcontext.h>
 
 #include <QtQuick3DUtils/private/qssgmesh_p.h>
-#include "qdynamicsworld_p.h"
+#include "qphysicsworld_p.h"
 #include "qphysicsmeshutils_p_p.h"
 #include "qphysicsutils_p.h"
 
@@ -29,7 +29,7 @@ physx::PxConvexMesh *QQuick3DPhysicsMesh::convexMesh()
     if (m_convexMesh != nullptr)
         return m_convexMesh;
 
-    physx::PxPhysics *thePhysics = QDynamicsWorld::getPhysics();
+    physx::PxPhysics *thePhysics = QPhysicsWorld::getPhysics();
     if (thePhysics == nullptr)
         return nullptr;
 
@@ -69,7 +69,7 @@ physx::PxConvexMesh *QQuick3DPhysicsMesh::convexMesh()
     convexDesc.points.data = convexVerts;
     convexDesc.flags = physx::PxConvexFlag::eCOMPUTE_CONVEX;
 
-    if (QDynamicsWorld::getCooking()->cookConvexMesh(convexDesc, buf, &result)) {
+    if (QPhysicsWorld::getCooking()->cookConvexMesh(convexDesc, buf, &result)) {
         auto size = buf.getSize();
         auto *data = buf.getData();
         physx::PxDefaultMemoryInputData input(data, size);
@@ -89,7 +89,7 @@ physx::PxTriangleMesh *QQuick3DPhysicsMesh::triangleMesh()
     if (m_triangleMesh != nullptr)
         return m_triangleMesh;
 
-    physx::PxPhysics *thePhysics = QDynamicsWorld::getPhysics();
+    physx::PxPhysics *thePhysics = QPhysicsWorld::getPhysics();
     if (thePhysics == nullptr)
         return nullptr;
 
@@ -130,7 +130,7 @@ physx::PxTriangleMesh *QQuick3DPhysicsMesh::triangleMesh()
     triangleDesc.triangles.stride = iStride * 3;
     triangleDesc.triangles.data = m_ssgMesh.indexBuffer().data.constData();
 
-    if (QDynamicsWorld::getCooking()->cookTriangleMesh(triangleDesc, buf, &result)) {
+    if (QPhysicsWorld::getCooking()->cookTriangleMesh(triangleDesc, buf, &result)) {
         auto size = buf.getSize();
         auto *data = buf.getData();
         physx::PxDefaultMemoryInputData input(data, size);

@@ -14,7 +14,7 @@ Window {
     title: qsTr("Compound Shapes Example")
 
     //! [world]
-    DynamicsWorld {
+    PhysicsWorld {
         id: physicsWorld
         enableCCD: true
         maximumTimestep: 20

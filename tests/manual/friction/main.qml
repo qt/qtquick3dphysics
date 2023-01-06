@@ -14,7 +14,7 @@ Window {
     visible: true
     title: qsTr("PhysX Friction Test")
 
-    DynamicsWorld {
+    PhysicsWorld {
         id: physicsWorld
         gravity: Qt.vector3d(0, -9.81, 0)
         running: false
