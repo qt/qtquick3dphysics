@@ -15,7 +15,7 @@ Window {
     title: qsTr("QtQuick3DPhysics Custom Shapes")
 
     //! [world]
-    DynamicsWorld {
+    PhysicsWorld {
         id: physicsWorld
         running: true
         typicalLength: 2

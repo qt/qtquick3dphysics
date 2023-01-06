@@ -14,7 +14,7 @@ Window {
     visible: true
     title: qsTr("Qt Quick 3D Physics - Material example")
 
-    DynamicsWorld {}
+    PhysicsWorld {}
 
     View3D {
         id: viewport

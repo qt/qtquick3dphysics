@@ -9,7 +9,7 @@
     \image material-example.jpg
 
     The \e {Material} example demonstrates how to control the material properties of a physical body.
-    The scene contains the usual boilerplate of a View3D, DynamicsWorld, PerspectiveCamera and DirectionalLight.
+    The scene contains the usual boilerplate of a View3D, PhysicsWorld, PerspectiveCamera and DirectionalLight.
     In addition to this the scene contains two physical bodies, namely a slightly tilted plane and a box.
     Every physical body has a \l {PhysicsBody::} {physicsMaterial} property containing a PhysicsMaterial node.
     PhysicsMaterial contains these three material properties; \l {PhysicsMaterial::} {staticFriction}, \l {PhysicsMaterial::} {dynamicFriction} and \l {PhysicsMaterial::} {restitution} and these are used to define how the body will act when colliding with and sliding against other bodies.

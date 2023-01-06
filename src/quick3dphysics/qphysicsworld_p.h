@@ -1,8 +1,8 @@
 // Copyright (C) 2021 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
-#ifndef DYNAMICSWORLD_H
-#define DYNAMICSWORLD_H
+#ifndef PHYSICSWORLD_H
+#define PHYSICSWORLD_H
 
 //
 //  W A R N I N G
@@ -50,7 +50,7 @@ class QQuick3DModel;
 class QQuick3DDefaultMaterial;
 struct PhysXWorld;
 
-class Q_QUICK3DPHYSICS_EXPORT QDynamicsWorld : public QObject, public QQmlParserStatus
+class Q_QUICK3DPHYSICS_EXPORT QPhysicsWorld : public QObject, public QQmlParserStatus
 {
     Q_OBJECT
     Q_INTERFACES(QQmlParserStatus)
@@ -72,11 +72,11 @@ class Q_QUICK3DPHYSICS_EXPORT QDynamicsWorld : public QObject, public QQmlParser
     Q_PROPERTY(float maximumTimestep READ maximumTimestep WRITE setMaximumTimestep NOTIFY
                        maximumTimestepChanged REVISION(6, 5))
 
-    QML_NAMED_ELEMENT(DynamicsWorld)
+    QML_NAMED_ELEMENT(PhysicsWorld)
 
 public:
-    explicit QDynamicsWorld(QObject *parent = nullptr);
-    ~QDynamicsWorld();
+    explicit QPhysicsWorld(QObject *parent = nullptr);
+    ~QPhysicsWorld();
 
     void classBegin() override;
     void componentComplete() override;
@@ -98,7 +98,7 @@ public:
     bool hasSendContactReports(QAbstractCollisionNode *object) const;
     bool hasReceiveContactReports(QAbstractCollisionNode *object) const;
 
-    static QDynamicsWorld *getWorld()
+    static QPhysicsWorld *getWorld()
     {
         return self; // TODO: proper mechanism for finding "my" world.
     }
@@ -197,7 +197,7 @@ private:
     friend class QTriangleMeshShape; //####
     friend class QHeightFieldShape;
     friend class QQuick3DPhysicsHeightField;
-    static QDynamicsWorld *self;
+    static QPhysicsWorld *self;
     static physx::PxPhysics *getPhysics();
     static physx::PxCooking *getCooking();
     physx::PxCooking *cooking();
@@ -207,4 +207,4 @@ private:
 
 QT_END_NAMESPACE
 
-#endif // DYNAMICSWORLD_H
+#endif // PHYSICSWORLD_H

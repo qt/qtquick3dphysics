@@ -14,7 +14,7 @@
 // not supported for non-kinematic PxRigidDynamic instances.
 //########################################################################################
 
-#include "qdynamicsworld_p.h"
+#include "qphysicsworld_p.h"
 
 QT_BEGIN_NAMESPACE
 

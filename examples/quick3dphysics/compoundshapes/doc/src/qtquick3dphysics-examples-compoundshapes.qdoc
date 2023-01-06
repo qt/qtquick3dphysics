@@ -15,7 +15,7 @@
 
     \section1 Setup
 
-    As usual we need to add our DynamicsWorld:
+    As usual we need to add our PhysicsWorld:
 
     \snippet compoundshapes/main.qml world
 
@@ -40,7 +40,7 @@
     spacing between them.
 
     To get a smooth animation that follows the physical simulation exactly we use an AnimationController which we connect
-    to the \c onFrameDone signal on the \l DynamicsWorld. This way, if there were to be any frame drops slowing down the
+    to the \c onFrameDone signal on the \l PhysicsWorld. This way, if there were to be any frame drops slowing down the
     simulation the animation will slow down accordingly. We use a SequentialAnimation with four NumberAnimation to move
     the leftmost and rightmost rings back and forth. This is the QML code for the animation:
 

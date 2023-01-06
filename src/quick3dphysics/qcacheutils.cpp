@@ -7,7 +7,7 @@
 #include <QFileInfo>
 #include <QtQml/QQmlFile>
 #include <extensions/PxExtensionsAPI.h>
-#include "qdynamicsworld_p.h"
+#include "qphysicsworld_p.h"
 
 QT_BEGIN_NAMESPACE
 namespace QCacheUtils {

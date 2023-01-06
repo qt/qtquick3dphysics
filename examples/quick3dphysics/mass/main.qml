@@ -13,7 +13,7 @@ Window {
     title: qsTr("Qt Quick 3D Physics - Mass")
 
     //! [world]
-    DynamicsWorld {
+    PhysicsWorld {
         running: true
         gravity: Qt.vector3d(0, -9.81, 0)
         typicalLength: 1

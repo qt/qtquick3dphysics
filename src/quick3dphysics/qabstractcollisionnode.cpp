@@ -5,7 +5,7 @@
 #include <QtQuick3D/private/qquick3dobject_p.h>
 #include <foundation/PxTransform.h>
 
-#include "qdynamicsworld_p.h"
+#include "qphysicsworld_p.h"
 QT_BEGIN_NAMESPACE
 
 /*!
@@ -81,7 +81,7 @@ QT_BEGIN_NAMESPACE
 
 QAbstractCollisionNode::QAbstractCollisionNode()
 {
-    if (auto world = QDynamicsWorld::getWorld(); world != nullptr)
+    if (auto world = QPhysicsWorld::getWorld(); world != nullptr)
         world->registerNode(this);
 }
 
@@ -90,7 +90,7 @@ QAbstractCollisionNode::~QAbstractCollisionNode()
     for (auto shape : std::as_const(m_collisionShapes))
         shape->disconnect(this);
 
-    if (auto world = QDynamicsWorld::getWorld(); world != nullptr)
+    if (auto world = QPhysicsWorld::getWorld(); world != nullptr)
         world->deregisterNode(this);
 }
 

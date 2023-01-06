@@ -12,7 +12,7 @@
 
     \section1 Setup
 
-    We first add our DynamicsWorld:
+    We first add our PhysicsWorld:
 
     \snippet mass/main.qml world
 

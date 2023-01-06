@@ -16,7 +16,7 @@ Window {
     title: qsTr("QtQuick3DPhysics character controller test")
 
 
-    DynamicsWorld {
+    PhysicsWorld {
         id: physicsWorld
         running: true
         forceDebugDraw: false

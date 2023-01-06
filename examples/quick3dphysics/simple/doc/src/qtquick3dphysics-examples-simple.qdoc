@@ -15,14 +15,14 @@
     \section1 Setup
 
     The whole example is contained and set up in the \e main.qml file. Let's first look
-    at the object that creates the physical world. This node is called DynamicsWorld:
+    at the object that creates the physical world. This node is called PhysicsWorld:
 
     \snippet simple/main.qml world
 
-    We set the \l {DynamicsWorld::} {gravity} property to point downwards in the y-direction
+    We set the \l {PhysicsWorld::} {gravity} property to point downwards in the y-direction
     with a magnitude that matches the gravity on earth. Note that all physical properties
     are unit-less so the magnitude could be \c -981 instead if we scaled the scene accordingly.
-    It is possible to (un)pause the simulation by setting \l {DynamicsWorld::} {running} to \c false.
+    It is possible to (un)pause the simulation by setting \l {PhysicsWorld::} {running} to \c false.
 
     \section1 Scene
 
