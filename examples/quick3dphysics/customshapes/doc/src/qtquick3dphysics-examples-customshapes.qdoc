@@ -9,22 +9,18 @@
     \image customshapes-example.jpg
 
     This example demonstrates loading and spawning several rigid body meshes as well as animating them.
-    The scene consists of a dice tower, a weave, a cup and a handful of dices. The cup is animated to collect spawning
-    dices and put them in the dice tower. The dices will then roll down and out on the weave.
+    The scene consists of a dice tower, a tablecloth, a cup and a handful of dice. The cup is animated to collect spawning
+    dice and put them in the dice tower. The dice will then roll down and out on the tablecloth.
 
     \section1 QML
 
-    This is the full qml code for the example:
-
-    \snippet customshapes/main.qml window
-
-    \section2 Enivronment
-    As usual it contains a PhysicsWorld and a View3D. In the View3D we have our environment which sets up a lightprobe:
+    \section2 Environment
+    As usual we have a PhysicsWorld and a View3D. In the View3D we have our environment which sets up a lightprobe:
 
     \snippet customshapes/main.qml environment
 
     \section2 Textures
-    We define four textures which will be used for the skybox, the weave and the numbers on the dice:
+    We define four textures which will be used for the skybox, the tablecloth and the numbers on the dice:
 
     \snippet customshapes/main.qml textures
 
@@ -33,8 +29,8 @@
 
     \snippet customshapes/main.qml scene
 
-    \section2 Weave
-    We add the weave which is a StaticRigidBody consisting of a model with a weave texture and a HeightFieldShape for collision.
+    \section2 Tablecloth
+    We add the tablecloth which is a StaticRigidBody consisting of a model with a weave texture and a HeightFieldShape for collision.
 
     \snippet customshapes/main.qml cloth
 
@@ -49,14 +45,14 @@
 
     \snippet customshapes/main.qml tower
 
-    \section2 Dices
-    To generate the dices we use a Component and a Repeater3D. The Component contains a DynamicRigidBody with a ConvexMeshShape and a Model.
+    \section2 Dice
+    To generate the dice we use a Component and a Repeater3D. The Component contains a DynamicRigidBody with a ConvexMeshShape and a Model.
     The position, color, scale and mesh source are randomly generated for each die.
 
-    \snippet customshapes/main.qml dices
+    \snippet customshapes/main.qml dice
 
     \section2 Animation
-    To make the dices move from the cup to the dice tower we animate the cup and move it up and then tip it over.
+    To make the dice move from the cup to the dice tower we animate the cup and move it up and then tip it over.
     To make sure that the animation stays in sync with the physical simulation we use an AnimationController which we connect
     to the \c onFrameDone signal on the \l PhysicsWorld. After every simulated frame we progress the animation with the elapsed timestep.
 

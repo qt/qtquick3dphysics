@@ -13,14 +13,20 @@ QT_BEGIN_NAMESPACE
     \inherits CollisionShape
     \inqmlmodule QtQuick3DPhysics
     \since 6.4
-    \brief Box collision shape.
+    \brief Defines a box collision shape.
 
-    This is the box collision shape.
+    This type defines a box collision shape. The origin is at the center of the box.
+
+    \note A non-uniform scaling transformation will scale the x, y and z directions individually.
+    However, combining non-uniform scale and rotation may lead to shearing, which will not be applied
+    to the BoxShape: it will always be a rectilinear box.
+
+    \sa {Qt Quick 3D Physics Shapes and Bodies}{Shapes and Bodies overview documentation}
 */
 
 /*!
     \qmlproperty vector3d BoxShape::extents
-    This property defines the xyz extents of the box
+    This property defines the extents of the box in the x, y and z directions.
 */
 
 QBoxShape::QBoxShape() = default;

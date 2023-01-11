@@ -246,16 +246,24 @@ QHash<QString, QQuick3DPhysicsMesh *> QQuick3DPhysicsMeshManager::meshHash;
     \inherits CollisionShape
     \inqmlmodule QtQuick3DPhysics
     \since 6.4
-    \brief Defines a convex shape based on a mesh.
+    \brief A convex collision shape based on a 3D mesh.
 
-    This type defines a convex shape based on a mesh.
+    This type defines a convex shape based on the same 3D mesh file format used by
+    \l [QtQuick3D]{Model::source}{QtQuick3D.Model}. If the mesh is not convex, the convex hull of the
+    mesh will be used.
 
+    \sa {Qt Quick 3D Physics Shapes and Bodies}{Shapes and Bodies overview documentation}, TriangleMeshShape
 */
 
 /*!
   \qmlproperty url ConvexMeshShape::source
   This property defines the location of the mesh file used to define the shape. If the
-  mesh is not convex, the convex hull of the mesh will be used.
+  mesh is not convex, the convex hull of the mesh will be used. The maximum number of faces
+  and vertices is 255: If the mesh is more detailed than that, it will be simplified.
+
+  Internally, ConvexMeshShape converts the mesh to an optimized data structure. This conversion
+  can be done in advance. See the \l{Qt Quick 3D Physics Cooking}{cooking overview documentation}
+  for details.
 */
 
 QConvexMeshShape::QConvexMeshShape() = default;

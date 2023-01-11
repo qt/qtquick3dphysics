@@ -6,15 +6,11 @@
 #include <QtQuick3D/QQuick3DGeometry>
 #include <extensions/PxExtensionsAPI.h>
 
-#include "qphysicsmeshutils_p_p.h"
-
 //########################################################################################
 // NOTE:
 // Triangle mesh, heightfield or plane geometry shapes configured as eSIMULATION_SHAPE are
 // not supported for non-kinematic PxRigidDynamic instances.
 //########################################################################################
-
-#include "qphysicsworld_p.h"
 
 QT_BEGIN_NAMESPACE
 
@@ -23,11 +19,13 @@ QT_BEGIN_NAMESPACE
     \inqmlmodule QtQuick3DPhysics
     \inherits CollisionShape
     \since 6.4
-    \brief Plane shape.
+    \brief A collision shape that defines an infinite plane.
 
-    This is the plane shape. Planes divide space into "above" and "below" them. Everything "below"
-    the plane will collide with it and be pushed above it. The Plane lies on the XY plane with
-    "above" pointing towards positive Z.
+    The PlaneShape type defines an infinite plane. The plane divides space into "above" and "below"
+    it. Everything "below" the plane will collide with it and be pushed above it. The orientation of
+    the plane is vertical: The Plane lies on the XY plane with "above" pointing sideways towards positive Z.
+
+    PlaneShape can only be used with \l StaticRigidBody and \l {DynamicRigidBody::isKinematic}{kinematic bodies}.
 */
 
 QPlaneShape::QPlaneShape() = default;

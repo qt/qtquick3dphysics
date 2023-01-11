@@ -16,7 +16,11 @@ QT_BEGIN_NAMESPACE
     \since 6.4
     \brief Base type for collision shapes.
 
-    This is the base type for all collision shapes.
+    This is the base type for all collision shapes. A collision shape
+    is used to define the physical shape and extent of an object for the
+    purposes of the physics simulation.
+
+    \sa {Qt Quick 3D Physics Shapes and Bodies}{Shapes and Bodies overview documentation}
 */
 
 /*!

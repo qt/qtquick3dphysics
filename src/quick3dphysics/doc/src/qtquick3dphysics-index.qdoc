@@ -25,6 +25,7 @@ This a pure QML module and it does not have a C++ API.
 \section1 Articles and Guides
 
 \list
+    \li \l{Qt Quick 3D Physics Shapes and Bodies}
     \li \l{Qt Quick 3D Physics Units}{Qt Quick 3D Physics Units}
     \li \l{Qt Quick 3D Physics Cooking}{Qt Quick 3D Physics Cooking}
 \endlist

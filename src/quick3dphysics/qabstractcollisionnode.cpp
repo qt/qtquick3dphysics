@@ -23,6 +23,8 @@ QT_BEGIN_NAMESPACE
 
     This property contains the list of collision shapes. These shapes will be combined and act as a
     single rigid body when colliding.
+
+    \sa {Qt Quick 3D Physics Shapes and Bodies}{Shapes and Bodies overview documentation}
 */
 
 /*!

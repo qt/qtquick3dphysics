@@ -195,22 +195,42 @@ int QQuick3DPhysicsHeightField::columns() const
     \inqmlmodule QtQuick3DPhysics
     \inherits CollisionShape
     \since 6.4
-    \brief Height field shape.
+    \brief A collision shape where the elevation is defined by a height map.
 
-    This is the height-field shape.
+    The HeightFieldShape type defines a physical surface where the height is determined by
+    the \l {QColor#The HSV Color Model}{value} of the pixels of the \l {heightMap} image. The
+    x-axis of the image is mapped to the positive x-axis of the scene, and the y-axis of the
+    image is mapped to the negative z-axis of the scene. A typical use case is to represent
+    natural terrain.
+
+    Objects that are controlled by the physics simulation cannot use HeightFieldShape: It can only
+    be used with \l StaticRigidBody and \l {DynamicRigidBody::isKinematic}{kinematic bodies}.
+
+    \l [QtQuick3D]{HeightFieldGeometry}{QtQuick3D.Helpers.HeightFieldGeometry} is API compatible
+    with the HeightFieldShape type, and can be used to show the height field visually. To
+    improve performance, use a lower resolution version of the height map for the HeightFieldShape:
+    As long as the \l{extents} and the image aspect ratio are the same, the physics body and the
+    visual item will overlap.
+
+    \sa {Qt Quick 3D Physics Shapes and Bodies}{Shapes and Bodies overview documentation}
 */
 
 /*!
     \qmlproperty vector3d HeightFieldShape::extents
     This property defines the extents of the height field. The default value
-    is \c{(100, 100, 100)} when the heightMap is square. When the heightMap is
-    non-square, the default value is reduced along the x- or z-axis so the height
+    is \c{(100, 100, 100)} when the heightMap is square. If the heightMap is
+    non-square, the default value is reduced along the x- or z-axis, so the height
     field will keep the aspect ratio of the image.
 */
 
 /*!
     \qmlproperty url HeightFieldShape::heightMap
     This property defines the location of the heightMap file.
+
+    Internally, HeightFieldShape converts the height map image to an optimized data structure. This
+    conversion can be done in advance. See the \l{Qt Quick 3D Physics Cooking}{cooking overview
+    documentation} for details.
+
 */
 
 QHeightFieldShape::QHeightFieldShape() = default;

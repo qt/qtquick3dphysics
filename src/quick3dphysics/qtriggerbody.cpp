@@ -10,10 +10,10 @@ QT_BEGIN_NAMESPACE
     \inherits CollisionNode
     \inqmlmodule QtQuick3DPhysics
     \since 6.4
-    \brief Base type for a trigger body.
+    \brief Reports when objects enter a given volume.
 
-    This is the base type for a trigger body. A trigger body is a body that does not interact
-    physically but is used to detect when objects intersect.
+    This type defines a trigger body. A trigger body is a body that does not interact
+    physically but is used to detect when objects intersect with its volume.
 */
 
 /*!
