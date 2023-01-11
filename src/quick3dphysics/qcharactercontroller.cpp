@@ -10,7 +10,7 @@ QT_BEGIN_NAMESPACE
     \inqmlmodule QtQuick3DPhysics
     \inherits PhysicsBody
     \since 6.4
-    \brief Defines a character controller.
+    \brief Controls the motion of a character.
 
     The CharacterController type controls the motion of a character.
 
@@ -20,7 +20,14 @@ QT_BEGIN_NAMESPACE
     the physics simulation (for non-kinematic bodies); or move exactly where placed,
     regardless of barriers (for kinematic objects).
 
+    To control the motion of a character controller, set \l movement to the desired velocity.
+
     For a first-person view, the camera is typically placed inside a character controller.
+
+    \note \l {CollisionNode::collisionShapes}{collisionShapes} must be set to
+    a single \l {CapsuleShape}. No other shapes are supported.
+
+    \sa {Qt Quick 3D Physics Shapes and Bodies}{Shapes and Bodies overview documentation}
 */
 
 /*!

@@ -195,6 +195,17 @@ Window {
                 position: "4.5, 2, 4"
             }
 
+            // z-axis
+            Model {
+                materials: PrincipledMaterial {
+                    baseColor: "cyan"
+                    roughness: 1
+                }
+                source: "#Cube"
+                scale: "0.002, 0.002, 0.002"
+                position: "-0.5, 3, -1"
+            }
+
 
             StaticRigidBody {
                 position: Qt.vector3d(2, 2, 1.5)

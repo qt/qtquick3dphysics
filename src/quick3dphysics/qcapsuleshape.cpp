@@ -13,13 +13,18 @@ QT_BEGIN_NAMESPACE
     \inherits CollisionShape
     \inqmlmodule QtQuick3DPhysics
     \since 6.4
-    \brief Capsule shape.
+    \brief Defines a pill-like shape.
 
-    This is the capsule shape. It is centered at the origin. It is specified by a diameter and a
-    height value by which its axis extends along the positive and negative X-axis.
+    This type defines a capsule shape. This is a cylinder with a hemisphere at each end.
+    The origin is at the center of the capsule. The capsule is specified by \l diameter, which
+    determines the diameter of the cylinder and the hemispheres; and \l height, which
+    determines the height of the cylinder.
 
-    \note When using a scale with this shape, the x component will be used to scale the height and
-    the y component will be used to scale the diameter.
+    \note When using scaling transformations with this shape, the x component will be used to scale the height and
+    the y component will be used to scale the diameter. The cylinder will always be perfectly circular even if the
+    scaling transformation is non-uniform.
+
+    \sa {Qt Quick 3D Physics Shapes and Bodies}{Shapes and Bodies overview documentation}
 */
 
 /*!

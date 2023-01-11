@@ -170,7 +170,7 @@ Window {
             }
             //! [tower]
 
-            //! [dices]
+            //! [dice]
             Component {
                 id: diceComponent
 
@@ -234,7 +234,7 @@ Window {
                     }
                 }
             }
-            //! [dices]
+            //! [dice]
 
             //! [animation]
             Connections {

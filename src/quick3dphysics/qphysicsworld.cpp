@@ -33,9 +33,9 @@ QT_BEGIN_NAMESPACE
     \qmltype PhysicsWorld
     \inqmlmodule QtQuick3DPhysics
     \since 6.4
-    \brief The physics world.
+    \brief Controls the physics simulation.
 
-    This is the physics world. This node is used to create an instance of the physics world as well
+    The PhysicsWorld type controls the physics simulation. This node is used to create an instance of the physics world as well
     as define its properties. There can only be one physics world. All collision nodes in the qml
     will get added automatically to the physics world.
 */

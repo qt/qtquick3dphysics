@@ -16,14 +16,18 @@ QT_BEGIN_NAMESPACE
     \qmltype PhysicsMaterial
     \inqmlmodule QtQuick3DPhysics
     \since 6.4
-    \brief Physics material.
+    \brief Defines the physics material of a body.
 
-    This is the physics material. Friction uses the coulomb friction model, which is based around
+    The PhysicsMaterial type determines how objects interact when they touch.
+
+    Friction uses the coulomb friction model, which is based around
     the concepts of 2 coefficients: the static friction coefficient and the dynamic friction
     coefficient (sometimes called kinetic friction). Friction resists relative lateral motion of two
     solid surfaces in contact. These two coefficients define a relationship between the normal force
     exerted by each surface on the other and the amount of friction force that is applied to resist
     lateral motion.
+
+    Restitution determines how objects bounce when they collide.
 */
 
 /*!
@@ -40,7 +44,8 @@ QT_BEGIN_NAMESPACE
 
 /*!
     \qmlproperty float PhysicsMaterial::restitution
-    This property defines the coefficient of restitution. The coefficient of restitution of two
+    This property defines the coefficient of restitution, or how bouncy the material is.
+    The coefficient of restitution of two
     colliding objects is a fractional value representing the ratio of speeds after and before an
     impact, taken along the line of impact. A coefficient of restitution of 1 is said to collide
     elastically, while a coefficient of restitution < 1 is said to be inelastic. The default value

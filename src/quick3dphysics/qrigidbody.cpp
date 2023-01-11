@@ -12,12 +12,14 @@ QT_BEGIN_NAMESPACE
     \inqmlmodule QtQuick3DPhysics
     \inherits PhysicsBody
     \since 6.4
-    \brief Dynamic rigid body.
+    \brief A physical body that can move or be moved.
 
-    This is the dynamic rigid body. A dynamic rigid body is an object that is part of the physics
-    scene and behaves like a physical object with mass and velocity. Note that triangle mesh,
-    heightfield and plane geometry shapes are only allowed as collision shapes when \l isKinematic
-    is \c true.
+    This type defines a dynamic rigid body: an object that is part of the physics
+    scene and behaves like a physical object with mass and velocity.
+
+    \note \l{TriangleMeshShape}{triangle mesh}, \l{HeightFieldShape}{height field} and
+    \l{PlaneShape}{plane} geometry shapes are not allowed as collision shapes when
+    \l isKinematic is \c false.
 */
 
 /*!
@@ -653,10 +655,13 @@ QVector3D QDynamicRigidBody::kinematicPosition() const
     \inqmlmodule QtQuick3DPhysics
     \inherits PhysicsBody
     \since 6.4
-    \brief Static rigid body.
+    \brief A physical body that does not move.
 
-    This is an immovable and static rigid body. It is technically possible to move the body but it
-    will incur a performance penalty. Any collision shape is allowed for this body.
+    The StaticRigidBody type defines an immovable and static rigid body. Any collision shape is allowed for this body.
+
+    \note Do not move a StaticRigidBody. It is technically possible to do so, but it
+    will incur a performance penalty, and colliding dynamic objects may not react correctly.
+    Use a DynamicRigidBody with \l {DynamicRigidBody::isKinematic}{isKinematic} set to \c true instead.
 */
 
 QStaticRigidBody::QStaticRigidBody() = default;

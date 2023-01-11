@@ -10,7 +10,7 @@ QT_BEGIN_NAMESPACE
     \inherits CollisionNode
     \inqmlmodule QtQuick3DPhysics
     \since 6.4
-    \brief Base type for physics bodies.
+    \brief Base type for all physics bodies.
 
     This is the base type for all physics bodies.
 */

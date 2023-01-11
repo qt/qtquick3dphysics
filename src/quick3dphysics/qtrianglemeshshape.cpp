@@ -14,8 +14,6 @@
 // not supported for non-kinematic PxRigidDynamic instances.
 //########################################################################################
 
-#include "qphysicsworld_p.h"
-
 QT_BEGIN_NAMESPACE
 
 /*!
@@ -23,14 +21,25 @@ QT_BEGIN_NAMESPACE
     \inqmlmodule QtQuick3DPhysics
     \inherits CollisionShape
     \since 6.4
-    \brief Triangle mesh shape.
+    \brief A collision shape based on a 3D mesh.
 
-    This is the triangle mesh shape.
+    This type defines a shape based on the same 3D mesh file format used by
+    \l [QtQuick3D]{Model::source}{QtQuick3D.Model}.
+
+    Objects that are controlled by the physics simulation cannot use TriangleMeshShape: It can only
+    be used with \l StaticRigidBody and \l {DynamicRigidBody::isKinematic}{kinematic bodies}. Use \l
+    ConvexMeshShape for non-kinematic dynamic bodies.
+
+    \sa {Qt Quick 3D Physics Shapes and Bodies}{Shapes and Bodies overview documentation}
 */
 
 /*!
     \qmlproperty url TriangleMeshShape::source
     This property defines the location of the mesh file used to define the shape.
+
+    Internally, TriangleMeshShape converts the mesh to an optimized data structure. This conversion
+    can be done in advance. See the \l{Qt Quick 3D Physics Cooking}{cooking overview documentation}
+    for details.
 */
 
 QTriangleMeshShape::QTriangleMeshShape() = default;

@@ -13,11 +13,11 @@ QT_BEGIN_NAMESPACE
     \inqmlmodule QtQuick3DPhysics
     \inherits CollisionShape
     \since 6.4
-    \brief Sphere shape.
+    \brief Defines a spherical collision shape.
 
-    This is the sphere shape.
-    \note When using a scale with this shape, the x component will be used to scale the diameter of
-    the sphere.
+    This type defines a spherical shape. The origin is at the center of the sphere.
+    \note When using a scaling transformation with this shape, the x component will be used to scale the diameter of
+    the sphere. The resulting shape will be perfectly round, even if a non-uniform scaling transformation is used.
 */
 
 /*!
