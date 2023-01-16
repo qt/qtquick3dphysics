@@ -235,6 +235,11 @@ public:
             QAbstractCollisionNode *otherNode =
                     static_cast<QAbstractCollisionNode *>(pairs[i].otherActor->userData);
 
+            if (!triggerNode || !otherNode) {
+                qWarning() << "QtQuick3DPhysics internal error: null pointer in trigger collision.";
+                continue;
+            }
+
             if (pairs->status == physx::PxPairFlag::eNOTIFY_TOUCH_FOUND) {
                 if (otherNode->sendTriggerReports()) {
                     world->registerOverlap(pairs[i].triggerActor, pairs[i].otherActor);
