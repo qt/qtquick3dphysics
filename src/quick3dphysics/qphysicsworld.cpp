@@ -5,7 +5,7 @@
 #include "qdebugdrawhelper_p.h"
 #include "qphysicsworld_p.h"
 
-#include "qabstractcollisionnode_p.h"
+#include "qabstractphysicsnode_p.h"
 #include "qphysicsutils_p.h"
 #include "qtriggerbody_p.h"
 #include "qrigidbody_p.h"
@@ -229,11 +229,11 @@ public:
                    | physx::PxTriggerPairFlag::eREMOVED_SHAPE_OTHER))
                 continue;
 
-            QAbstractCollisionNode *triggerNode =
-                    static_cast<QAbstractCollisionNode *>(pairs[i].triggerActor->userData);
+            QAbstractPhysicsNode *triggerNode =
+                    static_cast<QAbstractPhysicsNode *>(pairs[i].triggerActor->userData);
 
-            QAbstractCollisionNode *otherNode =
-                    static_cast<QAbstractCollisionNode *>(pairs[i].otherActor->userData);
+            QAbstractPhysicsNode *otherNode =
+                    static_cast<QAbstractPhysicsNode *>(pairs[i].otherActor->userData);
 
             if (!triggerNode || !otherNode) {
                 qWarning() << "QtQuick3DPhysics internal error: null pointer in trigger collision.";
@@ -272,10 +272,10 @@ public:
             const physx::PxContactPair &contactPair = pairs[i];
 
             if (contactPair.events & physx::PxPairFlag::eNOTIFY_TOUCH_FOUND) {
-                QAbstractCollisionNode *trigger =
-                        static_cast<QAbstractCollisionNode *>(pairHeader.actors[0]->userData);
-                QAbstractCollisionNode *other =
-                        static_cast<QAbstractCollisionNode *>(pairHeader.actors[1]->userData);
+                QAbstractPhysicsNode *trigger =
+                        static_cast<QAbstractPhysicsNode *>(pairHeader.actors[0]->userData);
+                QAbstractPhysicsNode *other =
+                        static_cast<QAbstractPhysicsNode *>(pairHeader.actors[1]->userData);
 
                 if (!trigger || !other) //### TODO: handle character controllers
                     continue;
@@ -366,7 +366,7 @@ enum class DebugDrawBodyType {
 class QAbstractPhysXNode
 {
 public:
-    QAbstractPhysXNode(QAbstractCollisionNode *node) : frontendNode(node)
+    QAbstractPhysXNode(QAbstractPhysicsNode *node) : frontendNode(node)
     {
         node->m_backendObject = this;
     }
@@ -400,7 +400,7 @@ public:
 
     QVector<physx::PxShape *> shapes;
     physx::PxMaterial *material = nullptr;
-    QAbstractCollisionNode *frontendNode = nullptr;
+    QAbstractPhysicsNode *frontendNode = nullptr;
     bool isRemoved = false;
     static physx::PxMaterial *defaultMaterial;
 };
@@ -434,7 +434,7 @@ private:
 class QPhysXActorBody : public QAbstractPhysXNode
 {
 public:
-    QPhysXActorBody(QAbstractCollisionNode *frontEnd) : QAbstractPhysXNode(frontEnd) { }
+    QPhysXActorBody(QAbstractPhysicsNode *frontEnd) : QAbstractPhysXNode(frontEnd) { }
     void cleanup(PhysXWorld *physX) override
     {
         if (actor) {
@@ -497,8 +497,8 @@ public:
 class QPhysXFactory
 {
 public:
-    static QAbstractPhysXNode *createBackend(QAbstractCollisionNode *node)
-    { // TODO: virtual function in QAbstractCollisionNode??
+    static QAbstractPhysXNode *createBackend(QAbstractPhysicsNode *node)
+    { // TODO: virtual function in QAbstractPhysicsNode??
 
         if (auto *rigidBody = qobject_cast<QDynamicRigidBody *>(node))
             return new QPhysXDynamicBody(rigidBody);
@@ -1054,9 +1054,9 @@ void QPhysicsWorld::registerOverlap(physx::PxRigidActor *triggerActor,
                                      physx::PxRigidActor *otherActor)
 {
     QTriggerBody *trigger = static_cast<QTriggerBody *>(triggerActor->userData);
-    QAbstractCollisionNode *other = static_cast<QAbstractCollisionNode *>(otherActor->userData);
+    QAbstractPhysicsNode *other = static_cast<QAbstractPhysicsNode *>(otherActor->userData);
 
-    if (!m_removedCollisionNodes.contains(other) && !m_removedCollisionNodes.contains(trigger))
+    if (!m_removedPhysicsNodes.contains(other) && !m_removedPhysicsNodes.contains(trigger))
         trigger->registerCollision(other);
 }
 
@@ -1064,39 +1064,39 @@ void QPhysicsWorld::deregisterOverlap(physx::PxRigidActor *triggerActor,
                                        physx::PxRigidActor *otherActor)
 {
     QTriggerBody *trigger = static_cast<QTriggerBody *>(triggerActor->userData);
-    QAbstractCollisionNode *other = static_cast<QAbstractCollisionNode *>(otherActor->userData);
-    if (!m_removedCollisionNodes.contains(other) && !m_removedCollisionNodes.contains(trigger))
+    QAbstractPhysicsNode *other = static_cast<QAbstractPhysicsNode *>(otherActor->userData);
+    if (!m_removedPhysicsNodes.contains(other) && !m_removedPhysicsNodes.contains(trigger))
         trigger->deregisterCollision(other);
 }
 
-bool QPhysicsWorld::hasSendContactReports(QAbstractCollisionNode *object) const
+bool QPhysicsWorld::hasSendContactReports(QAbstractPhysicsNode *object) const
 {
-    return !m_removedCollisionNodes.contains(object) && object->m_backendObject
+    return !m_removedPhysicsNodes.contains(object) && object->m_backendObject
             && object->sendContactReports();
 }
 
-bool QPhysicsWorld::hasReceiveContactReports(QAbstractCollisionNode *object) const
+bool QPhysicsWorld::hasReceiveContactReports(QAbstractPhysicsNode *object) const
 {
-    return !m_removedCollisionNodes.contains(object) && object->m_backendObject
+    return !m_removedPhysicsNodes.contains(object) && object->m_backendObject
             && object->receiveContactReports();
 }
 
-void QPhysicsWorld::registerNode(QAbstractCollisionNode *collisionNode)
+void QPhysicsWorld::registerNode(QAbstractPhysicsNode *physicsNode)
 {
-    m_newCollisionNodes.push_back(collisionNode);
+    m_newPhysicsNodes.push_back(physicsNode);
 }
 
-void QPhysicsWorld::deregisterNode(QAbstractCollisionNode *collisionNode)
+void QPhysicsWorld::deregisterNode(QAbstractPhysicsNode *physicsNode)
 {
-    m_newCollisionNodes.removeAll(collisionNode);
-    if (collisionNode->m_backendObject)
-        collisionNode->m_backendObject->isRemoved = true;
+    m_newPhysicsNodes.removeAll(physicsNode);
+    if (physicsNode->m_backendObject)
+        physicsNode->m_backendObject->isRemoved = true;
 
-    for (auto shape : collisionNode->getCollisionShapesList()) {
+    for (auto shape : physicsNode->getCollisionShapesList()) {
         m_collisionShapeDebugModels.remove(shape);
     }
 
-    m_removedCollisionNodes.insert(collisionNode);
+    m_removedPhysicsNodes.insert(physicsNode);
 }
 
 void QPhysicsWorld::setGravity(QVector3D gravity)
@@ -1525,7 +1525,7 @@ void QPhysicsWorld::cleanupRemovedNodes()
     m_physXBodies.removeIf([this](QAbstractPhysXNode *body) {
                                return body->cleanupIfRemoved(m_physx);
                            });
-    m_removedCollisionNodes.clear();
+    m_removedPhysicsNodes.clear();
 }
 
 void QPhysicsWorld::initPhysics()
@@ -1573,12 +1573,12 @@ void QPhysicsWorld::initPhysics()
 void QPhysicsWorld::frameFinished(float deltaTime)
 {
     cleanupRemovedNodes();
-    for (auto *node : std::as_const(m_newCollisionNodes)) {
+    for (auto *node : std::as_const(m_newPhysicsNodes)) {
         auto *body = QPhysXFactory::createBackend(node);
         body->init(this, m_physx);
         m_physXBodies.push_back(body);
     }
-    m_newCollisionNodes.clear();
+    m_newPhysicsNodes.clear();
 
     QHash<QQuick3DNode *, QMatrix4x4> transformCache;
 

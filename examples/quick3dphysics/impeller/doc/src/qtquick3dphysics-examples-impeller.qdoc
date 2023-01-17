@@ -35,10 +35,10 @@
 
     The property \c inArea is a custom property we use to keep track of when the sphere is overlapping the box trigger body.
     This is then used for the \c baseColor property to make the sphere yellow when it is overlapping the box and red otherwise.
-    Since we want the sphere to partake in contact reporting the property \l {CollisionNode::} {sendContactReports} needs to be set to \c true.
+    Since we want the sphere to partake in contact reporting the property \l {PhysicsNode::} {sendContactReports} needs to be set to \c true.
     Since we also want the sphere to get callbacks when entering and leaving a TriggerBody, the property
-    \l {CollisionNode::} {receiveContactReports} is also set to \c true.
-    We implement the \l {CollisionNode::} {enteredTriggerBody} and \l {CollisionNode::} {exitedTriggerBody} signal methods
+    \l {PhysicsNode::} {receiveContactReports} is also set to \c true.
+    We implement the \l {PhysicsNode::} {enteredTriggerBody} and \l {PhysicsNode::} {exitedTriggerBody} signal methods
     on the sphere where we set the \c inArea property to \c true or \c false when entering or leaving the trigger body.
 
     Now let's look at the trigger body:
@@ -46,13 +46,13 @@
     \snippet impeller/main.qml box
 
     The qml type is a TriggerBody which acts like a static body except its collisions are inactive.
-    Instead it will trigger \l {CollisionNode::} {enteredTriggerBody} and \l {CollisionNode::} {exitedTriggerBody} method calls on the sphere.
+    Instead it will trigger \l {PhysicsNode::} {enteredTriggerBody} and \l {PhysicsNode::} {exitedTriggerBody} method calls on the sphere.
 
     Finally, lets look at the impeller:
 
     \snippet impeller/main.qml impeller
 
-    This is a static body and we set \l {CollisionNode::} {receiveContactReports} to \c true to enable the collision callbacks.
-    The callback \l {CollisionNode::} {bodyContact} gets called whenever a collision is reported.
+    This is a static body and we set \l {PhysicsNode::} {receiveContactReports} to \c true to enable the collision callbacks.
+    The callback \l {PhysicsNode::} {bodyContact} gets called whenever a collision is reported.
     In the method we add a repelling impulse in the opposite direction of the collision.
 */

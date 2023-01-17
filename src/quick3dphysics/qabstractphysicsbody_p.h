@@ -15,13 +15,13 @@
 // We mean it.
 //
 
-#include <QtQuick3DPhysics/private/qabstractcollisionnode_p.h>
+#include "qabstractphysicsnode_p.h"
 #include <QtQuick3DPhysics/private/qphysicsmaterial_p.h>
 #include <QtQml/QQmlEngine>
 
 QT_BEGIN_NAMESPACE
 
-class QAbstractPhysicsBody : public QAbstractCollisionNode
+class QAbstractPhysicsBody : public QAbstractPhysicsNode
 {
     Q_OBJECT
     Q_PROPERTY(QPhysicsMaterial *physicsMaterial READ physicsMaterial WRITE setPhysicsMaterial

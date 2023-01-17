@@ -1,7 +1,7 @@
 // Copyright (C) 2021 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
-#include "qabstractcollisionnode_p.h"
+#include "qabstractphysicsnode_p.h"
 #include <QtQuick3D/private/qquick3dobject_p.h>
 #include <foundation/PxTransform.h>
 
@@ -9,7 +9,7 @@
 QT_BEGIN_NAMESPACE
 
 /*!
-    \qmltype CollisionNode
+    \qmltype PhysicsNode
     \inherits Node
     \inqmlmodule QtQuick3DPhysics
     \since 6.4
@@ -19,7 +19,7 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty list<CollisionShape> CollisionNode::collisionShapes
+    \qmlproperty list<CollisionShape> PhysicsNode::collisionShapes
 
     This property contains the list of collision shapes. These shapes will be combined and act as a
     single rigid body when colliding.
@@ -28,43 +28,43 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty bool CollisionNode::sendContactReports
+    \qmlproperty bool PhysicsNode::sendContactReports
     This property determines whether this body will send contact reports when colliding with other
     bodies.
 */
 
 /*!
-    \qmlproperty bool CollisionNode::receiveContactReports
+    \qmlproperty bool PhysicsNode::receiveContactReports
     This property determines whether this body will receive contact reports when colliding with
     other bodies. If activated, this means that the bodyContact signal will be emitted on a
     collision with a body that has sendContactReports set to true.
 */
 
 /*!
-    \qmlproperty bool CollisionNode::sendTriggerReports
+    \qmlproperty bool PhysicsNode::sendTriggerReports
     This property determines whether this body will send reports when entering or leaving a trigger
     body.
 */
 
 /*!
-    \qmlproperty bool CollisionNode::receiveTriggerReports
+    \qmlproperty bool PhysicsNode::receiveTriggerReports
     This property determines whether this body will receive reports when entering or leaving a
     trigger body.
 */
 
 /*!
-    \qmlsignal CollisionNode::bodyContact(CollisionNode *body, list<vector3D> positions,
+    \qmlsignal PhysicsNode::bodyContact(PhysicsNode *body, list<vector3D> positions,
    list<vector3D> impulses, list<vector3D> normals)
 
-    This signal is emitted when there is a collision and \l {CollisionNode::}
-    {receiveContactReports} is set to \c true in this body and \l {CollisionNode::}
+    This signal is emitted when there is a collision and \l {PhysicsNode::}
+    {receiveContactReports} is set to \c true in this body and \l {PhysicsNode::}
     {sendContactReports} is set to \c true in the colliding \a body. The parameters \a positions, \a
     impulses and \a normals contain the position, impulse force and normal for each contact point at
     the same index.
 */
 
 /*!
-    \qmlsignal CollisionNode::enteredTriggerBody(TriggerBody *body)
+    \qmlsignal PhysicsNode::enteredTriggerBody(TriggerBody *body)
 
     This signal is emitted when this body enters the specified trigger \a body.
 
@@ -73,7 +73,7 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlsignal CollisionNode::exitedTriggerBody(TriggerBody *body)
+    \qmlsignal PhysicsNode::exitedTriggerBody(TriggerBody *body)
 
     This signal is emitted when this body exits the specified trigger \a body.
 
@@ -81,13 +81,13 @@ QT_BEGIN_NAMESPACE
     \sa receiveTriggerReports enteredTriggerBody
 */
 
-QAbstractCollisionNode::QAbstractCollisionNode()
+QAbstractPhysicsNode::QAbstractPhysicsNode()
 {
     if (auto world = QPhysicsWorld::getWorld(); world != nullptr)
         world->registerNode(this);
 }
 
-QAbstractCollisionNode::~QAbstractCollisionNode()
+QAbstractPhysicsNode::~QAbstractPhysicsNode()
 {
     for (auto shape : std::as_const(m_collisionShapes))
         shape->disconnect(this);
@@ -96,20 +96,20 @@ QAbstractCollisionNode::~QAbstractCollisionNode()
         world->deregisterNode(this);
 }
 
-QQmlListProperty<QAbstractCollisionShape> QAbstractCollisionNode::collisionShapes()
+QQmlListProperty<QAbstractCollisionShape> QAbstractPhysicsNode::collisionShapes()
 {
     return QQmlListProperty<QAbstractCollisionShape>(
-            this, nullptr, QAbstractCollisionNode::qmlAppendShape,
-            QAbstractCollisionNode::qmlShapeCount, QAbstractCollisionNode::qmlShapeAt,
-            QAbstractCollisionNode::qmlClearShapes);
+            this, nullptr, QAbstractPhysicsNode::qmlAppendShape,
+            QAbstractPhysicsNode::qmlShapeCount, QAbstractPhysicsNode::qmlShapeAt,
+            QAbstractPhysicsNode::qmlClearShapes);
 }
 
-const QVector<QAbstractCollisionShape *> &QAbstractCollisionNode::getCollisionShapesList() const
+const QVector<QAbstractCollisionShape *> &QAbstractPhysicsNode::getCollisionShapesList() const
 {
     return m_collisionShapes;
 }
 
-void QAbstractCollisionNode::updateFromPhysicsTransform(const physx::PxTransform &transform)
+void QAbstractPhysicsNode::updateFromPhysicsTransform(const physx::PxTransform &transform)
 {
     const auto pos = transform.p;
     const auto rotation = transform.q;
@@ -130,12 +130,12 @@ void QAbstractCollisionNode::updateFromPhysicsTransform(const physx::PxTransform
     }
 }
 
-bool QAbstractCollisionNode::sendContactReports() const
+bool QAbstractPhysicsNode::sendContactReports() const
 {
     return m_sendContactReports;
 }
 
-void QAbstractCollisionNode::setSendContactReports(bool sendContactReports)
+void QAbstractPhysicsNode::setSendContactReports(bool sendContactReports)
 {
     if (m_sendContactReports == sendContactReports)
         return;
@@ -144,12 +144,12 @@ void QAbstractCollisionNode::setSendContactReports(bool sendContactReports)
     emit sendContactReportsChanged(m_sendContactReports);
 }
 
-bool QAbstractCollisionNode::receiveContactReports() const
+bool QAbstractPhysicsNode::receiveContactReports() const
 {
     return m_receiveContactReports;
 }
 
-void QAbstractCollisionNode::setReceiveContactReports(bool receiveContactReports)
+void QAbstractPhysicsNode::setReceiveContactReports(bool receiveContactReports)
 {
     if (m_receiveContactReports == receiveContactReports)
         return;
@@ -158,12 +158,12 @@ void QAbstractCollisionNode::setReceiveContactReports(bool receiveContactReports
     emit receiveContactReportsChanged(m_receiveContactReports);
 }
 
-bool QAbstractCollisionNode::sendTriggerReports() const
+bool QAbstractPhysicsNode::sendTriggerReports() const
 {
     return m_sendTriggerReports;
 }
 
-void QAbstractCollisionNode::setSendTriggerReports(bool sendTriggerReports)
+void QAbstractPhysicsNode::setSendTriggerReports(bool sendTriggerReports)
 {
     if (m_sendTriggerReports == sendTriggerReports)
         return;
@@ -172,12 +172,12 @@ void QAbstractCollisionNode::setSendTriggerReports(bool sendTriggerReports)
     emit sendTriggerReportsChanged(m_sendTriggerReports);
 }
 
-bool QAbstractCollisionNode::receiveTriggerReports() const
+bool QAbstractPhysicsNode::receiveTriggerReports() const
 {
     return m_receiveTriggerReports;
 }
 
-void QAbstractCollisionNode::setReceiveTriggerReports(bool receiveTriggerReports)
+void QAbstractPhysicsNode::setReceiveTriggerReports(bool receiveTriggerReports)
 {
     if (m_receiveTriggerReports == receiveTriggerReports)
         return;
@@ -186,30 +186,30 @@ void QAbstractCollisionNode::setReceiveTriggerReports(bool receiveTriggerReports
     emit receiveTriggerReportsChanged(m_receiveTriggerReports);
 }
 
-void QAbstractCollisionNode::registerContact(QAbstractCollisionNode *body,
-                                             const QVector<QVector3D> &positions,
-                                             const QVector<QVector3D> &impulses,
-                                             const QVector<QVector3D> &normals)
+void QAbstractPhysicsNode::registerContact(QAbstractPhysicsNode *body,
+                                           const QVector<QVector3D> &positions,
+                                           const QVector<QVector3D> &impulses,
+                                           const QVector<QVector3D> &normals)
 {
     emit bodyContact(body, positions, impulses, normals);
 }
 
-void QAbstractCollisionNode::onShapeDestroyed(QObject *object)
+void QAbstractPhysicsNode::onShapeDestroyed(QObject *object)
 {
     m_collisionShapes.removeAll(static_cast<QAbstractCollisionShape *>(object));
 }
 
-void QAbstractCollisionNode::onShapeNeedsRebuild(QObject * /*object*/)
+void QAbstractPhysicsNode::onShapeNeedsRebuild(QObject * /*object*/)
 {
     m_shapesDirty = true;
 }
 
-void QAbstractCollisionNode::qmlAppendShape(QQmlListProperty<QAbstractCollisionShape> *list,
-                                            QAbstractCollisionShape *shape)
+void QAbstractPhysicsNode::qmlAppendShape(QQmlListProperty<QAbstractCollisionShape> *list,
+                                          QAbstractCollisionShape *shape)
 {
     if (shape == nullptr)
         return;
-    QAbstractCollisionNode *self = static_cast<QAbstractCollisionNode *>(list->object);
+    QAbstractPhysicsNode *self = static_cast<QAbstractPhysicsNode *>(list->object);
     self->m_collisionShapes.push_back(shape);
     self->m_hasStaticShapes = self->m_hasStaticShapes || shape->isStaticShape();
 
@@ -229,29 +229,29 @@ void QAbstractCollisionNode::qmlAppendShape(QQmlListProperty<QAbstractCollisionS
 
     // Make sure materials are removed when destroyed
     connect(shape, &QAbstractCollisionShape::destroyed, self,
-            &QAbstractCollisionNode::onShapeDestroyed);
+            &QAbstractPhysicsNode::onShapeDestroyed);
 
     // Connect to rebuild signal
     connect(shape, &QAbstractCollisionShape::needsRebuild, self,
-            &QAbstractCollisionNode::onShapeNeedsRebuild);
+            &QAbstractPhysicsNode::onShapeNeedsRebuild);
 }
 
 QAbstractCollisionShape *
-QAbstractCollisionNode::qmlShapeAt(QQmlListProperty<QAbstractCollisionShape> *list, qsizetype index)
+QAbstractPhysicsNode::qmlShapeAt(QQmlListProperty<QAbstractCollisionShape> *list, qsizetype index)
 {
-    QAbstractCollisionNode *self = static_cast<QAbstractCollisionNode *>(list->object);
+    QAbstractPhysicsNode *self = static_cast<QAbstractPhysicsNode *>(list->object);
     return self->m_collisionShapes.at(index);
 }
 
-qsizetype QAbstractCollisionNode::qmlShapeCount(QQmlListProperty<QAbstractCollisionShape> *list)
+qsizetype QAbstractPhysicsNode::qmlShapeCount(QQmlListProperty<QAbstractCollisionShape> *list)
 {
-    QAbstractCollisionNode *self = static_cast<QAbstractCollisionNode *>(list->object);
+    QAbstractPhysicsNode *self = static_cast<QAbstractPhysicsNode *>(list->object);
     return self->m_collisionShapes.count();
 }
 
-void QAbstractCollisionNode::qmlClearShapes(QQmlListProperty<QAbstractCollisionShape> *list)
+void QAbstractPhysicsNode::qmlClearShapes(QQmlListProperty<QAbstractCollisionShape> *list)
 {
-    QAbstractCollisionNode *self = static_cast<QAbstractCollisionNode *>(list->object);
+    QAbstractPhysicsNode *self = static_cast<QAbstractPhysicsNode *>(list->object);
     for (const auto &shape : std::as_const(self->m_collisionShapes)) {
         if (shape->parentItem() == nullptr)
             QQuick3DObjectPrivate::get(shape)->derefSceneManager();

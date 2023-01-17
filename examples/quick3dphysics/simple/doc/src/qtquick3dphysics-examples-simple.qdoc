@@ -42,8 +42,8 @@
     or a moving platform typically would. This also means that if you update the \c position property
     of the football it would not move to that position whereas the elevator would.
 
-    To be able to interact with other physical objects the \l {CollisionNode::} {collisionShapes}
-    property needs to be set. The \l {CollisionNode::} {collisionShapes} property is a list that
+    To be able to interact with other physical objects the \l {PhysicsNode::} {collisionShapes}
+    property needs to be set. The \l {PhysicsNode::} {collisionShapes} property is a list that
     can contain one or more shapes and will act as one rigid unit combined. You can position and
     rotate these shapes in relation to each other. Note that plane, triangle mesh and heightmap
     shapes only work with dynamic bodies if the body is kinematic.
@@ -56,7 +56,7 @@
 
     \snippet simple/main.qml plane
 
-    We create a plane by making a StaticRigidBody node. In this node we set the \l {CollisionNode::} {collisionShapes}
+    We create a plane by making a StaticRigidBody node. In this node we set the \l {PhysicsNode::} {collisionShapes}
     property to contain a PlaneShape. Planes divide space into "above" and "below" them. Everything "below"
     the plane will collide with it and be pushed above it. The Plane lies on the YZ plane with "above"
     pointing towards positive X. We put a Model inside our StaticRigidBody node to render the plane.
@@ -68,7 +68,7 @@
 
     \snippet simple/main.qml box
 
-    We create a sphere by making a DynamicRigidBody node and a single BoxShape in \l {CollisionNode::} {collisionShapes}.
+    We create a sphere by making a DynamicRigidBody node and a single BoxShape in \l {PhysicsNode::} {collisionShapes}.
     Since this is a dynamic node the box will interact with the scene by colliding and moving like a free object.
     Since the cube model is a hundred times bigger than a unit cube we need to scale it accordingly.
     Since this is a dynamic body and thus have a physical weight we set the \l {DynamicRigidBody::} {density} property.
@@ -77,12 +77,12 @@
 
     \snippet simple/main.qml sphere
 
-    We create a sphere by making a DynamicRigidBody node and a single SphereShape in \l {CollisionNode::} {collisionShapes}.
+    We create a sphere by making a DynamicRigidBody node and a single SphereShape in \l {PhysicsNode::} {collisionShapes}.
 
     \section2 Capsule
 
     \snippet simple/main.qml capsule
 
-    We create a capsule by making a DynamicRigidBody node and a single CapsuleShape in \l {CollisionNode::} {collisionShapes}.
+    We create a capsule by making a DynamicRigidBody node and a single CapsuleShape in \l {PhysicsNode::} {collisionShapes}.
     We build a capsule model by using the built-in CapsuleGeometry provided by Qt Quick 3D Physics.
 */

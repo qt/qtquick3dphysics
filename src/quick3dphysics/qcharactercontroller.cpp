@@ -24,7 +24,7 @@ QT_BEGIN_NAMESPACE
 
     For a first-person view, the camera is typically placed inside a character controller.
 
-    \note \l {CollisionNode::collisionShapes}{collisionShapes} must be set to
+    \note \l {PhysicsNode::collisionShapes}{collisionShapes} must be set to
     a single \l {CapsuleShape}. No other shapes are supported.
 
     \sa {Qt Quick 3D Physics Shapes and Bodies}{Shapes and Bodies overview documentation}

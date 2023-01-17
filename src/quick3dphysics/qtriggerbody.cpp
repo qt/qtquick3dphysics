@@ -7,7 +7,7 @@ QT_BEGIN_NAMESPACE
 
 /*!
     \qmltype TriggerBody
-    \inherits CollisionNode
+    \inherits PhysicsNode
     \inqmlmodule QtQuick3DPhysics
     \since 6.4
     \brief Reports when objects enter a given volume.
@@ -22,18 +22,18 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlsignal TriggerBody::bodyEntered(CollisionNode *body)
+    \qmlsignal TriggerBody::bodyEntered(PhysicsNode *body)
     This signal is emitted when the trigger body is penetrated by the specified \a body.
 */
 
 /*!
-    \qmlsignal TriggerBody::bodyExited(CollisionNode *body)
+    \qmlsignal TriggerBody::bodyExited(PhysicsNode *body)
     This signal is emitted when the trigger body is no longer penetrated by the specified \a body.
 */
 
 QTriggerBody::QTriggerBody() = default;
 
-void QTriggerBody::registerCollision(QAbstractCollisionNode *collision)
+void QTriggerBody::registerCollision(QAbstractPhysicsNode *collision)
 {
     int size = m_collisions.size();
     m_collisions.insert(collision);
@@ -44,7 +44,7 @@ void QTriggerBody::registerCollision(QAbstractCollisionNode *collision)
     }
 }
 
-void QTriggerBody::deregisterCollision(QAbstractCollisionNode *collision)
+void QTriggerBody::deregisterCollision(QAbstractPhysicsNode *collision)
 {
     int size = m_collisions.size();
     m_collisions.remove(collision);

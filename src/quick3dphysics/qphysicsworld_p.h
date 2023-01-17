@@ -42,7 +42,7 @@ QT_BEGIN_NAMESPACE
 
 Q_DECLARE_LOGGING_CATEGORY(lcQuick3dPhysics);
 
-class QAbstractCollisionNode;
+class QAbstractPhysicsNode;
 class QAbstractCollisionShape;
 class QAbstractRigidBody;
 class QAbstractPhysXNode;
@@ -95,16 +95,16 @@ public:
     void registerOverlap(physx::PxRigidActor *triggerActor, physx::PxRigidActor *otherActor);
     void deregisterOverlap(physx::PxRigidActor *triggerActor, physx::PxRigidActor *otherActor);
 
-    bool hasSendContactReports(QAbstractCollisionNode *object) const;
-    bool hasReceiveContactReports(QAbstractCollisionNode *object) const;
+    bool hasSendContactReports(QAbstractPhysicsNode *object) const;
+    bool hasReceiveContactReports(QAbstractPhysicsNode *object) const;
 
     static QPhysicsWorld *getWorld()
     {
         return self; // TODO: proper mechanism for finding "my" world.
     }
 
-    void registerNode(QAbstractCollisionNode *collisionNode);
-    void deregisterNode(QAbstractCollisionNode *collisionNode);
+    void registerNode(QAbstractPhysicsNode *physicsNode);
+    void deregisterNode(QAbstractPhysicsNode *physicsNode);
 
     Q_REVISION(6, 5) QQuick3DNode *sceneNode() const;
 
@@ -170,9 +170,9 @@ private:
     };
 
     QList<QAbstractPhysXNode *> m_physXBodies;
-    QList<QAbstractCollisionNode *> m_newCollisionNodes;
+    QList<QAbstractPhysicsNode *> m_newPhysicsNodes;
     QMap<QAbstractCollisionShape *, DebugModelHolder> m_collisionShapeDebugModels;
-    QSet<QAbstractCollisionNode *> m_removedCollisionNodes;
+    QSet<QAbstractPhysicsNode *> m_removedPhysicsNodes;
 
     QVector3D m_gravity = QVector3D(0.f, -981.f, 0.f);
     float m_typicalLength = 100.f; // 100 cm
