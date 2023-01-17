@@ -1,8 +1,8 @@
 // Copyright (C) 2021 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
-#ifndef ABSTRACTCOLLISIONNODE_H
-#define ABSTRACTCOLLISIONNODE_H
+#ifndef ABSTRACTPHYSICSNODE_H
+#define ABSTRACTPHYSICSNODE_H
 
 //
 //  W A R N I N G
@@ -30,7 +30,7 @@ QT_BEGIN_NAMESPACE
 
 class QAbstractPhysXNode;
 
-class Q_QUICK3DPHYSICS_EXPORT QAbstractCollisionNode : public QQuick3DNode
+class Q_QUICK3DPHYSICS_EXPORT QAbstractPhysicsNode : public QQuick3DNode
 {
     Q_OBJECT
     Q_PROPERTY(
@@ -44,18 +44,18 @@ class Q_QUICK3DPHYSICS_EXPORT QAbstractCollisionNode : public QQuick3DNode
     Q_PROPERTY(bool receiveTriggerReports READ receiveTriggerReports WRITE setReceiveTriggerReports
                        NOTIFY receiveTriggerReportsChanged REVISION(6, 5))
 
-    QML_NAMED_ELEMENT(CollisionNode)
+    QML_NAMED_ELEMENT(PhysicsNode)
     QML_UNCREATABLE("abstract interface")
 public:
-    QAbstractCollisionNode();
-    ~QAbstractCollisionNode() override;
+    QAbstractPhysicsNode();
+    ~QAbstractPhysicsNode() override;
 
     QQmlListProperty<QAbstractCollisionShape> collisionShapes();
     const QVector<QAbstractCollisionShape *> &getCollisionShapesList() const;
 
     void updateFromPhysicsTransform(const physx::PxTransform &transform);
 
-    void registerContact(QAbstractCollisionNode *body, const QVector<QVector3D> &positions,
+    void registerContact(QAbstractPhysicsNode *body, const QVector<QVector3D> &positions,
                          const QVector<QVector3D> &impulses, const QVector<QVector3D> &normals);
 
     bool sendContactReports() const;
@@ -77,14 +77,14 @@ private Q_SLOTS:
     void onShapeNeedsRebuild(QObject *object);
 
 Q_SIGNALS:
-    void bodyContact(QAbstractCollisionNode *body, const QVector<QVector3D> &positions,
+    void bodyContact(QAbstractPhysicsNode *body, const QVector<QVector3D> &positions,
                      const QVector<QVector3D> &impulses, const QVector<QVector3D> &normals);
     void sendContactReportsChanged(float sendContactReports);
     void receiveContactReportsChanged(float receiveContactReports);
     Q_REVISION(6, 5) void sendTriggerReportsChanged(float sendTriggerReports);
     Q_REVISION(6, 5) void receiveTriggerReportsChanged(float receiveTriggerReports);
-    Q_REVISION(6, 5) void enteredTriggerBody(QAbstractCollisionNode *body);
-    Q_REVISION(6, 5) void exitedTriggerBody(QAbstractCollisionNode *body);
+    Q_REVISION(6, 5) void enteredTriggerBody(QAbstractPhysicsNode *body);
+    Q_REVISION(6, 5) void exitedTriggerBody(QAbstractPhysicsNode *body);
 
 private:
     static void qmlAppendShape(QQmlListProperty<QAbstractCollisionShape> *list,
@@ -109,4 +109,4 @@ private:
 
 QT_END_NAMESPACE
 
-#endif // ABSTRACTCOLLISIONNODE_H
+#endif // ABSTRACTPHYSICSNODE_H

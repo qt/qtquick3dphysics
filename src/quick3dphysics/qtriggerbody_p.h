@@ -16,12 +16,12 @@
 //
 
 #include <QtQuick3DPhysics/qtquick3dphysicsglobal.h>
-#include <QtQuick3DPhysics/private/qabstractcollisionnode_p.h>
+#include "qabstractphysicsnode_p.h"
 #include <QtQml/QQmlEngine>
 
 QT_BEGIN_NAMESPACE
 
-class Q_QUICK3DPHYSICS_EXPORT QTriggerBody : public QAbstractCollisionNode
+class Q_QUICK3DPHYSICS_EXPORT QTriggerBody : public QAbstractPhysicsNode
 {
     Q_OBJECT
     Q_PROPERTY(int collisionCount READ collisionCount NOTIFY collisionCountChanged)
@@ -29,18 +29,18 @@ class Q_QUICK3DPHYSICS_EXPORT QTriggerBody : public QAbstractCollisionNode
 public:
     QTriggerBody();
 
-    void registerCollision(QAbstractCollisionNode *collision);
-    void deregisterCollision(QAbstractCollisionNode *collision);
+    void registerCollision(QAbstractPhysicsNode *collision);
+    void deregisterCollision(QAbstractPhysicsNode *collision);
 
     int collisionCount() const;
 
 Q_SIGNALS:
-    void bodyEntered(QAbstractCollisionNode *body);
-    void bodyExited(QAbstractCollisionNode *body);
+    void bodyEntered(QAbstractPhysicsNode *body);
+    void bodyExited(QAbstractPhysicsNode *body);
     void collisionCountChanged();
 
 private:
-    QSet<QAbstractCollisionNode *> m_collisions;
+    QSet<QAbstractPhysicsNode *> m_collisions;
 };
 
 QT_END_NAMESPACE
