@@ -162,8 +162,6 @@ Window {
                 }
             }
 
-
-
             // x-axis reference
             Model {
                 materials: PrincipledMaterial {
@@ -207,9 +205,11 @@ Window {
             }
 
 
-            StaticRigidBody {
-                position: Qt.vector3d(2, 2, 1.5)
+            DynamicRigidBody {
                 id: hfTest
+                position: Qt.vector3d(0, 2, 1.5)
+                kinematicPosition: Qt.vector3d(0, 2, 1.5)
+                isKinematic: true
 
                 Model {
                     id: hfModel
@@ -234,19 +234,19 @@ Window {
             }
 
             SequentialAnimation {
-                running: animateCheckBox.checked
+                running: animateCheckBox.checked && physicsWorld.running
                 loops: -1
                 NumberAnimation {
-                    target: hfShape
-                    property: "position.x"
+                    target: hfTest
+                    property: "kinematicPosition.x"
                     duration: 2000
                     from: 0
                     to: -2
                     easing.type: Easing.InOutQuad
                 }
                 NumberAnimation {
-                    target: hfShape
-                    property: "position.x"
+                    target: hfTest
+                    property: "kinematicPosition.x"
                     duration: 2000
                     from: -2
                     to: 0
@@ -254,30 +254,13 @@ Window {
                 }
             }
 
-            SequentialAnimation {
-                running: animateCheckBox.checked
-                loops: -1
-                NumberAnimation {
-                    target: hfModel
-                    property: "position.x"
-                    duration: 2000
-                    from: 0
-                    to: -2
-                    easing.type: Easing.InOutQuad
-                }
-                NumberAnimation {
-                    target: hfModel
-                    property: "position.x"
-                    duration: 2000
-                    from: -2
-                    to: 0
-                    easing.type: Easing.InOutQuad
-                }
-            }
-
-            StaticRigidBody {
-                position: Qt.vector3d(0, 0.6, 0)
+            DynamicRigidBody {
                 id: triangleMeshTest
+                position: Qt.vector3d(0, 0.6, 0)
+                eulerRotation: Qt.vector3d(0, 180, 0)
+                kinematicPosition: Qt.vector3d(0, 0.6, 0)
+                kinematicEulerRotation: Qt.vector3d(0, 180, 0)
+                isKinematic: true
                 property bool inArea: false
 
                 scale: Qt.vector3d(0.015, 0.01, 0.015).times(scaleSlider.value)
@@ -299,11 +282,11 @@ Window {
 
 
             SequentialAnimation {
-                running: animateCheckBox.checked
+                running: animateCheckBox.checked && physicsWorld.running
                 loops: -1
                 NumberAnimation {
                     target: triangleMeshTest
-                    property: "eulerRotation.y"
+                    property: "kinematicEulerRotation.y"
                     duration: 5000
                     from: 180
                     to: -180
@@ -311,7 +294,7 @@ Window {
                 }
                 NumberAnimation {
                     target: triangleMeshTest
-                    property: "eulerRotation.y"
+                    property: "kinematicEulerRotation.y"
                     duration: 5000
                     from: -180
                     to: 180
@@ -388,7 +371,7 @@ Window {
 //                        collisionShapes: ConvexMeshShape {
 //                            id: torusShape
 //                            source: "meshes/newConvexTorus.mesh"
-//                            meshScale: Qt.vector3d(sf, sf, sf)
+//                            scale: Qt.vector3d(sf, sf, sf).times(0.01)
 //                        }
                         collisionShapes: SphereShape {
                             diameter: sf
