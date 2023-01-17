@@ -20,7 +20,7 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty bool CollisionNode::enableDebugView
+    \qmlproperty bool CollisionShape::enableDebugView
     This property enables drawing the shape's debug view.
 */
 
