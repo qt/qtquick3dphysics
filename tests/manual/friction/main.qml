@@ -44,7 +44,7 @@ Window {
                 x: -2
                 y: 1
                 eulerRotation : Qt.vector3d(-20, -20, 0)
-                clipFar: 50
+                clipFar: 500
                 clipNear: 0.01
             }
 
@@ -63,9 +63,11 @@ Window {
                 restitution: restitutionSlider.value
             }
 
-            StaticRigidBody {
+            DynamicRigidBody {
                 id: floor
+                isKinematic: true
                 eulerRotation: Qt.vector3d(-79, -90, 0)
+                kinematicEulerRotation: Qt.vector3d(-79, -90, 0)
                 scale: Qt.vector3d(0.3, 0.3, 0.3)
                 physicsMaterial: testMaterial
                 collisionShapes: PlaneShape {
@@ -124,9 +126,9 @@ Window {
                     console.log("Set physics to", physicsWorld.running)
                 }
             } else if (event.key === Qt.Key_J) {
-                floor.eulerRotation.x++
+                floor.kinematicEulerRotation.x++
             } else if (event.key === Qt.Key_K) {
-                floor.eulerRotation.x--
+                floor.kinematicEulerRotation.x--
             } else if (event.key === Qt.Key_I) {
                 box.init()
             }
