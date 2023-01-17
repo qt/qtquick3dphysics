@@ -593,6 +593,12 @@ void QPhysXCharacterController::init(QPhysicsWorld *world, PhysXWorld *physX)
     const QVector3D pos = characterController->scenePosition();
     desc.position = { pos.x(), pos.y(), pos.z() };
     controller = mgr->createController(desc);
+
+    auto *actor = controller->getActor();
+    if (actor)
+        actor->userData = characterController;
+    else
+        qWarning() << "QtQuick3DPhysics internal error: CharacterController created without actor.";
 }
 
 void QPhysXDynamicBody::updateDefaultDensity(float density)
