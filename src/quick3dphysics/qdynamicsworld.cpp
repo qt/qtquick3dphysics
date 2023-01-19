@@ -374,6 +374,8 @@ class QPhysXCharacterController : public QAbstractPhysXNode
 {
 public:
     QPhysXCharacterController(QCharacterController *frontEnd) : QAbstractPhysXNode(frontEnd) { }
+    void cleanup(PhysXWorld *physX) override;
+
     void init(QDynamicsWorld *world, PhysXWorld *physX) override;
 
     void sync(float deltaTime) override;
@@ -523,6 +525,12 @@ void QPhysXActorBody::init(QDynamicsWorld *, PhysXWorld *physX)
     actor->userData = reinterpret_cast<void *>(frontendNode);
     physX->scene->addActor(*actor);
     setShapesDirty(true);
+}
+
+void QPhysXCharacterController::cleanup(PhysXWorld *physX)
+{
+    PHYSX_RELEASE(controller);
+    QAbstractPhysXNode::cleanup(physX);
 }
 
 void QPhysXCharacterController::init(QDynamicsWorld *world, PhysXWorld *physX)
