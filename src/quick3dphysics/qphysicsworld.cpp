@@ -354,6 +354,15 @@ struct PhysXWorld
         x = nullptr;                                                                               \
     }
 
+// Used for debug drawing
+enum class DebugDrawBodyType {
+    Static = 0,
+    DynamicAwake = 1,
+    DynamicSleeping = 2,
+    Trigger = 3,
+    Unknown = 4
+};
+
 class QAbstractPhysXNode
 {
 public:
@@ -384,6 +393,7 @@ public:
     virtual physx::PxTransform getGlobalPose() { return {}; }
 
     virtual bool useTriggerFlag() { return false; }
+    virtual DebugDrawBodyType getDebugDrawBodyType() { return DebugDrawBodyType::Unknown; }
 
     bool shapesDirty() const { return frontendNode && frontendNode->m_shapesDirty; }
     void setShapesDirty(bool dirty) { frontendNode->m_shapesDirty = dirty; }
@@ -458,6 +468,7 @@ class QPhysXStaticBody : public QPhysXRigidBody
 public:
     QPhysXStaticBody(QStaticRigidBody *frontEnd) : QPhysXRigidBody(frontEnd) { }
 
+    DebugDrawBodyType getDebugDrawBodyType() override;
     void sync(float deltaTime, QHash<QQuick3DNode *, QMatrix4x4> &transformCache) override;
     void createActor(PhysXWorld *physX) override;
 };
@@ -467,6 +478,7 @@ class QPhysXDynamicBody : public QPhysXRigidBody
 public:
     QPhysXDynamicBody(QDynamicRigidBody *frontEnd) : QPhysXRigidBody(frontEnd) { }
 
+    DebugDrawBodyType getDebugDrawBodyType() override;
     void sync(float deltaTime, QHash<QQuick3DNode *, QMatrix4x4> &transformCache) override;
     void rebuildDirtyShapes(QPhysicsWorld *world, PhysXWorld *physX) override;
     void updateDefaultDensity(float density) override;
@@ -477,6 +489,7 @@ class QPhysXTriggerBody : public QPhysXActorBody
 public:
     QPhysXTriggerBody(QTriggerBody *frontEnd) : QPhysXActorBody(frontEnd) { }
 
+    DebugDrawBodyType getDebugDrawBodyType() override;
     void sync(float deltaTime, QHash<QQuick3DNode *, QMatrix4x4> &transformCache) override;
     bool useTriggerFlag() override { return true; }
 };
@@ -612,6 +625,13 @@ void QPhysXDynamicBody::updateDefaultDensity(float density)
 {
     QDynamicRigidBody *rigidBody = static_cast<QDynamicRigidBody *>(frontendNode);
     rigidBody->updateDefaultDensity(density);
+}
+
+DebugDrawBodyType QPhysXDynamicBody::getDebugDrawBodyType()
+{
+    auto dynamicActor = static_cast<physx::PxRigidDynamic *>(actor);
+    return dynamicActor->isSleeping() ? DebugDrawBodyType::DynamicSleeping
+                                      : DebugDrawBodyType::DynamicAwake;
 }
 
 void QPhysXActorBody::markDirtyShapes()
@@ -827,6 +847,11 @@ void QPhysXActorBody::sync(float /*deltaTime*/, QHash<QQuick3DNode *, QMatrix4x4
     }
 }
 
+DebugDrawBodyType QPhysXTriggerBody::getDebugDrawBodyType()
+{
+    return DebugDrawBodyType::Trigger;
+}
+
 void QPhysXTriggerBody::sync(float /*deltaTime*/, QHash<QQuick3DNode *, QMatrix4x4> & /*transformCache*/)
 {
     auto *triggerBody = static_cast<QTriggerBody *>(frontendNode);
@@ -882,6 +907,11 @@ void QPhysXCharacterController::sync(float deltaTime,
     // QCharacterController has a material property, but we don't inherit from
     // QPhysXMaterialBody, so we create the material manually in init()
     // TODO: handle material changes
+}
+
+DebugDrawBodyType QPhysXStaticBody::getDebugDrawBodyType()
+{
+    return DebugDrawBodyType::Static;
 }
 
 void QPhysXStaticBody::sync(float deltaTime, QHash<QQuick3DNode *, QMatrix4x4> &transformCache)
@@ -1125,8 +1155,10 @@ void QPhysicsWorld::setSceneNode(QQuick3DNode *sceneNode)
     m_sceneNode = sceneNode;
 
     // TODO: test this
-    delete m_debugMaterial;
-    m_debugMaterial = nullptr;
+    for (auto material : m_debugMaterials)
+        delete material;
+    m_debugMaterials.clear();
+
     for (auto &holder : m_collisionShapeDebugModels) {
         delete holder.model;
     }
@@ -1163,13 +1195,19 @@ void QPhysicsWorld::updateDebugDraw()
     if (m_sceneNode == nullptr)
         return;
 
-    if (!m_debugMaterial) {
-        m_debugMaterial = new QQuick3DDefaultMaterial();
-        m_debugMaterial->setParentItem(m_sceneNode);
-        m_debugMaterial->setParent(m_sceneNode);
-        m_debugMaterial->setDiffuseColor(QColor(3, 252, 219));
-        m_debugMaterial->setLighting(QQuick3DDefaultMaterial::NoLighting);
-        m_debugMaterial->setCullMode(QQuick3DMaterial::NoCulling);
+    if (m_debugMaterials.isEmpty()) {
+        // These colors match the indices of DebugDrawBodyType enum
+        for (auto color : { QColorConstants::Svg::green, QColorConstants::Svg::cyan,
+                            QColorConstants::Svg::lightsalmon, QColorConstants::Svg::red,
+                            QColorConstants::Svg::black }) {
+            auto debugMaterial = new QQuick3DDefaultMaterial();
+            debugMaterial->setParentItem(m_sceneNode);
+            debugMaterial->setParent(m_sceneNode);
+            debugMaterial->setDiffuseColor(color);
+            debugMaterial->setLighting(QQuick3DDefaultMaterial::NoLighting);
+            debugMaterial->setCullMode(QQuick3DMaterial::NoCulling);
+            m_debugMaterials.push_back(debugMaterial);
+        }
     }
 
     m_hasIndividualDebugDraw = false;
@@ -1179,13 +1217,13 @@ void QPhysicsWorld::updateDebugDraw()
             continue;
 
         const auto &collisionShapes = node->frontendNode->getCollisionShapesList();
+        const int materialIdx = static_cast<int>(node->getDebugDrawBodyType());
         const int length = collisionShapes.length();
         if (node->shapes.length() < length)
             continue; // CharacterController has shapes, but not PhysX shapes
         for (int idx = 0; idx < length; idx++) {
             const auto collisionShape = collisionShapes[idx];
             const auto physXShape = node->shapes[idx];
-
             DebugModelHolder &holder = m_collisionShapeDebugModels[collisionShape];
             auto &model = holder.model;
 
@@ -1209,8 +1247,15 @@ void QPhysicsWorld::updateDebugDraw()
                 model->setCastsShadows(false);
                 model->setReceivesShadows(false);
                 model->setCastsReflections(false);
+            }
+
+            { // update or set material
+                auto material = m_debugMaterials[materialIdx];
                 QQmlListReference materialsRef(model, "materials");
-                materialsRef.append(m_debugMaterial);
+                if (materialsRef.count() == 0 || materialsRef.at(0) != material) {
+                    materialsRef.clear();
+                    materialsRef.append(material);
+                }
             }
 
             switch (physXShape->getGeometryType()) {

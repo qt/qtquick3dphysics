@@ -191,7 +191,7 @@ private:
 
     PhysXWorld *m_physx = nullptr;
     QQuick3DNode *m_sceneNode = nullptr;
-    QQuick3DDefaultMaterial *m_debugMaterial = nullptr;
+    QVector<QQuick3DDefaultMaterial *> m_debugMaterials;
 
     friend class QQuick3DPhysicsMesh; // TODO: better internal API
     friend class QTriangleMeshShape; //####
