@@ -134,7 +134,7 @@ QVector3D QCharacterController::getDisplacement(float deltaTime)
         // Avoid "spider mode": we are also supposed to be in free fall if gravity
         // is pointing away from a surface we are touching. I.e. we are NOT in free
         // fall only if gravity has a component in the direction of one of the collisions.
-        // ALSO: if we have "upwards" free fall velocity, we need to stop that motion
+        // Also: if we have "upwards" free fall velocity, that motion needs to stop
         // when we hit the "ceiling"; i.e we are not in free fall at the moment of impact.
         auto isGrounded = [this](){
             if (m_collisions == Collision::None)

@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 qt_internal_add_example(cannon)
+qt_internal_add_example(charactercontroller)
 qt_internal_add_example(compoundshapes)
 qt_internal_add_example(customshapes)
 qt_internal_add_example(impeller)

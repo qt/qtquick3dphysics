@@ -42,6 +42,7 @@ The best way to see what Qt Quick 3D Physics can do is to check out the examples
     \li \l{Qt Quick 3D Physics - Custom Shapes Example}{Custom Shapes}
     \li \l{Qt Quick 3D Physics - Cannon Example}{Cannon}
     \li \l{Qt Quick 3D Physics - Impeller Example}{Impeller}
+    \li \l{Qt Quick 3D Physics - CharacterController Example}{Character Controller}
 \endlist
 
 \section1 Reference
