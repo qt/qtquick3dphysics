@@ -996,7 +996,7 @@ void QDynamicsWorld::setRunning(bool running)
         return;
 
     m_running = running;
-    if (!m_physicsInitialized)
+    if (m_running && !m_physicsInitialized)
         initPhysics();
     if (m_running)
         emit simulateFrame(m_minTimestep, m_maxTimestep);
