@@ -71,15 +71,19 @@ QT_BEGIN_NAMESPACE
     collision, or an OR combination of \c Side, \c Up, and \c Down:
 
      \value   CharacterController.None
-         The character is not colliding with anything. If gravity is non-null, this means that the
+         The character is not touching anything. If gravity is non-null, this means that the
          character is in free fall.
      \value   CharacterController.Side
-         The character is colliding with something from the side.
+         The character is touching something on its side.
      \value   CharacterController.Up
-         The character is colliding with something from above.
+         The character is touching something above it.
      \value   CharacterController.Down
-         The character is colliding with something from below. In standard gravity, this means
+         The character is touching something below it. In standard gravity, this means
          that the character is on the ground.
+
+     \note The directions are defined relative to standard gravity: \c Up is always along the
+           positive y-axis, regardless of the value of \l {gravity}{CharacterController.gravity}
+           or \l{PhysicsWorld::gravity}{PhysicsWorld.gravity}
 */
 
 /*!
@@ -126,8 +130,43 @@ QVector3D QCharacterController::getDisplacement(float deltaTime)
     // modified based on gravity
     const auto g = m_gravity;
     if (!g.isNull()) {
-        bool freeFalling = m_collisions == Collision::None;
 
+        // Avoid "spider mode": we are also supposed to be in free fall if gravity
+        // is pointing away from a surface we are touching. I.e. we are NOT in free
+        // fall only if gravity has a component in the direction of one of the collisions.
+        // ALSO: if we have "upwards" free fall velocity, we need to stop that motion
+        // when we hit the "ceiling"; i.e we are not in free fall at the moment of impact.
+        auto isGrounded = [this](){
+            if (m_collisions == Collision::None)
+                return false;
+
+            // Standard gravity case first
+            if (m_gravity.y() < 0) {
+                if (m_collisions & Collision::Down)
+                     return true; // We land on the ground
+                if ((m_collisions & Collision::Up) && m_freeFallVelocity.y() > 0)
+                    return true; // We bump our head on the way up
+            }
+
+            // Inverse gravity next: exactly the opposite
+            if (m_gravity.y() > 0) {
+                if (m_collisions & Collision::Up)
+                     return true;
+                if ((m_collisions & Collision::Down) && m_freeFallVelocity.y() < 0)
+                    return true;
+            }
+
+            // The sideways gravity case can't be perfectly handled since we don't
+            // know the direction of sideway contacts. We could in theory inspect
+            // the mesh, but that is far too complex for an extremely marginal use case.
+
+            if ((m_gravity.x() != 0 || m_gravity.z() != 0) && m_collisions & Collision::Side)
+                return true;
+
+            return false;
+        };
+
+        bool freeFalling = !isGrounded();
         if (freeFalling) {
             if (!m_midAirControl)
                 displacement = {}; // Ignore the movement() controls in true free fall
@@ -142,7 +181,7 @@ QVector3D QCharacterController::getDisplacement(float deltaTime)
         }
         const QVector3D gravityAcceleration = 0.5 * deltaTime * deltaTime * g;
         displacement += gravityAcceleration; // always add gravitational acceleration, in case we start
-                                             // to fall. If not, PhysX will move us back to the ground.
+                                             // to fall. If we don't, PhysX will move us back to the ground.
     }
 
     return displacement;
