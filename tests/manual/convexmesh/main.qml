@@ -18,7 +18,7 @@ Window {
         gravity: Qt.vector3d(0, -9.81, 0)
         running: false
         forceDebugDraw: false
-        typicalLength: 1
+        typicalLength: 0.2
         typicalSpeed: 10
     }
 
@@ -348,13 +348,23 @@ Window {
                     property real sf: randomInRange(0.2, 0.45)
                     property color baseCol: Qt.hsla(randomInRange(0, 1), randomInRange(0.3, 0.7), randomInRange(0.4, 0.7), 1.0)
                     property bool grabbed: false
+                    property bool isSphere: randomInRange(0, 1) < 0.5
+                    property SphereShape sphereShape : SphereShape {
+                        diameter: sf
+                        enableDebugDraw: viewport.debugView
+                    }
+                    property ConvexMeshShape torusShape : ConvexMeshShape {
+                        source: "meshes/newConvexTorus.mesh"
+                        enableDebugDraw: viewport.debugView
+                        scale: Qt.vector3d(sf, sf, sf).times(0.01)
+                    }
                     DynamicRigidBody {
                         id: thisBody
                         mass: 1 //heavy donut
                         isKinematic: thisNode.grabbed
                         Model {
                             id: thisModel
-                            source: "#Sphere"//"meshes/newTorus.mesh"
+                            source: isSphere ? "#Sphere" : "meshes/newTorus.mesh"
                             materials: PrincipledMaterial {
                                 metalness: 1.0
                                 roughness: randomInRange(0.3, 0.6)
@@ -368,16 +378,7 @@ Window {
                             pickable: true
                             property Node proxyNode: thisNode
                         }
-//                        collisionShapes: ConvexMeshShape {
-//                            id: torusShape
-//                            source: "meshes/newConvexTorus.mesh"
-//                            scale: Qt.vector3d(sf, sf, sf).times(0.01)
-//                        }
-                        collisionShapes: SphereShape {
-                            diameter: sf
-                            enableDebugDraw: viewport.debugView
-                        }
-
+                        collisionShapes: isSphere ? sphereShape : torusShape
                     }
                 }
             }
