@@ -10,6 +10,7 @@ qt_internal_add_qml_module(Quick3DPhysics
         VERSION "${PROJECT_VERSION}"
         CLASS_NAME QtQuick3DPhysicsPlugin
         PLUGIN_TARGET qquick3dphysicsplugin
+        DESIGNER_SUPPORTED
         NO_PLUGIN_OPTIONAL
         NO_GENERATE_PLUGIN_SOURCE
     SOURCES
@@ -82,3 +83,7 @@ endif()
 qt_internal_add_docs(Quick3DPhysics
     doc/qtquick3dphysics.qdocconf
 )
+
+if(QT_FEATURE_quick_designer AND QT_BUILD_SHARED_LIBS)
+    add_subdirectory(designer)
+endif()
