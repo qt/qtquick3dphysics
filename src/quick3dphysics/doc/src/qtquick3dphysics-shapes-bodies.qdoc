@@ -6,8 +6,7 @@
 \title Qt Quick 3D Physics Shapes and Bodies
 \brief An overview of Qt Quick 3D Physics objects and their physical shapes
 
-The objects in the simulation are represented by bodies that are subtypes of \l PhysicsBody. The
-physical shape of a body is represented by subtypes of \l CollisionShape.
+The objects in the simulation are represented by any of the following four types of bodies: \l{StaticRigidBody}, \l{DynamicRigidBody}, \l{CharacterController} and \l{TriggerBody}. The physical shape of a body is represented by subtypes of \l CollisionShape.
 
 \section1 Shapes
 
@@ -49,7 +48,9 @@ The \l {CharacterController} type is a special case. It represents a character t
 the environment. One typical use case is a first-person view where the \l {QtQuick3D::Camera}{camera}
 is a child of the  character controller, and its movement is controlled by keyboard/mouse or gamepad.
 
-The following table shows a summary:
+There is also the \l {TriggerBody} type which is another special case. As opposed to the other bodies it is not a physical body, meaning it does not interact in collision with other bodies. As the name suggests it is only used to trigger actions when another body enters or leaves its volume as defined by its collision shapes. If another body has \l {PhysicsNode::sendTriggerReports} {sendTriggerReports} set to \c true and its collision volume enters a \l {TriggerBody} the \l{TriggerBody::bodyEntered} {bodyEntered} signal is emitted.
+
+The following table shows a summary of the different types of bodies, how they interact and can be used:
 
 \table
 \header
@@ -58,7 +59,7 @@ The following table shows a summary:
     \li Allowed shapes
 \row
     \li \l {StaticRigidBody}
-    \li \c Does not move
+    \li Does not move
     \li All shapes
 \row
     \li \l {DynamicRigidBody} with \l{DynamicRigidBody::isKinematic}{isKinematic} \c true
@@ -72,6 +73,10 @@ The following table shows a summary:
     \li \l {CharacterController}
     \li Moved programatically. Influences dynamic bodies. Stopped by static bodies.
     \li Only a single \l CapsuleShape
+\row
+    \li \l {TriggerBody}
+    \li None
+    \li All shapes
 \endtable
 
 \section1 Physics Materials
