@@ -7,7 +7,7 @@ QT_BEGIN_NAMESPACE
 
 /*!
     \qmltype CharacterController
-    \inqmlmodule QtQuick3DPhysics
+    \inqmlmodule QtQuick3D.Physics
     \inherits PhysicsBody
     \since 6.4
     \brief Controls the motion of a character.

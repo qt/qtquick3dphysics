@@ -10,7 +10,7 @@ QT_BEGIN_NAMESPACE
 
 /*!
     \qmltype SphereShape
-    \inqmlmodule QtQuick3DPhysics
+    \inqmlmodule QtQuick3D.Physics
     \inherits CollisionShape
     \since 6.4
     \brief Defines a spherical collision shape.

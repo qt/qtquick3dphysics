@@ -9,7 +9,7 @@ QT_BEGIN_NAMESPACE
 
 /*!
     \qmltype DynamicRigidBody
-    \inqmlmodule QtQuick3DPhysics
+    \inqmlmodule QtQuick3D.Physics
     \inherits PhysicsBody
     \since 6.4
     \brief A physical body that can move or be moved.
@@ -652,7 +652,7 @@ QVector3D QDynamicRigidBody::kinematicPosition() const
 
 /*!
     \qmltype StaticRigidBody
-    \inqmlmodule QtQuick3DPhysics
+    \inqmlmodule QtQuick3D.Physics
     \inherits PhysicsBody
     \since 6.4
     \brief A physical body that does not move.

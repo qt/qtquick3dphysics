@@ -12,7 +12,7 @@ QT_BEGIN_NAMESPACE
 /*!
     \qmltype CollisionShape
     \inherits Node
-    \inqmlmodule QtQuick3DPhysics
+    \inqmlmodule QtQuick3D.Physics
     \since 6.4
     \brief Base type for collision shapes.
 
