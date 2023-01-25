@@ -122,7 +122,7 @@ Window {
                 DynamicRigidBody {
                     id: box
                     density: 10
-                    property var startPos: Qt.vector3d(-1, 1, 0)
+                    property vector3d startPos: Qt.vector3d(-1, 1, 0)
                     position: box.startPos
 
                     property real xf: xSlider.value
@@ -147,7 +147,7 @@ Window {
                 DynamicRigidBody {
                     id: sphere
                     density: 10
-                    property var startPos: Qt.vector3d(0, 1, 0)
+                    property vector3d startPos: Qt.vector3d(0, 1, 0)
                     position: sphere.startPos
 
                     collisionShapes: SphereShape {
@@ -165,7 +165,7 @@ Window {
 
                 DynamicRigidBody {
                     id: capsule
-                    property var startPos: Qt.vector3d(1, 1, 0)
+                    property vector3d startPos: Qt.vector3d(1, 1, 0)
                     position: capsule.startPos
                     density: 10
 

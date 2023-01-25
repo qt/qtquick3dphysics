@@ -70,7 +70,7 @@ Window {
             id: box
             physicsMaterial: physicsMaterial
             density: 10
-            property var startPosition: Qt.vector3d(700, 300, 0)
+            property vector3d startPosition: Qt.vector3d(700, 300, 0)
             position: startPosition
             Model {
                 source: "#Cube"
