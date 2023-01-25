@@ -8,7 +8,7 @@ QT_BEGIN_NAMESPACE
 /*!
     \qmltype PhysicsBody
     \inherits PhysicsNode
-    \inqmlmodule QtQuick3DPhysics
+    \inqmlmodule QtQuick3D.Physics
     \since 6.4
     \brief Base type for all concrete physical bodies.
 

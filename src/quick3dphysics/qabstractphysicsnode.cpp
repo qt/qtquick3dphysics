@@ -1,3 +1,4 @@
+
 // Copyright (C) 2021 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
@@ -11,7 +12,7 @@ QT_BEGIN_NAMESPACE
 /*!
     \qmltype PhysicsNode
     \inherits Node
-    \inqmlmodule QtQuick3DPhysics
+    \inqmlmodule QtQuick3D.Physics
     \since 6.4
     \brief Base type for all objects in the physics scene.
 

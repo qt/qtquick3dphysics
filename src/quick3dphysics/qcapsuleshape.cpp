@@ -11,7 +11,7 @@ QT_BEGIN_NAMESPACE
 /*!
     \qmltype CapsuleShape
     \inherits CollisionShape
-    \inqmlmodule QtQuick3DPhysics
+    \inqmlmodule QtQuick3D.Physics
     \since 6.4
     \brief Defines a pill-like shape.
 

@@ -244,7 +244,7 @@ QHash<QString, QQuick3DPhysicsMesh *> QQuick3DPhysicsMeshManager::meshHash;
 /*!
     \qmltype ConvexMeshShape
     \inherits CollisionShape
-    \inqmlmodule QtQuick3DPhysics
+    \inqmlmodule QtQuick3D.Physics
     \since 6.4
     \brief A convex collision shape based on a 3D mesh.
 

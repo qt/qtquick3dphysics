@@ -192,7 +192,7 @@ int QQuick3DPhysicsHeightField::columns() const
 
 /*!
     \qmltype HeightFieldShape
-    \inqmlmodule QtQuick3DPhysics
+    \inqmlmodule QtQuick3D.Physics
     \inherits CollisionShape
     \since 6.4
     \brief A collision shape where the elevation is defined by a height map.

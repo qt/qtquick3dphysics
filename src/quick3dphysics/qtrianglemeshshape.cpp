@@ -18,7 +18,7 @@ QT_BEGIN_NAMESPACE
 
 /*!
     \qmltype TriangleMeshShape
-    \inqmlmodule QtQuick3DPhysics
+    \inqmlmodule QtQuick3D.Physics
     \inherits CollisionShape
     \since 6.4
     \brief A collision shape based on a 3D mesh.

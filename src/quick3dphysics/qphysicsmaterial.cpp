@@ -14,7 +14,7 @@ QT_BEGIN_NAMESPACE
 
 /*!
     \qmltype PhysicsMaterial
-    \inqmlmodule QtQuick3DPhysics
+    \inqmlmodule QtQuick3D.Physics
     \since 6.4
     \brief Defines the physics material of a body.
 

@@ -8,7 +8,7 @@ QT_BEGIN_NAMESPACE
 /*!
     \qmltype TriggerBody
     \inherits PhysicsNode
-    \inqmlmodule QtQuick3DPhysics
+    \inqmlmodule QtQuick3D.Physics
     \since 6.4
     \brief Reports when objects enter a given volume.
 
