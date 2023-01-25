@@ -107,7 +107,7 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty float PhysicsWorld::maxTimestep
+    \qmlproperty float PhysicsWorld::maximumTimestep
     This property defines the maximum simulation timestep in milliseconds. The default value is
     \c 33.333 which corresponds to \c 30 frames per second.
 */
