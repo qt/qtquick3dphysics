@@ -25,11 +25,11 @@ of performance.
 \section1 Bodies
 
 A \l {PhysicsBody}{body} represents a physical object in the simulation. These bodies interact and
-collide with each other. The two main types are \l StaticRigidBody and \l DynamicRigidBody. The
+collide with each other. The two main types are \e{static bodies} (\l StaticRigidBody) and \e{dynamic bodies} (\l DynamicRigidBody). The
 physical shape of a body is specified by a list of shapes. The effective shape is the \e union of
 these shapes. The relative position of the shapes is fixed: the bodies are \e rigid.
 
-Static bodies do not move. They represent the environment in which the other bodies move.
+\section2 Dynamic body
 
 Dynamic bodies are able to move. The \l{DynamicRigidBody::isKinematic}{isKinematic} property
 determines how it moves. When \c isKinematic is \c true, the body is positioned explicitly by
@@ -44,9 +44,17 @@ that it is impossible to have a non-convex physical geometry: several convex sha
 for a single body. The \l {Qt Quick 3D Physics - Compound Shapes Example}{Compound Shapes Example}
 shows how to form ring-shaped bodies based on convex shapes.
 
+\section2 Static body
+
+Static bodies do not move. They represent the environment in which the other bodies move. Note that it is technically possible to move a static body, but the physical simulation will behave unexpectedly. In particular, a dynamic body that has entered a resting position on a static body will not be awoken if the static body moves. This means the dynamic body will remain in the same position even if the static body is moved.
+
+\section2 Character controller
+
 The \l {CharacterController} type is a special case. It represents a character that moves through
 the environment. One typical use case is a first-person view where the \l {QtQuick3D::Camera}{camera}
 is a child of the  character controller, and its movement is controlled by keyboard/mouse or gamepad.
+
+\section2 Trigger body
 
 There is also the \l {TriggerBody} type which is another special case. As opposed to the other bodies it is not a physical body, meaning it does not interact in collision with other bodies. As the name suggests it is only used to trigger actions when another body enters or leaves its volume as defined by its collision shapes. If another body has \l {PhysicsNode::sendTriggerReports} {sendTriggerReports} set to \c true and its collision volume enters a \l {TriggerBody} the \l{TriggerBody::bodyEntered} {bodyEntered} signal is emitted.
 
