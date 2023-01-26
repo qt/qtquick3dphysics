@@ -1210,6 +1210,10 @@ if(WIN32 OR MSVC)
             source/physx/src/windows/NpWindowsDelayLoadHook.cpp
             source/physxcooking/src/windows/WindowsCookingDelayLoadHook.cpp
         )
+    if(MSVC AND "${MSVC_TOOLSET_VERSION}" LESS_EQUAL 142)
+        # there's an ICE on MSVC 2019 (corresponds to 142)
+        set_property(TARGET BundledPhysX PROPERTY CXX_STANDARD 17)
+    endif()
 endif(WIN32 OR MSVC)
 
 if(UNIX)
