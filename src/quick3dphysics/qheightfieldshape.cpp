@@ -224,7 +224,7 @@ int QQuick3DPhysicsHeightField::columns() const
 */
 
 /*!
-    \qmlproperty url HeightFieldShape::heightMap
+    \qmlproperty url HeightFieldShape::source
     This property defines the location of the heightMap file.
 
     Internally, HeightFieldShape converts the height map image to an optimized data structure. This
