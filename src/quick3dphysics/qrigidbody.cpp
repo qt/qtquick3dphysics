@@ -31,6 +31,8 @@ QT_BEGIN_NAMESPACE
 
     Default value is \c 1.
 
+    Range: \c{[0, inf]}
+
     \sa massMode
 */
 
