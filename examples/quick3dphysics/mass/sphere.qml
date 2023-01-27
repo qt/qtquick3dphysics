@@ -7,6 +7,7 @@ import QtQuick3D.Physics
 DynamicRigidBody {
     property bool inArea: false
     property real sphereDiameter: 2
+    massMode: DynamicRigidBody.CustomDensity
     density: 2
 
     Model {
@@ -26,6 +27,4 @@ DynamicRigidBody {
     collisionShapes: SphereShape {
         diameter: sphereDiameter
     }
-
-    massMode: DynamicRigidBody.Density
 }

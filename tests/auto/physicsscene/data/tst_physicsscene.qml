@@ -94,6 +94,7 @@ Item {
 
                 DynamicRigidBody {
                     id: collisionSphere
+                    massMode: DynamicRigidBody.CustomDensity
                     density: 1000
                     position: Qt.vector3d(0, 6, 0)
                     sendTriggerReports: true
@@ -223,10 +224,11 @@ Item {
                 }
 
                 DynamicRigidBody {
+                    id: hfBall
+                    massMode: DynamicRigidBody.CustomDensity
                     density: 1000
                     scale: "0.5, 0.5, 0.5"
                     position: Qt.vector3d(-3, 1, 0)
-                    id: hfBall
 
                     collisionShapes: SphereShape {
                         diameter: 1

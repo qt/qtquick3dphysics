@@ -121,6 +121,7 @@ Window {
 
                 DynamicRigidBody {
                     id: box
+                    massMode: DynamicRigidBody.CustomDensity
                     density: 10
                     property vector3d startPos: Qt.vector3d(-1, 1, 0)
                     position: box.startPos
@@ -146,6 +147,7 @@ Window {
 
                 DynamicRigidBody {
                     id: sphere
+                    massMode: DynamicRigidBody.CustomDensity
                     density: 10
                     property vector3d startPos: Qt.vector3d(0, 1, 0)
                     position: sphere.startPos
@@ -167,6 +169,7 @@ Window {
                     id: capsule
                     property vector3d startPos: Qt.vector3d(1, 1, 0)
                     position: capsule.startPos
+                    massMode: DynamicRigidBody.CustomDensity
                     density: 10
 
                     property real xf: xSlider.value

@@ -7,6 +7,7 @@ import QtQuick3D.Physics
 DynamicRigidBody {
     property bool inArea: false
     property real xyzExtents: 1
+    massMode: DynamicRigidBody.CustomDensity
     density: 10
 
     Model {

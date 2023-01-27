@@ -29,7 +29,8 @@ class Q_QUICK3DPHYSICS_EXPORT QDynamicRigidBody : public QAbstractPhysicsBody
 {
 public:
     enum class MassMode {
-        Density,
+        DefaultDensity,
+        CustomDensity,
         Mass,
         MassAndInertiaTensor,
         MassAndInertiaMatrix,
@@ -185,7 +186,7 @@ Q_SIGNALS:
 
 private:
     float m_mass = 1.f;
-    float m_density = -1.f;
+    float m_density = 0.001f;
     QVector3D m_centerOfMassPosition;
     QQuaternion m_centerOfMassRotation;
     QList<float> m_inertiaMatrixList;
@@ -199,7 +200,7 @@ private:
     AxisLock m_angularAxisLock = AxisLock::LockNone;
     QQueue<QPhysicsCommand *> m_commandQueue;
     bool m_gravityEnabled = true;
-    MassMode m_massMode = MassMode::Density;
+    MassMode m_massMode = MassMode::DefaultDensity;
 
     QVector3D m_kinematicPosition;
     RotationData m_kinematicRotation;

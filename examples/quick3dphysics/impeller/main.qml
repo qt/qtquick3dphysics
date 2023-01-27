@@ -61,6 +61,7 @@ Window {
         //! [sphere]
         DynamicRigidBody {
             id: sphere
+            massMode: DynamicRigidBody.CustomDensity
             density: 0.00001
             position: Qt.vector3d(0, 600, 0)
             property bool inArea: false
