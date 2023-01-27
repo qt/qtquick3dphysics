@@ -717,9 +717,12 @@ void QPhysXDynamicBody::rebuildDirtyShapes(QPhysicsWorld *world, PhysXWorld *phy
         // Body with only dynamic shapes, set/calculate mass
         QPhysicsCommand *command = nullptr;
         switch (drb->massMode()) {
-        case QDynamicRigidBody::MassMode::Density: {
-            const float density = drb->density() < 0.f ? world->defaultDensity() : drb->density();
-            command = new QPhysicsCommandSetDensity(density);
+        case QDynamicRigidBody::MassMode::DefaultDensity: {
+            command = new QPhysicsCommandSetDensity(world->defaultDensity());
+            break;
+        }
+        case QDynamicRigidBody::MassMode::CustomDensity: {
+            command = new QPhysicsCommandSetDensity(drb->density());
             break;
         }
         case QDynamicRigidBody::MassMode::Mass: {
@@ -1482,8 +1485,6 @@ float QPhysicsWorld::maximumTimestep() const
 
 void QPhysicsWorld::setDefaultDensity(float defaultDensity)
 {
-    // Make sure the default density is not too small
-    defaultDensity = qMax(0.0000001, defaultDensity);
     if (qFuzzyCompare(m_defaultDensity, defaultDensity))
         return;
     m_defaultDensity = defaultDensity;

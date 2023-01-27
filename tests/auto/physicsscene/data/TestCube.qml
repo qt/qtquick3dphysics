@@ -9,6 +9,7 @@ import QtQuick3D.Physics
 
 DynamicRigidBody {
     property alias color: cubemat.diffuseColor
+    massMode: DynamicRigidBody.CustomDensity
     density: 1000
     collisionShapes: BoxShape { extents: Qt.vector3d(1, 1, 1) }
     Model {

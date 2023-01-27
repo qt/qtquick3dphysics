@@ -69,6 +69,7 @@ Window {
         DynamicRigidBody {
             id: box
             physicsMaterial: physicsMaterial
+            massMode: DynamicRigidBody.CustomDensity
             density: 10
             property vector3d startPosition: Qt.vector3d(700, 300, 0)
             position: startPosition

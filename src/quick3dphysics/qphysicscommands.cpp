@@ -199,7 +199,13 @@ void QPhysicsCommandSetDensity::execute(const QDynamicRigidBody &rigidBody,
         return;
     }
 
-    physx::PxRigidBodyExt::updateMassAndInertia(body, density);
+    const float clampedDensity = qMax(0.0000001, density);
+    if (clampedDensity != density) {
+        qWarning() << "Clamping density " << density;
+        return;
+    }
+
+    physx::PxRigidBodyExt::updateMassAndInertia(body, clampedDensity);
 }
 
 QPhysicsCommandSetIsKinematic::QPhysicsCommandSetIsKinematic(bool inIsKinematic)

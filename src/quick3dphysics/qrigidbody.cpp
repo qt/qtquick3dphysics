@@ -26,8 +26,8 @@ QT_BEGIN_NAMESPACE
     \qmlproperty float DynamicRigidBody::mass
 
     This property defines the mass of the body. Note that this is only used when massMode is not
-    \c {DynamicRigidBody.Density}. Also note that a value of 0 is interpreted as infinite mass
-    and that negative numbers are not allowed.
+    \c {DynamicRigidBody.CustomDensity} or \c {DynamicRigidBody.DefaultDensity}. Also note that
+    a value of 0 is interpreted as infinite mass and that negative numbers are not allowed.
 
     Default value is \c 1.
 
@@ -38,10 +38,11 @@ QT_BEGIN_NAMESPACE
     \qmlproperty float DynamicRigidBody::density
 
     This property defines the density of the body. This is only used when massMode is set to \c
-    {DynamicRigidBody.Density}. When this property is less than or equal to zero, this body will
-    use the \l {PhysicsWorld::}{defaultDensity} value.
+    {DynamicRigidBody.CustomDensity}.
 
-    Default value is \c -1.
+    Default value is \c{0.001}.
+
+    Range: \c{(0, inf]}
     \sa massMode
 */
 
@@ -122,10 +123,13 @@ QT_BEGIN_NAMESPACE
 
     Available options:
 
+    \value  DynamicRigidBody.DefaultDensity
+            Use the density specified in the \l {PhysicsWorld::}{defaultDensity} property in
+            PhysicsWorld to calculate mass and inertia assuming a uniform density.
+
     \value  DynamicRigidBody.Density
-            Use the specified density to calculate mass and inertia assuming a uniform density.
-            If density is non-positive then the \l {PhysicsWorld::}{defaultDensity} property in
-            PhysicsWorld is used.
+            Use specified density in the specified in the \l {DynamicRigidBody::}{density} to
+            calculate mass and inertia assuming a uniform density.
 
     \value  DynamicRigidBody.Mass
             Use the specified mass to calculate inertia assuming a uniform density.
@@ -316,7 +320,8 @@ void QDynamicRigidBody::setCenterOfMassPosition(const QVector3D &newCenterOfMass
         m_commandQueue.enqueue(new QPhysicsCommandSetMassAndInertiaMatrix(m_mass, m_inertiaMatrix));
         break;
     }
-    case MassMode::Density:
+    case MassMode::DefaultDensity:
+    case MassMode::CustomDensity:
     case MassMode::Mass:
         break;
     }
@@ -336,10 +341,13 @@ void QDynamicRigidBody::setMassMode(const MassMode newMassMode)
         return;
 
     switch (newMassMode) {
-    case MassMode::Density: {
-        const float density =
-                m_density < 0.f ? QPhysicsWorld::getWorld()->defaultDensity() : m_density;
+    case MassMode::DefaultDensity: {
+        const float density = QPhysicsWorld::getWorld()->defaultDensity();
         m_commandQueue.enqueue(new QPhysicsCommandSetDensity(density));
+        break;
+    }
+    case MassMode::CustomDensity: {
+        m_commandQueue.enqueue(new QPhysicsCommandSetDensity(m_density));
         break;
     }
     case MassMode::Mass: {
@@ -451,7 +459,8 @@ void QDynamicRigidBody::setMass(float mass)
     case QDynamicRigidBody::MassMode::MassAndInertiaMatrix:
         m_commandQueue.enqueue(new QPhysicsCommandSetMassAndInertiaMatrix(mass, m_inertiaMatrix));
         break;
-    case QDynamicRigidBody::MassMode::Density:
+    case QDynamicRigidBody::MassMode::DefaultDensity:
+    case QDynamicRigidBody::MassMode::CustomDensity:
         break;
     }
 
@@ -469,7 +478,7 @@ void QDynamicRigidBody::setDensity(float density)
     if (qFuzzyCompare(m_density, density))
         return;
 
-    if (m_massMode == MassMode::Density && m_density > 0.f)
+    if (m_massMode == MassMode::CustomDensity)
         m_commandQueue.enqueue(new QPhysicsCommandSetDensity(density));
 
     m_density = density;
@@ -559,7 +568,7 @@ QQueue<QPhysicsCommand *> &QDynamicRigidBody::commandQueue()
 
 void QDynamicRigidBody::updateDefaultDensity(float defaultDensity)
 {
-    if (m_massMode == MassMode::Density && m_density <= 0.f)
+    if (m_massMode == MassMode::DefaultDensity)
         m_commandQueue.enqueue(new QPhysicsCommandSetDensity(defaultDensity));
 }
 
