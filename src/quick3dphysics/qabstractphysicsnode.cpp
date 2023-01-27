@@ -13,16 +13,17 @@ QT_BEGIN_NAMESPACE
     \inherits Node
     \inqmlmodule QtQuick3D.Physics
     \since 6.4
-    \brief Base type for physics nodes.
+    \brief Base type for all objects in the physics scene.
 
-    This is the base type for all physical (colliding) bodies.
+    PhysicsNode is the base type for all the objects that take part in the physics simulation. These
+    objects have a position in three-dimensional space and a geometrical shape.
 */
 
 /*!
     \qmlproperty list<CollisionShape> PhysicsNode::collisionShapes
 
     This property contains the list of collision shapes. These shapes will be combined and act as a
-    single rigid body when colliding.
+    single rigid body when interacting with other bodies.
 
     \sa {Qt Quick 3D Physics Shapes and Bodies}{Shapes and Bodies overview documentation}
 */
