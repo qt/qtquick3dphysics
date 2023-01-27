@@ -945,6 +945,8 @@ public slots:
             m_physx->isRunning = true;
         }
 
+        // Assuming: 0 <= minTimestep <= maxTimestep
+
         constexpr auto MILLIONTH = 0.000001;
 
         // If not enough time has elapsed we sleep until it has
@@ -1175,12 +1177,33 @@ void QPhysicsWorld::setMinimumTimestep(float minTimestep)
     if (qFuzzyCompare(m_minTimestep, minTimestep))
         return;
 
+    if (minTimestep > m_maxTimestep) {
+        qWarning("Minimum timestep greater than maximum timestep, value clamped");
+        minTimestep = qMin(minTimestep, m_maxTimestep);
+    }
+
+    if (0.f < minTimestep) {
+        qWarning("Minimum timestep less than zero, value clamped");
+        minTimestep = qMax(minTimestep, 0.f);
+    }
+
+    if (qFuzzyCompare(m_minTimestep, minTimestep))
+        return;
+
     m_minTimestep = minTimestep;
     emit minimumTimestepChanged(m_minTimestep);
 }
 
 void QPhysicsWorld::setMaximumTimestep(float maxTimestep)
 {
+    if (qFuzzyCompare(m_maxTimestep, maxTimestep))
+        return;
+
+    if (0.f < maxTimestep) {
+        qWarning("Maximum timestep less than zero, value clamped");
+        maxTimestep = qMax(maxTimestep, 0.f);
+    }
+
     if (qFuzzyCompare(m_maxTimestep, maxTimestep))
         return;
 
