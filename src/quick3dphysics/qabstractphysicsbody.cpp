@@ -10,14 +10,19 @@ QT_BEGIN_NAMESPACE
     \inherits PhysicsNode
     \inqmlmodule QtQuick3DPhysics
     \since 6.4
-    \brief Base type for all physics bodies.
+    \brief Base type for all concrete physical bodies.
 
-    This is the base type for all physics bodies.
+    PhysicsBody is the base type for all objects that have a physical presence. These objects
+    interact with other bodies. Some types are not influenced by the simulation, such as
+    StaticRigidBody: They only influence other bodies. Other bodies are fully governed by the
+    simulation.
+
+    \sa {Qt Quick 3D Physics Shapes and Bodies}{Shapes and Bodies overview documentation}
 */
 
 /*!
     \qmlproperty PhysicsMaterial PhysicsBody::physicsMaterial
-    This property defines the physical material of the body
+    This property defines how the body behaves when it collides with or slides against other bodies in the simulation.
 */
 
 QAbstractPhysicsBody::QAbstractPhysicsBody()
