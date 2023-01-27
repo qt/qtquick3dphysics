@@ -20,12 +20,14 @@ QT_BEGIN_NAMESPACE
 
     The PhysicsMaterial type determines how objects interact when they touch.
 
-    Friction uses the coulomb friction model, which is based around
+    Friction uses the Coulomb friction model, which is based around
     the concepts of 2 coefficients: the static friction coefficient and the dynamic friction
     coefficient (sometimes called kinetic friction). Friction resists relative lateral motion of two
     solid surfaces in contact. These two coefficients define a relationship between the normal force
     exerted by each surface on the other and the amount of friction force that is applied to resist
-    lateral motion.
+    lateral motion. While most real-world materials have friction coefficients between \c{0} and
+    \c{1}, values above \c{1} are not uncommon. The properties accept any real number greater or
+    equal to \c{0}.
 
     Restitution determines how objects bounce when they collide.
 */
@@ -34,12 +36,16 @@ QT_BEGIN_NAMESPACE
     \qmlproperty float PhysicsMaterial::staticFriction
     This property defines the amount of friction that is applied between surfaces that are not
     moving lateral to each-other. The default value is \c 0.5.
+
+    Range: \c{[0, inf]}
 */
 
 /*!
     \qmlproperty float PhysicsMaterial::dynamicFriction
     This property defines the amount of friction applied between surfaces that are moving relative
     to each-other. The default value is \c 0.5.
+
+    Range: \c{[0, inf]}
 */
 
 /*!
@@ -50,6 +56,8 @@ QT_BEGIN_NAMESPACE
     impact, taken along the line of impact. A coefficient of restitution of 1 is said to collide
     elastically, while a coefficient of restitution < 1 is said to be inelastic. The default value
     is \c 0.5.
+
+    Range: \c{[0, 1]}
 */
 
 QPhysicsMaterial::QPhysicsMaterial(QObject *parent) : QObject(parent) { }

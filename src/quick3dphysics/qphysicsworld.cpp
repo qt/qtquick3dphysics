@@ -70,6 +70,8 @@ QT_BEGIN_NAMESPACE
     This property defines the approximate size of objects in the simulation. This is used to
     estimate certain length-related tolerances. Objects much smaller or much larger than this
     size may not behave properly. The default value is \c 100.
+
+    Range: \c{[0, inf]}
 */
 
 /*!
@@ -80,6 +82,8 @@ QT_BEGIN_NAMESPACE
 
     For normal physical environments, a good choice is the approximate speed of an object falling
     under gravity for one second. The default value is \c 1000.
+
+    Range: \c{[0, inf]}
 */
 
 /*!
@@ -89,7 +93,9 @@ QT_BEGIN_NAMESPACE
 
     The default value is \c 0.001, corresponding to 1 g/cm³: the density of water. If your unit of
     measurement is meters, a good value would be \c 1000. Note that only positive values are
-   allowed.
+    allowed.
+
+    Range: \c{(0, inf]}
 */
 
 /*!
@@ -104,12 +110,16 @@ QT_BEGIN_NAMESPACE
     \qmlproperty float PhysicsWorld::minimumTimestep
     This property defines the minimum simulation timestep in milliseconds. The default value is
     \c 16.667 which corresponds to \c 60 frames per second.
+
+    Range: \c{[0, maximumTimestep]}
 */
 
 /*!
     \qmlproperty float PhysicsWorld::maximumTimestep
     This property defines the maximum simulation timestep in milliseconds. The default value is
     \c 33.333 which corresponds to \c 30 frames per second.
+
+    Range: \c{[0, inf]}
 */
 
 /*!
