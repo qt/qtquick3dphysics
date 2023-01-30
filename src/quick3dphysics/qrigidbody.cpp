@@ -121,7 +121,7 @@ QT_BEGIN_NAMESPACE
 
     This property holds the enum which describes how mass and inertia are calculated for this body.
 
-    By default, \c DynamicRigidBody.Density is used.
+    By default, \c DynamicRigidBody.DefaultDensity is used.
 
     Available options:
 
@@ -129,7 +129,7 @@ QT_BEGIN_NAMESPACE
             Use the density specified in the \l {PhysicsWorld::}{defaultDensity} property in
             PhysicsWorld to calculate mass and inertia assuming a uniform density.
 
-    \value  DynamicRigidBody.Density
+    \value  DynamicRigidBody.CustomDensity
             Use specified density in the specified in the \l {DynamicRigidBody::}{density} to
             calculate mass and inertia assuming a uniform density.
 
