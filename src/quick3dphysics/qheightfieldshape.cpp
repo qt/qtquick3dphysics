@@ -198,7 +198,7 @@ int QQuick3DPhysicsHeightField::columns() const
     \brief A collision shape where the elevation is defined by a height map.
 
     The HeightFieldShape type defines a physical surface where the height is determined by
-    the \l {QColor#The HSV Color Model}{value} of the pixels of the \l {heightMap} image. The
+    the \l {QColor#The HSV Color Model}{value} of the pixels of the \l {source} image. The
     x-axis of the image is mapped to the positive x-axis of the scene, and the y-axis of the
     image is mapped to the negative z-axis of the scene. A typical use case is to represent
     natural terrain.
