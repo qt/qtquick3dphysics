@@ -54,9 +54,9 @@ public:
     Q_PROPERTY(QVector3D angularVelocity READ angularVelocity WRITE setAngularVelocity NOTIFY
                        angularVelocityChanged)
 
-    Q_PROPERTY(int linearAxisLock READ linearAxisLock WRITE setLinearAxisLock NOTIFY
+    Q_PROPERTY(AxisLock linearAxisLock READ linearAxisLock WRITE setLinearAxisLock NOTIFY
                        linearAxisLockChanged REVISION(6, 5))
-    Q_PROPERTY(int angularAxisLock READ angularAxisLock WRITE setAngularAxisLock NOTIFY
+    Q_PROPERTY(AxisLock angularAxisLock READ angularAxisLock WRITE setAngularAxisLock NOTIFY
                        angularAxisLockChanged REVISION(6, 5))
 
     Q_PROPERTY(bool isKinematic READ isKinematic WRITE setIsKinematic NOTIFY isKinematicChanged)
@@ -115,11 +115,11 @@ public:
     const QVector3D &angularVelocity() const;
     void setAngularVelocity(const QVector3D &newAngularVelocity);
 
-    Q_REVISION(6, 5) int linearAxisLock() const;
-    Q_REVISION(6, 5) void setLinearAxisLock(int newAxisLockLinear);
+    Q_REVISION(6, 5) AxisLock linearAxisLock() const;
+    Q_REVISION(6, 5) void setLinearAxisLock(AxisLock newAxisLockLinear);
 
-    Q_REVISION(6, 5) int angularAxisLock() const;
-    Q_REVISION(6, 5) void setAngularAxisLock(int newAxisLockAngular);
+    Q_REVISION(6, 5) AxisLock angularAxisLock() const;
+    Q_REVISION(6, 5) void setAngularAxisLock(AxisLock newAxisLockAngular);
 
     bool gravityEnabled() const;
     void setGravityEnabled(bool gravityEnabled);

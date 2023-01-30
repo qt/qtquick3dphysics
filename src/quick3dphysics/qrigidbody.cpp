@@ -59,7 +59,7 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty int DynamicRigidBody::linearAxisLock
+    \qmlproperty AxisLock DynamicRigidBody::linearAxisLock
 
     This property locks the linear velocity of the body along the axes defined by the
     DynamicRigidBody.AxisLock enum. To lock several axes just bitwise-or their enum values.
@@ -80,7 +80,7 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty int DynamicRigidBody::angularAxisLock
+    \qmlproperty AxisLock DynamicRigidBody::angularAxisLock
 
     This property locks the angular velocity of the body along the axes defined by the
     DynamicRigidBody.AxisLock enum. To lock several axes just bitwise-or their enum values.
@@ -537,29 +537,29 @@ void QDynamicRigidBody::setAngularVelocity(const QVector3D &newAngularVelocity)
     emit angularVelocityChanged();
 }
 
-int QDynamicRigidBody::linearAxisLock() const
+QDynamicRigidBody::AxisLock QDynamicRigidBody::linearAxisLock() const
 {
     return m_linearAxisLock;
 }
 
-void QDynamicRigidBody::setLinearAxisLock(int newAxisLockLinear)
+void QDynamicRigidBody::setLinearAxisLock(AxisLock newAxisLockLinear)
 {
     if (m_linearAxisLock == newAxisLockLinear)
         return;
-    m_linearAxisLock = static_cast<AxisLock>(newAxisLockLinear);
+    m_linearAxisLock = newAxisLockLinear;
     emit linearAxisLockChanged();
 }
 
-int QDynamicRigidBody::angularAxisLock() const
+QDynamicRigidBody::AxisLock QDynamicRigidBody::angularAxisLock() const
 {
     return m_angularAxisLock;
 }
 
-void QDynamicRigidBody::setAngularAxisLock(int newAxisLockAngular)
+void QDynamicRigidBody::setAngularAxisLock(AxisLock newAxisLockAngular)
 {
     if (m_angularAxisLock == newAxisLockAngular)
         return;
-    m_angularAxisLock = static_cast<AxisLock>(newAxisLockAngular);
+    m_angularAxisLock = newAxisLockAngular;
     emit angularAxisLockChanged();
 }
 
