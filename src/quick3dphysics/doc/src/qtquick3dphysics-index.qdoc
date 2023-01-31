@@ -50,6 +50,8 @@ The best way to see what Qt Quick 3D Physics can do is to check out the examples
     \li \l{Qt Quick 3D Physics QML Types}
 \endlist
 
+\note There are API changes compared to the Tech Preview API (Qt version 6.4).
+See the \l {Qt Quick 3D Physics API Changes from Tech Preview} for the difference.
 
 \section1 Related Modules
 

@@ -53,7 +53,7 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty bool PhysicsWorld::forceDebugView
+    \qmlproperty bool PhysicsWorld::forceDebugDraw
     This property enables debug drawing of all active shapes in the physics world. The default value
     is \c false.
 */
