@@ -1233,10 +1233,11 @@ void QPhysicsWorld::updateDebugDraw()
 
     if (m_debugMaterials.isEmpty()) {
         // These colors match the indices of DebugDrawBodyType enum
-        for (auto color : { QColorConstants::Svg::green, QColorConstants::Svg::cyan,
+        for (auto color : { QColorConstants::Svg::chartreuse, QColorConstants::Svg::cyan,
                             QColorConstants::Svg::lightsalmon, QColorConstants::Svg::red,
                             QColorConstants::Svg::black }) {
             auto debugMaterial = new QQuick3DDefaultMaterial();
+            debugMaterial->setLineWidth(3);
             debugMaterial->setParentItem(m_sceneNode);
             debugMaterial->setParent(m_sceneNode);
             debugMaterial->setDiffuseColor(color);
