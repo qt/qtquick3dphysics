@@ -1192,7 +1192,7 @@ void QPhysicsWorld::setMinimumTimestep(float minTimestep)
         minTimestep = qMin(minTimestep, m_maxTimestep);
     }
 
-    if (0.f < minTimestep) {
+    if (minTimestep < 0.f) {
         qWarning("Minimum timestep less than zero, value clamped");
         minTimestep = qMax(minTimestep, 0.f);
     }
@@ -1209,7 +1209,7 @@ void QPhysicsWorld::setMaximumTimestep(float maxTimestep)
     if (qFuzzyCompare(m_maxTimestep, maxTimestep))
         return;
 
-    if (0.f < maxTimestep) {
+    if (maxTimestep < 0.f) {
         qWarning("Maximum timestep less than zero, value clamped");
         maxTimestep = qMax(maxTimestep, 0.f);
     }
