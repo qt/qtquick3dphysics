@@ -65,12 +65,13 @@ class Q_QUICK3DPHYSICS_EXPORT QPhysicsWorld : public QObject, public QQmlParserS
             float typicalSpeed READ typicalSpeed WRITE setTypicalSpeed NOTIFY typicalSpeedChanged)
     Q_PROPERTY(float defaultDensity READ defaultDensity WRITE setDefaultDensity NOTIFY
                        defaultDensityChanged)
-    Q_PROPERTY(
-            QQuick3DNode *sceneNode READ sceneNode WRITE setSceneNode NOTIFY sceneNodeChanged REVISION(6, 5))
+    Q_PROPERTY(QQuick3DNode *viewport READ viewport WRITE setViewport NOTIFY viewportChanged
+                       REVISION(6, 5))
     Q_PROPERTY(float minimumTimestep READ minimumTimestep WRITE setMinimumTimestep NOTIFY
                        minimumTimestepChanged REVISION(6, 5))
     Q_PROPERTY(float maximumTimestep READ maximumTimestep WRITE setMaximumTimestep NOTIFY
                        maximumTimestepChanged REVISION(6, 5))
+    Q_PROPERTY(QQuick3DNode *scene READ scene WRITE setScene NOTIFY sceneChanged REVISION(6, 5))
 
     QML_NAMED_ELEMENT(PhysicsWorld)
 
@@ -98,19 +99,15 @@ public:
     bool hasSendContactReports(QAbstractPhysicsNode *object) const;
     bool hasReceiveContactReports(QAbstractPhysicsNode *object) const;
 
-    static QPhysicsWorld *getWorld()
-    {
-        return self; // TODO: proper mechanism for finding "my" world.
-    }
+    static QPhysicsWorld *getWorld(QQuick3DNode *node);
 
-    void registerNode(QAbstractPhysicsNode *physicsNode);
-    void deregisterNode(QAbstractPhysicsNode *physicsNode);
+    static void registerNode(QAbstractPhysicsNode *physicsNode);
+    static void deregisterNode(QAbstractPhysicsNode *physicsNode);
 
-    Q_REVISION(6, 5) QQuick3DNode *sceneNode() const;
-
+    Q_REVISION(6, 5) QQuick3DNode *viewport() const;
     void setHasIndividualDebugDraw();
-
     physx::PxControllerManager *controllerManager();
+    Q_REVISION(6, 5) QQuick3DNode *scene() const;
 
 public slots:
     void setGravity(QVector3D gravity);
@@ -120,9 +117,10 @@ public slots:
     void setTypicalLength(float typicalLength);
     void setTypicalSpeed(float typicalSpeed);
     void setDefaultDensity(float defaultDensity);
-    Q_REVISION(6, 5) void setSceneNode(QQuick3DNode *sceneNode);
+    Q_REVISION(6, 5) void setViewport(QQuick3DNode *viewport);
     Q_REVISION(6, 5) void setMinimumTimestep(float minTimestep);
     Q_REVISION(6, 5) void setMaximumTimestep(float maxTimestep);
+    Q_REVISION(6, 5) void setScene(QQuick3DNode *newScene);
 
 signals:
     void gravityChanged(QVector3D gravity);
@@ -132,11 +130,12 @@ signals:
     void typicalLengthChanged(float typicalLength);
     void typicalSpeedChanged(float typicalSpeed);
     void defaultDensityChanged(float defaultDensity);
-    Q_REVISION(6, 5) void sceneNodeChanged(QQuick3DNode *sceneNode);
+    Q_REVISION(6, 5) void viewportChanged(QQuick3DNode *viewport);
     Q_REVISION(6, 5) void minimumTimestepChanged(float minimumTimestep);
     Q_REVISION(6, 5) void maximumTimestepChanged(float maxTimestep);
     void simulateFrame(float minTimestep, float maxTimestep);
     Q_REVISION(6, 5) void frameDone(float timestep);
+    Q_REVISION(6, 5) void sceneChanged();
 
 private:
     void frameFinished(float deltaTime);
@@ -144,6 +143,7 @@ private:
     void cleanupRemovedNodes();
     void updateDebugDraw();
     void disableDebugDraw();
+    void matchOrphanNodes();
 
     struct DebugModelHolder
     {
@@ -190,19 +190,17 @@ private:
     bool m_enableCCD = false;
 
     PhysXWorld *m_physx = nullptr;
-    QQuick3DNode *m_sceneNode = nullptr;
+    QQuick3DNode *m_viewport = nullptr;
     QVector<QQuick3DDefaultMaterial *> m_debugMaterials;
 
     friend class QQuick3DPhysicsMesh; // TODO: better internal API
     friend class QTriangleMeshShape; //####
     friend class QHeightFieldShape;
     friend class QQuick3DPhysicsHeightField;
-    static QPhysicsWorld *self;
     static physx::PxPhysics *getPhysics();
     static physx::PxCooking *getCooking();
-    physx::PxCooking *cooking();
-    void findSceneView();
     QThread m_workerThread;
+    QQuick3DNode *m_scene = nullptr;
 };
 
 QT_END_NAMESPACE

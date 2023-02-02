@@ -21,6 +21,7 @@ Window {
         typicalLength: 2
         enableCCD: true
         maximumTimestep: 20
+        scene: viewport.scene
     }
     //! [world]
 

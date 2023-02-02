@@ -14,9 +14,12 @@ Window {
     visible: true
     title: qsTr("Qt Quick 3D Physics - Cannon")
 
-    PhysicsWorld {}
+    PhysicsWorld {
+        scene: viewport.scene
+    }
 
     View3D {
+        id: viewport
         width: parent.width
         height: parent.height
         focus: true

@@ -21,11 +21,12 @@ Window {
         running: true
         forceDebugDraw: false
         //        enableCCD: true
+        scene: viewport.scene
     }
 
     View3D {
         anchors.fill: parent
-        id: viewport1
+        id: viewport
 
 
 

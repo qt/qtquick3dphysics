@@ -74,6 +74,9 @@ The following is a complete list of all the API changes:
 \list
    \li renamed \c{forceDebugView} to \l{PhysicsWorld::}{forceDebugDraw}
    \li renamed \c{minTimestep}/\c{maxTimestep} to \l{PhysicsWorld::}{minimumTimestep}/\l{PhysicsWorld::}{maximumTimestep}
+   \li removed sceneNode
+   \li added \l{PhysicsWorld::}{scene}
+   \li added \l{PhysicsWorld::}{viewport}
 \endlist
 
 \li \l DynamicRigidBody

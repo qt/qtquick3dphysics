@@ -20,6 +20,7 @@ Window {
         forceDebugDraw: false
         typicalLength: 0.2
         typicalSpeed: 10
+        scene: viewport.scene
     }
 
     View3D {

@@ -18,6 +18,7 @@ Window {
         gravity: Qt.vector3d(0, -9.81, 0)
         typicalLength: 1
         typicalSpeed: 10
+        scene: viewport.scene
     }
     //! [world]
 

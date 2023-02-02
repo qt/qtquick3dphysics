@@ -11,15 +11,33 @@ Section {
     width: parent.width
 
     SectionLayout {
+        // Q_PROPERTY(QQuick3DNode *scene
         PropertyLabel {
-            text: qsTr("Scene Node")
+            text: qsTr("Scene")
             tooltip: qsTr("The scene node to which the physics world is attached.")
         }
 
         SecondColumnLayout {
             IdComboBox {
                 typeFilter: "QtQuick3D.Node"
-                backendValue: backendValues.sceneNode
+                backendValue: backendValues.scene
+                implicitWidth: StudioTheme.Values.singleControlColumnWidth
+                                + StudioTheme.Values.actionIndicatorWidth
+            }
+
+            ExpandingSpacer {}
+        }
+
+        // Q_PROPERTY(QQuick3DNode *viewport
+        PropertyLabel {
+            text: qsTr("Viewport")
+            tooltip: qsTr("The node to which the debug geometry of the physics world is added.")
+        }
+
+        SecondColumnLayout {
+            IdComboBox {
+                typeFilter: "QtQuick3D.Node"
+                backendValue: backendValues.viewport
                 implicitWidth: StudioTheme.Values.singleControlColumnWidth
                                 + StudioTheme.Values.actionIndicatorWidth
             }

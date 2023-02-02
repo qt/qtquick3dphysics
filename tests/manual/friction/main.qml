@@ -20,6 +20,7 @@ Window {
         running: false
         typicalLength: typicalLengthSlider.value
         typicalSpeed: typicalSpeedSlider.value
+        scene: viewport.scene
     }
 
     View3D {

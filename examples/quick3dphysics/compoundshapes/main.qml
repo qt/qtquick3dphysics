@@ -18,6 +18,7 @@ Window {
         id: physicsWorld
         enableCCD: true
         maximumTimestep: 20
+        scene: viewport.scene
     }
     //! [world]
 

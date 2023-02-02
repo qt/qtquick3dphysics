@@ -46,7 +46,7 @@ void QAbstractCollisionShape::setEnableDebugDraw(bool enableDebugDraw)
     if (m_enableDebugDraw == enableDebugDraw)
         return;
 
-    if (auto world = QPhysicsWorld::getWorld(); world != nullptr && enableDebugDraw)
+    if (auto world = QPhysicsWorld::getWorld(this); world != nullptr && enableDebugDraw)
         world->setHasIndividualDebugDraw();
 
     m_enableDebugDraw = enableDebugDraw;

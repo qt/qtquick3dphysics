@@ -165,7 +165,9 @@ physx::PxHeightField *QQuick3DPhysicsHeightField::heightField()
     hfDesc.samples.stride = sizeof(physx::PxHeightFieldSample);
 
     physx::PxDefaultMemoryOutputStream buf;
-    if (numRows && numCols && QPhysicsWorld::getCooking()->cookHeightField(hfDesc, buf)) {
+
+    const auto cooking = QPhysicsWorld::getCooking();
+    if (numRows && numCols && cooking && cooking->cookHeightField(hfDesc, buf)) {
         auto size = buf.getSize();
         auto *data = buf.getData();
         physx::PxDefaultMemoryInputData input(data, size);

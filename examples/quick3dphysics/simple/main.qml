@@ -13,7 +13,7 @@ Window {
 
     //! [world]
     PhysicsWorld {
-        running: true
+        scene: viewport.scene
     }
     //! [world]
 
