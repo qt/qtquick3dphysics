@@ -85,17 +85,14 @@ QT_BEGIN_NAMESPACE
 
 QAbstractPhysicsNode::QAbstractPhysicsNode()
 {
-    if (auto world = QPhysicsWorld::getWorld(); world != nullptr)
-        world->registerNode(this);
+    QPhysicsWorld::registerNode(this);
 }
 
 QAbstractPhysicsNode::~QAbstractPhysicsNode()
 {
     for (auto shape : std::as_const(m_collisionShapes))
         shape->disconnect(this);
-
-    if (auto world = QPhysicsWorld::getWorld(); world != nullptr)
-        world->deregisterNode(this);
+    QPhysicsWorld::deregisterNode(this);
 }
 
 QQmlListProperty<QAbstractCollisionShape> QAbstractPhysicsNode::collisionShapes()

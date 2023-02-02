@@ -16,6 +16,7 @@ Window {
         id: physicsWorld
         running: true
         forceDebugDraw: true
+        scene: viewport.scene
     }
 
     View3D {

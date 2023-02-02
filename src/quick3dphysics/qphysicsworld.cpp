@@ -99,11 +99,11 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty Node PhysicsWorld::sceneNode
-    This property defines the node of the scene. If unset when the physical simulation is
-    started a View3D will try to be located among the parents of this world and its scene will be
-    used as the scene node. The first and top-most View3D found in any of this world's parents
-    will be used.
+    \qmlproperty Node PhysicsWorld::viewport
+    This property defines the viewport where debug components will be drawn if \l{forceDebugDraw}
+    is enabled. If unset the \l{scene} node will be used.
+
+    \sa forceDebugDraw, scene
 */
 
 /*!
@@ -120,6 +120,14 @@ QT_BEGIN_NAMESPACE
     \c 33.333 which corresponds to \c 30 frames per second.
 
     Range: \c{[0, inf]}
+*/
+
+/*!
+    \qmlproperty Node PhysicsWorld::scene
+
+    This property defines the top-most Node that contains all the nodes of the physical
+    simulation. All physics objects that are an ancestor of this node will be seen as part of this
+    PhysicsWorld.
 */
 
 /*!
@@ -339,7 +347,13 @@ private:
     QPhysicsWorld *world = nullptr;
 };
 
-struct PhysXWorld
+#define PHYSX_RELEASE(x)                                                                           \
+    if (x != nullptr) {                                                                            \
+        x->release();                                                                              \
+        x = nullptr;                                                                               \
+    }
+
+struct StaticPhysXObjects
 {
     physx::PxDefaultErrorCallback defaultErrorCallback;
     physx::PxDefaultAllocator defaultAllocatorCallback;
@@ -347,22 +361,114 @@ struct PhysXWorld
     physx::PxPvd *pvd = nullptr;
     physx::PxPvdTransport *transport = nullptr;
     physx::PxPhysics *physics = nullptr;
-    physx::PxScene *scene = nullptr;
     physx::PxDefaultCpuDispatcher *dispatcher = nullptr;
-
     physx::PxCooking *cooking = nullptr;
-    physx::PxControllerManager *controllerManager = nullptr;
 
-    bool recordMemoryAllocations = true;
-    CallBackObject *callback = nullptr;
-    bool isRunning = false;
+    unsigned int foundationRefCount = 0;
+    bool foundationCreated = false;
+    bool physicsCreated = false;
 };
 
-#define PHYSX_RELEASE(x)                                                                           \
-    if (x != nullptr) {                                                                            \
-        x->release();                                                                              \
-        x = nullptr;                                                                               \
+StaticPhysXObjects s_physx = StaticPhysXObjects();
+
+struct PhysXWorld
+{
+    void createWorld()
+    {
+        s_physx.foundationRefCount++;
+
+        if (s_physx.foundationCreated)
+            return;
+
+        s_physx.foundation = PxCreateFoundation(
+                PX_PHYSICS_VERSION, s_physx.defaultAllocatorCallback, s_physx.defaultErrorCallback);
+        if (!s_physx.foundation)
+            qFatal("PxCreateFoundation failed!");
+
+        s_physx.foundationCreated = true;
+
+#if PHYSX_ENABLE_PVD
+        s_physx.pvd = PxCreatePvd(*m_physx->foundation);
+        s_physx.transport = physx::PxDefaultPvdSocketTransportCreate("qt", 5425, 10);
+        s_physx.pvd->connect(*m_physx->transport, physx::PxPvdInstrumentationFlag::eALL);
+#endif
+
+        // FIXME: does the tolerance matter?
+        s_physx.cooking = PxCreateCooking(PX_PHYSICS_VERSION, *s_physx.foundation,
+                                          physx::PxCookingParams(physx::PxTolerancesScale()));
     }
+
+    void deleteWorld()
+    {
+        s_physx.foundationRefCount--;
+        if (s_physx.foundationRefCount == 0) {
+            PHYSX_RELEASE(controllerManager);
+            PHYSX_RELEASE(scene);
+            PHYSX_RELEASE(s_physx.dispatcher);
+            PHYSX_RELEASE(s_physx.cooking);
+            PHYSX_RELEASE(s_physx.transport);
+            PHYSX_RELEASE(s_physx.pvd);
+            PHYSX_RELEASE(s_physx.physics);
+            PHYSX_RELEASE(s_physx.foundation);
+
+            delete callback;
+            callback = nullptr;
+            s_physx.foundationCreated = false;
+            s_physx.physicsCreated = false;
+        } else {
+            delete callback;
+            callback = nullptr;
+            PHYSX_RELEASE(controllerManager);
+            PHYSX_RELEASE(scene);
+        }
+    }
+
+    void createScene(float typicalLength, float typicalSpeed, const QVector3D &gravity,
+                     bool enableCCD, QPhysicsWorld *physicsWorld)
+    {
+        if (scene) {
+            qWarning() << "Scene already created";
+            return;
+        }
+
+        physx::PxTolerancesScale scale;
+        scale.length = typicalLength;
+        scale.speed = typicalSpeed;
+
+        if (!s_physx.physicsCreated) {
+            constexpr bool recordMemoryAllocations = true;
+            s_physx.physics = PxCreatePhysics(PX_PHYSICS_VERSION, *s_physx.foundation, scale,
+                                              recordMemoryAllocations, s_physx.pvd);
+            if (!s_physx.physics)
+                qFatal("PxCreatePhysics failed!");
+            s_physx.dispatcher = physx::PxDefaultCpuDispatcherCreate(2);
+            s_physx.physicsCreated = true;
+        }
+
+        callback = new CallBackObject(physicsWorld);
+
+        physx::PxSceneDesc sceneDesc(scale);
+        sceneDesc.gravity = QPhysicsUtils::toPhysXType(gravity);
+        sceneDesc.cpuDispatcher = s_physx.dispatcher;
+
+        if (enableCCD) {
+            sceneDesc.filterShader = contactReportFilterShaderCCD;
+            sceneDesc.flags |= physx::PxSceneFlag::eENABLE_CCD;
+        } else {
+            sceneDesc.filterShader = contactReportFilterShader;
+        }
+        sceneDesc.solverType = physx::PxSolverType::eTGS;
+        sceneDesc.simulationEventCallback = callback;
+
+        scene = s_physx.physics->createScene(sceneDesc);
+    }
+
+    // variables unique to each world/scene
+    physx::PxControllerManager *controllerManager = nullptr;
+    CallBackObject *callback = nullptr;
+    physx::PxScene *scene = nullptr;
+    bool isRunning = false;
+};
 
 // Used for debug drawing
 enum class DebugDrawBodyType {
@@ -531,17 +637,18 @@ public:
    QPhysicsMaterial with default values. We should only have a qt material when set explicitly.
    */
 
-void QAbstractPhysXNode::createMaterialFromQtMaterial(PhysXWorld *physX, QPhysicsMaterial *qtMaterial)
+void QAbstractPhysXNode::createMaterialFromQtMaterial(PhysXWorld * /*physX*/,
+                                                      QPhysicsMaterial *qtMaterial)
 {
     if (qtMaterial) {
-        material =  physX->physics->createMaterial(qtMaterial->staticFriction(),
+        material = s_physx.physics->createMaterial(qtMaterial->staticFriction(),
                                                    qtMaterial->dynamicFriction(),
                                                    qtMaterial->restitution());
     } else {
         if (!defaultMaterial) {
-            defaultMaterial = physX->physics->createMaterial(QPhysicsMaterial::defaultStaticFriction,
-                                                             QPhysicsMaterial::defaultDynamicFriction,
-                                                             QPhysicsMaterial::defaultRestitution);
+            defaultMaterial = s_physx.physics->createMaterial(
+                    QPhysicsMaterial::defaultStaticFriction,
+                    QPhysicsMaterial::defaultDynamicFriction, QPhysicsMaterial::defaultRestitution);
         }
         material = defaultMaterial;
     }
@@ -562,16 +669,16 @@ void QPhysXRigidBody::createMaterial(PhysXWorld *physX)
     createMaterialFromQtMaterial(physX, static_cast<QAbstractPhysicsBody *>(frontendNode)->physicsMaterial());
 }
 
-void QPhysXActorBody::createActor(PhysXWorld *physX)
+void QPhysXActorBody::createActor(PhysXWorld * /*physX*/)
 {
     physx::PxTransform trf = getPhysXWorldTransform(frontendNode);
-    actor = physX->physics->createRigidDynamic(trf);
+    actor = s_physx.physics->createRigidDynamic(trf);
 }
 
-void QPhysXStaticBody::createActor(PhysXWorld *physX)
+void QPhysXStaticBody::createActor(PhysXWorld * /*physX*/)
 {
     physx::PxTransform trf = getPhysXWorldTransform(frontendNode);
-    actor = physX->physics->createRigidStatic(trf);
+    actor = s_physx.physics->createRigidStatic(trf);
 }
 
 void QPhysXActorBody::init(QPhysicsWorld *, PhysXWorld *physX)
@@ -675,7 +782,7 @@ void QPhysXActorBody::markDirtyShapes()
     }
 }
 
-void QPhysXActorBody::buildShapes(PhysXWorld *physX)
+void QPhysXActorBody::buildShapes(PhysXWorld * /*physX*/)
 {
     auto body = actor;
     for (auto *shape : shapes) {
@@ -692,7 +799,7 @@ void QPhysXActorBody::buildShapes(PhysXWorld *physX)
         auto *geom = collisionShape->getPhysXGeometry();
         if (!geom || !material)
             continue;
-        auto physXShape = physX->physics->createShape(*geom, *material);
+        auto physXShape = s_physx.physics->createShape(*geom, *material);
 
         if (useTriggerFlag()) {
             physXShape->setFlag(physx::PxShapeFlag::eSIMULATION_SHAPE, false);
@@ -985,40 +1092,55 @@ private:
 
 /////////////////////////////////////////////////////////////////////////////
 
+struct QWorldManager
+{
+    QVector<QPhysicsWorld *> worlds;
+    QVector<QAbstractPhysicsNode *> orphanNodes;
+};
+
+static QWorldManager worldManager = QWorldManager {};
+
+void QPhysicsWorld::registerNode(QAbstractPhysicsNode *physicsNode)
+{
+    auto world = getWorld(physicsNode);
+    if (world) {
+        world->m_newPhysicsNodes.push_back(physicsNode);
+    } else {
+        worldManager.orphanNodes.push_back(physicsNode);
+    }
+}
+
+void QPhysicsWorld::deregisterNode(QAbstractPhysicsNode *physicsNode)
+{
+    for (auto world : worldManager.worlds) {
+        world->m_newPhysicsNodes.removeAll(physicsNode);
+        if (physicsNode->m_backendObject)
+            physicsNode->m_backendObject->isRemoved = true;
+
+        for (auto shape : physicsNode->getCollisionShapesList()) {
+            world->m_collisionShapeDebugModels.remove(shape);
+        }
+
+        world->m_removedPhysicsNodes.insert(physicsNode);
+    }
+    worldManager.orphanNodes.removeAll(physicsNode);
+}
+
 QPhysicsWorld::QPhysicsWorld(QObject *parent) : QObject(parent)
 {
     m_physx = new PhysXWorld;
-    m_physx->callback = new CallBackObject(this);
-    m_physx->foundation = PxCreateFoundation(PX_PHYSICS_VERSION, m_physx->defaultAllocatorCallback,
-                                             m_physx->defaultErrorCallback);
-    if (!m_physx->foundation)
-        qFatal("PxCreateFoundation failed!");
+    m_physx->createWorld();
 
-#if PHYSX_ENABLE_PVD
-    m_physx->pvd = PxCreatePvd(*m_physx->foundation);
-    m_physx->transport = physx::PxDefaultPvdSocketTransportCreate("qt", 5425, 10);
-    m_physx->pvd->connect(*m_physx->transport, physx::PxPvdInstrumentationFlag::eALL);
-#endif
-
-    self = this; // TODO: make a better internal access mechanism
+    worldManager.worlds.push_back(this);
+    matchOrphanNodes();
 }
 
 QPhysicsWorld::~QPhysicsWorld()
 {
     m_workerThread.quit();
     m_workerThread.wait();
-
-    PHYSX_RELEASE(m_physx->dispatcher);
-    PHYSX_RELEASE(m_physx->controllerManager);
-    PHYSX_RELEASE(m_physx->cooking);
-    PHYSX_RELEASE(m_physx->physics);
-    PHYSX_RELEASE(m_physx->transport);
-    PHYSX_RELEASE(m_physx->pvd);
-    PHYSX_RELEASE(m_physx->foundation);
-
-    delete m_physx->callback;
-    delete m_physx;
-    self = nullptr;
+    m_physx->deleteWorld();
+    worldManager.worlds.removeAll(this);
 
     for (auto body : m_physXBodies) {
         delete body;
@@ -1096,24 +1218,6 @@ bool QPhysicsWorld::hasReceiveContactReports(QAbstractPhysicsNode *object) const
             && object->receiveContactReports();
 }
 
-void QPhysicsWorld::registerNode(QAbstractPhysicsNode *physicsNode)
-{
-    m_newPhysicsNodes.push_back(physicsNode);
-}
-
-void QPhysicsWorld::deregisterNode(QAbstractPhysicsNode *physicsNode)
-{
-    m_newPhysicsNodes.removeAll(physicsNode);
-    if (physicsNode->m_backendObject)
-        physicsNode->m_backendObject->isRemoved = true;
-
-    for (auto shape : physicsNode->getCollisionShapesList()) {
-        m_collisionShapeDebugModels.remove(shape);
-    }
-
-    m_removedPhysicsNodes.insert(physicsNode);
-}
-
 void QPhysicsWorld::setGravity(QVector3D gravity)
 {
     if (m_gravity == gravity)
@@ -1152,9 +1256,9 @@ void QPhysicsWorld::setForceDebugDraw(bool forceDebugDraw)
     emit forceDebugDrawChanged(m_forceDebugDraw);
 }
 
-QQuick3DNode *QPhysicsWorld::sceneNode() const
+QQuick3DNode *QPhysicsWorld::viewport() const
 {
-    return m_sceneNode;
+    return m_viewport;
 }
 
 void QPhysicsWorld::setHasIndividualDebugDraw()
@@ -1162,12 +1266,12 @@ void QPhysicsWorld::setHasIndividualDebugDraw()
     m_hasIndividualDebugDraw = true;
 }
 
-void QPhysicsWorld::setSceneNode(QQuick3DNode *sceneNode)
+void QPhysicsWorld::setViewport(QQuick3DNode *viewport)
 {
-    if (m_sceneNode == sceneNode)
+    if (m_viewport == viewport)
         return;
 
-    m_sceneNode = sceneNode;
+    m_viewport = viewport;
 
     // TODO: test this
     for (auto material : m_debugMaterials)
@@ -1179,7 +1283,7 @@ void QPhysicsWorld::setSceneNode(QQuick3DNode *sceneNode)
     }
     m_collisionShapeDebugModels.clear();
 
-    emit sceneNodeChanged(m_sceneNode);
+    emit viewportChanged(m_viewport);
 }
 
 void QPhysicsWorld::setMinimumTimestep(float minTimestep)
@@ -1226,9 +1330,10 @@ void QPhysicsWorld::updateDebugDraw()
     if (!(m_forceDebugDraw || m_hasIndividualDebugDraw))
         return;
 
-    findSceneView();
+    // Use scene node if no viewport has been specified
+    auto sceneNode = m_viewport ? m_viewport : m_scene;
 
-    if (m_sceneNode == nullptr)
+    if (sceneNode == nullptr)
         return;
 
     if (m_debugMaterials.isEmpty()) {
@@ -1238,8 +1343,8 @@ void QPhysicsWorld::updateDebugDraw()
                             QColorConstants::Svg::black }) {
             auto debugMaterial = new QQuick3DDefaultMaterial();
             debugMaterial->setLineWidth(3);
-            debugMaterial->setParentItem(m_sceneNode);
-            debugMaterial->setParent(m_sceneNode);
+            debugMaterial->setParentItem(sceneNode);
+            debugMaterial->setParent(sceneNode);
             debugMaterial->setDiffuseColor(color);
             debugMaterial->setLighting(QQuick3DDefaultMaterial::NoLighting);
             debugMaterial->setCullMode(QQuick3DMaterial::NoCulling);
@@ -1279,8 +1384,8 @@ void QPhysicsWorld::updateDebugDraw()
             // Create/Update debug view infrastructure
             if (!model) {
                 model = new QQuick3DModel();
-                model->setParentItem(m_sceneNode);
-                model->setParent(m_sceneNode);
+                model->setParentItem(sceneNode);
+                model->setParent(sceneNode);
                 model->setCastsShadows(false);
                 model->setReceivesShadows(false);
                 model->setCastsReflections(false);
@@ -1426,7 +1531,7 @@ void QPhysicsWorld::updateDebugDraw()
 
 void QPhysicsWorld::disableDebugDraw()
 {
-    if (m_sceneNode == nullptr)
+    if (m_viewport == nullptr)
         return;
 
     m_hasIndividualDebugDraw = false;
@@ -1530,29 +1635,6 @@ void QPhysicsWorld::setDefaultDensity(float defaultDensity)
     emit defaultDensityChanged(defaultDensity);
 }
 
-void QPhysicsWorld::findSceneView()
-{
-    // If we have not specified a scene node we find the first available one
-    if (m_sceneNode != nullptr)
-        return;
-
-    QObject *parent = this;
-    while (parent->parent() != nullptr) {
-        parent = parent->parent();
-    }
-
-    // Breath-first search through children
-    QList<QObject *> children = parent->children();
-    while (!children.empty()) {
-        auto child = children.takeFirst();
-        if (auto converted = qobject_cast<QQuick3DViewport *>(child); converted != nullptr) {
-            m_sceneNode = converted->scene();
-            break;
-        }
-        children.append(child->children());
-    }
-}
-
 // Remove physics world items that no longer exist
 
 void QPhysicsWorld::cleanupRemovedNodes()
@@ -1567,32 +1649,7 @@ void QPhysicsWorld::initPhysics()
 {
     Q_ASSERT(!m_physicsInitialized);
 
-    physx::PxTolerancesScale scale;
-    scale.length = m_typicalLength;
-    scale.speed = m_typicalSpeed;
-
-    m_physx->physics = PxCreatePhysics(PX_PHYSICS_VERSION, *m_physx->foundation, scale,
-                                       m_physx->recordMemoryAllocations, m_physx->pvd);
-
-    if (!m_physx->physics)
-        qFatal("PxCreatePhysics failed!");
-
-    physx::PxSceneDesc sceneDesc(scale);
-    sceneDesc.gravity = QPhysicsUtils::toPhysXType(m_gravity);
-    m_physx->dispatcher = physx::PxDefaultCpuDispatcherCreate(2);
-    sceneDesc.cpuDispatcher = m_physx->dispatcher;
-
-    if (m_enableCCD) {
-        sceneDesc.filterShader = contactReportFilterShaderCCD;
-        sceneDesc.flags |= physx::PxSceneFlag::eENABLE_CCD;
-    } else {
-        sceneDesc.filterShader = contactReportFilterShader;
-    }
-    sceneDesc.solverType = physx::PxSolverType::eTGS;
-    sceneDesc.simulationEventCallback = m_physx->callback;
-
-    m_physx->scene = m_physx->physics->createScene(sceneDesc);
-    m_physx->scene->setGravity(QPhysicsUtils::toPhysXType(m_gravity));
+    m_physx->createScene(m_typicalLength, m_typicalSpeed, m_gravity, m_enableCCD, this);
 
     // Setup worker thread
     SimulationWorker *worker = new SimulationWorker(m_physx);
@@ -1607,6 +1664,7 @@ void QPhysicsWorld::initPhysics()
 
 void QPhysicsWorld::frameFinished(float deltaTime)
 {
+    matchOrphanNodes();
     cleanupRemovedNodes();
     for (auto *node : std::as_const(m_newPhysicsNodes)) {
         auto *body = QPhysXFactory::createBackend(node);
@@ -1633,26 +1691,61 @@ void QPhysicsWorld::frameFinished(float deltaTime)
     emit frameDone(deltaTime * 1000);
 }
 
-QPhysicsWorld *QPhysicsWorld::self = nullptr;
+QPhysicsWorld *QPhysicsWorld::getWorld(QQuick3DNode *node)
+{
+    for (QPhysicsWorld *world : worldManager.worlds) {
+        if (!world->m_scene) {
+            continue;
+        }
+
+        QQuick3DNode *nodeCurr = node;
+
+        // Maybe pointless but check starting node
+        if (nodeCurr == world->m_scene)
+            return world;
+
+        while (nodeCurr->parentNode()) {
+            nodeCurr = nodeCurr->parentNode();
+            if (nodeCurr == world->m_scene)
+                return world;
+        }
+    }
+
+    return nullptr;
+}
+
+void QPhysicsWorld::matchOrphanNodes()
+{
+    // FIXME: does this need thread safety?
+    if (worldManager.orphanNodes.isEmpty())
+        return;
+
+    qsizetype numNodes = worldManager.orphanNodes.length();
+    qsizetype idx = 0;
+
+    while (idx < numNodes) {
+        auto node = worldManager.orphanNodes[idx];
+        auto world = getWorld(node);
+        if (world == this) {
+            world->m_newPhysicsNodes.push_back(node);
+            // swap-erase
+            worldManager.orphanNodes.swapItemsAt(idx, numNodes - 1);
+            worldManager.orphanNodes.pop_back();
+            numNodes--;
+        } else {
+            idx++;
+        }
+    }
+}
 
 physx::PxPhysics *QPhysicsWorld::getPhysics()
 {
-    return self ? self->m_physx->physics : nullptr;
+    return s_physx.physics;
 }
 
 physx::PxCooking *QPhysicsWorld::getCooking()
 {
-    return self ? self->cooking() : nullptr;
-}
-
-physx::PxCooking *QPhysicsWorld::cooking()
-{
-    if (!m_physx->cooking) {
-        m_physx->cooking = PxCreateCooking(PX_PHYSICS_VERSION, *m_physx->foundation,
-                                           physx::PxCookingParams(physx::PxTolerancesScale()));
-        qCDebug(lcQuick3dPhysics) << "Initialized cooking" << m_physx->cooking;
-    }
-    return m_physx->cooking;
+    return s_physx.cooking;
 }
 
 physx::PxControllerManager *QPhysicsWorld::controllerManager()
@@ -1663,6 +1756,21 @@ physx::PxControllerManager *QPhysicsWorld::controllerManager()
     }
     return m_physx->controllerManager;
 }
+
+QQuick3DNode *QPhysicsWorld::scene() const
+{
+    return m_scene;
+}
+
+void QPhysicsWorld::setScene(QQuick3DNode *newScene)
+{
+    if (m_scene == newScene)
+        return;
+    m_scene = newScene;
+    matchOrphanNodes();
+    emit sceneChanged();
+}
+
 QT_END_NAMESPACE
 
 #include "qphysicsworld.moc"

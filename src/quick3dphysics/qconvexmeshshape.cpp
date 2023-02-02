@@ -69,7 +69,8 @@ physx::PxConvexMesh *QQuick3DPhysicsMesh::convexMesh()
     convexDesc.points.data = convexVerts;
     convexDesc.flags = physx::PxConvexFlag::eCOMPUTE_CONVEX;
 
-    if (QPhysicsWorld::getCooking()->cookConvexMesh(convexDesc, buf, &result)) {
+    const auto cooking = QPhysicsWorld::getCooking();
+    if (cooking && cooking->cookConvexMesh(convexDesc, buf, &result)) {
         auto size = buf.getSize();
         auto *data = buf.getData();
         physx::PxDefaultMemoryInputData input(data, size);
@@ -130,7 +131,8 @@ physx::PxTriangleMesh *QQuick3DPhysicsMesh::triangleMesh()
     triangleDesc.triangles.stride = iStride * 3;
     triangleDesc.triangles.data = m_ssgMesh.indexBuffer().data.constData();
 
-    if (QPhysicsWorld::getCooking()->cookTriangleMesh(triangleDesc, buf, &result)) {
+    const auto cooking = QPhysicsWorld::getCooking();
+    if (cooking && cooking->cookTriangleMesh(triangleDesc, buf, &result)) {
         auto size = buf.getSize();
         auto *data = buf.getData();
         physx::PxDefaultMemoryInputData input(data, size);

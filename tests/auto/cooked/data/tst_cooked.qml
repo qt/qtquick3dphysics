@@ -21,6 +21,7 @@ Item {
         forceDebugDraw: true
         typicalLength: 1
         typicalSpeed: 10
+        scene: viewport.scene
     }
 
     View3D {

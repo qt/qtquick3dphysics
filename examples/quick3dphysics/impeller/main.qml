@@ -13,11 +13,13 @@ Window {
     //! [world]
     PhysicsWorld {
         gravity: Qt.vector3d(0, -490, 0)
+        scene: viewport.scene
     }
     //! [world]
 
     //! [scene]
     View3D {
+        id: viewport
         anchors.fill: parent
 
         //! [environment]

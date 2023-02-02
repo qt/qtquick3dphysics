@@ -15,9 +15,11 @@ Window {
     PhysicsWorld {
         id: physicsWorld
         running: true
+        scene: viewport.scene
     }
 
     View3D {
+        id: viewport
         anchors.fill: parent
 
         environment: SceneEnvironment {

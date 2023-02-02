@@ -20,6 +20,7 @@ Item {
         typicalSpeed: 10
         minimumTimestep: 16.6667
         maximumTimestep: 16.6667
+        scene: viewport.scene
     }
     property bool simulationActuallyRunning: false
 

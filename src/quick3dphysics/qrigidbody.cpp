@@ -344,8 +344,12 @@ void QDynamicRigidBody::setMassMode(const MassMode newMassMode)
 
     switch (newMassMode) {
     case MassMode::DefaultDensity: {
-        const float density = QPhysicsWorld::getWorld()->defaultDensity();
-        m_commandQueue.enqueue(new QPhysicsCommandSetDensity(density));
+        auto world = QPhysicsWorld::getWorld(this);
+        if (world) {
+            m_commandQueue.enqueue(new QPhysicsCommandSetDensity(world->defaultDensity()));
+        } else {
+            qWarning() << "No physics world found, cannot set default density.";
+        }
         break;
     }
     case MassMode::CustomDensity: {

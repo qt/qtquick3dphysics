@@ -19,10 +19,9 @@
 
     \snippet simple/main.qml world
 
-    We set the \l {PhysicsWorld::} {gravity} property to point downwards in the y-direction
-    with a magnitude that matches the gravity on earth. Note that all physical properties
-    are unit-less so the magnitude could be \c -981 instead if we scaled the scene accordingly.
-    It is possible to (un)pause the simulation by setting \l {PhysicsWorld::} {running} to \c false.
+    We set the \l {PhysicsWorld::} {scene} property to the scene of our View3D. The \c scene property
+    defines where the simulation will look for physics nodes to simulate. Any physics nodes placed
+    outside of the scene node will not be part of the simulation.
 
     \section1 Scene
 
