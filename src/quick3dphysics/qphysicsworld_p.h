@@ -144,6 +144,7 @@ private:
     void updateDebugDraw();
     void disableDebugDraw();
     void matchOrphanNodes();
+    void findPhysicsNodes();
 
     struct DebugModelHolder
     {
