@@ -20,6 +20,7 @@
 
 #include "extensions/PxDefaultCpuDispatcher.h"
 
+#include <QtQuick3D/private/qquick3dobject_p.h>
 #include <QtQuick3D/private/qquick3dnode_p.h>
 #include <QtQuick3D/private/qquick3dmodel_p.h>
 #include <QtQuick3D/private/qquick3ddefaultmaterial_p.h>
@@ -128,6 +129,8 @@ QT_BEGIN_NAMESPACE
     This property defines the top-most Node that contains all the nodes of the physical
     simulation. All physics objects that are an ancestor of this node will be seen as part of this
     PhysicsWorld.
+
+    \note Using the same scene node for several PhysicsWorld is unsupported.
 */
 
 /*!
@@ -1114,8 +1117,10 @@ void QPhysicsWorld::deregisterNode(QAbstractPhysicsNode *physicsNode)
 {
     for (auto world : worldManager.worlds) {
         world->m_newPhysicsNodes.removeAll(physicsNode);
-        if (physicsNode->m_backendObject)
+        if (physicsNode->m_backendObject) {
             physicsNode->m_backendObject->isRemoved = true;
+            physicsNode->m_backendObject = nullptr;
+        }
 
         for (auto shape : physicsNode->getCollisionShapesList()) {
             world->m_collisionShapeDebugModels.remove(shape);
@@ -1746,6 +1751,32 @@ void QPhysicsWorld::matchOrphanNodes()
     }
 }
 
+void QPhysicsWorld::findPhysicsNodes()
+{
+    // This method finds the physics nodes inside the scene pointed to by the
+    // scene property. This method is necessary to run whenever the scene
+    // property is changed.
+    if (m_scene == nullptr)
+        return;
+
+    // Recursively go through all children and add all QAbstractPhysicsNode's
+    QList<QQuick3DObject *> children = m_scene->childItems();
+    while (!children.empty()) {
+        auto child = children.takeFirst();
+        if (auto converted = qobject_cast<QAbstractPhysicsNode *>(child); converted != nullptr) {
+            // This should never happen but check anyway.
+            if (converted->m_backendObject != nullptr) {
+                qWarning() << "Warning: physics node already associated with a backend node.";
+                continue;
+            }
+
+            m_newPhysicsNodes.push_back(converted);
+            worldManager.orphanNodes.removeAll(converted); // No longer orphan
+        }
+        children.append(child->childItems());
+    }
+}
+
 physx::PxPhysics *QPhysicsWorld::getPhysics()
 {
     return s_physx.physics;
@@ -1774,8 +1805,25 @@ void QPhysicsWorld::setScene(QQuick3DNode *newScene)
 {
     if (m_scene == newScene)
         return;
+
     m_scene = newScene;
-    matchOrphanNodes();
+
+    // Delete all nodes since they are associated with the previous scene
+    for (auto body : m_physXBodies) {
+        deregisterNode(body->frontendNode);
+    }
+
+    // Check if scene is already used by another world
+    bool sceneOK = true;
+    for (QPhysicsWorld *world : worldManager.worlds) {
+        if (world != this && world->scene() == newScene) {
+            sceneOK = false;
+            qWarning() << "Warning: scene already associated with physics world";
+        }
+    }
+
+    if (sceneOK)
+        findPhysicsNodes();
     emit sceneChanged();
 }
 
