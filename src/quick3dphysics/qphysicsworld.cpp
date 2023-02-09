@@ -1121,6 +1121,7 @@ void QPhysicsWorld::deregisterNode(QAbstractPhysicsNode *physicsNode)
             world->m_collisionShapeDebugModels.remove(shape);
         }
 
+        QMutexLocker locker(&world->m_removedPhysicsNodesMutex);
         world->m_removedPhysicsNodes.insert(physicsNode);
     }
     worldManager.orphanNodes.removeAll(physicsNode);
@@ -1193,6 +1194,7 @@ void QPhysicsWorld::registerOverlap(physx::PxRigidActor *triggerActor,
     QTriggerBody *trigger = static_cast<QTriggerBody *>(triggerActor->userData);
     QAbstractPhysicsNode *other = static_cast<QAbstractPhysicsNode *>(otherActor->userData);
 
+    QMutexLocker locker(&m_removedPhysicsNodesMutex);
     if (!m_removedPhysicsNodes.contains(other) && !m_removedPhysicsNodes.contains(trigger))
         trigger->registerCollision(other);
 }
@@ -1202,18 +1204,22 @@ void QPhysicsWorld::deregisterOverlap(physx::PxRigidActor *triggerActor,
 {
     QTriggerBody *trigger = static_cast<QTriggerBody *>(triggerActor->userData);
     QAbstractPhysicsNode *other = static_cast<QAbstractPhysicsNode *>(otherActor->userData);
+
+    QMutexLocker locker(&m_removedPhysicsNodesMutex);
     if (!m_removedPhysicsNodes.contains(other) && !m_removedPhysicsNodes.contains(trigger))
         trigger->deregisterCollision(other);
 }
 
-bool QPhysicsWorld::hasSendContactReports(QAbstractPhysicsNode *object) const
+bool QPhysicsWorld::hasSendContactReports(QAbstractPhysicsNode *object)
 {
+    QMutexLocker locker(&m_removedPhysicsNodesMutex);
     return !m_removedPhysicsNodes.contains(object) && object->m_backendObject
             && object->sendContactReports();
 }
 
-bool QPhysicsWorld::hasReceiveContactReports(QAbstractPhysicsNode *object) const
+bool QPhysicsWorld::hasReceiveContactReports(QAbstractPhysicsNode *object)
 {
+    QMutexLocker locker(&m_removedPhysicsNodesMutex);
     return !m_removedPhysicsNodes.contains(object) && object->m_backendObject
             && object->receiveContactReports();
 }
@@ -1642,6 +1648,8 @@ void QPhysicsWorld::cleanupRemovedNodes()
     m_physXBodies.removeIf([this](QAbstractPhysXNode *body) {
                                return body->cleanupIfRemoved(m_physx);
                            });
+    // We don't need to lock the mutex here since the simulation
+    // worker is waiting
     m_removedPhysicsNodes.clear();
 }
 

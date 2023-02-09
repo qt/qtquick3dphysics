@@ -96,8 +96,8 @@ public:
     void registerOverlap(physx::PxRigidActor *triggerActor, physx::PxRigidActor *otherActor);
     void deregisterOverlap(physx::PxRigidActor *triggerActor, physx::PxRigidActor *otherActor);
 
-    bool hasSendContactReports(QAbstractPhysicsNode *object) const;
-    bool hasReceiveContactReports(QAbstractPhysicsNode *object) const;
+    bool hasSendContactReports(QAbstractPhysicsNode *object);
+    bool hasReceiveContactReports(QAbstractPhysicsNode *object);
 
     static QPhysicsWorld *getWorld(QQuick3DNode *node);
 
@@ -173,6 +173,7 @@ private:
     QList<QAbstractPhysicsNode *> m_newPhysicsNodes;
     QMap<QAbstractCollisionShape *, DebugModelHolder> m_collisionShapeDebugModels;
     QSet<QAbstractPhysicsNode *> m_removedPhysicsNodes;
+    QMutex m_removedPhysicsNodesMutex;
 
     QVector3D m_gravity = QVector3D(0.f, -981.f, 0.f);
     float m_typicalLength = 100.f; // 100 cm
