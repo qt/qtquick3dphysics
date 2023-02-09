@@ -253,7 +253,6 @@ void QAbstractPhysicsNode::qmlClearShapes(QQmlListProperty<QAbstractCollisionSha
     for (const auto &shape : std::as_const(self->m_collisionShapes)) {
         if (shape->parentItem() == nullptr)
             QQuick3DObjectPrivate::get(shape)->derefSceneManager();
-        shape->disconnect(self, SLOT(onMaterialDestroyed(QObject *)));
     }
     self->m_hasStaticShapes = false;
     self->m_collisionShapes.clear();
