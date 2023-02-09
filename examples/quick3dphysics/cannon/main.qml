@@ -72,6 +72,8 @@ Window {
             property var instancesBoxes: []
             property var instancesSpheres: []
             property int stackCount: 0
+            property var boxComponent: Qt.createComponent("box.qml")
+            property var sphereComponent: Qt.createComponent("sphere.qml");
 
             function createStack(stackZ) {
                 var size = 10;
@@ -79,12 +81,11 @@ Window {
 
                 for (var i = 0; i < size; i++) {
                     for (var j = 0; j < size-i; j++) {
-                        var component = Qt.createComponent("box.qml");
                         let x = j*2 - size + i;
                         let y = i*2 + 1;
                         let z = -5*stackZ;
                         let center = Qt.vector3d(x, y, z).times(0.5*extents);
-                        let box = component.createObject(shapeSpawner, {position: center, xyzExtents: extents});
+                        let box = boxComponent.createObject(shapeSpawner, {position: center, xyzExtents: extents});
                         instancesBoxes.push(box);
 
                         if (box === null) {
@@ -97,8 +98,7 @@ Window {
             function createBall(position, forward) {
                 var diameter = 600;
                 var speed = 20000;
-                var component = Qt.createComponent("sphere.qml");
-                let sphere = component.createObject(shapeSpawner, {position: position, sphereDiameter: diameter});
+                let sphere = sphereComponent.createObject(shapeSpawner, {position: position, linearVelocity: forward.times(speed), sphereDiameter: diameter});
                 sphere.setLinearVelocity(forward.times(speed));
                 instancesSpheres.push(sphere);
 
@@ -108,8 +108,8 @@ Window {
             }
 
             function reset() {
-                instancesSpheres.forEach(sphere => { sphere.destroy(); });
-                instancesBoxes.forEach(boxes => { boxes.destroy(); });
+                instancesSpheres.forEach(sphere => { sphere.collisionShapes = {}; sphere.destroy(); });
+                instancesBoxes.forEach(box => { box.collisionShapes = {}; box.destroy(); });
                 instancesSpheres = [];
                 instancesBoxes = [];
 
