@@ -100,23 +100,26 @@ Window {
         Node {
             id: shapeSpawner
             property var spheres: []
+            property var sphereComponent: Qt.createComponent("Sphere.qml")
 
             function createBall(position, forward) {
-                let diameter = 0.2;
-                let speed = 20;
-                var component = Qt.createComponent("sphere.qml");
-                let sphere = component.createObject(shapeSpawner, {position: position, sphereDiameter: diameter});
-                sphere.setLinearVelocity(forward.times(speed));
+                let diameter = 0.2
+                let speed = 20
+                let sphere = sphereComponent.createObject(shapeSpawner, {
+                                                              "position": position,
+                                                              "sphereDiameter": diameter
+                                                          })
+                sphere.setLinearVelocity(forward.times(speed))
 
                 var pair = {
-                    "sphere" : sphere,
-                    "date" : Date.now()
-                };
+                    "sphere": sphere,
+                    "date": Date.now()
+                }
 
-                spheres.push(pair);
+                spheres.push(pair)
 
                 if (sphere === null) {
-                    console.log("Error creating object");
+                    console.log("Error creating object")
                 }
             }
 
@@ -147,13 +150,13 @@ Window {
     WasdController {
         speed: 0.01
         controlledObject: camera
-        Keys.onPressed: (event)=> {
+        Keys.onPressed: (event) => {
             handleKeyPress(event);
             if (event.key === Qt.Key_Space) {
                 shapeSpawner.createBall(camera.position, camera.forward);
             }
         }
-        Keys.onReleased: (event)=> { handleKeyRelease(event) }
+        Keys.onReleased: (event) => { handleKeyRelease(event) }
     }
     //! [controller]
 }

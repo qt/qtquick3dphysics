@@ -28,7 +28,7 @@ Window {
             antialiasingMode: SceneEnvironment.MSAA
             antialiasingQuality: SceneEnvironment.High
             lightProbe: Texture {
-                textureData: ProceduralSkyTextureData{}
+                textureData: ProceduralSkyTextureData {}
             }
             specularAAEnabled: true
         }
@@ -83,7 +83,7 @@ Window {
             //! [movement]
 
             //! [gravity]
-            gravity: building.inGravityField ? Qt.vector3d(0,100,0) : physicsWorld.gravity
+            gravity: building.inGravityField ? Qt.vector3d(0, 100, 0) : physicsWorld.gravity
             //! [gravity]
 
             //! [camera]
@@ -110,5 +110,4 @@ Window {
         cameraRotation.x: 180
     }
     //! [wasd]
-
 }

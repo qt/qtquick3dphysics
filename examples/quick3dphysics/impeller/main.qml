@@ -71,10 +71,10 @@ Window {
             receiveTriggerReports: true
 
             onEnteredTriggerBody: {
-                inArea = true;
+                inArea = true
             }
             onExitedTriggerBody: {
-                inArea = false;
+                inArea = false
             }
 
             collisionShapes: SphereShape {}
@@ -122,8 +122,8 @@ Window {
 
             onBodyContact: (body, positions, impulses, normals) => {
                 for (var normal of normals) {
-                    let velocity = normal.times(-700);
-                    body.setLinearVelocity(velocity);
+                    let velocity = normal.times(-700)
+                    body.setLinearVelocity(velocity)
                 }
             }
         }

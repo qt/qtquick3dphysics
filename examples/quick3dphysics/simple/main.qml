@@ -106,5 +106,4 @@ Window {
         //! [capsule]
     }
     //! [scene]
-
 }

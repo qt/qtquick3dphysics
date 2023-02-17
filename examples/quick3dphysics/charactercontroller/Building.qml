@@ -1,6 +1,5 @@
 // Copyright (C) 2023 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR BSD-3-Clause
-
 import QtQuick
 import QtQuick3D
 import QtQuick3D.Physics
@@ -122,7 +121,7 @@ Node {
         }
         Model {
             source: "meshes/building.mesh"
-            materials: [ testFloor, internalWallMaterial, whiteMaterial, warningMaterial ]
+            materials: [testFloor, internalWallMaterial, whiteMaterial, warningMaterial]
         }
     }
 
@@ -139,7 +138,6 @@ Node {
         onBodyEntered: inGravityField = true
         onBodyExited: inGravityField = false
     }
-
 
     Timer {
         id: teleportTriggerDelay
@@ -160,7 +158,7 @@ Node {
             opacity: 0.2
         }
         onBodyEntered: teleportTriggerDelay.start()
-        onBodyExited:  teleportTriggerDelay.stop()
+        onBodyExited: teleportTriggerDelay.stop()
     }
 
     ParticleSystem3D {
@@ -175,7 +173,7 @@ Node {
             }
             maxAmount: 10000
             color: "#aaccff"
-            colorVariation: Qt.vector4d(0.0, 0.0, 0.0, 0.5);
+            colorVariation: Qt.vector4d(0.0, 0.0, 0.0, 0.5)
             fadeInDuration: 1000
             fadeOutDuration: 1000
             billboard: true
@@ -191,7 +189,7 @@ Node {
                 type: ParticleShape3D.Cube
             }
             particleScale: 2.0
-            particleScaleVariation: 1.0;
+            particleScaleVariation: 1.0
             velocity: VectorDirection3D {
                 direction: Qt.vector3d(0, 100, 0)
                 directionVariation: Qt.vector3d(20, 50, 20)
@@ -207,7 +205,7 @@ Node {
             }
             maxAmount: 5000
             color: "#ffccaa"
-            colorVariation: Qt.vector4d(0.2, 0.2, 0.2, 0.5);
+            colorVariation: Qt.vector4d(0.2, 0.2, 0.2, 0.5)
             fadeInDuration: 500
             fadeOutDuration: 500
             billboard: true
@@ -223,7 +221,7 @@ Node {
                 type: ParticleShape3D.Cube
             }
             particleScale: 0.5
-            particleScaleVariation: 1.0;
+            particleScaleVariation: 1.0
             velocity: VectorDirection3D {
                 direction: Qt.vector3d(-100, 0, 0)
                 directionVariation: Qt.vector3d(20, 50, 20)
@@ -284,7 +282,7 @@ Node {
     Model {
         id: sign
 
-        position: Qt.vector3d(704.498 , 269.974, -476.206)
+        position: Qt.vector3d(704.498, 269.974, -476.206)
         rotation: Qt.quaternion(0, 1, 0, 0)
         scale: Qt.vector3d(1.8, 1, 0.0687316)
         source: "#Cube"

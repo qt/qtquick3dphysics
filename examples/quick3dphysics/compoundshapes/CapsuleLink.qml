@@ -20,77 +20,77 @@ DynamicRigidBody {
         Model {
             materials: material3
             source: "#Cylinder"
-            scale: Qt.vector3d(w/100, len/100, w/100)
+            scale: Qt.vector3d(w / 100, len / 100, w / 100)
             eulerRotation.z: 90
-            y: -len/2
+            y: -len / 2
         }
         Model {
             materials: material3
             source: "#Cylinder"
-            scale: Qt.vector3d(w/100, len/100, w/100)
+            scale: Qt.vector3d(w / 100, len / 100, w / 100)
             eulerRotation.z: 90
-            y: len/2
+            y: len / 2
         }
         Model {
             materials: material3
             source: "#Cylinder"
-            scale: Qt.vector3d(w/100, len/100, w/100)
-            x: len/2
+            scale: Qt.vector3d(w / 100, len / 100, w / 100)
+            x: len / 2
         }
         Model {
             materials: material3
             source: "#Cylinder"
-            scale: Qt.vector3d(w/100, len/100, w/100)
-            x: -len/2
+            scale: Qt.vector3d(w / 100, len / 100, w / 100)
+            x: -len / 2
         }
         Model {
             materials: material3
             source: "#Sphere"
-            scale: Qt.vector3d(w/100, w/100, w/100)
-            x: -len/2
-            y: -len/2
+            scale: Qt.vector3d(w / 100, w / 100, w / 100)
+            x: -len / 2
+            y: -len / 2
         }
         Model {
             materials: material3
             source: "#Sphere"
-            scale: Qt.vector3d(w/100, w/100, w/100)
-            x: -len/2
-            y: len/2
+            scale: Qt.vector3d(w / 100, w / 100, w / 100)
+            x: -len / 2
+            y: len / 2
         }
         Model {
             materials: material3
             source: "#Sphere"
-            scale: Qt.vector3d(w/100, w/100, w/100)
-            x: len/2
-            y: -len/2
+            scale: Qt.vector3d(w / 100, w / 100, w / 100)
+            x: len / 2
+            y: -len / 2
         }
         Model {
             materials: material3
             source: "#Sphere"
-            scale: Qt.vector3d(w/100, w/100, w/100)
-            x: len/2
-            y: len/2
+            scale: Qt.vector3d(w / 100, w / 100, w / 100)
+            x: len / 2
+            y: len / 2
         }
     }
     collisionShapes: [
         CapsuleShape {
-            y: -len/2
+            y: -len / 2
             height: len
             diameter: w
         },
         CapsuleShape {
-            y: len/2
+            y: len / 2
             height: len
             diameter: w
         },
         CapsuleShape {
-            x: -len/2
+            x: -len / 2
             eulerRotation.z: 90
             height: len
             diameter: w
         },
         CapsuleShape {
-            x: len/2
+            x: len / 2
             eulerRotation.z: 90
             height: len
             diameter: w

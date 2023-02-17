@@ -34,7 +34,7 @@ Window {
         PerspectiveCamera {
             id: camera
             position: Qt.vector3d(-4000, 5000, 10000)
-            eulerRotation : Qt.vector3d(-20, -20, 0)
+            eulerRotation: Qt.vector3d(-20, -20, 0)
             clipFar: 500000
             clipNear: 100
         }
@@ -72,49 +72,62 @@ Window {
             property var instancesBoxes: []
             property var instancesSpheres: []
             property int stackCount: 0
-            property var boxComponent: Qt.createComponent("box.qml")
-            property var sphereComponent: Qt.createComponent("sphere.qml");
+            property var boxComponent: Qt.createComponent("Box.qml")
+            property var sphereComponent: Qt.createComponent("Sphere.qml")
 
             function createStack(stackZ) {
-                var size = 10;
-                var extents = 400;
+                let size = 10
+                let extents = 400
 
                 for (var i = 0; i < size; i++) {
-                    for (var j = 0; j < size-i; j++) {
-                        let x = j*2 - size + i;
-                        let y = i*2 + 1;
-                        let z = -5*stackZ;
-                        let center = Qt.vector3d(x, y, z).times(0.5*extents);
-                        let box = boxComponent.createObject(shapeSpawner, {position: center, xyzExtents: extents});
-                        instancesBoxes.push(box);
+                    for (var j = 0; j < size - i; j++) {
+                        let x = j * 2 - size + i
+                        let y = i * 2 + 1
+                        let z = -5 * stackZ
+                        let center = Qt.vector3d(x, y, z).times(0.5 * extents)
+                        let box = boxComponent.createObject(shapeSpawner, {
+                                                                "position": center,
+                                                                "xyzExtents": extents
+                                                            })
+                        instancesBoxes.push(box)
 
                         if (box === null) {
-                            console.log("Error creating object");
+                            console.log("Error creating object")
                         }
                     }
                 }
             }
 
             function createBall(position, forward) {
-                var diameter = 600;
-                var speed = 20000;
-                let sphere = sphereComponent.createObject(shapeSpawner, {position: position, linearVelocity: forward.times(speed), sphereDiameter: diameter});
-                sphere.setLinearVelocity(forward.times(speed));
-                instancesSpheres.push(sphere);
+                var diameter = 600
+                var speed = 20000
+                let settings = {
+                    "position": position,
+                    "sphereDiameter": diameter
+                }
+                let sphere = sphereComponent.createObject(shapeSpawner, settings)
+                sphere.setLinearVelocity(forward.times(speed))
+                instancesSpheres.push(sphere)
 
                 if (sphere === null) {
-                    console.log("Error creating object");
+                    console.log("Error creating object")
                 }
             }
 
             function reset() {
-                instancesSpheres.forEach(sphere => { sphere.collisionShapes = {}; sphere.destroy(); });
-                instancesBoxes.forEach(box => { box.collisionShapes = {}; box.destroy(); });
-                instancesSpheres = [];
-                instancesBoxes = [];
+                instancesSpheres.forEach(sphere => {
+                                             sphere.collisionShapes = {}
+                                             sphere.destroy()
+                                         })
+                instancesBoxes.forEach(box => {
+                                           box.collisionShapes = {}
+                                           box.destroy()
+                                       })
+                instancesSpheres = []
+                instancesBoxes = []
 
                 for (var stackI = 0; stackI < stackSlider.value; stackI++) {
-                    shapeSpawner.createStack(stackI);
+                    shapeSpawner.createStack(stackI)
                 }
             }
         }
@@ -132,13 +145,16 @@ Window {
     WasdController {
         speed: 100
         controlledObject: camera
-        Keys.onPressed: (event)=> {
-                            handleKeyPress(event);
+        Keys.onPressed: event => {
+                            handleKeyPress(event)
                             if (event.key === Qt.Key_Space) {
-                                shapeSpawner.createBall(camera.position, camera.forward);
+                                shapeSpawner.createBall(camera.position,
+                                                        camera.forward)
                             }
                         }
-        Keys.onReleased: (event)=> { handleKeyRelease(event) }
+        Keys.onReleased: event => {
+                             handleKeyRelease(event)
+                         }
     }
 
     Frame {
@@ -173,9 +189,9 @@ Window {
                 id: fireButton
                 Layout.alignment: Qt.AlignHCenter
                 text: "Fire!"
-                onClicked: shapeSpawner.createBall(camera.position, camera.forward)
+                onClicked: shapeSpawner.createBall(camera.position,
+                                                   camera.forward)
             }
         }
     }
-
 }
