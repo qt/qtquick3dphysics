@@ -30,7 +30,7 @@ Window {
 
         PerspectiveCamera {
             position: Qt.vector3d(0, 500, 1500)
-            eulerRotation : Qt.vector3d(-20, 0, 0)
+            eulerRotation: Qt.vector3d(-20, 0, 0)
             clipFar: 10000
             clipNear: 10
         }

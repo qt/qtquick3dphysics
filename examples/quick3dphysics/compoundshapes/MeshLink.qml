@@ -19,9 +19,7 @@ DynamicRigidBody {
 
     Model {
         source: "meshes/ring.mesh"
-        materials: [
-            _material
-        ]
+        materials: [_material]
     }
 
     collisionShapes: [

@@ -35,7 +35,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
 set(qml_resource_files
     "main.qml"
     "RolyPoly.qml"
-    "sphere.qml"
+    "Sphere.qml"
 )
 
 qt_add_resources(${PROJECT_NAME} "qml"

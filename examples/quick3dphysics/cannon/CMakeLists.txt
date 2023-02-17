@@ -34,8 +34,8 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
 # Resources:
 set(qml_resource_files
     "main.qml"
-    "box.qml"
-    "sphere.qml"
+    "Box.qml"
+    "Sphere.qml"
     "Crosshair.qml"
 )
 

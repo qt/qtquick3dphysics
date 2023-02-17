@@ -1,6 +1,5 @@
 // Copyright (C) 2023 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR BSD-3-Clause
-
 import QtQuick
 import QtQuick3D
 
@@ -41,14 +40,16 @@ Item {
         target: null
         enabled: mouseEnabled
         onCentroidChanged: {
-            mouseMoved(Qt.vector2d(centroid.position.x, centroid.position.y));
+            mouseMoved(Qt.vector2d(centroid.position.x, centroid.position.y))
         }
 
         onActiveChanged: {
             if (active)
-                mousePressed(Qt.vector2d(centroid.position.x, centroid.position.y));
+                mousePressed(Qt.vector2d(centroid.position.x,
+                                         centroid.position.y))
             else
-                mouseReleased(Qt.vector2d(centroid.position.x, centroid.position.y));
+                mouseReleased(Qt.vector2d(centroid.position.x,
+                                          centroid.position.y))
         }
     }
 
@@ -56,22 +57,22 @@ Item {
         onTapped: root.forceActiveFocus()
     }
 
-    Keys.onPressed: (event)=> { if (keysEnabled) handleKeyPress(event) }
-    Keys.onReleased: (event)=> { if (keysEnabled) handleKeyRelease(event) }
+    Keys.onPressed: (event) => { if (keysEnabled) handleKeyPress(event) }
+    Keys.onReleased: (event) => { if (keysEnabled) handleKeyRelease(event) }
 
     function mousePressed(newPos) {
         root.forceActiveFocus()
         status.currentPos = newPos
         status.lastPos = newPos
-        status.useMouse = true;
+        status.useMouse = true
     }
 
     function mouseReleased(newPos) {
-        status.useMouse = false;
+        status.useMouse = false
     }
 
     function mouseMoved(newPos) {
-        status.currentPos = newPos;
+        status.currentPos = newPos
     }
 
     function forwardPressed() {
@@ -146,75 +147,73 @@ Item {
         crouchActive = false
     }
 
-    function handleKeyPress(event)
-    {
+    function handleKeyPress(event) {
         switch (event.key) {
         case Qt.Key_W:
         case Qt.Key_Up:
-            forwardPressed();
-            break;
+            forwardPressed()
+            break
         case Qt.Key_S:
         case Qt.Key_Down:
-            backPressed();
-            break;
+            backPressed()
+            break
         case Qt.Key_A:
         case Qt.Key_Left:
-            leftPressed();
-            break;
+            leftPressed()
+            break
         case Qt.Key_D:
         case Qt.Key_Right:
-            rightPressed();
-            break;
+            rightPressed()
+            break
         case Qt.Key_R:
         case Qt.Key_PageUp:
-            upPressed();
-            break;
+            upPressed()
+            break
         case Qt.Key_F:
         case Qt.Key_PageDown:
-            downPressed();
-            break;
+            downPressed()
+            break
         case Qt.Key_Shift:
-            sprintPressed();
-            break;
+            sprintPressed()
+            break
         case Qt.Key_Control:
-            sneakPressed();
-            break;
+            sneakPressed()
+            break
         }
     }
 
-    function handleKeyRelease(event)
-    {
+    function handleKeyRelease(event) {
         switch (event.key) {
         case Qt.Key_W:
         case Qt.Key_Up:
-            forwardReleased();
-            break;
+            forwardReleased()
+            break
         case Qt.Key_S:
         case Qt.Key_Down:
-            backReleased();
-            break;
+            backReleased()
+            break
         case Qt.Key_A:
         case Qt.Key_Left:
-            leftReleased();
-            break;
+            leftReleased()
+            break
         case Qt.Key_D:
         case Qt.Key_Right:
-            rightReleased();
-            break;
+            rightReleased()
+            break
         case Qt.Key_R:
         case Qt.Key_PageUp:
-            upReleased();
-            break;
+            upReleased()
+            break
         case Qt.Key_F:
         case Qt.Key_PageDown:
-            downReleased();
-            break;
+            downReleased()
+            break
         case Qt.Key_Shift:
-            sprintReleased();
-            break;
+            sprintReleased()
+            break
         case Qt.Key_Control:
-            sneakReleased();
-            break;
+            sneakReleased()
+            break
         }
     }
 
@@ -224,14 +223,13 @@ Item {
         repeat: true
         running: root.inputsNeedProcessing
         onTriggered: {
-            processInputs();
+            processInputs()
         }
     }
 
-    function processInputs()
-    {
+    function processInputs() {
         if (root.inputsNeedProcessing)
-            status.processInput();
+            status.processInput()
     }
 
     QtObject {
@@ -246,19 +244,19 @@ Item {
             if (useMouse) {
                 // Get the delta
                 var delta = Qt.vector2d(lastPos.x - currentPos.x,
-                                        lastPos.y - currentPos.y);
+                                        lastPos.y - currentPos.y)
                 // rotate x
                 var rotateX = delta.x * xSpeed
                 if (xInvert)
-                    rotateX = -rotateX;
+                    rotateX = -rotateX
                 cameraRotation.x += rotateX
 
                 // rotate y
                 var rotateY = delta.y * -ySpeed
                 if (yInvert)
-                    rotateY = -rotateY;
-                cameraRotation.y += rotateY;
-                lastPos = currentPos;
+                    rotateY = -rotateY
+                cameraRotation.y += rotateY
+                lastPos = currentPos
             }
         }
     }

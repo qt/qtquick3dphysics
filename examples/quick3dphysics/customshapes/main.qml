@@ -12,7 +12,7 @@ Window {
     width: 1280
     height: 720
     visible: true
-    title: qsTr("QtQuick3DPhysics Custom Shapes")
+    title: qsTr("Qt Quick 3D Physics - Custom Shapes")
 
     //! [world]
     PhysicsWorld {
@@ -178,7 +178,7 @@ Window {
                 DynamicRigidBody {
                     id: thisBody
                     function randomInRange(min, max) {
-                        return Math.random() * (max - min) + min;
+                        return Math.random() * (max - min) + min
                     }
 
                     function restore() {
@@ -190,7 +190,7 @@ Window {
                                                randomInRange(0, 360),
                                                randomInRange(0, 360))
 
-                    property vector3d initialPosition: Qt.vector3d(11 + 1.5*Math.cos(index/(Math.PI/4)),
+                    property vector3d initialPosition: Qt.vector3d(11 + 1.5 * Math.cos(index/(Math.PI/4)),
                                                                    diceCup.bottomPos.y + index * 1.5,
                                                                    0)
                     position: initialPosition
@@ -230,7 +230,7 @@ Window {
                 model: 25
                 delegate: diceComponent
                 function restore() {
-                    for (let i = 0; i < count; i++) {
+                    for (var i = 0; i < count; i++) {
                         objectAt(i).restore()
                     }
                 }
@@ -240,14 +240,14 @@ Window {
             //! [animation]
             Connections {
                 target: physicsWorld
-                property real totalAnimationTime : 7500
+                property real totalAnimationTime: 7500
                 function onFrameDone(timeStep) {
-                    let progressStep = timeStep/totalAnimationTime;
-                    animationController.progress += progressStep;
+                    let progressStep = timeStep / totalAnimationTime
+                    animationController.progress += progressStep
                     if (animationController.progress >= 1) {
-                        animationController.completeToEnd();
-                        animationController.reload();
-                        animationController.progress = 0;
+                        animationController.completeToEnd()
+                        animationController.reload()
+                        animationController.progress = 0
                     }
                 }
             }
@@ -256,15 +256,40 @@ Window {
                 id: animationController
                 animation: SequentialAnimation {
                     PauseAnimation { duration: 2500 }
-                    PropertyAnimation { target: diceCup; property: "kinematicPosition"; to: diceCup.topPos; duration: 2500; }
+                    PropertyAnimation {
+                        target: diceCup
+                        property: "kinematicPosition"
+                        to: diceCup.topPos
+                        duration: 2500
+                    }
                     ParallelAnimation {
-                        PropertyAnimation { target: diceCup; property: "kinematicEulerRotation.z"; to: 130; duration: 1500 }
-                        PropertyAnimation { target: diceCup; property: "kinematicPosition"; to: diceCup.unloadPos; duration: 1500 }
+                        PropertyAnimation {
+                            target: diceCup
+                            property: "kinematicEulerRotation.z"
+                            to: 130
+                            duration: 1500
+                        }
+                        PropertyAnimation {
+                            target: diceCup
+                            property: "kinematicPosition"
+                            to: diceCup.unloadPos
+                            duration: 1500
+                        }
                     }
                     PauseAnimation { duration: 1000 }
                     ParallelAnimation {
-                        PropertyAnimation { target: diceCup; property: "kinematicEulerRotation.z"; to: 0; duration: 1500 }
-                        PropertyAnimation { target: diceCup; property: "kinematicPosition"; to: diceCup.topPos; duration: 1500 }
+                        PropertyAnimation {
+                            target: diceCup
+                            property: "kinematicEulerRotation.z"
+                            to: 0
+                            duration: 1500
+                        }
+                        PropertyAnimation {
+                            target: diceCup
+                            property: "kinematicPosition"
+                            to: diceCup.topPos
+                            duration: 1500
+                        }
                     }
                     PropertyAnimation { target: diceCup; property: "kinematicPosition"; to: diceCup.bottomPos; duration: 1500 }
                     PauseAnimation { duration: 2000 }

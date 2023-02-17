@@ -12,7 +12,7 @@ DynamicRigidBody {
 
     Model {
         source: "#Sphere"
-        scale: Qt.vector3d(sphereDiameter, sphereDiameter, sphereDiameter).times(0.01)
+        scale: Qt.vector3d(1, 1, 1).times(sphereDiameter * 0.01)
         materials: PrincipledMaterial {
             baseColor: "yellow"
         }
