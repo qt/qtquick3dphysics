@@ -1121,11 +1121,6 @@ void QPhysicsWorld::deregisterNode(QAbstractPhysicsNode *physicsNode)
             physicsNode->m_backendObject->isRemoved = true;
             physicsNode->m_backendObject = nullptr;
         }
-
-        for (auto shape : physicsNode->getCollisionShapesList()) {
-            world->m_collisionShapeDebugModels.remove(shape);
-        }
-
         QMutexLocker locker(&world->m_removedPhysicsNodesMutex);
         world->m_removedPhysicsNodes.insert(physicsNode);
     }
@@ -1338,8 +1333,15 @@ void QPhysicsWorld::setMaximumTimestep(float maxTimestep)
 
 void QPhysicsWorld::updateDebugDraw()
 {
-    if (!(m_forceDebugDraw || m_hasIndividualDebugDraw))
+    if (!(m_forceDebugDraw || m_hasIndividualDebugDraw)) {
+        // Nothing to draw, trash all previous models (if any) and return
+        if (!m_collisionShapeDebugModels.isEmpty()) {
+            for (const auto& holder : std::as_const(m_collisionShapeDebugModels))
+                delete holder.model;
+            m_collisionShapeDebugModels.clear();
+        }
         return;
+    }
 
     // Use scene node if no viewport has been specified
     auto sceneNode = m_viewport ? m_viewport : m_scene;
@@ -1365,6 +1367,10 @@ void QPhysicsWorld::updateDebugDraw()
 
     m_hasIndividualDebugDraw = false;
 
+    // Store the collision shapes we have now so we can clear out the removed ones
+    QSet<QAbstractCollisionShape *> currentCollisionShapes;
+    currentCollisionShapes.reserve(m_collisionShapeDebugModels.size());
+
     for (QAbstractPhysXNode *node : m_physXBodies) {
         if (!node->debugGeometryCapability())
             continue;
@@ -1380,12 +1386,10 @@ void QPhysicsWorld::updateDebugDraw()
             DebugModelHolder &holder = m_collisionShapeDebugModels[collisionShape];
             auto &model = holder.model;
 
-            if (!m_forceDebugDraw && !collisionShape->enableDebugDraw()) {
-                if (model) {
-                    model->setVisible(false);
-                }
+            if (!m_forceDebugDraw && !collisionShape->enableDebugDraw())
                 continue;
-            }
+
+            currentCollisionShapes.insert(collisionShape);
 
             m_hasIndividualDebugDraw =
                     m_hasIndividualDebugDraw || collisionShape->enableDebugDraw();
@@ -1528,7 +1532,6 @@ void QPhysicsWorld::updateDebugDraw()
                 Q_UNREACHABLE();
             }
 
-            model->setParent(collisionShape);
             model->setVisible(true);
 
             auto globalPose = node->getGlobalPose();
@@ -1538,29 +1541,33 @@ void QPhysicsWorld::updateDebugDraw()
             model->setPosition(QPhysicsUtils::toQtType(finalPose.p));
         }
     }
+
+    // Remove old collision shapes
+    m_collisionShapeDebugModels.removeIf(
+            [&](QHash<QAbstractCollisionShape *, DebugModelHolder>::iterator it) {
+                auto shape = it.key();
+                auto holder = it.value();
+                if (!currentCollisionShapes.contains(shape)) {
+                    if (holder.model)
+                        delete holder.model;
+                    return true;
+                }
+                return false;
+            });
 }
 
 void QPhysicsWorld::disableDebugDraw()
 {
-    if (m_viewport == nullptr)
-        return;
-
     m_hasIndividualDebugDraw = false;
 
     for (QAbstractPhysXNode *body : m_physXBodies) {
-        // TODO: refactor debug geometry handling as well
         const auto &collisionShapes = body->frontendNode->getCollisionShapesList();
         const int length = collisionShapes.length();
         for (int idx = 0; idx < length; idx++) {
             const auto collisionShape = collisionShapes[idx];
-            DebugModelHolder &holder = m_collisionShapeDebugModels[collisionShape];
-
-            if (!collisionShape->enableDebugDraw()) {
-                if (holder.model) {
-                    holder.model->setVisible(false);
-                }
-            } else {
+            if (collisionShape->enableDebugDraw()) {
                 m_hasIndividualDebugDraw = true;
+                return;
             }
         }
     }

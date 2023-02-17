@@ -172,7 +172,7 @@ private:
 
     QList<QAbstractPhysXNode *> m_physXBodies;
     QList<QAbstractPhysicsNode *> m_newPhysicsNodes;
-    QMap<QAbstractCollisionShape *, DebugModelHolder> m_collisionShapeDebugModels;
+    QHash<QAbstractCollisionShape *, DebugModelHolder> m_collisionShapeDebugModels;
     QSet<QAbstractPhysicsNode *> m_removedPhysicsNodes;
     QMutex m_removedPhysicsNodesMutex;
 
