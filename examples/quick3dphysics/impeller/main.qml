@@ -122,8 +122,8 @@ Window {
 
             onBodyContact: (body, positions, impulses, normals) => {
                 for (var normal of normals) {
-                    let force = normal.times(-2000);
-                    body.applyCentralImpulse(force);
+                    let velocity = normal.times(-700);
+                    body.setLinearVelocity(velocity);
                 }
             }
         }

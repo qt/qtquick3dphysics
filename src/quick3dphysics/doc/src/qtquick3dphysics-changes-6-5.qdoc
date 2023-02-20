@@ -85,6 +85,7 @@ The following is a complete list of all the API changes:
    \li changed the \c axisLockAngularX/Y/Z properties into a single property \l{DynamicRigidBody::}{angularAxisLock} that takes a bitfield
    \li added new properties \l{DynamicRigidBody::}{kinematicPosition}, \l{DynamicRigidBody::}{kinematicEulerRotation}, \l{DynamicRigidBody::}{kinematicRotation}, and \l{DynamicRigidBody::}{kinematicPivot}
    \li changed \c Density enum value to \l{DynamicRigidBody::massMode}{DefaultDensity/CustomDensity} and removed special-casing of negative values.
+   \li replaced the \c linearVelocity property with the method \l{DynamicRigidBody::setLinearVelocity}{setLinearVelocity}.
 \endlist
 
 \endlist

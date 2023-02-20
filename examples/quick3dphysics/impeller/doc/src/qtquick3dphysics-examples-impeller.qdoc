@@ -54,5 +54,6 @@
 
     This is a static body and we set \l {PhysicsNode::} {receiveContactReports} to \c true to enable the collision callbacks.
     The callback \l {PhysicsNode::} {bodyContact} gets called whenever a collision is reported.
-    In the method we add a repelling impulse in the opposite direction of the collision.
+    In the method we call \l{DynamicRigidBody::}{setLinearVelocity} to set the linear velocity
+    in the opposite direction of the collision normal vector to simulate an impeller.
 */
