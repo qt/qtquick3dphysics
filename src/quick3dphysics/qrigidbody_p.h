@@ -49,9 +49,6 @@ public:
     Q_PROPERTY(float mass READ mass WRITE setMass NOTIFY massChanged)
     Q_PROPERTY(float density READ density WRITE setDensity NOTIFY densityChanged)
 
-    Q_PROPERTY(QVector3D angularVelocity READ angularVelocity WRITE setAngularVelocity NOTIFY
-                       angularVelocityChanged)
-
     Q_PROPERTY(AxisLock linearAxisLock READ linearAxisLock WRITE setLinearAxisLock NOTIFY
                        linearAxisLockChanged REVISION(6, 5))
     Q_PROPERTY(AxisLock angularAxisLock READ angularAxisLock WRITE setAngularAxisLock NOTIFY
@@ -107,9 +104,6 @@ public:
     bool isKinematic() const;
     void setIsKinematic(bool isKinematic);
 
-    const QVector3D &angularVelocity() const;
-    void setAngularVelocity(const QVector3D &newAngularVelocity);
-
     Q_REVISION(6, 5) AxisLock linearAxisLock() const;
     Q_REVISION(6, 5) void setLinearAxisLock(AxisLock newAxisLockLinear);
 
@@ -125,6 +119,7 @@ public:
     Q_INVOKABLE void applyCentralImpulse(const QVector3D &impulse);
     Q_INVOKABLE void applyImpulse(const QVector3D &impulse, const QVector3D &position);
     Q_INVOKABLE void applyTorqueImpulse(const QVector3D &impulse);
+    Q_INVOKABLE void setAngularVelocity(const QVector3D &angularVelocity);
     Q_INVOKABLE void setLinearVelocity(const QVector3D &linearVelocity);
     Q_INVOKABLE void reset(const QVector3D &position, const QVector3D &eulerRotation);
 
@@ -165,7 +160,6 @@ Q_SIGNALS:
     void massChanged(float mass);
     void densityChanged(float density);
     void isKinematicChanged(bool isKinematic);
-    void angularVelocityChanged();
     Q_REVISION(6, 5) void linearAxisLockChanged();
     Q_REVISION(6, 5) void angularAxisLockChanged();
     void gravityEnabledChanged();
@@ -189,7 +183,6 @@ private:
     QVector3D m_inertiaTensor;
 
     bool m_isKinematic = false;
-    QVector3D m_angularVelocity;
     AxisLock m_linearAxisLock = AxisLock::LockNone;
     AxisLock m_angularAxisLock = AxisLock::LockNone;
     QQueue<QPhysicsCommand *> m_commandQueue;

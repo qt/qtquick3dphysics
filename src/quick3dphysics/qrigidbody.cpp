@@ -49,11 +49,6 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty vector3d DynamicRigidBody::angularVelocity
-    This property defines the angular velocity of the body.
-*/
-
-/*!
     \qmlproperty AxisLock DynamicRigidBody::linearAxisLock
 
     This property locks the linear velocity of the body along the axes defined by the
@@ -264,6 +259,12 @@ QT_BEGIN_NAMESPACE
     \qmlmethod DynamicRigidBody::applyTorqueImpulse(vector3d impulse)
 
     Applies a torque \a impulse on the body.
+*/
+
+/*!
+    \qmlmethod DynamicRigidBody::setAngularVelocity(vector3d angularVelocity)
+
+    Sets the \a angularVelocity of the body.
 */
 
 /*!
@@ -513,18 +514,9 @@ void QDynamicRigidBody::setGravityEnabled(bool gravityEnabled)
     emit gravityEnabledChanged();
 }
 
-const QVector3D &QDynamicRigidBody::angularVelocity() const
+void QDynamicRigidBody::setAngularVelocity(const QVector3D &angularVelocity)
 {
-    return m_angularVelocity;
-}
-
-void QDynamicRigidBody::setAngularVelocity(const QVector3D &newAngularVelocity)
-{
-    if (m_angularVelocity == newAngularVelocity)
-        return;
-    m_angularVelocity = newAngularVelocity;
-    m_commandQueue.enqueue(new QPhysicsCommandSetAngularVelocity(m_angularVelocity));
-    emit angularVelocityChanged();
+    m_commandQueue.enqueue(new QPhysicsCommandSetAngularVelocity(angularVelocity));
 }
 
 QDynamicRigidBody::AxisLock QDynamicRigidBody::linearAxisLock() const
