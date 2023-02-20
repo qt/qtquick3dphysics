@@ -104,13 +104,9 @@ Window {
             function createBall(position, forward) {
                 let diameter = 0.2;
                 let speed = 20;
-                let settings = {
-                    position: position,
-                    linearVelocity: forward.times(speed),
-                    sphereDiameter: diameter
-                };
                 var component = Qt.createComponent("sphere.qml");
-                let sphere = component.createObject(shapeSpawner, settings);
+                let sphere = component.createObject(shapeSpawner, {position: position, sphereDiameter: diameter});
+                sphere.setLinearVelocity(forward.times(speed));
 
                 var pair = {
                     "sphere" : sphere,

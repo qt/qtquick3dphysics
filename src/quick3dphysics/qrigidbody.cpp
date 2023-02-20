@@ -49,11 +49,6 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty vector3d DynamicRigidBody::linearVelocity
-    This property defines the linear velocity of the body.
-*/
-
-/*!
     \qmlproperty vector3d DynamicRigidBody::angularVelocity
     This property defines the angular velocity of the body.
 */
@@ -272,6 +267,12 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
+    \qmlmethod DynamicRigidBody::setLinearVelocity(vector3d linearVelocity)
+
+    Sets the \a linearVelocity of the body.
+*/
+
+/*!
     \qmlmethod DynamicRigidBody::reset(vector3d position, vector3d eulerRotation)
 
     Resets the body's \a position and \a eulerRotation.
@@ -435,11 +436,6 @@ float QDynamicRigidBody::mass() const
     return m_mass;
 }
 
-QVector3D QDynamicRigidBody::linearVelocity() const
-{
-    return m_linearVelocity;
-}
-
 bool QDynamicRigidBody::isKinematic() const
 {
     return m_isKinematic;
@@ -489,16 +485,6 @@ void QDynamicRigidBody::setDensity(float density)
 
     m_density = density;
     emit densityChanged(m_density);
-}
-
-void QDynamicRigidBody::setLinearVelocity(QVector3D linearVelocity)
-{
-    if (m_linearVelocity == linearVelocity)
-        return;
-
-    m_linearVelocity = linearVelocity;
-    m_commandQueue.enqueue(new QPhysicsCommandSetLinearVelocity(m_linearVelocity));
-    emit linearVelocityChanged(m_linearVelocity);
 }
 
 void QDynamicRigidBody::setIsKinematic(bool isKinematic)
@@ -606,6 +592,11 @@ void QDynamicRigidBody::applyImpulse(const QVector3D &impulse, const QVector3D &
 void QDynamicRigidBody::applyTorqueImpulse(const QVector3D &impulse)
 {
     m_commandQueue.enqueue(new QPhysicsCommandApplyTorqueImpulse(impulse));
+}
+
+void QDynamicRigidBody::setLinearVelocity(const QVector3D &linearVelocity)
+{
+    m_commandQueue.enqueue(new QPhysicsCommandSetLinearVelocity(linearVelocity));
 }
 
 void QDynamicRigidBody::reset(const QVector3D &position, const QVector3D &eulerRotation)

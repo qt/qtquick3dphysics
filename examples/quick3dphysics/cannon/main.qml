@@ -98,7 +98,8 @@ Window {
                 var diameter = 600;
                 var speed = 20000;
                 var component = Qt.createComponent("sphere.qml");
-                let sphere = component.createObject(shapeSpawner, {position: position, linearVelocity: forward.times(speed), sphereDiameter: diameter});
+                let sphere = component.createObject(shapeSpawner, {position: position, sphereDiameter: diameter});
+                sphere.setLinearVelocity(forward.times(speed));
                 instancesSpheres.push(sphere);
 
                 if (sphere === null) {
