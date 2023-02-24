@@ -152,14 +152,6 @@ static inline bool fuzzyEquals(const physx::PxTransform &a, const physx::PxTrans
             && qFuzzyCompare(a.q.z, b.q.z) && qFuzzyCompare(a.q.w, b.q.w);
 }
 
-static physx::PxTransform getPhysXWorldTransform(const QQuick3DNode *node)
-{
-    const QQuaternion &rotation = node->sceneRotation();
-    const QVector3D worldPosition = node->scenePosition();
-    return physx::PxTransform(QPhysicsUtils::toPhysXType(worldPosition),
-                              QPhysicsUtils::toPhysXType(rotation));
-}
-
 static physx::PxTransform getPhysXWorldTransform(const QMatrix4x4 transform)
 {
     auto rotationMatrix = transform;
@@ -682,13 +674,15 @@ void QPhysXRigidBody::createMaterial(PhysXWorld *physX)
 
 void QPhysXActorBody::createActor(PhysXWorld * /*physX*/)
 {
-    physx::PxTransform trf = getPhysXWorldTransform(frontendNode);
+    const physx::PxTransform trf = QPhysicsUtils::toPhysXTransform(frontendNode->scenePosition(),
+                                                                   frontendNode->sceneRotation());
     actor = s_physx.physics->createRigidDynamic(trf);
 }
 
 void QPhysXStaticBody::createActor(PhysXWorld * /*physX*/)
 {
-    physx::PxTransform trf = getPhysXWorldTransform(frontendNode);
+    const physx::PxTransform trf = QPhysicsUtils::toPhysXTransform(frontendNode->scenePosition(),
+                                                                   frontendNode->sceneRotation());
     actor = s_physx.physics->createRigidStatic(trf);
 }
 
@@ -998,7 +992,9 @@ DebugDrawBodyType QPhysXTriggerBody::getDebugDrawBodyType()
 void QPhysXTriggerBody::sync(float /*deltaTime*/, QHash<QQuick3DNode *, QMatrix4x4> & /*transformCache*/)
 {
     auto *triggerBody = static_cast<QTriggerBody *>(frontendNode);
-    actor->setGlobalPose(getPhysXWorldTransform(triggerBody));
+    const physx::PxTransform trf = QPhysicsUtils::toPhysXTransform(triggerBody->scenePosition(),
+                                                                   triggerBody->sceneRotation());
+    actor->setGlobalPose(trf);
 }
 
 void QPhysXDynamicBody::sync(float deltaTime, QHash<QQuick3DNode *, QMatrix4x4> &transformCache)
@@ -1089,7 +1085,8 @@ DebugDrawBodyType QPhysXStaticBody::getDebugDrawBodyType()
 void QPhysXStaticBody::sync(float deltaTime, QHash<QQuick3DNode *, QMatrix4x4> &transformCache)
 {
     auto *staticBody = static_cast<QStaticRigidBody *>(frontendNode);
-    const physx::PxTransform poseNew = getPhysXWorldTransform(staticBody);
+    const physx::PxTransform poseNew = QPhysicsUtils::toPhysXTransform(staticBody->scenePosition(),
+                                                                       staticBody->sceneRotation());
     const physx::PxTransform poseOld = actor->getGlobalPose();
 
     // For performance we only update static objects if they have been moved
