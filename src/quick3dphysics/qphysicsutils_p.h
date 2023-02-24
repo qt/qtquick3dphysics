@@ -17,6 +17,7 @@
 
 #include <QVector3D>
 #include <QQuaternion>
+#include <foundation/PxTransform.h>
 #include <foundation/PxMat33.h>
 #include <foundation/PxQuat.h>
 #include <foundation/PxVec3.h>
@@ -50,6 +51,13 @@ Q_ALWAYS_INLINE QVector3D toQtType(const physx::PxVec3 &vec)
 Q_ALWAYS_INLINE QQuaternion toQtType(const physx::PxQuat &quat)
 {
     return QQuaternion(quat.w, quat.x, quat.y, quat.z);
+}
+
+Q_ALWAYS_INLINE physx::PxTransform toPhysXTransform(const QVector3D &position,
+                                                    const QQuaternion &rotation)
+{
+    return physx::PxTransform(QPhysicsUtils::toPhysXType(position),
+                              QPhysicsUtils::toPhysXType(rotation));
 }
 }
 
