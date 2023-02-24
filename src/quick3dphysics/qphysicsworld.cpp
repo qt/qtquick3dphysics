@@ -1,12 +1,13 @@
 // Copyright (C) 2021 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
-#include "physxnode/qphysxcharactercontroller_p.h"
 #include "qphysicsworld_p.h"
 
 #include "physxnode/qabstractphysxnode_p.h"
 #include "physxnode/qphysxactorbody_p.h"
 #include "physxnode/qphysxworld_p.h"
+#include "physxnode/qphysxcharactercontroller_p.h"
+#include "physxnode/qphysxrigidbody_p.h"
 #include "qabstractphysicsnode_p.h"
 #include "qdebugdrawhelper_p.h"
 #include "qphysicsutils_p.h"
@@ -169,13 +170,6 @@ static physx::PxTransform getPhysXWorldTransform(const QMatrix4x4 transform)
         x = nullptr;                                                                               \
     }
 
-class QPhysXRigidBody : public QPhysXActorBody
-{
-public:
-    QPhysXRigidBody(QAbstractPhysicsBody *frontEnd) : QPhysXActorBody(frontEnd) { }
-    void createMaterial(QPhysXWorld *physX) override;
-};
-
 class QPhysXStaticBody : public QPhysXRigidBody
 {
 public:
@@ -225,11 +219,6 @@ public:
     }
 };
 
-
-void QPhysXRigidBody::createMaterial(QPhysXWorld *physX)
-{
-    createMaterialFromQtMaterial(physX, static_cast<QAbstractPhysicsBody *>(frontendNode)->physicsMaterial());
-}
 
 void QPhysXStaticBody::createActor(QPhysXWorld * /*physX*/)
 {
