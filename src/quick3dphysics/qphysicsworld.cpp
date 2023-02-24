@@ -4,10 +4,10 @@
 #include "qphysicsworld_p.h"
 
 #include "physxnode/qabstractphysxnode_p.h"
-#include "physxnode/qphysxactorbody_p.h"
 #include "physxnode/qphysxworld_p.h"
 #include "physxnode/qphysxcharactercontroller_p.h"
 #include "physxnode/qphysxstaticbody_p.h"
+#include "physxnode/qphysxtriggerbody_p.h"
 #include "physxnode/qphysxdynamicbody_p.h"
 #include "qabstractphysicsnode_p.h"
 #include "qdebugdrawhelper_p.h"
@@ -146,16 +146,6 @@ Q_LOGGING_CATEGORY(lcQuick3dPhysics, "qt.quick3d.physics");
 
 static const QQuaternion kMinus90YawRotation = QQuaternion::fromEulerAngles(0, -90, 0);
 
-class QPhysXTriggerBody : public QPhysXActorBody
-{
-public:
-    QPhysXTriggerBody(QTriggerBody *frontEnd) : QPhysXActorBody(frontEnd) { }
-
-    DebugDrawBodyType getDebugDrawBodyType() override;
-    void sync(float deltaTime, QHash<QQuick3DNode *, QMatrix4x4> &transformCache) override;
-    bool useTriggerFlag() override { return true; }
-};
-
 class QPhysXFactory
 {
 public:
@@ -174,19 +164,6 @@ public:
     }
 };
 
-
-DebugDrawBodyType QPhysXTriggerBody::getDebugDrawBodyType()
-{
-    return DebugDrawBodyType::Trigger;
-}
-
-void QPhysXTriggerBody::sync(float /*deltaTime*/, QHash<QQuick3DNode *, QMatrix4x4> & /*transformCache*/)
-{
-    auto *triggerBody = static_cast<QTriggerBody *>(frontendNode);
-    const physx::PxTransform trf = QPhysicsUtils::toPhysXTransform(triggerBody->scenePosition(),
-                                                                   triggerBody->sceneRotation());
-    actor->setGlobalPose(trf);
-}
 /////////////////////////////////////////////////////////////////////////////
 
 class SimulationWorker : public QObject
