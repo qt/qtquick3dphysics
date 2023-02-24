@@ -7,15 +7,14 @@
 #include "physxnode/qphysxactorbody_p.h"
 #include "physxnode/qphysxworld_p.h"
 #include "physxnode/qphysxcharactercontroller_p.h"
-#include "physxnode/qphysxrigidbody_p.h"
 #include "physxnode/qphysxstaticbody_p.h"
+#include "physxnode/qphysxdynamicbody_p.h"
 #include "qabstractphysicsnode_p.h"
 #include "qdebugdrawhelper_p.h"
 #include "qphysicsutils_p.h"
 #include "qtriggerbody_p.h"
 #include "qdynamicrigidbody_p.h"
 #include "qstaticrigidbody_p.h"
-#include "qphysicscommands_p.h"
 #include "qstaticphysxobjects_p.h"
 #include "qcharactercontroller_p.h"
 
@@ -147,34 +146,6 @@ Q_LOGGING_CATEGORY(lcQuick3dPhysics, "qt.quick3d.physics");
 
 static const QQuaternion kMinus90YawRotation = QQuaternion::fromEulerAngles(0, -90, 0);
 
-static physx::PxTransform getPhysXWorldTransform(const QMatrix4x4 transform)
-{
-    auto rotationMatrix = transform;
-    mat44::normalize(rotationMatrix);
-    auto rotation =
-            QQuaternion::fromRotationMatrix(mat44::getUpper3x3(rotationMatrix)).normalized();
-    const QVector3D worldPosition = mat44::getPosition(transform);
-    return physx::PxTransform(QPhysicsUtils::toPhysXType(worldPosition),
-                              QPhysicsUtils::toPhysXType(rotation));
-}
-
-#define PHYSX_RELEASE(x)                                                                           \
-    if (x != nullptr) {                                                                            \
-        x->release();                                                                              \
-        x = nullptr;                                                                               \
-    }
-
-class QPhysXDynamicBody : public QPhysXRigidBody
-{
-public:
-    QPhysXDynamicBody(QDynamicRigidBody *frontEnd) : QPhysXRigidBody(frontEnd) { }
-
-    DebugDrawBodyType getDebugDrawBodyType() override;
-    void sync(float deltaTime, QHash<QQuick3DNode *, QMatrix4x4> &transformCache) override;
-    void rebuildDirtyShapes(QPhysicsWorld *world, QPhysXWorld *physX) override;
-    void updateDefaultDensity(float density) override;
-};
-
 class QPhysXTriggerBody : public QPhysXActorBody
 {
 public:
@@ -204,146 +175,6 @@ public:
 };
 
 
-
-
-void QPhysXDynamicBody::updateDefaultDensity(float density)
-{
-    QDynamicRigidBody *rigidBody = static_cast<QDynamicRigidBody *>(frontendNode);
-    rigidBody->updateDefaultDensity(density);
-}
-
-DebugDrawBodyType QPhysXDynamicBody::getDebugDrawBodyType()
-{
-    auto dynamicActor = static_cast<physx::PxRigidDynamic *>(actor);
-    return dynamicActor->isSleeping() ? DebugDrawBodyType::DynamicSleeping
-                                      : DebugDrawBodyType::DynamicAwake;
-}
-
-void QPhysXDynamicBody::rebuildDirtyShapes(QPhysicsWorld *world, QPhysXWorld *physX)
-{
-    if (!shapesDirty())
-        return;
-
-    buildShapes(physX);
-
-    QDynamicRigidBody *drb = static_cast<QDynamicRigidBody *>(frontendNode);
-
-    // Density must be set after shapes so the inertia tensor is set
-    if (!drb->hasStaticShapes()) {
-        // Body with only dynamic shapes, set/calculate mass
-        QPhysicsCommand *command = nullptr;
-        switch (drb->massMode()) {
-        case QDynamicRigidBody::MassMode::DefaultDensity: {
-            command = new QPhysicsCommandSetDensity(world->defaultDensity());
-            break;
-        }
-        case QDynamicRigidBody::MassMode::CustomDensity: {
-            command = new QPhysicsCommandSetDensity(drb->density());
-            break;
-        }
-        case QDynamicRigidBody::MassMode::Mass: {
-            const float mass = qMax(drb->mass(), 0.f);
-            command = new QPhysicsCommandSetMass(mass);
-            break;
-        }
-        case QDynamicRigidBody::MassMode::MassAndInertiaTensor: {
-            const float mass = qMax(drb->mass(), 0.f);
-            command = new QPhysicsCommandSetMassAndInertiaTensor(mass, drb->inertiaTensor());
-            break;
-        }
-        case QDynamicRigidBody::MassMode::MassAndInertiaMatrix: {
-            const float mass = qMax(drb->mass(), 0.f);
-            command = new QPhysicsCommandSetMassAndInertiaMatrix(mass, drb->inertiaMatrix());
-            break;
-        }
-        }
-
-        drb->commandQueue().enqueue(command);
-    } else if (!drb->isKinematic()) {
-        // Body with static shapes that is not kinematic, this is disallowed
-        qWarning() << "Cannot make body containing trimesh/heightfield/plane non-kinematic, "
-                      "forcing kinematic.";
-        drb->setIsKinematic(true);
-    }
-
-    auto *dynamicBody = static_cast<physx::PxRigidDynamic *>(actor);
-    dynamicBody->setRigidBodyFlag(physx::PxRigidBodyFlag::eKINEMATIC, drb->isKinematic());
-
-    if (world->enableCCD() && !drb->isKinematic()) // CCD not supported for kinematic bodies
-        dynamicBody->setRigidBodyFlag(physx::PxRigidBodyFlag::eENABLE_CCD, true);
-
-    setShapesDirty(false);
-}
-
-static void processCommandQueue(QQueue<QPhysicsCommand *> &commandQueue,
-                                const QDynamicRigidBody &rigidBody, physx::PxRigidBody &body)
-{
-    for (auto command : commandQueue) {
-        command->execute(rigidBody, body);
-        delete command;
-    }
-
-    commandQueue.clear();
-}
-
-static QMatrix4x4 calculateKinematicNodeTransform(QQuick3DNode *node,
-                                                  QHash<QQuick3DNode *, QMatrix4x4> &transformCache)
-{
-    // already calculated transform
-    if (transformCache.contains(node))
-        return transformCache[node];
-
-    QMatrix4x4 localTransform;
-
-    // DynamicRigidBody vs StaticRigidBody use different values for calculating the local transform
-    if (auto drb = qobject_cast<const QDynamicRigidBody *>(node); drb != nullptr) {
-        if (!drb->isKinematic()) {
-            qWarning() << "Non-kinematic body as a parent of a kinematic body is unsupported";
-        }
-        localTransform = QSSGRenderNode::calculateTransformMatrix(
-                drb->kinematicPosition(), drb->scale(), drb->kinematicPivot(), drb->kinematicRotation());
-    } else {
-        localTransform = QSSGRenderNode::calculateTransformMatrix(node->position(), node->scale(),
-                                                                  node->pivot(), node->rotation());
-    }
-
-    QQuick3DNode *parent = node->parentNode();
-    if (!parent) // no parent, local transform is scene transform
-        return localTransform;
-
-    // calculate the parent scene transform and apply the nodes local transform
-    QMatrix4x4 parentTransform = calculateKinematicNodeTransform(parent, transformCache);
-    QMatrix4x4 sceneTransform = parentTransform * localTransform;
-
-    transformCache[node] = sceneTransform;
-    return sceneTransform;
-}
-
-static physx::PxRigidDynamicLockFlags getLockFlags(QDynamicRigidBody *body)
-{
-    const auto lockAngular = body->angularAxisLock();
-    const auto lockLinear = body->linearAxisLock();
-    const int flags = (lockAngular & QDynamicRigidBody::AxisLock::LockX
-                               ? physx::PxRigidDynamicLockFlag::eLOCK_ANGULAR_X
-                               : 0)
-            | (lockAngular & QDynamicRigidBody::AxisLock::LockY
-                       ? physx::PxRigidDynamicLockFlag::eLOCK_ANGULAR_Y
-                       : 0)
-            | (lockAngular & QDynamicRigidBody::AxisLock::LockZ
-                       ? physx::PxRigidDynamicLockFlag::eLOCK_ANGULAR_Z
-                       : 0)
-            | (lockLinear & QDynamicRigidBody::AxisLock::LockX
-                       ? physx::PxRigidDynamicLockFlag::eLOCK_LINEAR_X
-                       : 0)
-            | (lockLinear & QDynamicRigidBody::AxisLock::LockY
-                       ? physx::PxRigidDynamicLockFlag::eLOCK_LINEAR_Y
-                       : 0)
-            | (lockLinear & QDynamicRigidBody::AxisLock::LockZ
-                       ? physx::PxRigidDynamicLockFlag::eLOCK_LINEAR_Z
-                       : 0);
-    return static_cast<physx::PxRigidDynamicLockFlags>(flags);
-}
-
 DebugDrawBodyType QPhysXTriggerBody::getDebugDrawBodyType()
 {
     return DebugDrawBodyType::Trigger;
@@ -356,28 +187,6 @@ void QPhysXTriggerBody::sync(float /*deltaTime*/, QHash<QQuick3DNode *, QMatrix4
                                                                    triggerBody->sceneRotation());
     actor->setGlobalPose(trf);
 }
-
-void QPhysXDynamicBody::sync(float deltaTime, QHash<QQuick3DNode *, QMatrix4x4> &transformCache)
-{
-    auto *dynamicRigidBody = static_cast<QDynamicRigidBody *>(frontendNode);
-    // first update front end node from physx simulation
-    dynamicRigidBody->updateFromPhysicsTransform(actor->getGlobalPose());
-
-    auto *dynamicActor = static_cast<physx::PxRigidDynamic *>(actor);
-    processCommandQueue(dynamicRigidBody->commandQueue(), *dynamicRigidBody, *dynamicActor);
-    if (dynamicRigidBody->isKinematic()) {
-        // Since this is a kinematic body we need to calculate the transform by hand and since
-        // bodies can occur in other bodies we need to calculate the tranform recursively for all
-        // parents. To save some computation we cache these transforms in 'transformCache'.
-        QMatrix4x4 transform = calculateKinematicNodeTransform(dynamicRigidBody, transformCache);
-        dynamicActor->setKinematicTarget(getPhysXWorldTransform(transform));
-    } else {
-        dynamicActor->setRigidDynamicLockFlags(getLockFlags(dynamicRigidBody));
-    }
-    QPhysXActorBody::sync(deltaTime, transformCache);
-}
-
-
 /////////////////////////////////////////////////////////////////////////////
 
 class SimulationWorker : public QObject
