@@ -8,6 +8,7 @@
 #include "physxnode/qphysxworld_p.h"
 #include "physxnode/qphysxcharactercontroller_p.h"
 #include "physxnode/qphysxrigidbody_p.h"
+#include "physxnode/qphysxstaticbody_p.h"
 #include "qabstractphysicsnode_p.h"
 #include "qdebugdrawhelper_p.h"
 #include "qphysicsutils_p.h"
@@ -146,13 +147,6 @@ Q_LOGGING_CATEGORY(lcQuick3dPhysics, "qt.quick3d.physics");
 
 static const QQuaternion kMinus90YawRotation = QQuaternion::fromEulerAngles(0, -90, 0);
 
-static inline bool fuzzyEquals(const physx::PxTransform &a, const physx::PxTransform &b)
-{
-    return qFuzzyCompare(a.p.x, b.p.x) && qFuzzyCompare(a.p.y, b.p.y) && qFuzzyCompare(a.p.z, b.p.z)
-            && qFuzzyCompare(a.q.x, b.q.x) && qFuzzyCompare(a.q.y, b.q.y)
-            && qFuzzyCompare(a.q.z, b.q.z) && qFuzzyCompare(a.q.w, b.q.w);
-}
-
 static physx::PxTransform getPhysXWorldTransform(const QMatrix4x4 transform)
 {
     auto rotationMatrix = transform;
@@ -169,16 +163,6 @@ static physx::PxTransform getPhysXWorldTransform(const QMatrix4x4 transform)
         x->release();                                                                              \
         x = nullptr;                                                                               \
     }
-
-class QPhysXStaticBody : public QPhysXRigidBody
-{
-public:
-    QPhysXStaticBody(QStaticRigidBody *frontEnd) : QPhysXRigidBody(frontEnd) { }
-
-    DebugDrawBodyType getDebugDrawBodyType() override;
-    void sync(float deltaTime, QHash<QQuick3DNode *, QMatrix4x4> &transformCache) override;
-    void createActor(QPhysXWorld *physX) override;
-};
 
 class QPhysXDynamicBody : public QPhysXRigidBody
 {
@@ -220,13 +204,7 @@ public:
 };
 
 
-void QPhysXStaticBody::createActor(QPhysXWorld * /*physX*/)
-{
-    auto& s_physx = StaticPhysXObjects::getReference();
-    const physx::PxTransform trf = QPhysicsUtils::toPhysXTransform(frontendNode->scenePosition(),
-                                                                   frontendNode->sceneRotation());
-    actor = s_physx.physics->createRigidStatic(trf);
-}
+
 
 void QPhysXDynamicBody::updateDefaultDensity(float density)
 {
@@ -399,23 +377,7 @@ void QPhysXDynamicBody::sync(float deltaTime, QHash<QQuick3DNode *, QMatrix4x4> 
     QPhysXActorBody::sync(deltaTime, transformCache);
 }
 
-DebugDrawBodyType QPhysXStaticBody::getDebugDrawBodyType()
-{
-    return DebugDrawBodyType::Static;
-}
 
-void QPhysXStaticBody::sync(float deltaTime, QHash<QQuick3DNode *, QMatrix4x4> &transformCache)
-{
-    auto *staticBody = static_cast<QStaticRigidBody *>(frontendNode);
-    const physx::PxTransform poseNew = QPhysicsUtils::toPhysXTransform(staticBody->scenePosition(),
-                                                                       staticBody->sceneRotation());
-    const physx::PxTransform poseOld = actor->getGlobalPose();
-
-    // For performance we only update static objects if they have been moved
-    if (!fuzzyEquals(poseNew, poseOld))
-        actor->setGlobalPose(poseNew);
-    QPhysXActorBody::sync(deltaTime, transformCache);
-}
 /////////////////////////////////////////////////////////////////////////////
 
 class SimulationWorker : public QObject
