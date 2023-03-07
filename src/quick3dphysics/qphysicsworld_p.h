@@ -93,11 +93,7 @@ public:
     Q_REVISION(6, 5) float minimumTimestep() const;
     Q_REVISION(6, 5) float maximumTimestep() const;
 
-    void registerOverlap(physx::PxRigidActor *triggerActor, physx::PxRigidActor *otherActor);
-    void deregisterOverlap(physx::PxRigidActor *triggerActor, physx::PxRigidActor *otherActor);
-
-    bool hasSendContactReports(QAbstractPhysicsNode *object);
-    bool hasReceiveContactReports(QAbstractPhysicsNode *object);
+    bool isNodeRemoved(QAbstractPhysicsNode *object);
 
     static QPhysicsWorld *getWorld(QQuick3DNode *node);
 
@@ -199,6 +195,7 @@ private:
     friend class QTriangleMeshShape; //####
     friend class QHeightFieldShape;
     friend class QQuick3DPhysicsHeightField;
+    friend class SimulationEventCallback;
     static physx::PxPhysics *getPhysics();
     static physx::PxCooking *getCooking();
     QThread m_workerThread;

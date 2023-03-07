@@ -235,14 +235,16 @@ contactReportFilterShaderCCD(physx::PxFilterObjectAttributes /*attributes0*/,
     return physx::PxFilterFlag::eDEFAULT;
 }
 
-class CallBackObject : public physx::PxSimulationEventCallback
+class SimulationEventCallback : public physx::PxSimulationEventCallback
 {
 public:
-    CallBackObject(QPhysicsWorld *worldIn) : world(worldIn) {};
-    virtual ~CallBackObject() = default;
+    SimulationEventCallback(QPhysicsWorld *worldIn) : world(worldIn) {};
+    virtual ~SimulationEventCallback() = default;
 
     void onTrigger(physx::PxTriggerPair *pairs, physx::PxU32 count) override
     {
+        QMutexLocker locker(&world->m_removedPhysicsNodesMutex);
+
         for (physx::PxU32 i = 0; i < count; i++) {
             // ignore pairs when shapes have been deleted
             if (pairs[i].flags
@@ -250,8 +252,8 @@ public:
                    | physx::PxTriggerPairFlag::eREMOVED_SHAPE_OTHER))
                 continue;
 
-            QAbstractPhysicsNode *triggerNode =
-                    static_cast<QAbstractPhysicsNode *>(pairs[i].triggerActor->userData);
+            QTriggerBody *triggerNode =
+                    static_cast<QTriggerBody *>(pairs[i].triggerActor->userData);
 
             QAbstractPhysicsNode *otherNode =
                     static_cast<QAbstractPhysicsNode *>(pairs[i].otherActor->userData);
@@ -261,16 +263,19 @@ public:
                 continue;
             }
 
+            if (world->isNodeRemoved(triggerNode) || world->isNodeRemoved(otherNode))
+                continue;
+
             if (pairs->status == physx::PxPairFlag::eNOTIFY_TOUCH_FOUND) {
                 if (otherNode->sendTriggerReports()) {
-                    world->registerOverlap(pairs[i].triggerActor, pairs[i].otherActor);
+                    triggerNode->registerCollision(otherNode);
                 }
                 if (otherNode->receiveTriggerReports()) {
                     emit otherNode->enteredTriggerBody(triggerNode);
                 }
             } else if (pairs->status == physx::PxPairFlag::eNOTIFY_TOUCH_LOST) {
                 if (otherNode->sendTriggerReports()) {
-                    world->deregisterOverlap(pairs[i].triggerActor, pairs[i].otherActor);
+                    triggerNode->deregisterCollision(otherNode);
                 }
                 if (otherNode->receiveTriggerReports()) {
                     emit otherNode->exitedTriggerBody(triggerNode);
@@ -286,6 +291,7 @@ public:
     void onContact(const physx::PxContactPairHeader &pairHeader, const physx::PxContactPair *pairs,
                    physx::PxU32 nbPairs) override
     {
+        QMutexLocker locker(&world->m_removedPhysicsNodesMutex);
         constexpr physx::PxU32 bufferSize = 64;
         physx::PxContactPairPoint contacts[bufferSize];
 
@@ -298,13 +304,14 @@ public:
                 QAbstractPhysicsNode *other =
                         static_cast<QAbstractPhysicsNode *>(pairHeader.actors[1]->userData);
 
-                if (!trigger || !other) //### TODO: handle character controllers
+                if (!trigger || !other || !trigger->m_backendObject || !other->m_backendObject
+                    || world->isNodeRemoved(trigger) || world->isNodeRemoved(other))
                     continue;
 
-                const bool triggerReceive = world->hasReceiveContactReports(trigger)
-                        && world->hasSendContactReports(other);
-                const bool otherReceive = world->hasReceiveContactReports(other)
-                        && world->hasSendContactReports(trigger);
+                const bool triggerReceive =
+                        trigger->receiveContactReports() && other->sendContactReports();
+                const bool otherReceive =
+                        other->receiveContactReports() && trigger->sendContactReports();
 
                 if (!triggerReceive && !otherReceive)
                     continue;
@@ -448,7 +455,7 @@ struct PhysXWorld
             s_physx.physicsCreated = true;
         }
 
-        callback = new CallBackObject(physicsWorld);
+        callback = new SimulationEventCallback(physicsWorld);
 
         physx::PxSceneDesc sceneDesc(scale);
         sceneDesc.gravity = QPhysicsUtils::toPhysXType(gravity);
@@ -468,7 +475,7 @@ struct PhysXWorld
 
     // variables unique to each world/scene
     physx::PxControllerManager *controllerManager = nullptr;
-    CallBackObject *callback = nullptr;
+    SimulationEventCallback *callback = nullptr;
     physx::PxScene *scene = nullptr;
     bool isRunning = false;
 };
@@ -1189,40 +1196,9 @@ float QPhysicsWorld::typicalSpeed() const
     return m_typicalSpeed;
 }
 
-void QPhysicsWorld::registerOverlap(physx::PxRigidActor *triggerActor,
-                                     physx::PxRigidActor *otherActor)
+bool QPhysicsWorld::isNodeRemoved(QAbstractPhysicsNode *object)
 {
-    QTriggerBody *trigger = static_cast<QTriggerBody *>(triggerActor->userData);
-    QAbstractPhysicsNode *other = static_cast<QAbstractPhysicsNode *>(otherActor->userData);
-
-    QMutexLocker locker(&m_removedPhysicsNodesMutex);
-    if (!m_removedPhysicsNodes.contains(other) && !m_removedPhysicsNodes.contains(trigger))
-        trigger->registerCollision(other);
-}
-
-void QPhysicsWorld::deregisterOverlap(physx::PxRigidActor *triggerActor,
-                                       physx::PxRigidActor *otherActor)
-{
-    QTriggerBody *trigger = static_cast<QTriggerBody *>(triggerActor->userData);
-    QAbstractPhysicsNode *other = static_cast<QAbstractPhysicsNode *>(otherActor->userData);
-
-    QMutexLocker locker(&m_removedPhysicsNodesMutex);
-    if (!m_removedPhysicsNodes.contains(other) && !m_removedPhysicsNodes.contains(trigger))
-        trigger->deregisterCollision(other);
-}
-
-bool QPhysicsWorld::hasSendContactReports(QAbstractPhysicsNode *object)
-{
-    QMutexLocker locker(&m_removedPhysicsNodesMutex);
-    return !m_removedPhysicsNodes.contains(object) && object->m_backendObject
-            && object->sendContactReports();
-}
-
-bool QPhysicsWorld::hasReceiveContactReports(QAbstractPhysicsNode *object)
-{
-    QMutexLocker locker(&m_removedPhysicsNodesMutex);
-    return !m_removedPhysicsNodes.contains(object) && object->m_backendObject
-            && object->receiveContactReports();
+    return m_removedPhysicsNodes.contains(object);
 }
 
 void QPhysicsWorld::setGravity(QVector3D gravity)
