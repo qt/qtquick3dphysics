@@ -104,6 +104,7 @@ private:
 
     friend class QAbstractPhysXNode;
     friend class QPhysicsWorld; // for register/deregister TODO: cleaner mechanism
+    friend class SimulationEventCallback;
     QAbstractPhysXNode *m_backendObject = nullptr;
 };
 
