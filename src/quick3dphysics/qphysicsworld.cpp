@@ -1140,13 +1140,13 @@ QPhysicsWorld::~QPhysicsWorld()
 {
     m_workerThread.quit();
     m_workerThread.wait();
+    for (auto body : m_physXBodies) {
+        body->cleanup(m_physx);
+        delete body;
+    }
     m_physx->deleteWorld();
     delete m_physx;
     worldManager.worlds.removeAll(this);
-
-    for (auto body : m_physXBodies) {
-        delete body;
-    }
 }
 
 void QPhysicsWorld::classBegin() {}
