@@ -18,7 +18,7 @@ Section {
         }
 
         SecondColumnLayout {
-            IdComboBox {
+            ItemFilterComboBox {
                 typeFilter: "QtQuick3D.Node"
                 backendValue: backendValues.scene
                 implicitWidth: StudioTheme.Values.singleControlColumnWidth
@@ -35,7 +35,7 @@ Section {
         }
 
         SecondColumnLayout {
-            IdComboBox {
+            ItemFilterComboBox {
                 typeFilter: "QtQuick3D.Node"
                 backendValue: backendValues.viewport
                 implicitWidth: StudioTheme.Values.singleControlColumnWidth
