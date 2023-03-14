@@ -20,7 +20,7 @@ Column {
             }
 
             SecondColumnLayout {
-                IdComboBox {
+                ItemFilterComboBox {
                     typeFilter: "QtQuick3D.Physics.PhysicsMaterial"
                     backendValue: backendValues.physicsMaterial
                     implicitWidth: StudioTheme.Values.singleControlColumnWidth

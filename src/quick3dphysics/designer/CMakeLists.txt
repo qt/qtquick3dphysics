@@ -17,7 +17,6 @@ qt_copy_or_install(
         DynamicRigidBodySection.qml
         HeightFieldShapeSection.qml
         HeightFieldShapeSpecifics.qml
-        IdComboBox.qml
         NodeSection.qml
         physics.metainfo
         PhysicsBodySection.qml
