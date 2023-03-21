@@ -1,5 +1,6 @@
 add_subdirectory(changescene)
 add_subdirectory(character)
+add_subdirectory(character_remove)
 add_subdirectory(cooked)
 add_subdirectory(invalidscene)
 add_subdirectory(multiscene)
