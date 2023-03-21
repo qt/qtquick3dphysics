@@ -554,7 +554,7 @@ public:
     void createMaterial(PhysXWorld *physX) override;
 
 private:
-    physx::PxController *controller = nullptr;
+    physx::PxCapsuleController *controller = nullptr;
 };
 
 class QPhysXActorBody : public QAbstractPhysXNode
@@ -716,30 +716,42 @@ void QPhysXCharacterController::init(QPhysicsWorld *world, PhysXWorld *physX)
     auto *characterController = static_cast<QCharacterController *>(frontendNode);
 
     auto shapes = characterController->getCollisionShapesList();
-    if (shapes.empty())
+    if (shapes.length() != 1) {
+        qWarning() << "CharacterController: invalid collision shapes list.";
         return;
+    }
     auto *capsule = qobject_cast<QCapsuleShape *>(shapes.first());
-    if (!capsule)
+    if (!capsule) {
+        qWarning() << "CharacterController: collision shape is not a capsule.";
         return;
-
+    }
     auto *mgr = world->controllerManager();
-    if (!mgr)
+    if (!mgr)  {
+        qWarning() << "QtQuick3DPhysics internal error: missing controller manager.";
         return;
+    }
 
     createMaterial(physX);
 
-    const QVector3D s = characterController->sceneScale();
-    const qreal hs = s.y();
-    const qreal rs = s.x();
+    const QVector3D scale = characterController->sceneScale();
+    const qreal heightScale = scale.y();
+    const qreal radiusScale = scale.x();
     physx::PxCapsuleControllerDesc desc;
-    desc.radius = rs * capsule->diameter() / 2;
-    desc.height = hs * capsule->height();
-    desc.stepOffset = desc.height / 4; // TODO: API
+    desc.radius = 0.5f * radiusScale * capsule->diameter();
+    desc.height = heightScale * capsule->height();
+    desc.stepOffset = 0.25f * desc.height; // TODO: API
 
     desc.material = material;
     const QVector3D pos = characterController->scenePosition();
     desc.position = { pos.x(), pos.y(), pos.z() };
-    controller = mgr->createController(desc);
+    // Safe to static_cast since createController will always return a PxCapsuleController
+    // if desc is of type PxCapsuleControllerDesc
+    controller = static_cast<physx::PxCapsuleController *>(mgr->createController(desc));
+
+    if (!controller) {
+        qWarning() << "QtQuick3DPhysics internal error: could not create controller.";
+        return;
+    }
 
     auto *actor = controller->getActor();
     if (actor)
@@ -1011,19 +1023,48 @@ void QPhysXDynamicBody::sync(float deltaTime, QHash<QQuick3DNode *, QMatrix4x4> 
 void QPhysXCharacterController::sync(float deltaTime,
                                      QHash<QQuick3DNode *, QMatrix4x4> & /*transformCache*/)
 {
-    Q_ASSERT(controller);
-    auto pos = controller->getPosition();
-    QVector3D qtPosition(pos.x, pos.y, pos.z);
+    if (controller == nullptr)
+        return;
+
     auto *characterController = static_cast<QCharacterController *>(frontendNode);
 
+    // Update capsule height, radius, stepOffset
+    const auto &shapes = characterController->getCollisionShapesList();
+    auto capsule = shapes.length() == 1 ? qobject_cast<QCapsuleShape *>(shapes.front()) : nullptr;
+
+    if (shapes.length() != 1) {
+        qWarning() << "CharacterController: invalid collision shapes list.";
+    } else if (!capsule) {
+        qWarning() << "CharacterController: collision shape is not a capsule.";
+    } else {
+        const QVector3D sceneScale = characterController->sceneScale();
+        const qreal heightScale = sceneScale.y();
+        const qreal radiusScale = sceneScale.x();
+
+        // Update height
+        const float heightNew = heightScale * capsule->height();
+        if (!qFuzzyCompare(controller->getHeight(), heightNew))
+            controller->resize(heightNew);
+        // Update radius
+        const float radiusNew = 0.5f * radiusScale * capsule->diameter();
+        if (!qFuzzyCompare(controller->getRadius(), radiusNew))
+            controller->setRadius(radiusNew);
+        // Update stepOffset
+        const float stepOffsetNew = 0.25f * heightNew;
+        if (!qFuzzyCompare(controller->getStepOffset(), stepOffsetNew))
+            controller->setStepOffset(stepOffsetNew);
+    }
+
     // update node from physX
+    QVector3D position = QPhysicsUtils::toQtType(physx::toVec3(controller->getPosition()));
     const QQuick3DNode *parentNode = static_cast<QQuick3DNode *>(characterController->parentItem());
     if (!parentNode) {
         // then it is the same space
-        characterController->setPosition(qtPosition);
+        characterController->setPosition(position);
     } else {
-        characterController->setPosition(parentNode->mapPositionFromScene(qtPosition));
+        characterController->setPosition(parentNode->mapPositionFromScene(position));
     }
+
     QVector3D teleportPos;
     bool teleport = characterController->getTeleport(teleportPos);
     if (teleport) {
