@@ -1424,6 +1424,7 @@ void QPhysicsWorld::updateDebugDraw()
                 const auto halfExtents = QPhysicsUtils::toQtType(boxGeometry.halfExtents);
                 if (!qFuzzyCompare(halfExtentsOld, halfExtents)) {
                     auto geom = QDebugDrawHelper::generateBoxGeometry(halfExtents);
+                    geom->setParent(model);
                     model->setGeometry(geom);
                     holder.setHalfExtents(halfExtents);
                 }
@@ -1437,6 +1438,7 @@ void QPhysicsWorld::updateDebugDraw()
                 const float radius = holder.radius();
                 if (!qFuzzyCompare(sphereGeometry.radius, radius)) {
                     auto geom = QDebugDrawHelper::generateSphereGeometry(sphereGeometry.radius);
+                    geom->setParent(model);
                     model->setGeometry(geom);
                     holder.setRadius(sphereGeometry.radius);
                 }
@@ -1453,6 +1455,7 @@ void QPhysicsWorld::updateDebugDraw()
                     || !qFuzzyCompare(capsuleGeometry.halfHeight, halfHeight)) {
                     auto geom = QDebugDrawHelper::generateCapsuleGeometry(
                             capsuleGeometry.radius, capsuleGeometry.halfHeight);
+                    geom->setParent(model);
                     model->setGeometry(geom);
                     holder.setRadius(capsuleGeometry.radius);
                     holder.setHalfHeight(capsuleGeometry.halfHeight);
@@ -1470,6 +1473,7 @@ void QPhysicsWorld::updateDebugDraw()
 
                 if (model->geometry() == nullptr) {
                     auto geom = QDebugDrawHelper::generatePlaneGeometry();
+                    geom->setParent(model);
                     model->setGeometry(geom);
                 }
             }
@@ -1489,6 +1493,7 @@ void QPhysicsWorld::updateDebugDraw()
                     auto geom = QDebugDrawHelper::generateHeightFieldGeometry(
                             heightFieldGeometry.heightField, heightFieldGeometry.heightScale,
                             heightFieldGeometry.rowScale, heightFieldGeometry.columnScale);
+                    geom->setParent(model);
                     model->setGeometry(geom);
                     holder.setHeightScale(heightFieldGeometry.heightScale);
                     holder.setRowScale(heightFieldGeometry.rowScale);
@@ -1507,6 +1512,7 @@ void QPhysicsWorld::updateDebugDraw()
                 if (model->geometry() == nullptr) {
                     auto geom = QDebugDrawHelper::generateConvexMeshGeometry(
                             convexMeshGeometry.convexMesh);
+                    geom->setParent(model);
                     model->setGeometry(geom);
                 }
             }
@@ -1522,6 +1528,7 @@ void QPhysicsWorld::updateDebugDraw()
                 if (model->geometry() == nullptr) {
                     auto geom = QDebugDrawHelper::generateTriangleMeshGeometry(
                             triangleMeshGeometry.triangleMesh);
+                    geom->setParent(model);
                     model->setGeometry(geom);
                 }
             }
