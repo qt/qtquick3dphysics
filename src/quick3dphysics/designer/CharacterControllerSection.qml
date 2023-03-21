@@ -168,5 +168,21 @@ Section {
 
             ExpandingSpacer {}
         }
+
+        PropertyLabel {
+            text: "Enable ShapeHit Callback"
+            tooltip: "Enables the shapeHit callback for this character controller."
+        }
+
+        SecondColumnLayout {
+            CheckBox {
+                text: backendValues.midAirControl.valueToString
+                backendValue: backendValues.midAirControl
+                implicitWidth: StudioTheme.Values.twoControlColumnWidth
+                                + StudioTheme.Values.actionIndicatorWidth
+            }
+
+            ExpandingSpacer {}
+        }
     }
 }

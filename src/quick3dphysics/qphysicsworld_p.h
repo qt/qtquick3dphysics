@@ -196,6 +196,7 @@ private:
     friend class QHeightFieldShape;
     friend class QQuick3DPhysicsHeightField;
     friend class SimulationEventCallback;
+    friend class ControllerCallback;
     static physx::PxPhysics *getPhysics();
     static physx::PxCooking *getCooking();
     QThread m_workerThread;

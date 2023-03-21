@@ -357,6 +357,35 @@ private:
     QPhysicsWorld *world = nullptr;
 };
 
+class ControllerCallback : public physx::PxUserControllerHitReport
+{
+public:
+    ControllerCallback(QPhysicsWorld *worldIn) : world(worldIn) { }
+
+    void onShapeHit(const physx::PxControllerShapeHit &hit) override
+    {
+        QMutexLocker locker(&world->m_removedPhysicsNodesMutex);
+
+        QAbstractPhysicsNode *other = static_cast<QAbstractPhysicsNode *>(hit.actor->userData);
+        QCharacterController *trigger =
+                static_cast<QCharacterController *>(hit.controller->getUserData());
+
+        if (!trigger || !other || !trigger->enableShapeHitCallback())
+            return;
+
+        QVector3D position = QPhysicsUtils::toQtType(physx::toVec3(hit.worldPos));
+        QVector3D impulse = QPhysicsUtils::toQtType(hit.dir * hit.length);
+        QVector3D normal = QPhysicsUtils::toQtType(hit.worldNormal);
+
+        emit trigger->shapeHit(other, position, impulse, normal);
+    }
+    void onControllerHit(const physx::PxControllersHit & /*hit*/) override { }
+    void onObstacleHit(const physx::PxControllerObstacleHit & /*hit*/) override { }
+
+private:
+    QPhysicsWorld *world = nullptr;
+};
+
 #define PHYSX_RELEASE(x)                                                                           \
     if (x != nullptr) {                                                                            \
         x->release();                                                                              \
@@ -555,6 +584,7 @@ public:
 
 private:
     physx::PxCapsuleController *controller = nullptr;
+    ControllerCallback *reportCallback = nullptr;
 };
 
 class QPhysXActorBody : public QAbstractPhysXNode
@@ -706,6 +736,8 @@ void QPhysXActorBody::init(QPhysicsWorld *, PhysXWorld *physX)
 void QPhysXCharacterController::cleanup(PhysXWorld *physX)
 {
     PHYSX_RELEASE(controller);
+    delete reportCallback;
+    reportCallback = nullptr;
     QAbstractPhysXNode::cleanup(physX);
 }
 
@@ -737,6 +769,8 @@ void QPhysXCharacterController::init(QPhysicsWorld *world, PhysXWorld *physX)
     const qreal heightScale = scale.y();
     const qreal radiusScale = scale.x();
     physx::PxCapsuleControllerDesc desc;
+    reportCallback = new ControllerCallback(world);
+    desc.reportCallback = reportCallback;
     desc.radius = 0.5f * radiusScale * capsule->diameter();
     desc.height = heightScale * capsule->height();
     desc.stepOffset = 0.25f * desc.height; // TODO: API
@@ -752,6 +786,8 @@ void QPhysXCharacterController::init(QPhysicsWorld *world, PhysXWorld *physX)
         qWarning() << "QtQuick3DPhysics internal error: could not create controller.";
         return;
     }
+
+    controller->setUserData(static_cast<void *>(frontendNode));
 
     auto *actor = controller->getActor();
     if (actor)

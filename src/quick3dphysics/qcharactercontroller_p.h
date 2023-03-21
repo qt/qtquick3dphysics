@@ -30,6 +30,8 @@ class Q_QUICK3DPHYSICS_EXPORT QCharacterController : public QAbstractPhysicsBody
     Q_PROPERTY(bool midAirControl READ midAirControl WRITE setMidAirControl NOTIFY
                        midAirControlChanged)
     Q_PROPERTY(Collisions collisions READ collisions NOTIFY collisionsChanged)
+    Q_PROPERTY(bool enableShapeHitCallback READ enableShapeHitCallback WRITE
+                       setEnableShapeHitCallback NOTIFY enableShapeHitCallbackChanged)
     QML_NAMED_ELEMENT(CharacterController)
 public:
     QCharacterController();
@@ -58,6 +60,9 @@ public:
     const Collisions &collisions() const;
     void setCollisions(const Collisions &newCollisions);
 
+    Q_REVISION(6, 5) bool enableShapeHitCallback() const;
+    Q_REVISION(6, 5) void setEnableShapeHitCallback(bool newEnableShapeHitCallback);
+
 signals:
     void movementChanged();
     void gravityChanged();
@@ -65,6 +70,9 @@ signals:
     void midAirControlChanged();
 
     void collisionsChanged();
+    void enableShapeHitCallbackChanged();
+    void shapeHit(QAbstractPhysicsNode *body, const QVector3D &position, const QVector3D &impulse,
+                  const QVector3D &normal);
 
 private:
     QVector3D m_movement;
@@ -76,6 +84,7 @@ private:
     QVector3D m_teleportPosition;
     bool m_teleport = false;
     Collisions m_collisions;
+    bool m_enableShapeHitCallback = false;
 };
 
 Q_DECLARE_OPERATORS_FOR_FLAGS(QCharacterController::Collisions)

@@ -90,9 +90,31 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
+    \qmlproperty bool CharacterController::enableShapeHitCallback
+    \since 6.6
+
+    This property enables/disables the \l {CharacterController::shapeHit} callback for this
+    character controller.
+
+    Default value: false
+*/
+
+/*!
     \qmlmethod CharacterController::teleport(vector3d position)
     Immediately move the character to \a position without checking for collisions.
     The caller is responsible for avoiding overlap with static objects.
+*/
+
+/*!
+    \qmlsignal CharacterController::shapeHit(PhysicsNode *body, vector3D position, vector3D impulse,
+    vector3D normal)
+    \since 6.6
+
+    This signal is emitted when \l {CharacterController::move} has been called and it would result
+    in a collision with a \l {DynamicRigidBody} or a \l {StaticRigidBody} and
+    \l {CharacterController::} {enableShapeHitCallback} is set to \c true.
+    The parameters \a body, \a position, \a impulse and \a normal contain the body, position,
+    impulse force and normal for the contact point.
 */
 
 QCharacterController::QCharacterController() = default;
@@ -231,6 +253,19 @@ void QCharacterController::setCollisions(const Collisions &newCollisions)
         return;
     m_collisions = newCollisions;
     emit collisionsChanged();
+}
+
+bool QCharacterController::enableShapeHitCallback() const
+{
+    return m_enableShapeHitCallback;
+}
+
+void QCharacterController::setEnableShapeHitCallback(bool newEnableShapeHitCallback)
+{
+    if (m_enableShapeHitCallback == newEnableShapeHitCallback)
+        return;
+    m_enableShapeHitCallback = newEnableShapeHitCallback;
+    emit enableShapeHitCallbackChanged();
 }
 
 QT_END_NAMESPACE
