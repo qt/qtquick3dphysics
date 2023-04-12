@@ -20,6 +20,8 @@ if(QT_BUILD_TESTS OR QT_BUILD_STANDALONE_TESTS)
     find_package(Qt6 ${PROJECT_VERSION} CONFIG REQUIRED COMPONENTS QuickTest)
 endif()
 
+qt_internal_project_setup()
+
 if(INTEGRITY OR QNX OR VXWORKS OR WATCHOS)
     message(NOTICE "Skipping the build as the condition \"NOT INTEGRITY AND NOT QNX AND NOT VXWORKS AND NOT WATCHOS\" is not met.")
     return()
