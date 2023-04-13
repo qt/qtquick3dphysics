@@ -580,8 +580,8 @@ void CapsuleGeometry::updateData()
     setVertexData(vertexData);
     setIndexData(indexData);
 
-    setBounds(QVector3D(-radius, -radius - 0.5f * m_height, -radius),
-              QVector3D(radius, radius + 0.5f * m_height, radius));
+    setBounds(QVector3D(-radius - 0.5f * m_height, -radius, -radius),
+              QVector3D(radius + 0.5f * m_height, radius, radius));
 }
 
 QT_END_NAMESPACE
