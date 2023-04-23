@@ -146,7 +146,7 @@ Window {
                 collisionShapes: PlaneShape {}
                 Model {
                     source: "#Rectangle"
-                    scale: Qt.vector3d(5, 5, 0)
+                    scale: Qt.vector3d(5, 5, 1)
                     materials: DefaultMaterial {
                         diffuseColor: "green"
                     }
