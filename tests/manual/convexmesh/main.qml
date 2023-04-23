@@ -57,7 +57,7 @@ ApplicationWindow {
 
             Model {
                 source: "#Rectangle"
-                scale: Qt.vector3d(0.3, 0.3, 0.3)
+                scale: Qt.vector3d(0.3, 0.3, 1)
                 materials: DefaultMaterial {
                     diffuseColor: "green"
                 }
@@ -77,7 +77,7 @@ ApplicationWindow {
             }
             Model {
                 source: "#Rectangle"
-                scale: Qt.vector3d(0.3, 0.3, 0.3)
+                scale: Qt.vector3d(0.3, 0.3, 1)
                 materials: PrincipledMaterial {
                     baseColor: "gray"
                     cullMode: Material.NoCulling

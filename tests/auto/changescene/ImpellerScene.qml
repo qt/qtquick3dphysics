@@ -34,7 +34,7 @@ View3D {
         collisionShapes: PlaneShape {}
         Model {
             source: "#Rectangle"
-            scale: Qt.vector3d(500, 500, 0)
+            scale: Qt.vector3d(500, 500, 1)
             materials: PrincipledMaterial {
                 baseColor: "green"
             }
