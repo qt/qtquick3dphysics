@@ -112,13 +112,42 @@ Item {
 
             sendTriggerReports: true
 
+            Connections {
+                target: world
+                property real totalAnimationTime: 5000
+                function onFrameDone(timeStep) {
+                    let progressStep = timeStep / totalAnimationTime
+                    animationController.progress += progressStep
+                    if (animationController.progress >= 1) {
+                        animationController.completeToEnd()
+                    }
+                }
+            }
+
+            AnimationController {
+                id: animationController
+                animation: ParallelAnimation {
+                    NumberAnimation {
+                        target: capsuleShape
+                        property: "height"
+                        to: 2
+                        from: 1
+                        duration: 5000
+                    }
+                    NumberAnimation {
+                        target: capsuleShape
+                        property: "diameter"
+                        to: 3
+                        from: 1
+                        duration: 3000
+                    }
+                }
+            }
+
             collisionShapes:  CapsuleShape {
                 id: capsuleShape
                 height: 1
                 diameter: 1
-
-                NumberAnimation on height { to: 2; duration: 5000 }
-                NumberAnimation on diameter { to: 3; duration: 3000 }
             }
 
             movement.x: -1;
