@@ -186,8 +186,9 @@ static physx::PxTransform getPhysXLocalTransform(const QQuick3DNode *node)
     }
 
     const QQuaternion &rotation = node->rotation();
-    const QVector3D &worldPosition = node->position();
-    return physx::PxTransform(QPhysicsUtils::toPhysXType(worldPosition),
+    const QVector3D &localPosition = node->position();
+    const QVector3D &scale = node->sceneScale();
+    return physx::PxTransform(QPhysicsUtils::toPhysXType(localPosition * scale),
                               QPhysicsUtils::toPhysXType(rotation));
 }
 
