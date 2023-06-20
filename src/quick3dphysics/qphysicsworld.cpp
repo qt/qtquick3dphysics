@@ -1386,7 +1386,7 @@ void QPhysicsWorld::updateDebugDraw()
     m_hasIndividualDebugDraw = false;
 
     // Store the collision shapes we have now so we can clear out the removed ones
-    QSet<QAbstractCollisionShape *> currentCollisionShapes;
+    QSet<QPair<QAbstractCollisionShape *, QAbstractPhysXNode *>> currentCollisionShapes;
     currentCollisionShapes.reserve(m_collisionShapeDebugModels.size());
 
     for (QAbstractPhysXNode *node : m_physXBodies) {
@@ -1400,14 +1400,16 @@ void QPhysicsWorld::updateDebugDraw()
             continue; // CharacterController has shapes, but not PhysX shapes
         for (int idx = 0; idx < length; idx++) {
             const auto collisionShape = collisionShapes[idx];
-            const auto physXShape = node->shapes[idx];
-            DebugModelHolder &holder = m_collisionShapeDebugModels[collisionShape];
-            auto &model = holder.model;
 
             if (!m_forceDebugDraw && !collisionShape->enableDebugDraw())
                 continue;
 
-            currentCollisionShapes.insert(collisionShape);
+            const auto physXShape = node->shapes[idx];
+            DebugModelHolder &holder =
+                m_collisionShapeDebugModels[std::make_pair(collisionShape, node)];
+            auto &model = holder.model;
+
+            currentCollisionShapes.insert(std::make_pair(collisionShape, node));
 
             m_hasIndividualDebugDraw =
                     m_hasIndividualDebugDraw || collisionShape->enableDebugDraw();
@@ -1569,10 +1571,10 @@ void QPhysicsWorld::updateDebugDraw()
 
     // Remove old collision shapes
     m_collisionShapeDebugModels.removeIf(
-            [&](QHash<QAbstractCollisionShape *, DebugModelHolder>::iterator it) {
-                auto shape = it.key();
-                auto holder = it.value();
-                if (!currentCollisionShapes.contains(shape)) {
+            [&](QHash<QPair<QAbstractCollisionShape *, QAbstractPhysXNode *>,
+                      DebugModelHolder>::iterator it) {
+                if (!currentCollisionShapes.contains(it.key())) {
+                    auto holder = it.value();
                     if (holder.model)
                         delete holder.model;
                     return true;
