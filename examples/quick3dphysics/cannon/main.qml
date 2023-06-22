@@ -75,7 +75,7 @@ Window {
             property var boxComponent: Qt.createComponent("Box.qml")
             property var sphereComponent: Qt.createComponent("Sphere.qml")
 
-            function createStack(stackZ) {
+            function createStack(stackZ, numStacks) {
                 let size = 10
                 let extents = 400
 
@@ -83,17 +83,13 @@ Window {
                     for (var j = 0; j < size - i; j++) {
                         let x = j * 2 - size + i
                         let y = i * 2 + 1
-                        let z = -5 * stackZ
+                        let z = 5 * (stackZ - numStacks)
                         let center = Qt.vector3d(x, y, z).times(0.5 * extents)
-                        let box = boxComponent.createObject(shapeSpawner, {
-                                                                "position": center,
-                                                                "xyzExtents": extents
-                                                            })
+                        let box = boxComponent.incubateObject(shapeSpawner, {
+                                                                  "position": center,
+                                                                  "xyzExtents": extents
+                                                              })
                         instancesBoxes.push(box)
-
-                        if (box === null) {
-                            console.log("Error creating object")
-                        }
                     }
                 }
             }
@@ -115,19 +111,24 @@ Window {
             }
 
             function reset() {
+                // Only run method if previous stack has been created fully
+                for (var i = 0; i < instancesBoxes.length; i++)
+                    if (!instancesBoxes[i].object)
+                        return
+
                 instancesSpheres.forEach(sphere => {
                                              sphere.collisionShapes = {}
                                              sphere.destroy()
                                          })
                 instancesBoxes.forEach(box => {
-                                           box.collisionShapes = {}
-                                           box.destroy()
+                                           box.object.collisionShapes = {}
+                                           box.object.destroy()
                                        })
                 instancesSpheres = []
                 instancesBoxes = []
 
                 for (var stackI = 0; stackI < stackSlider.value; stackI++) {
-                    shapeSpawner.createStack(stackI)
+                    shapeSpawner.createStack(stackI, stackSlider.value)
                 }
             }
         }
