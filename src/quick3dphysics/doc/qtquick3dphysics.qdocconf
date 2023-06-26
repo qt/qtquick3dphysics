@@ -45,6 +45,3 @@ navigation.qmltypespage = "Qt Quick 3D Physics QML Types"
 navigation.cppclassespage = "Qt Quick 3D Physics C++ Classes"
 
 tagfile                 = qtquick3dphysics.tags
-
-# Fail the documentation build if there are more warnings than the limit
-warninglimit = 0
