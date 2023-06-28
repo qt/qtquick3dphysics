@@ -13,9 +13,9 @@ Qt Quick 3D Physics provides the following QML types:
 
 Import the QtQuick3D.Physics module with the following statement:
 
-\code
+\qml
 import QtQuick3D.Physics
-\endcode
+\endqml
 
 \generatelist qmltypesbymodule QtQuick3D.Physics
 
