@@ -40,6 +40,7 @@ qt_internal_add_qml_module(Quick3DPhysics
     DEFINES
         QT_BUILD_QUICK3DPHYSICS_LIB
         PX_PHYSX_STATIC_LIB
+        QT_NO_CONTEXTLESS_CONNECT
     SYSTEM_INCLUDE_DIRECTORIES
         ../3rdparty/PhysX/include
         ../3rdparty/PhysX/pxshared/include
