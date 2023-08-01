@@ -38,6 +38,7 @@
 // - method 2 if the box is an OBB (SWEEP_AABB_IMPL is undefined)
 
 #ifdef SWEEP_AABB_IMPL
+namespace {
 	// PT: TODO: refactor structure (TA34704)
 	struct RayParams
 	{
@@ -51,7 +52,7 @@
 	#endif
 		BV4_ALIGN16(Vec3p	mOrigin_Padded);		// PT: TODO: this one could be switched to PaddedAligned & V4LoadA (TA34704)
 	};
-
+}
 	#include "GuBV4_AABBAABBSweepTest.h"
 #else
 	#include "GuBV4_BoxBoxOverlapTest.h"
