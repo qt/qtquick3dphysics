@@ -13,7 +13,9 @@ qt_internal_add_qml_module(Quick3DPhysicsHelpers
     SOURCES
         qcapsulegeometry.cpp qcapsulegeometry_p.h
     DEPENDENCIES
-        QtQuick3DPhysics/auto
+        QtQuick3D.Physics/auto
+        QtQuick3D/auto
+        QtQuick/auto
     PAST_MAJOR_VERSIONS 1
     DEFINES
         QT_BUILD_QUICK3DPHYSICSHELPERS_LIB
