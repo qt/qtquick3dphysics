@@ -41,7 +41,7 @@ using namespace physx::shdfnd::aos;
 #include "GuInternal.h"
 
 #define SWEEP_AABB_IMPL
-
+namespace {
 	// PT: TODO: refactor structure (TA34704)
 	struct RayParams
 	{
@@ -55,7 +55,7 @@ using namespace physx::shdfnd::aos;
 	#endif
 		BV4_ALIGN16(Vec3p	mOrigin_Padded);		// PT: TODO: this one could be switched to PaddedAligned & V4LoadA (TA34704)
 	};
-
+}
 #include "GuBV4_BoxSweep_Params.h"
 
 namespace
