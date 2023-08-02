@@ -61,8 +61,8 @@ public:
     void setCollisions(const Collisions &newCollisions);
     QAbstractPhysXNode *createPhysXBackend() final;
 
-    Q_REVISION(6, 5) bool enableShapeHitCallback() const;
-    Q_REVISION(6, 5) void setEnableShapeHitCallback(bool newEnableShapeHitCallback);
+    Q_REVISION(6, 6) bool enableShapeHitCallback() const;
+    Q_REVISION(6, 6) void setEnableShapeHitCallback(bool newEnableShapeHitCallback);
 
 signals:
     void movementChanged();
