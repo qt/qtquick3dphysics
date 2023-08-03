@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #include "qtriggerbody_p.h"
+#include "physxnode/qphysxtriggerbody_p.h"
 
 QT_BEGIN_NAMESPACE
 
@@ -58,6 +59,11 @@ void QTriggerBody::deregisterCollision(QAbstractPhysicsNode *collision)
 int QTriggerBody::collisionCount() const
 {
     return m_collisions.count();
+}
+
+QAbstractPhysXNode *QTriggerBody::createPhysXBackend()
+{
+    return new QPhysXTriggerBody(this);
 }
 
 QT_END_NAMESPACE

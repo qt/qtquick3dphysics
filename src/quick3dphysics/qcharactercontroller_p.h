@@ -59,6 +59,7 @@ public:
 
     const Collisions &collisions() const;
     void setCollisions(const Collisions &newCollisions);
+    QAbstractPhysXNode *createPhysXBackend() final;
 
     Q_REVISION(6, 5) bool enableShapeHitCallback() const;
     Q_REVISION(6, 5) void setEnableShapeHitCallback(bool newEnableShapeHitCallback);
