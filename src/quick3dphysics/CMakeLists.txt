@@ -24,6 +24,7 @@ qt_internal_add_qml_module(Quick3DPhysics
         qcollisiondebugmeshbuilder.cpp qcollisiondebugmeshbuilder_p.h
         qconvexmeshshape.cpp qconvexmeshshape_p.h
         qdebugdrawhelper.cpp qdebugdrawhelper_p.h
+        qdynamicrigidbody.cpp qdynamicrigidbody_p.h
         qheightfieldshape.cpp qheightfieldshape_p.h
         qphysicscommands.cpp qphysicscommands_p.h
         qphysicsmaterial.cpp qphysicsmaterial_p.h
@@ -31,12 +32,12 @@ qt_internal_add_qml_module(Quick3DPhysics
         qphysicsutils_p.h
         qphysicsworld.cpp qphysicsworld_p.h
         qplaneshape.cpp qplaneshape_p.h
-        qrigidbody.cpp qrigidbody_p.h
         qsphereshape.cpp qsphereshape_p.h
         qtquick3dphysicsglobal_p.h
         qtquick3dphysicsglobal.h
         qtrianglemeshshape.cpp qtrianglemeshshape_p.h
         qtriggerbody.cpp qtriggerbody_p.h
+        qstaticrigidbody.cpp qstaticrigidbody_p.h
     DEFINES
         QT_BUILD_QUICK3DPHYSICS_LIB
         PX_PHYSX_STATIC_LIB
