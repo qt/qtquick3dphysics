@@ -33,6 +33,7 @@ public:
     void deregisterCollision(QAbstractPhysicsNode *collision);
 
     int collisionCount() const;
+    QAbstractPhysXNode *createPhysXBackend() final;
 
 Q_SIGNALS:
     void bodyEntered(QAbstractPhysicsNode *body);

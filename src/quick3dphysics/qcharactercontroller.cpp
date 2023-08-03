@@ -3,6 +3,8 @@
 
 #include "qcharactercontroller_p.h"
 
+#include "physxnode/qphysxcharactercontroller_p.h"
+
 QT_BEGIN_NAMESPACE
 
 /*!
@@ -258,6 +260,11 @@ void QCharacterController::setCollisions(const Collisions &newCollisions)
 bool QCharacterController::enableShapeHitCallback() const
 {
     return m_enableShapeHitCallback;
+}
+
+QAbstractPhysXNode *QCharacterController::createPhysXBackend()
+{
+    return new QPhysXCharacterController(this);
 }
 
 void QCharacterController::setEnableShapeHitCallback(bool newEnableShapeHitCallback)
