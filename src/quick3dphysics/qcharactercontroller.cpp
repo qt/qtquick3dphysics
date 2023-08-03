@@ -3,6 +3,8 @@
 
 #include "qcharactercontroller_p.h"
 
+#include "physxnode/qphysxcharactercontroller_p.h"
+
 QT_BEGIN_NAMESPACE
 
 /*!
@@ -231,6 +233,11 @@ void QCharacterController::setCollisions(const Collisions &newCollisions)
         return;
     m_collisions = newCollisions;
     emit collisionsChanged();
+}
+
+QAbstractPhysXNode *QCharacterController::createPhysXBackend()
+{
+    return new QPhysXCharacterController(this);
 }
 
 QT_END_NAMESPACE

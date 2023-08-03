@@ -57,6 +57,7 @@ public:
 
     const Collisions &collisions() const;
     void setCollisions(const Collisions &newCollisions);
+    QAbstractPhysXNode *createPhysXBackend() final;
 
 signals:
     void movementChanged();

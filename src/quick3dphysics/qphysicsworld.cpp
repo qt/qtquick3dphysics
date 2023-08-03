@@ -5,18 +5,12 @@
 
 #include "physxnode/qabstractphysxnode_p.h"
 #include "physxnode/qphysxworld_p.h"
-#include "physxnode/qphysxcharactercontroller_p.h"
-#include "physxnode/qphysxstaticbody_p.h"
-#include "physxnode/qphysxtriggerbody_p.h"
-#include "physxnode/qphysxdynamicbody_p.h"
 #include "qabstractphysicsnode_p.h"
 #include "qdebugdrawhelper_p.h"
 #include "qphysicsutils_p.h"
 #include "qtriggerbody_p.h"
-#include "qdynamicrigidbody_p.h"
 #include "qstaticrigidbody_p.h"
 #include "qstaticphysxobjects_p.h"
-#include "qcharactercontroller_p.h"
 
 #include "PxPhysicsAPI.h"
 #include "cooking/PxCooking.h"
@@ -145,24 +139,6 @@ QT_BEGIN_NAMESPACE
 Q_LOGGING_CATEGORY(lcQuick3dPhysics, "qt.quick3d.physics");
 
 static const QQuaternion kMinus90YawRotation = QQuaternion::fromEulerAngles(0, -90, 0);
-
-class QPhysXFactory
-{
-public:
-    static QAbstractPhysXNode *createBackend(QAbstractPhysicsNode *node)
-    { // TODO: virtual function in QAbstractPhysicsNode??
-
-        if (auto *rigidBody = qobject_cast<QDynamicRigidBody *>(node))
-            return new QPhysXDynamicBody(rigidBody);
-        if (auto *staticBody = qobject_cast<QStaticRigidBody *>(node))
-            return new QPhysXStaticBody(staticBody);
-        if (auto *triggerBody = qobject_cast<QTriggerBody *>(node))
-            return new QPhysXTriggerBody(triggerBody);
-        if (auto *controller = qobject_cast<QCharacterController *>(node))
-            return new QPhysXCharacterController(controller);
-        Q_UNREACHABLE();
-    }
-};
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -781,7 +757,7 @@ void QPhysicsWorld::frameFinished(float deltaTime)
     matchOrphanNodes();
     cleanupRemovedNodes();
     for (auto *node : std::as_const(m_newPhysicsNodes)) {
-        auto *body = QPhysXFactory::createBackend(node);
+        auto *body = node->createPhysXBackend();
         body->init(this, m_physx);
         m_physXBodies.push_back(body);
     }

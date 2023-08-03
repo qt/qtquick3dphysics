@@ -3,6 +3,8 @@
 
 #include "qstaticrigidbody_p.h"
 
+#include "physxnode/qphysxstaticbody_p.h"
+
 QT_BEGIN_NAMESPACE
 
 /*!
@@ -20,5 +22,10 @@ QT_BEGIN_NAMESPACE
 */
 
 QStaticRigidBody::QStaticRigidBody() = default;
+
+QAbstractPhysXNode *QStaticRigidBody::createPhysXBackend()
+{
+    return new QPhysXStaticBody(this);
+}
 
 QT_END_NAMESPACE

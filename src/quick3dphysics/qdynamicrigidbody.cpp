@@ -4,6 +4,7 @@
 #include "qdynamicrigidbody_p.h"
 #include "qphysicscommands_p.h"
 #include "qphysicsworld_p.h"
+#include "physxnode/qphysxdynamicbody_p.h"
 
 QT_BEGIN_NAMESPACE
 
@@ -635,6 +636,11 @@ void QDynamicRigidBody::setKinematicPivot(const QVector3D &pivot)
 QVector3D QDynamicRigidBody::kinematicPivot() const
 {
     return m_kinematicPivot;
+}
+
+QAbstractPhysXNode *QDynamicRigidBody::createPhysXBackend()
+{
+    return new QPhysXDynamicBody(this);
 }
 
 void QDynamicRigidBody::setKinematicPosition(const QVector3D &position)

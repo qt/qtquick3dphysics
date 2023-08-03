@@ -156,6 +156,8 @@ public:
     Q_REVISION(6, 5) void setKinematicPivot(const QVector3D &pivot);
     Q_REVISION(6, 5) QVector3D kinematicPivot() const;
 
+    QAbstractPhysXNode *createPhysXBackend() final;
+
 Q_SIGNALS:
     void massChanged(float mass);
     void densityChanged(float density);

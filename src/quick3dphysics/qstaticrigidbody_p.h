@@ -26,6 +26,7 @@ class Q_QUICK3DPHYSICS_EXPORT QStaticRigidBody : public QAbstractPhysicsBody
     QML_NAMED_ELEMENT(StaticRigidBody)
 public:
     QStaticRigidBody();
+    QAbstractPhysXNode *createPhysXBackend() final;
 };
 
 QT_END_NAMESPACE

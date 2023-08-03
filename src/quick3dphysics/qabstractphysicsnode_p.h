@@ -72,6 +72,8 @@ public:
 
     bool hasStaticShapes() const { return m_hasStaticShapes; }
 
+    virtual QAbstractPhysXNode *createPhysXBackend() = 0;
+
 private Q_SLOTS:
     void onShapeDestroyed(QObject *object);
     void onShapeNeedsRebuild(QObject *object);
