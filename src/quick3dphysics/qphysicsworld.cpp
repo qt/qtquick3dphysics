@@ -8,7 +8,8 @@
 #include "qabstractphysicsnode_p.h"
 #include "qphysicsutils_p.h"
 #include "qtriggerbody_p.h"
-#include "qrigidbody_p.h"
+#include "qdynamicrigidbody_p.h"
+#include "qstaticrigidbody_p.h"
 #include "qplaneshape_p.h"
 #include "qphysicscommands_p.h"
 

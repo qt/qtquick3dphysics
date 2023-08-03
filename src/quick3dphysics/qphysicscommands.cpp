@@ -4,7 +4,7 @@
 #include "qphysicsworld_p.h"
 #include "qphysicscommands_p.h"
 #include "qphysicsutils_p.h"
-#include "qrigidbody_p.h"
+#include "qdynamicrigidbody_p.h"
 #include "PxPhysicsAPI.h"
 
 QT_BEGIN_NAMESPACE

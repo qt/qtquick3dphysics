@@ -1,8 +1,8 @@
 // Copyright (C) 2021 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
-#ifndef RIGIDBODY_H
-#define RIGIDBODY_H
+#ifndef DYNAMICRIGIDBODY_H
+#define DYNAMICRIGIDBODY_H
 
 //
 //  W A R N I N G
@@ -194,14 +194,6 @@ private:
     QVector3D m_kinematicPivot;
 };
 
-class Q_QUICK3DPHYSICS_EXPORT QStaticRigidBody : public QAbstractPhysicsBody
-{
-    Q_OBJECT
-    QML_NAMED_ELEMENT(StaticRigidBody)
-public:
-    QStaticRigidBody();
-};
-
 QT_END_NAMESPACE
 
-#endif // RIGIDBODY_H
+#endif // DYNAMICRIGIDBODY_H
