@@ -5,6 +5,7 @@
 #include "qdebugdrawhelper_p.h"
 #include "qphysicsworld_p.h"
 
+#include "physxnode/qphysxworld_p.h"
 #include "qabstractphysicsnode_p.h"
 #include "qphysicsutils_p.h"
 #include "qtriggerbody_p.h"
@@ -186,280 +187,11 @@ static physx::PxTransform getPhysXLocalTransform(const QQuick3DNode *node)
                               QPhysicsUtils::toPhysXType(rotation));
 }
 
-static physx::PxFilterFlags
-contactReportFilterShader(physx::PxFilterObjectAttributes /*attributes0*/,
-                          physx::PxFilterData /*filterData0*/,
-                          physx::PxFilterObjectAttributes /*attributes1*/,
-                          physx::PxFilterData /*filterData1*/, physx::PxPairFlags &pairFlags,
-                          const void * /*constantBlock*/, physx::PxU32 /*constantBlockSize*/)
-{
-    // Makes objects collide
-    const auto defaultCollisonFlags =
-            physx::PxPairFlag::eSOLVE_CONTACT | physx::PxPairFlag::eDETECT_DISCRETE_CONTACT;
-
-    // For trigger body detection
-    const auto notifyTouchFlags =
-            physx::PxPairFlag::eNOTIFY_TOUCH_FOUND | physx::PxPairFlag::eNOTIFY_TOUCH_LOST;
-
-    // For contact detection
-    const auto notifyContactFlags = physx::PxPairFlag::eNOTIFY_CONTACT_POINTS;
-
-    pairFlags = defaultCollisonFlags | notifyTouchFlags | notifyContactFlags;
-    return physx::PxFilterFlag::eDEFAULT;
-}
-
-static physx::PxFilterFlags
-contactReportFilterShaderCCD(physx::PxFilterObjectAttributes /*attributes0*/,
-                             physx::PxFilterData /*filterData0*/,
-                             physx::PxFilterObjectAttributes /*attributes1*/,
-                             physx::PxFilterData /*filterData1*/, physx::PxPairFlags &pairFlags,
-                             const void * /*constantBlock*/, physx::PxU32 /*constantBlockSize*/)
-{
-    // Makes objects collide
-    const auto defaultCollisonFlags = physx::PxPairFlag::eSOLVE_CONTACT
-            | physx::PxPairFlag::eDETECT_DISCRETE_CONTACT | physx::PxPairFlag::eDETECT_CCD_CONTACT;
-
-    // For trigger body detection
-    const auto notifyTouchFlags =
-            physx::PxPairFlag::eNOTIFY_TOUCH_FOUND | physx::PxPairFlag::eNOTIFY_TOUCH_LOST;
-
-    // For contact detection
-    const auto notifyContactFlags = physx::PxPairFlag::eNOTIFY_CONTACT_POINTS;
-
-    pairFlags = defaultCollisonFlags | notifyTouchFlags | notifyContactFlags;
-    return physx::PxFilterFlag::eDEFAULT;
-}
-
-class SimulationEventCallback : public physx::PxSimulationEventCallback
-{
-public:
-    SimulationEventCallback(QPhysicsWorld *worldIn) : world(worldIn) {};
-    virtual ~SimulationEventCallback() = default;
-
-    void onTrigger(physx::PxTriggerPair *pairs, physx::PxU32 count) override
-    {
-        QMutexLocker locker(&world->m_removedPhysicsNodesMutex);
-
-        for (physx::PxU32 i = 0; i < count; i++) {
-            // ignore pairs when shapes have been deleted
-            if (pairs[i].flags
-                & (physx::PxTriggerPairFlag::eREMOVED_SHAPE_TRIGGER
-                   | physx::PxTriggerPairFlag::eREMOVED_SHAPE_OTHER))
-                continue;
-
-            QTriggerBody *triggerNode =
-                    static_cast<QTriggerBody *>(pairs[i].triggerActor->userData);
-
-            QAbstractPhysicsNode *otherNode =
-                    static_cast<QAbstractPhysicsNode *>(pairs[i].otherActor->userData);
-
-            if (!triggerNode || !otherNode) {
-                qWarning() << "QtQuick3DPhysics internal error: null pointer in trigger collision.";
-                continue;
-            }
-
-            if (world->isNodeRemoved(triggerNode) || world->isNodeRemoved(otherNode))
-                continue;
-
-            if (pairs->status == physx::PxPairFlag::eNOTIFY_TOUCH_FOUND) {
-                if (otherNode->sendTriggerReports()) {
-                    triggerNode->registerCollision(otherNode);
-                }
-                if (otherNode->receiveTriggerReports()) {
-                    emit otherNode->enteredTriggerBody(triggerNode);
-                }
-            } else if (pairs->status == physx::PxPairFlag::eNOTIFY_TOUCH_LOST) {
-                if (otherNode->sendTriggerReports()) {
-                    triggerNode->deregisterCollision(otherNode);
-                }
-                if (otherNode->receiveTriggerReports()) {
-                    emit otherNode->exitedTriggerBody(triggerNode);
-                }
-            }
-        }
-    }
-
-    void onConstraintBreak(physx::PxConstraintInfo * /*constraints*/,
-                           physx::PxU32 /*count*/) override {};
-    void onWake(physx::PxActor ** /*actors*/, physx::PxU32 /*count*/) override {};
-    void onSleep(physx::PxActor ** /*actors*/, physx::PxU32 /*count*/) override {};
-    void onContact(const physx::PxContactPairHeader &pairHeader, const physx::PxContactPair *pairs,
-                   physx::PxU32 nbPairs) override
-    {
-        QMutexLocker locker(&world->m_removedPhysicsNodesMutex);
-        constexpr physx::PxU32 bufferSize = 64;
-        physx::PxContactPairPoint contacts[bufferSize];
-
-        for (physx::PxU32 i = 0; i < nbPairs; i++) {
-            const physx::PxContactPair &contactPair = pairs[i];
-
-            if (contactPair.events & physx::PxPairFlag::eNOTIFY_TOUCH_FOUND) {
-                QAbstractPhysicsNode *trigger =
-                        static_cast<QAbstractPhysicsNode *>(pairHeader.actors[0]->userData);
-                QAbstractPhysicsNode *other =
-                        static_cast<QAbstractPhysicsNode *>(pairHeader.actors[1]->userData);
-
-                if (!trigger || !other || !trigger->m_backendObject || !other->m_backendObject
-                    || world->isNodeRemoved(trigger) || world->isNodeRemoved(other))
-                    continue;
-
-                const bool triggerReceive =
-                        trigger->receiveContactReports() && other->sendContactReports();
-                const bool otherReceive =
-                        other->receiveContactReports() && trigger->sendContactReports();
-
-                if (!triggerReceive && !otherReceive)
-                    continue;
-
-                physx::PxU32 nbContacts = pairs[i].extractContacts(contacts, bufferSize);
-
-                QList<QVector3D> positions;
-                QList<QVector3D> impulses;
-                QList<QVector3D> normals;
-
-                positions.reserve(nbContacts);
-                impulses.reserve(nbContacts);
-                normals.reserve(nbContacts);
-
-                for (physx::PxU32 j = 0; j < nbContacts; j++) {
-                    physx::PxVec3 position = contacts[j].position;
-                    physx::PxVec3 impulse = contacts[j].impulse;
-                    physx::PxVec3 normal = contacts[j].normal;
-
-                    positions.push_back(QPhysicsUtils::toQtType(position));
-                    impulses.push_back(QPhysicsUtils::toQtType(impulse));
-                    normals.push_back(QPhysicsUtils::toQtType(normal));
-                }
-
-                QList<QVector3D> normalsInverted;
-                normalsInverted.reserve(normals.size());
-                for (const QVector3D &v : normals) {
-                    normalsInverted.push_back(QVector3D(-v.x(), -v.y(), -v.z()));
-                }
-
-                if (triggerReceive)
-                    trigger->registerContact(other, positions, impulses, normals);
-                if (otherReceive)
-                    other->registerContact(trigger, positions, impulses, normalsInverted);
-            }
-        }
-    };
-    void onAdvance(const physx::PxRigidBody *const * /*bodyBuffer*/,
-                   const physx::PxTransform * /*poseBuffer*/,
-                   const physx::PxU32 /*count*/) override {};
-
-private:
-    QPhysicsWorld *world = nullptr;
-};
-
 #define PHYSX_RELEASE(x)                                                                           \
     if (x != nullptr) {                                                                            \
         x->release();                                                                              \
         x = nullptr;                                                                               \
     }
-
-struct PhysXWorld
-{
-    void createWorld()
-    {
-        auto& s_physx = StaticPhysXObjects::getReference();
-        s_physx.foundationRefCount++;
-
-        if (s_physx.foundationCreated)
-            return;
-
-        s_physx.foundation = PxCreateFoundation(
-                PX_PHYSICS_VERSION, s_physx.defaultAllocatorCallback, s_physx.defaultErrorCallback);
-        if (!s_physx.foundation)
-            qFatal("PxCreateFoundation failed!");
-
-        s_physx.foundationCreated = true;
-
-#if PHYSX_ENABLE_PVD
-        s_physx.pvd = PxCreatePvd(*m_physx->foundation);
-        s_physx.transport = physx::PxDefaultPvdSocketTransportCreate("qt", 5425, 10);
-        s_physx.pvd->connect(*m_physx->transport, physx::PxPvdInstrumentationFlag::eALL);
-#endif
-
-        // FIXME: does the tolerance matter?
-        s_physx.cooking = PxCreateCooking(PX_PHYSICS_VERSION, *s_physx.foundation,
-                                          physx::PxCookingParams(physx::PxTolerancesScale()));
-    }
-
-    void deleteWorld()
-    {
-        auto& s_physx = StaticPhysXObjects::getReference();
-        s_physx.foundationRefCount--;
-        if (s_physx.foundationRefCount == 0) {
-            PHYSX_RELEASE(controllerManager);
-            PHYSX_RELEASE(scene);
-            PHYSX_RELEASE(s_physx.dispatcher);
-            PHYSX_RELEASE(s_physx.cooking);
-            PHYSX_RELEASE(s_physx.transport);
-            PHYSX_RELEASE(s_physx.pvd);
-            PHYSX_RELEASE(s_physx.physics);
-            PHYSX_RELEASE(s_physx.foundation);
-
-            delete callback;
-            callback = nullptr;
-            s_physx.foundationCreated = false;
-            s_physx.physicsCreated = false;
-        } else {
-            delete callback;
-            callback = nullptr;
-            PHYSX_RELEASE(controllerManager);
-            PHYSX_RELEASE(scene);
-        }
-    }
-
-    void createScene(float typicalLength, float typicalSpeed, const QVector3D &gravity,
-                     bool enableCCD, QPhysicsWorld *physicsWorld)
-    {
-        if (scene) {
-            qWarning() << "Scene already created";
-            return;
-        }
-
-        physx::PxTolerancesScale scale;
-        scale.length = typicalLength;
-        scale.speed = typicalSpeed;
-
-        auto& s_physx = StaticPhysXObjects::getReference();
-
-        if (!s_physx.physicsCreated) {
-            constexpr bool recordMemoryAllocations = true;
-            s_physx.physics = PxCreatePhysics(PX_PHYSICS_VERSION, *s_physx.foundation, scale,
-                                              recordMemoryAllocations, s_physx.pvd);
-            if (!s_physx.physics)
-                qFatal("PxCreatePhysics failed!");
-            s_physx.dispatcher = physx::PxDefaultCpuDispatcherCreate(2);
-            s_physx.physicsCreated = true;
-        }
-
-        callback = new SimulationEventCallback(physicsWorld);
-
-        physx::PxSceneDesc sceneDesc(scale);
-        sceneDesc.gravity = QPhysicsUtils::toPhysXType(gravity);
-        sceneDesc.cpuDispatcher = s_physx.dispatcher;
-
-        if (enableCCD) {
-            sceneDesc.filterShader = contactReportFilterShaderCCD;
-            sceneDesc.flags |= physx::PxSceneFlag::eENABLE_CCD;
-        } else {
-            sceneDesc.filterShader = contactReportFilterShader;
-        }
-        sceneDesc.solverType = physx::PxSolverType::eTGS;
-        sceneDesc.simulationEventCallback = callback;
-
-        scene = s_physx.physics->createScene(sceneDesc);
-    }
-
-    // variables unique to each world/scene
-    physx::PxControllerManager *controllerManager = nullptr;
-    SimulationEventCallback *callback = nullptr;
-    physx::PxScene *scene = nullptr;
-    bool isRunning = false;
-};
 
 // Used for debug drawing
 enum class DebugDrawBodyType {
@@ -479,17 +211,17 @@ public:
     }
     virtual ~QAbstractPhysXNode() { }
 
-    bool cleanupIfRemoved(PhysXWorld *physX); // TODO rename??
+    bool cleanupIfRemoved(QPhysXWorld *physX); // TODO rename??
 
-    virtual void init(QPhysicsWorld *world, PhysXWorld *physX) = 0;
+    virtual void init(QPhysicsWorld *world, QPhysXWorld *physX) = 0;
     virtual void updateDefaultDensity(float /*density*/) { }
-    virtual void createMaterial(PhysXWorld *physX);
-    void createMaterialFromQtMaterial(PhysXWorld *physX, QPhysicsMaterial *qtMaterial);
+    virtual void createMaterial(QPhysXWorld *physX);
+    void createMaterialFromQtMaterial(QPhysXWorld *physX, QPhysicsMaterial *qtMaterial);
     virtual void markDirtyShapes() { }
-    virtual void rebuildDirtyShapes(QPhysicsWorld *, PhysXWorld *) { }
+    virtual void rebuildDirtyShapes(QPhysicsWorld *, QPhysXWorld *) { }
 
     virtual void sync(float deltaTime, QHash<QQuick3DNode *, QMatrix4x4> &transformCache) = 0;
-    virtual void cleanup(PhysXWorld *)
+    virtual void cleanup(QPhysXWorld *)
     {
         for (auto *shape : shapes)
             PHYSX_RELEASE(shape);
@@ -514,7 +246,7 @@ public:
 
 physx::PxMaterial *QAbstractPhysXNode::defaultMaterial = nullptr;
 
-bool QAbstractPhysXNode::cleanupIfRemoved(PhysXWorld *physX)
+bool QAbstractPhysXNode::cleanupIfRemoved(QPhysXWorld *physX)
 {
     if (isRemoved) {
         cleanup(physX);
@@ -528,11 +260,11 @@ class QPhysXCharacterController : public QAbstractPhysXNode
 {
 public:
     QPhysXCharacterController(QCharacterController *frontEnd) : QAbstractPhysXNode(frontEnd) { }
-    void cleanup(PhysXWorld *physX) override;
-    void init(QPhysicsWorld *world, PhysXWorld *physX) override;
+    void cleanup(QPhysXWorld *physX) override;
+    void init(QPhysicsWorld *world, QPhysXWorld *physX) override;
 
     void sync(float deltaTime, QHash<QQuick3DNode *, QMatrix4x4> &transformCache) override;
-    void createMaterial(PhysXWorld *physX) override;
+    void createMaterial(QPhysXWorld *physX) override;
 
 private:
     physx::PxCapsuleController *controller = nullptr;
@@ -542,7 +274,7 @@ class QPhysXActorBody : public QAbstractPhysXNode
 {
 public:
     QPhysXActorBody(QAbstractPhysicsNode *frontEnd) : QAbstractPhysXNode(frontEnd) { }
-    void cleanup(PhysXWorld *physX) override
+    void cleanup(QPhysXWorld *physX) override
     {
         if (actor) {
             physX->scene->removeActor(*actor);
@@ -550,15 +282,15 @@ public:
         }
         QAbstractPhysXNode::cleanup(physX);
     }
-    void init(QPhysicsWorld *world, PhysXWorld *physX) override;
+    void init(QPhysicsWorld *world, QPhysXWorld *physX) override;
     void sync(float deltaTime, QHash<QQuick3DNode *, QMatrix4x4> &transformCache) override;
     void markDirtyShapes() override;
-    void rebuildDirtyShapes(QPhysicsWorld *world, PhysXWorld *physX) override;
-    virtual void createActor(PhysXWorld *physX);
+    void rebuildDirtyShapes(QPhysicsWorld *world, QPhysXWorld *physX) override;
+    virtual void createActor(QPhysXWorld *physX);
 
     bool debugGeometryCapability() override { return true; }
     physx::PxTransform getGlobalPose() override { return actor->getGlobalPose(); }
-    void buildShapes(PhysXWorld *physX);
+    void buildShapes(QPhysXWorld *physX);
 
     physx::PxRigidActor *actor = nullptr;
 };
@@ -567,7 +299,7 @@ class QPhysXRigidBody : public QPhysXActorBody
 {
 public:
     QPhysXRigidBody(QAbstractPhysicsBody *frontEnd) : QPhysXActorBody(frontEnd) { }
-    void createMaterial(PhysXWorld *physX) override;
+    void createMaterial(QPhysXWorld *physX) override;
 };
 
 class QPhysXStaticBody : public QPhysXRigidBody
@@ -577,7 +309,7 @@ public:
 
     DebugDrawBodyType getDebugDrawBodyType() override;
     void sync(float deltaTime, QHash<QQuick3DNode *, QMatrix4x4> &transformCache) override;
-    void createActor(PhysXWorld *physX) override;
+    void createActor(QPhysXWorld *physX) override;
 };
 
 class QPhysXDynamicBody : public QPhysXRigidBody
@@ -587,7 +319,7 @@ public:
 
     DebugDrawBodyType getDebugDrawBodyType() override;
     void sync(float deltaTime, QHash<QQuick3DNode *, QMatrix4x4> &transformCache) override;
-    void rebuildDirtyShapes(QPhysicsWorld *world, PhysXWorld *physX) override;
+    void rebuildDirtyShapes(QPhysicsWorld *world, QPhysXWorld *physX) override;
     void updateDefaultDensity(float density) override;
 };
 
@@ -628,7 +360,7 @@ public:
    QPhysicsMaterial with default values. We should only have a qt material when set explicitly.
    */
 
-void QAbstractPhysXNode::createMaterialFromQtMaterial(PhysXWorld * /*physX*/,
+void QAbstractPhysXNode::createMaterialFromQtMaterial(QPhysXWorld * /*physX*/,
                                                       QPhysicsMaterial *qtMaterial)
 {
     auto& s_physx = StaticPhysXObjects::getReference();
@@ -647,22 +379,22 @@ void QAbstractPhysXNode::createMaterialFromQtMaterial(PhysXWorld * /*physX*/,
     }
 }
 
-void QAbstractPhysXNode::createMaterial(PhysXWorld *physX)
+void QAbstractPhysXNode::createMaterial(QPhysXWorld *physX)
 {
     createMaterialFromQtMaterial(physX, nullptr);
 }
 
-void QPhysXCharacterController::createMaterial(PhysXWorld *physX)
+void QPhysXCharacterController::createMaterial(QPhysXWorld *physX)
 {
     createMaterialFromQtMaterial(physX, static_cast<QCharacterController *>(frontendNode)->physicsMaterial());
 }
 
-void QPhysXRigidBody::createMaterial(PhysXWorld *physX)
+void QPhysXRigidBody::createMaterial(QPhysXWorld *physX)
 {
     createMaterialFromQtMaterial(physX, static_cast<QAbstractPhysicsBody *>(frontendNode)->physicsMaterial());
 }
 
-void QPhysXActorBody::createActor(PhysXWorld * /*physX*/)
+void QPhysXActorBody::createActor(QPhysXWorld * /*physX*/)
 {
     auto& s_physx = StaticPhysXObjects::getReference();
     const physx::PxTransform trf = QPhysicsUtils::toPhysXTransform(frontendNode->scenePosition(),
@@ -670,7 +402,7 @@ void QPhysXActorBody::createActor(PhysXWorld * /*physX*/)
     actor = s_physx.physics->createRigidDynamic(trf);
 }
 
-void QPhysXStaticBody::createActor(PhysXWorld * /*physX*/)
+void QPhysXStaticBody::createActor(QPhysXWorld * /*physX*/)
 {
     auto& s_physx = StaticPhysXObjects::getReference();
     const physx::PxTransform trf = QPhysicsUtils::toPhysXTransform(frontendNode->scenePosition(),
@@ -678,7 +410,7 @@ void QPhysXStaticBody::createActor(PhysXWorld * /*physX*/)
     actor = s_physx.physics->createRigidStatic(trf);
 }
 
-void QPhysXActorBody::init(QPhysicsWorld *, PhysXWorld *physX)
+void QPhysXActorBody::init(QPhysicsWorld *, QPhysXWorld *physX)
 {
     Q_ASSERT(!actor);
 
@@ -690,13 +422,13 @@ void QPhysXActorBody::init(QPhysicsWorld *, PhysXWorld *physX)
     setShapesDirty(true);
 }
 
-void QPhysXCharacterController::cleanup(PhysXWorld *physX)
+void QPhysXCharacterController::cleanup(QPhysXWorld *physX)
 {
     PHYSX_RELEASE(controller);
     QAbstractPhysXNode::cleanup(physX);
 }
 
-void QPhysXCharacterController::init(QPhysicsWorld *world, PhysXWorld *physX)
+void QPhysXCharacterController::init(QPhysicsWorld *world, QPhysXWorld *physX)
 {
     Q_ASSERT(!controller);
 
@@ -791,7 +523,7 @@ void QPhysXActorBody::markDirtyShapes()
     }
 }
 
-void QPhysXActorBody::buildShapes(PhysXWorld * /*physX*/)
+void QPhysXActorBody::buildShapes(QPhysXWorld * /*physX*/)
 {
     auto body = actor;
     for (auto *shape : shapes) {
@@ -823,7 +555,7 @@ void QPhysXActorBody::buildShapes(PhysXWorld * /*physX*/)
     }
 }
 
-void QPhysXActorBody::rebuildDirtyShapes(QPhysicsWorld *, PhysXWorld *physX)
+void QPhysXActorBody::rebuildDirtyShapes(QPhysicsWorld *, QPhysXWorld *physX)
 {
     if (!shapesDirty())
         return;
@@ -831,7 +563,7 @@ void QPhysXActorBody::rebuildDirtyShapes(QPhysicsWorld *, PhysXWorld *physX)
     setShapesDirty(false);
 }
 
-void QPhysXDynamicBody::rebuildDirtyShapes(QPhysicsWorld *world, PhysXWorld *physX)
+void QPhysXDynamicBody::rebuildDirtyShapes(QPhysicsWorld *world, QPhysXWorld *physX)
 {
     if (!shapesDirty())
         return;
@@ -1095,7 +827,7 @@ class SimulationWorker : public QObject
 {
     Q_OBJECT
 public:
-    SimulationWorker(PhysXWorld *physx) : m_physx(physx) { }
+    SimulationWorker(QPhysXWorld *physx) : m_physx(physx) { }
 
 public slots:
     void simulateFrame(float minTimestep, float maxTimestep)
@@ -1129,7 +861,7 @@ signals:
     void frameDone(float deltaTime);
 
 private:
-    PhysXWorld *m_physx = nullptr;
+    QPhysXWorld *m_physx = nullptr;
     QElapsedTimer m_timer;
 };
 
@@ -1169,7 +901,7 @@ void QPhysicsWorld::deregisterNode(QAbstractPhysicsNode *physicsNode)
 
 QPhysicsWorld::QPhysicsWorld(QObject *parent) : QObject(parent)
 {
-    m_physx = new PhysXWorld;
+    m_physx = new QPhysXWorld;
     m_physx->createWorld();
 
     worldManager.worlds.push_back(this);
