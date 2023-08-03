@@ -14,29 +14,29 @@ qt_internal_add_qml_module(Quick3DPhysics
         NO_PLUGIN_OPTIONAL
         NO_GENERATE_PLUGIN_SOURCE
     SOURCES
-        qabstractphysicsnode.cpp qabstractphysicsnode_p.h
         qabstractcollisionshape.cpp qabstractcollisionshape_p.h
+        qabstractphysicsbody.cpp qabstractphysicsbody_p.h
+        qabstractphysicsnode.cpp qabstractphysicsnode_p.h
         qboxshape.cpp qboxshape_p.h
+        qcacheutils.cpp qcacheutils_p.h
         qcapsuleshape.cpp qcapsuleshape_p.h
-        qtriggerbody.cpp qtriggerbody_p.h
         qcharactercontroller.cpp qcharactercontroller_p.h
         qcollisiondebugmeshbuilder.cpp qcollisiondebugmeshbuilder_p.h
-        qphysicsmeshutils_p_p.h
         qconvexmeshshape.cpp qconvexmeshshape_p.h
-        qtrianglemeshshape.cpp qtrianglemeshshape_p.h
+        qdebugdrawhelper.cpp qdebugdrawhelper_p.h
         qheightfieldshape.cpp qheightfieldshape_p.h
-        qplaneshape.cpp qplaneshape_p.h
+        qphysicscommands.cpp qphysicscommands_p.h
+        qphysicsmaterial.cpp qphysicsmaterial_p.h
+        qphysicsmeshutils_p_p.h
+        qphysicsutils_p.h
         qphysicsworld.cpp qphysicsworld_p.h
+        qplaneshape.cpp qplaneshape_p.h
         qrigidbody.cpp qrigidbody_p.h
         qsphereshape.cpp qsphereshape_p.h
-        qcacheutils.cpp qcacheutils_p.h
-        qphysicsmaterial.cpp qphysicsmaterial_p.h
-        qabstractphysicsbody.cpp qabstractphysicsbody_p.h
-        qphysicscommands.cpp qphysicscommands_p.h
-        qphysicsutils_p.h
-        qdebugdrawhelper.cpp qdebugdrawhelper_p.h
-        qtquick3dphysicsglobal.h
         qtquick3dphysicsglobal_p.h
+        qtquick3dphysicsglobal.h
+        qtrianglemeshshape.cpp qtrianglemeshshape_p.h
+        qtriggerbody.cpp qtriggerbody_p.h
     DEFINES
         QT_BUILD_QUICK3DPHYSICS_LIB
         PX_PHYSX_STATIC_LIB
