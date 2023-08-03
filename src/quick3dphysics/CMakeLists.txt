@@ -14,6 +14,7 @@ qt_internal_add_qml_module(Quick3DPhysics
         NO_PLUGIN_OPTIONAL
         NO_GENERATE_PLUGIN_SOURCE
     SOURCES
+        physxnode/qphysxworld.cpp physxnode/qphysxworld_p.h
         qabstractcollisionshape.cpp qabstractcollisionshape_p.h
         qabstractphysicsbody.cpp qabstractphysicsbody_p.h
         qabstractphysicsnode.cpp qabstractphysicsnode_p.h

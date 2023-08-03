@@ -48,7 +48,7 @@ class QAbstractRigidBody;
 class QAbstractPhysXNode;
 class QQuick3DModel;
 class QQuick3DDefaultMaterial;
-struct PhysXWorld;
+class QPhysXWorld;
 
 class Q_QUICK3DPHYSICS_EXPORT QPhysicsWorld : public QObject, public QQmlParserStatus
 {
@@ -188,7 +188,7 @@ private:
     bool m_physicsInitialized = false;
     bool m_enableCCD = false;
 
-    PhysXWorld *m_physx = nullptr;
+    QPhysXWorld *m_physx = nullptr;
     QQuick3DNode *m_viewport = nullptr;
     QVector<QQuick3DDefaultMaterial *> m_debugMaterials;
 
