@@ -1,12 +1,13 @@
 // Copyright (C) 2021 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
-#include "qcapsuleshape_p.h"
-#include "qdebugdrawhelper_p.h"
 #include "qphysicsworld_p.h"
 
+#include "physxnode/qabstractphysxnode_p.h"
 #include "physxnode/qphysxworld_p.h"
 #include "qabstractphysicsnode_p.h"
+#include "qcapsuleshape_p.h"
+#include "qdebugdrawhelper_p.h"
 #include "qphysicsutils_p.h"
 #include "qtriggerbody_p.h"
 #include "qdynamicrigidbody_p.h"
@@ -14,14 +15,11 @@
 #include "qplaneshape_p.h"
 #include "qphysicscommands_p.h"
 #include "qstaticphysxobjects_p.h"
-
-#include "PxPhysicsAPI.h"
 #include "qcharactercontroller_p.h"
 #include "qheightfieldshape_p.h"
 
+#include "PxPhysicsAPI.h"
 #include "cooking/PxCooking.h"
-
-#include "extensions/PxDefaultCpuDispatcher.h"
 
 #include <QtQuick3D/private/qquick3dobject_p.h>
 #include <QtQuick3D/private/qquick3dnode_p.h>
@@ -215,75 +213,11 @@ public:
 private:
     QPhysicsWorld *world = nullptr;
 };
-
 #define PHYSX_RELEASE(x)                                                                           \
     if (x != nullptr) {                                                                            \
         x->release();                                                                              \
         x = nullptr;                                                                               \
     }
-
-// Used for debug drawing
-enum class DebugDrawBodyType {
-    Static = 0,
-    DynamicAwake = 1,
-    DynamicSleeping = 2,
-    Trigger = 3,
-    Unknown = 4
-};
-
-class QAbstractPhysXNode
-{
-public:
-    QAbstractPhysXNode(QAbstractPhysicsNode *node) : frontendNode(node)
-    {
-        node->m_backendObject = this;
-    }
-    virtual ~QAbstractPhysXNode() { }
-
-    bool cleanupIfRemoved(QPhysXWorld *physX); // TODO rename??
-
-    virtual void init(QPhysicsWorld *world, QPhysXWorld *physX) = 0;
-    virtual void updateDefaultDensity(float /*density*/) { }
-    virtual void createMaterial(QPhysXWorld *physX);
-    void createMaterialFromQtMaterial(QPhysXWorld *physX, QPhysicsMaterial *qtMaterial);
-    virtual void markDirtyShapes() { }
-    virtual void rebuildDirtyShapes(QPhysicsWorld *, QPhysXWorld *) { }
-
-    virtual void sync(float deltaTime, QHash<QQuick3DNode *, QMatrix4x4> &transformCache) = 0;
-    virtual void cleanup(QPhysXWorld *)
-    {
-        for (auto *shape : shapes)
-            PHYSX_RELEASE(shape);
-        if (material != defaultMaterial)
-            PHYSX_RELEASE(material);
-    }
-    virtual bool debugGeometryCapability() { return false; }
-    virtual physx::PxTransform getGlobalPose() { return {}; }
-
-    virtual bool useTriggerFlag() { return false; }
-    virtual DebugDrawBodyType getDebugDrawBodyType() { return DebugDrawBodyType::Unknown; }
-
-    bool shapesDirty() const { return frontendNode && frontendNode->m_shapesDirty; }
-    void setShapesDirty(bool dirty) { frontendNode->m_shapesDirty = dirty; }
-
-    QVector<physx::PxShape *> shapes;
-    physx::PxMaterial *material = nullptr;
-    QAbstractPhysicsNode *frontendNode = nullptr;
-    bool isRemoved = false;
-    static physx::PxMaterial *defaultMaterial;
-};
-
-physx::PxMaterial *QAbstractPhysXNode::defaultMaterial = nullptr;
-
-bool QAbstractPhysXNode::cleanupIfRemoved(QPhysXWorld *physX)
-{
-    if (isRemoved) {
-        cleanup(physX);
-        delete this;
-        return true;
-    }
-    return false;
-}
 
 class QPhysXCharacterController : public QAbstractPhysXNode
 {
@@ -381,38 +315,10 @@ public:
     }
 };
 
-/*
-   NOTE
-   The inheritance hierarchy is not ideal, since both controller and rigid body have materials,
-   but trigger doesn't. AND both trigger and rigid body have actors, but controller doesn't.
 
-   TODO: defaultMaterial isn't used for rigid bodies, since they always create their own
-   QPhysicsMaterial with default values. We should only have a qt material when set explicitly.
-   */
 
-void QAbstractPhysXNode::createMaterialFromQtMaterial(QPhysXWorld * /*physX*/,
-                                                      QPhysicsMaterial *qtMaterial)
-{
-    auto& s_physx = StaticPhysXObjects::getReference();
 
-    if (qtMaterial) {
-        material = s_physx.physics->createMaterial(qtMaterial->staticFriction(),
-                                                   qtMaterial->dynamicFriction(),
-                                                   qtMaterial->restitution());
-    } else {
-        if (!defaultMaterial) {
-            defaultMaterial = s_physx.physics->createMaterial(
-                    QPhysicsMaterial::defaultStaticFriction,
-                    QPhysicsMaterial::defaultDynamicFriction, QPhysicsMaterial::defaultRestitution);
-        }
-        material = defaultMaterial;
-    }
-}
 
-void QAbstractPhysXNode::createMaterial(QPhysXWorld *physX)
-{
-    createMaterialFromQtMaterial(physX, nullptr);
-}
 
 void QPhysXCharacterController::createMaterial(QPhysXWorld *physX)
 {
@@ -856,7 +762,6 @@ void QPhysXStaticBody::sync(float deltaTime, QHash<QQuick3DNode *, QMatrix4x4> &
         actor->setGlobalPose(poseNew);
     QPhysXActorBody::sync(deltaTime, transformCache);
 }
-
 /////////////////////////////////////////////////////////////////////////////
 
 class SimulationWorker : public QObject
