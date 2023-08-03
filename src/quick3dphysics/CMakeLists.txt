@@ -37,6 +37,7 @@ qt_internal_add_qml_module(Quick3DPhysics
         qtquick3dphysicsglobal.h
         qtrianglemeshshape.cpp qtrianglemeshshape_p.h
         qtriggerbody.cpp qtriggerbody_p.h
+        qstaticphysxobjects.cpp qstaticphysxobjects_p.h
         qstaticrigidbody.cpp qstaticrigidbody_p.h
     DEFINES
         QT_BUILD_QUICK3DPHYSICS_LIB

@@ -12,6 +12,7 @@
 #include "qstaticrigidbody_p.h"
 #include "qplaneshape_p.h"
 #include "qphysicscommands_p.h"
+#include "qstaticphysxobjects_p.h"
 
 #include "PxPhysicsAPI.h"
 #include "qcharactercontroller_p.h"
@@ -386,28 +387,11 @@ private:
         x = nullptr;                                                                               \
     }
 
-struct StaticPhysXObjects
-{
-    physx::PxDefaultErrorCallback defaultErrorCallback;
-    physx::PxDefaultAllocator defaultAllocatorCallback;
-    physx::PxFoundation *foundation = nullptr;
-    physx::PxPvd *pvd = nullptr;
-    physx::PxPvdTransport *transport = nullptr;
-    physx::PxPhysics *physics = nullptr;
-    physx::PxDefaultCpuDispatcher *dispatcher = nullptr;
-    physx::PxCooking *cooking = nullptr;
-
-    unsigned int foundationRefCount = 0;
-    bool foundationCreated = false;
-    bool physicsCreated = false;
-};
-
-StaticPhysXObjects s_physx = StaticPhysXObjects();
-
 struct PhysXWorld
 {
     void createWorld()
     {
+        auto& s_physx = StaticPhysXObjects::getReference();
         s_physx.foundationRefCount++;
 
         if (s_physx.foundationCreated)
@@ -433,6 +417,7 @@ struct PhysXWorld
 
     void deleteWorld()
     {
+        auto& s_physx = StaticPhysXObjects::getReference();
         s_physx.foundationRefCount--;
         if (s_physx.foundationRefCount == 0) {
             PHYSX_RELEASE(controllerManager);
@@ -467,6 +452,8 @@ struct PhysXWorld
         physx::PxTolerancesScale scale;
         scale.length = typicalLength;
         scale.speed = typicalSpeed;
+
+        auto& s_physx = StaticPhysXObjects::getReference();
 
         if (!s_physx.physicsCreated) {
             constexpr bool recordMemoryAllocations = true;
@@ -674,6 +661,8 @@ public:
 void QAbstractPhysXNode::createMaterialFromQtMaterial(PhysXWorld * /*physX*/,
                                                       QPhysicsMaterial *qtMaterial)
 {
+    auto& s_physx = StaticPhysXObjects::getReference();
+
     if (qtMaterial) {
         material = s_physx.physics->createMaterial(qtMaterial->staticFriction(),
                                                    qtMaterial->dynamicFriction(),
@@ -705,6 +694,7 @@ void QPhysXRigidBody::createMaterial(PhysXWorld *physX)
 
 void QPhysXActorBody::createActor(PhysXWorld * /*physX*/)
 {
+    auto& s_physx = StaticPhysXObjects::getReference();
     const physx::PxTransform trf = QPhysicsUtils::toPhysXTransform(frontendNode->scenePosition(),
                                                                    frontendNode->sceneRotation());
     actor = s_physx.physics->createRigidDynamic(trf);
@@ -712,6 +702,7 @@ void QPhysXActorBody::createActor(PhysXWorld * /*physX*/)
 
 void QPhysXStaticBody::createActor(PhysXWorld * /*physX*/)
 {
+    auto& s_physx = StaticPhysXObjects::getReference();
     const physx::PxTransform trf = QPhysicsUtils::toPhysXTransform(frontendNode->scenePosition(),
                                                                    frontendNode->sceneRotation());
     actor = s_physx.physics->createRigidStatic(trf);
@@ -853,6 +844,8 @@ void QPhysXActorBody::buildShapes(PhysXWorld * /*physX*/)
         auto *geom = collisionShape->getPhysXGeometry();
         if (!geom || !material)
             continue;
+
+        auto& s_physx = StaticPhysXObjects::getReference();
         auto physXShape = s_physx.physics->createShape(*geom, *material);
 
         if (useTriggerFlag()) {
@@ -1848,12 +1841,12 @@ void QPhysicsWorld::findPhysicsNodes()
 
 physx::PxPhysics *QPhysicsWorld::getPhysics()
 {
-    return s_physx.physics;
+    return StaticPhysXObjects::getReference().physics;
 }
 
 physx::PxCooking *QPhysicsWorld::getCooking()
 {
-    return s_physx.cooking;
+    return StaticPhysXObjects::getReference().cooking;
 }
 
 physx::PxControllerManager *QPhysicsWorld::controllerManager()
