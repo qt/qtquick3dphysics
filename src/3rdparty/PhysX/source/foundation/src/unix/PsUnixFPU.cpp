@@ -59,7 +59,7 @@ physx::shdfnd::FPUGuard::FPUGuard()
 	fegetenv(reinterpret_cast<fenv_t*>(mControlWords));
 	fesetenv(FE_DFL_ENV);
 
-#if PX_LINUX
+#if PX_LINUX && __GLIBC__
 	// need to explicitly disable exceptions because fesetenv does not modify
 	// the sse control word on 32bit linux (64bit is fine, but do it here just be sure)
 	fedisableexcept(FE_ALL_EXCEPT);
@@ -89,7 +89,7 @@ physx::shdfnd::FPUGuard::~FPUGuard()
 
 PX_FOUNDATION_API void physx::shdfnd::enableFPExceptions()
 {
-#if PX_LINUX && !defined(__EMSCRIPTEN__)
+#if (PX_LINUX && __GLIBC__) && !defined(__EMSCRIPTEN__)
 	feclearexcept(FE_ALL_EXCEPT);
 	feenableexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW);
 #elif PX_OSX && !defined(PX_ARM_FAMILY)
@@ -106,7 +106,7 @@ PX_FOUNDATION_API void physx::shdfnd::enableFPExceptions()
 
 PX_FOUNDATION_API void physx::shdfnd::disableFPExceptions()
 {
-#if PX_LINUX && !defined(__EMSCRIPTEN__)
+#if (PX_LINUX && __GLIBC__) && !defined(__EMSCRIPTEN__)
 	fedisableexcept(FE_ALL_EXCEPT);
 #elif PX_OSX && !defined(PX_ARM_FAMILY)
 	// clear any pending exceptions
