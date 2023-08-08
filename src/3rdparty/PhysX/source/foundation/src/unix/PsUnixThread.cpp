@@ -36,7 +36,7 @@
 #include "PsThread.h"
 
 #include <math.h>
-#if !PX_APPLE_FAMILY && !defined(ANDROID) && !defined(__CYGWIN__) && !PX_PS4 && !PX_EMSCRIPTEN
+#if !PX_APPLE_FAMILY && !defined(ANDROID) && !defined(__CYGWIN__) && !PX_PS4 && !PX_EMSCRIPTEN && __GLIBC__
 #include <bits/local_lim.h> // PTHREAD_STACK_MIN
 #endif
 #include <stdio.h>
