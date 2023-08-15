@@ -112,7 +112,8 @@ QT_BEGIN_NAMESPACE
     vector3D normal)
     \since 6.6
 
-    This signal is emitted when \l {CharacterController::move} has been called and it would result
+    This signal is emitted when \l {CharacterController::}{movement} has been
+    called and it would result
     in a collision with a \l {DynamicRigidBody} or a \l {StaticRigidBody} and
     \l {CharacterController::} {enableShapeHitCallback} is set to \c true.
     The parameters \a body, \a position, \a impulse and \a normal contain the body, position,
