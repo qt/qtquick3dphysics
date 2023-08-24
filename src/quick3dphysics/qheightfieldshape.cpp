@@ -246,7 +246,7 @@ QHeightFieldShape::~QHeightFieldShape()
 
 physx::PxGeometry *QHeightFieldShape::getPhysXGeometry()
 {
-    if (m_dirtyPhysx || !m_heightFieldGeometry) {
+    if (m_dirtyPhysx || m_scaleDirty || !m_heightFieldGeometry) {
         updatePhysXGeometry();
     }
     return m_heightFieldGeometry;
