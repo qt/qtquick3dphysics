@@ -47,6 +47,7 @@ class QAbstractCollisionShape;
 class QAbstractRigidBody;
 class QAbstractPhysXNode;
 class QQuick3DModel;
+class QQuick3DGeometry;
 class QQuick3DDefaultMaterial;
 class QPhysXWorld;
 
@@ -135,9 +136,12 @@ signals:
 
 private:
     void frameFinished(float deltaTime);
+    void frameFinishedDesignStudio();
     void initPhysics();
     void cleanupRemovedNodes();
     void updateDebugDraw();
+    void updateDebugDrawDesignStudio();
+    void setupDebugMaterials(QQuick3DNode *sceneNode);
     void disableDebugDraw();
     void matchOrphanNodes();
     void findPhysicsNodes();
@@ -145,6 +149,7 @@ private:
     struct DebugModelHolder
     {
         QQuick3DModel *model = nullptr;
+        QQuick3DGeometry *geometry = nullptr;
         QVector3D data;
 
         const QVector3D &halfExtents() const { return data; }
@@ -168,6 +173,8 @@ private:
 
     QList<QAbstractPhysXNode *> m_physXBodies;
     QList<QAbstractPhysicsNode *> m_newPhysicsNodes;
+    QHash<QPair<QAbstractCollisionShape *, QAbstractPhysicsNode *>, DebugModelHolder>
+            m_DesignStudioDebugModels;
     QHash<QPair<QAbstractCollisionShape *, QAbstractPhysXNode *>, DebugModelHolder>
             m_collisionShapeDebugModels;
     QSet<QAbstractPhysicsNode *> m_removedPhysicsNodes;
@@ -202,6 +209,7 @@ private:
     static physx::PxCooking *getCooking();
     QThread m_workerThread;
     QQuick3DNode *m_scene = nullptr;
+    bool m_inDesignStudio = false;
 };
 
 QT_END_NAMESPACE

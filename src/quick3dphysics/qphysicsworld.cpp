@@ -8,9 +8,15 @@
 #include "qabstractphysicsnode_p.h"
 #include "qdebugdrawhelper_p.h"
 #include "qphysicsutils_p.h"
-#include "qtriggerbody_p.h"
-#include "qstaticrigidbody_p.h"
 #include "qstaticphysxobjects_p.h"
+#include "qboxshape_p.h"
+#include "qsphereshape_p.h"
+#include "qconvexmeshshape_p.h"
+#include "qtrianglemeshshape_p.h"
+#include "qcharactercontroller_p.h"
+#include "qcapsuleshape_p.h"
+#include "qplaneshape_p.h"
+#include "qheightfieldshape_p.h"
 
 #include "PxPhysicsAPI.h"
 #include "cooking/PxCooking.h"
@@ -20,6 +26,8 @@
 #include <QtQuick3D/private/qquick3dmodel_p.h>
 #include <QtQuick3D/private/qquick3ddefaultmaterial_p.h>
 #include <QtQuick3DUtils/private/qssgutils_p.h>
+
+#include <QtEnvironmentVariables>
 
 #define PHYSX_ENABLE_PVD 0
 
@@ -176,8 +184,18 @@ public slots:
         emit frameDone(deltaSecs);
     }
 
+    void simulateFrameDesignStudio(float minTimestep, float maxTimestep)
+    {
+        Q_UNUSED(minTimestep);
+        Q_UNUSED(maxTimestep);
+        auto sleepUSecs = 16 * 1000.f; // 16 ms
+        QThread::usleep(sleepUSecs);
+        emit frameDoneDesignStudio();
+    }
+
 signals:
     void frameDone(float deltaTime);
+    void frameDoneDesignStudio();
 
 private:
     QPhysXWorld *m_physx = nullptr;
@@ -220,6 +238,7 @@ void QPhysicsWorld::deregisterNode(QAbstractPhysicsNode *physicsNode)
 
 QPhysicsWorld::QPhysicsWorld(QObject *parent) : QObject(parent)
 {
+    m_inDesignStudio = !qEnvironmentVariableIsEmpty("QML_PUPPET_MODE");
     m_physx = new QPhysXWorld;
     m_physx->createWorld();
 
@@ -244,7 +263,7 @@ void QPhysicsWorld::classBegin() {}
 
 void QPhysicsWorld::componentComplete()
 {
-    if (!m_running || m_physicsInitialized)
+    if ((!m_running && !m_inDesignStudio) || m_physicsInitialized)
         return;
     initPhysics();
     emit simulateFrame(m_minTimestep, m_maxTimestep);
@@ -303,10 +322,12 @@ void QPhysicsWorld::setRunning(bool running)
         return;
 
     m_running = running;
-    if (m_running && !m_physicsInitialized)
-        initPhysics();
-    if (m_running)
-        emit simulateFrame(m_minTimestep, m_maxTimestep);
+    if (!m_inDesignStudio) {
+        if (m_running && !m_physicsInitialized)
+            initPhysics();
+        if (m_running)
+            emit simulateFrame(m_minTimestep, m_maxTimestep);
+    }
     emit runningChanged(m_running);
 }
 
@@ -392,6 +413,28 @@ void QPhysicsWorld::setMaximumTimestep(float maxTimestep)
     emit maximumTimestepChanged(maxTimestep);
 }
 
+void QPhysicsWorld::setupDebugMaterials(QQuick3DNode *sceneNode)
+{
+    if (!m_debugMaterials.isEmpty())
+        return;
+
+    const int lineWidth = m_inDesignStudio ? 1 : 3;
+
+    // These colors match the indices of DebugDrawBodyType enum
+    for (auto color : { QColorConstants::Svg::chartreuse, QColorConstants::Svg::cyan,
+                        QColorConstants::Svg::lightsalmon, QColorConstants::Svg::red,
+                        QColorConstants::Svg::black }) {
+        auto debugMaterial = new QQuick3DDefaultMaterial();
+        debugMaterial->setLineWidth(lineWidth);
+        debugMaterial->setParentItem(sceneNode);
+        debugMaterial->setParent(sceneNode);
+        debugMaterial->setDiffuseColor(color);
+        debugMaterial->setLighting(QQuick3DDefaultMaterial::NoLighting);
+        debugMaterial->setCullMode(QQuick3DMaterial::NoCulling);
+        m_debugMaterials.push_back(debugMaterial);
+    }
+}
+
 void QPhysicsWorld::updateDebugDraw()
 {
     if (!(m_forceDebugDraw || m_hasIndividualDebugDraw)) {
@@ -410,22 +453,7 @@ void QPhysicsWorld::updateDebugDraw()
     if (sceneNode == nullptr)
         return;
 
-    if (m_debugMaterials.isEmpty()) {
-        // These colors match the indices of DebugDrawBodyType enum
-        for (auto color : { QColorConstants::Svg::chartreuse, QColorConstants::Svg::cyan,
-                            QColorConstants::Svg::lightsalmon, QColorConstants::Svg::red,
-                            QColorConstants::Svg::black }) {
-            auto debugMaterial = new QQuick3DDefaultMaterial();
-            debugMaterial->setLineWidth(3);
-            debugMaterial->setParentItem(sceneNode);
-            debugMaterial->setParent(sceneNode);
-            debugMaterial->setDiffuseColor(color);
-            debugMaterial->setLighting(QQuick3DDefaultMaterial::NoLighting);
-            debugMaterial->setCullMode(QQuick3DMaterial::NoCulling);
-            m_debugMaterials.push_back(debugMaterial);
-        }
-    }
-
+    setupDebugMaterials(sceneNode);
     m_hasIndividualDebugDraw = false;
 
     // Store the collision shapes we have now so we can clear out the removed ones
@@ -626,6 +654,190 @@ void QPhysicsWorld::updateDebugDraw()
             });
 }
 
+static void collectPhysicsNodes(QQuick3DObject *node, QList<QAbstractPhysicsNode *> &nodes)
+{
+    if (auto shape = qobject_cast<QAbstractPhysicsNode *>(node)) {
+        nodes.push_back(shape);
+        return;
+    }
+
+    for (QQuick3DObject *child : node->childItems())
+        collectPhysicsNodes(child, nodes);
+}
+
+void QPhysicsWorld::updateDebugDrawDesignStudio()
+{
+    // Use scene node if no viewport has been specified
+    auto sceneNode = m_viewport ? m_viewport : m_scene;
+
+    if (sceneNode == nullptr)
+        return;
+
+    setupDebugMaterials(sceneNode);
+
+    // Store the collision shapes we have now so we can clear out the removed ones
+    QSet<QPair<QAbstractCollisionShape *, QAbstractPhysicsNode *>> currentCollisionShapes;
+    currentCollisionShapes.reserve(m_collisionShapeDebugModels.size());
+
+    QList<QAbstractPhysicsNode *> activePhysicsNodes;
+    activePhysicsNodes.reserve(m_collisionShapeDebugModels.size());
+    collectPhysicsNodes(m_scene, activePhysicsNodes);
+
+    for (QAbstractPhysicsNode *node : activePhysicsNodes) {
+
+        const auto &collisionShapes = node->getCollisionShapesList();
+        const int materialIdx = 0; // Just take first material
+        const int length = collisionShapes.length();
+
+        const bool isCharacterController = qobject_cast<QCharacterController *>(node) != nullptr;
+
+        for (int idx = 0; idx < length; idx++) {
+            QAbstractCollisionShape *collisionShape = collisionShapes[idx];
+            DebugModelHolder &holder =
+                    m_DesignStudioDebugModels[std::make_pair(collisionShape, node)];
+            auto &model = holder.model;
+
+            currentCollisionShapes.insert(std::make_pair(collisionShape, node));
+
+            m_hasIndividualDebugDraw =
+                    m_hasIndividualDebugDraw || collisionShape->enableDebugDraw();
+
+            // Create/Update debug view infrastructure
+            {
+                // Hack: we have to delete the model every frame so it shows up in QDS
+                // whenever the code is updated, not sure why ¯\_(?)_/¯
+                delete model;
+                model = new QQuick3DModel();
+                model->setParentItem(sceneNode);
+                model->setParent(sceneNode);
+                model->setCastsShadows(false);
+                model->setReceivesShadows(false);
+                model->setCastsReflections(false);
+            }
+
+            const bool hasGeometry = holder.geometry != nullptr;
+            QVector3D scenePosition = collisionShape->scenePosition();
+            QQuaternion sceneRotation = collisionShape->sceneRotation();
+            QQuick3DGeometry *newGeometry = nullptr;
+
+            if (isCharacterController)
+                sceneRotation = sceneRotation * QQuaternion::fromEulerAngles(QVector3D(0, 0, 90));
+
+            { // update or set material
+                auto material = m_debugMaterials[materialIdx];
+                QQmlListReference materialsRef(model, "materials");
+                if (materialsRef.count() == 0 || materialsRef.at(0) != material) {
+                    materialsRef.clear();
+                    materialsRef.append(material);
+                }
+            }
+
+            if (auto shape = qobject_cast<QBoxShape *>(collisionShape)) {
+                const auto &halfExtentsOld = holder.halfExtents();
+                const auto halfExtents = shape->sceneScale() * shape->extents() * 0.5f;
+                if (!qFuzzyCompare(halfExtentsOld, halfExtents) || !hasGeometry) {
+                    newGeometry = QDebugDrawHelper::generateBoxGeometry(halfExtents);
+                    holder.setHalfExtents(halfExtents);
+                }
+            } else if (auto shape = qobject_cast<QSphereShape *>(collisionShape)) {
+                const float radiusOld = holder.radius();
+                const float radius = shape->sceneScale().x() * shape->diameter() * 0.5f;
+                if (!qFuzzyCompare(radiusOld, radius) || !hasGeometry) {
+                    newGeometry = QDebugDrawHelper::generateSphereGeometry(radius);
+                    holder.setRadius(radius);
+                }
+            } else if (auto shape = qobject_cast<QCapsuleShape *>(collisionShape)) {
+                const float radiusOld = holder.radius();
+                const float halfHeightOld = holder.halfHeight();
+                const float radius = shape->sceneScale().y() * shape->diameter() * 0.5f;
+                const float halfHeight = shape->sceneScale().x() * shape->height() * 0.5f;
+
+                if ((!qFuzzyCompare(radiusOld, radius) || !qFuzzyCompare(halfHeightOld, halfHeight))
+                    || !hasGeometry) {
+                    newGeometry = QDebugDrawHelper::generateCapsuleGeometry(radius, halfHeight);
+                    holder.setRadius(radius);
+                    holder.setHalfHeight(halfHeight);
+                }
+            } else if (qobject_cast<QPlaneShape *>(collisionShape)) {
+                if (!hasGeometry)
+                    newGeometry = QDebugDrawHelper::generatePlaneGeometry();
+            } else if (auto shape = qobject_cast<QHeightFieldShape *>(collisionShape)) {
+                physx::PxHeightFieldGeometry *heightFieldGeometry =
+                        static_cast<physx::PxHeightFieldGeometry *>(shape->getPhysXGeometry());
+                const float heightScale = holder.heightScale();
+                const float rowScale = holder.rowScale();
+                const float columnScale = holder.columnScale();
+                scenePosition += shape->hfOffset();
+                if (!heightFieldGeometry) {
+                    qWarning() << "Could not get height field";
+                } else if (!qFuzzyCompare(heightFieldGeometry->heightScale, heightScale)
+                           || !qFuzzyCompare(heightFieldGeometry->rowScale, rowScale)
+                           || !qFuzzyCompare(heightFieldGeometry->columnScale, columnScale)
+                           || !hasGeometry) {
+                    newGeometry = QDebugDrawHelper::generateHeightFieldGeometry(
+                            heightFieldGeometry->heightField, heightFieldGeometry->heightScale,
+                            heightFieldGeometry->rowScale, heightFieldGeometry->columnScale);
+                    holder.setHeightScale(heightFieldGeometry->heightScale);
+                    holder.setRowScale(heightFieldGeometry->rowScale);
+                    holder.setColumnScale(heightFieldGeometry->columnScale);
+                }
+            } else if (auto shape = qobject_cast<QConvexMeshShape *>(collisionShape)) {
+                auto convexMeshGeometry =
+                        static_cast<physx::PxConvexMeshGeometry *>(shape->getPhysXGeometry());
+                if (!convexMeshGeometry) {
+                    qWarning() << "Could not get convex mesh";
+                } else {
+                    model->setScale(QPhysicsUtils::toQtType(convexMeshGeometry->scale.scale));
+
+                    if (!hasGeometry) {
+                        newGeometry = QDebugDrawHelper::generateConvexMeshGeometry(
+                                convexMeshGeometry->convexMesh);
+                    }
+                }
+            } else if (auto shape = qobject_cast<QTriangleMeshShape *>(collisionShape)) {
+                physx::PxTriangleMeshGeometry *triangleMeshGeometry =
+                        static_cast<physx::PxTriangleMeshGeometry *>(shape->getPhysXGeometry());
+                if (!triangleMeshGeometry) {
+                    qWarning() << "Could not get triangle mesh";
+                } else {
+                    model->setScale(QPhysicsUtils::toQtType(triangleMeshGeometry->scale.scale));
+
+                    if (!hasGeometry) {
+                        newGeometry = QDebugDrawHelper::generateTriangleMeshGeometry(
+                                triangleMeshGeometry->triangleMesh);
+                    }
+                }
+            }
+
+            if (newGeometry) {
+                delete holder.geometry;
+                holder.geometry = newGeometry;
+            }
+
+            model->setGeometry(holder.geometry);
+            model->setVisible(true);
+
+            model->setRotation(sceneRotation);
+            model->setPosition(scenePosition);
+        }
+    }
+
+    // Remove old debug models
+    m_DesignStudioDebugModels.removeIf(
+            [&](QHash<QPair<QAbstractCollisionShape *, QAbstractPhysicsNode *>,
+                      DebugModelHolder>::iterator it) {
+                if (!currentCollisionShapes.contains(it.key())) {
+                    auto holder = it.value();
+                    if (holder.model) {
+                        delete holder.geometry;
+                        delete holder.model;
+                    }
+                    return true;
+                }
+                return false;
+            });
+}
+
 void QPhysicsWorld::disableDebugDraw()
 {
     m_hasIndividualDebugDraw = false;
@@ -745,8 +957,15 @@ void QPhysicsWorld::initPhysics()
     SimulationWorker *worker = new SimulationWorker(m_physx);
     worker->moveToThread(&m_workerThread);
     connect(&m_workerThread, &QThread::finished, worker, &QObject::deleteLater);
-    connect(this, &QPhysicsWorld::simulateFrame, worker, &SimulationWorker::simulateFrame);
-    connect(worker, &SimulationWorker::frameDone, this, &QPhysicsWorld::frameFinished);
+    if (m_inDesignStudio) {
+        connect(this, &QPhysicsWorld::simulateFrame, worker,
+                &SimulationWorker::simulateFrameDesignStudio);
+        connect(worker, &SimulationWorker::frameDoneDesignStudio, this,
+                &QPhysicsWorld::frameFinishedDesignStudio);
+    } else {
+        connect(this, &QPhysicsWorld::simulateFrame, worker, &SimulationWorker::simulateFrame);
+        connect(worker, &SimulationWorker::frameDone, this, &QPhysicsWorld::frameFinished);
+    }
     m_workerThread.start();
 
     m_physicsInitialized = true;
@@ -779,6 +998,19 @@ void QPhysicsWorld::frameFinished(float deltaTime)
     if (m_running)
         emit simulateFrame(m_minTimestep, m_maxTimestep);
     emit frameDone(deltaTime * 1000);
+}
+
+void QPhysicsWorld::frameFinishedDesignStudio()
+{
+    // Note sure if this is needed but do it anyway
+    matchOrphanNodes();
+    cleanupRemovedNodes();
+    // Ignore new physics nodes, we find them from the scene node anyway
+    m_newPhysicsNodes.clear();
+
+    updateDebugDrawDesignStudio();
+
+    emit simulateFrame(m_minTimestep, m_maxTimestep);
 }
 
 QPhysicsWorld *QPhysicsWorld::getWorld(QQuick3DNode *node)
