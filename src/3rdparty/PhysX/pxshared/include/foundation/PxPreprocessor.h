@@ -117,7 +117,7 @@ Architecture defines, see http://sourceforge.net/p/predef/wiki/Architectures/
 */
 #if defined(__x86_64__) || defined(_M_X64) // ps4 compiler defines _M_X64 without value
 #define PX_X64 1
-#elif defined(__i386__) || defined(_M_IX86) || defined (__EMSCRIPTEN__)
+#elif defined(__i386__) || defined(_M_IX86)
 #define PX_X86 1
 #elif defined(__arm64__) || defined(__aarch64__) || defined(_M_ARM64)
 #define PX_A64 1
@@ -127,6 +127,13 @@ Architecture defines, see http://sourceforge.net/p/predef/wiki/Architectures/
 #define PX_PPC 1
 #elif defined(__mips__)
 #define PX_X64 1
+#elif defined(__EMSCRIPTEN__)
+#define PX_WASM
+    #if defined(__LP64__)
+        #define PX_WASM_64 1
+    #else
+        #define PX_WASM_32 1
+    #endif
 #else
 #error "Unknown architecture"
 #endif
@@ -208,6 +215,15 @@ define anything not defined on this platform to 0
 #ifndef PX_ARM
 #define PX_ARM 0
 #endif
+#ifndef PX_WASM
+#define PX_WASM 0
+#endif
+#ifndef PX_WASM_64
+#define PX_WASM_64 0
+#endif
+#ifndef PX_WASM_32
+#define PX_WASM_32 0
+#endif
 #ifndef PX_PPC
 #define PX_PPC 0
 #endif
@@ -262,7 +278,7 @@ family shortcuts
 // architecture
 #define PX_INTEL_FAMILY (PX_X64 || PX_X86)
 #define PX_ARM_FAMILY (PX_ARM || PX_A64)
-#define PX_P64_FAMILY (PX_X64 || PX_A64) // shortcut for 64-bit architectures
+#define PX_P64_FAMILY (PX_X64 || PX_A64 || PX_WASM_64) // shortcut for 64-bit architectures
 
 /**
 C++ standard library defines
