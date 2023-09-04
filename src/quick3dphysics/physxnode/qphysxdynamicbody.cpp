@@ -86,10 +86,10 @@ static physx::PxRigidDynamicLockFlags getLockFlags(QDynamicRigidBody *body)
 static physx::PxTransform getPhysXWorldTransform(const QMatrix4x4 transform)
 {
     auto rotationMatrix = transform;
-    mat44::normalize(rotationMatrix);
+    QSSGUtils::mat44::normalize(rotationMatrix);
     auto rotation =
-            QQuaternion::fromRotationMatrix(mat44::getUpper3x3(rotationMatrix)).normalized();
-    const QVector3D worldPosition = mat44::getPosition(transform);
+            QQuaternion::fromRotationMatrix(QSSGUtils::mat44::getUpper3x3(rotationMatrix)).normalized();
+    const QVector3D worldPosition = QSSGUtils::mat44::getPosition(transform);
     return physx::PxTransform(QPhysicsUtils::toPhysXType(worldPosition),
                               QPhysicsUtils::toPhysXType(rotation));
 }
