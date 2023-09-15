@@ -227,6 +227,8 @@ void QPhysicsWorld::deregisterNode(QAbstractPhysicsNode *physicsNode)
     for (auto world : worldManager.worlds) {
         world->m_newPhysicsNodes.removeAll(physicsNode);
         if (physicsNode->m_backendObject) {
+            Q_ASSERT(physicsNode->m_backendObject->frontendNode == physicsNode);
+            physicsNode->m_backendObject->frontendNode = nullptr;
             physicsNode->m_backendObject->isRemoved = true;
             physicsNode->m_backendObject = nullptr;
         }

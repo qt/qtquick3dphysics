@@ -23,10 +23,19 @@ physx::PxMaterial *QAbstractPhysXNode::sDefaultMaterial = nullptr;
 
 QAbstractPhysXNode::QAbstractPhysXNode(QAbstractPhysicsNode *node) : frontendNode(node)
 {
+    Q_ASSERT(node->m_backendObject == nullptr);
     node->m_backendObject = this;
 }
 
-QAbstractPhysXNode::~QAbstractPhysXNode() = default;
+QAbstractPhysXNode::~QAbstractPhysXNode() {
+    if (!frontendNode) {
+        Q_ASSERT(isRemoved);
+        return;
+    }
+
+    Q_ASSERT(frontendNode->m_backendObject == this);
+    frontendNode->m_backendObject = nullptr;
+}
 
 bool QAbstractPhysXNode::cleanupIfRemoved(QPhysXWorld *physX)
 {
