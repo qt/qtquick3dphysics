@@ -45,3 +45,6 @@ navigation.qmltypespage = "Qt Quick 3D Physics QML Types"
 navigation.cppclassespage = "Qt Quick 3D Physics C++ Classes"
 
 tagfile                 = qtquick3dphysics.tags
+
+# Highlighted examples in Data Visualization & 3D category
+manifestmeta.highlighted.names = "QtQuick3DPhysics/Qt Quick 3D Physics - CharacterController Example"
