@@ -248,7 +248,7 @@ void QPhysXWorld::deleteWorld()
 }
 
 void QPhysXWorld::createScene(float typicalLength, float typicalSpeed, const QVector3D &gravity,
-                              bool enableCCD, QPhysicsWorld *physicsWorld)
+                              bool enableCCD, QPhysicsWorld *physicsWorld, unsigned int numThreads)
 {
     if (scene) {
         qWarning() << "Scene already created";
@@ -267,7 +267,8 @@ void QPhysXWorld::createScene(float typicalLength, float typicalSpeed, const QVe
                                           recordMemoryAllocations, s_physx.pvd);
         if (!s_physx.physics)
             qFatal("PxCreatePhysics failed!");
-        s_physx.dispatcher = physx::PxDefaultCpuDispatcherCreate(2);
+
+        s_physx.dispatcher = physx::PxDefaultCpuDispatcherCreate(numThreads);
         s_physx.physicsCreated = true;
     }
 

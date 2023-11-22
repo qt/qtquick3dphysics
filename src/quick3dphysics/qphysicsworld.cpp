@@ -144,6 +144,38 @@ QT_BEGIN_NAMESPACE
     parameter is how long in milliseconds the timestep was in the simulation.
 */
 
+/*!
+    \qmlproperty int PhysicsWorld::numThreads
+    \since 6.7
+
+    This property defines the number of threads used for the physical simulation. This is how the
+    range of values are interpreted:
+
+    \table
+    \header
+    \li Value
+    \li Range
+    \li Description
+    \row
+    \li Negative
+    \li \c{[-inf, -1]}
+    \li Automatic thread count. The application will try to query the number of threads from the
+    system.
+    \row
+    \li Zero
+    \li \c{{0}}
+    \li No threading, simulation will run sequentially.
+    \row
+    \li Positive
+    \li \c{[1, inf]}
+    \li Specific thread count.
+    \endtable
+
+    The default value is \c{-1}, meaning automatic thread count.
+
+    \note Once the scene has started running it is not possible to change the number of threads.
+*/
+
 Q_LOGGING_CATEGORY(lcQuick3dPhysics, "qt.quick3d.physics");
 
 static const QQuaternion kMinus90YawRotation = QQuaternion::fromEulerAngles(0, -90, 0);
@@ -1074,7 +1106,8 @@ void QPhysicsWorld::initPhysics()
 {
     Q_ASSERT(!m_physicsInitialized);
 
-    m_physx->createScene(m_typicalLength, m_typicalSpeed, m_gravity, m_enableCCD, this);
+    const unsigned int numThreads = m_numThreads >= 0 ? m_numThreads : qMax(0, QThread::idealThreadCount());
+    m_physx->createScene(m_typicalLength, m_typicalSpeed, m_gravity, m_enableCCD, this, numThreads);
 
     // Setup worker thread
     SimulationWorker *worker = new SimulationWorker(m_physx);
@@ -1257,6 +1290,19 @@ void QPhysicsWorld::setScene(QQuick3DNode *newScene)
     if (sceneOK)
         findPhysicsNodes();
     emit sceneChanged();
+}
+
+int QPhysicsWorld::numThreads() const
+{
+    return m_numThreads;
+}
+
+void QPhysicsWorld::setNumThreads(int newNumThreads)
+{
+    if (m_numThreads == newNumThreads)
+        return;
+    m_numThreads = newNumThreads;
+    emit numThreadsChanged();
 }
 
 QT_END_NAMESPACE

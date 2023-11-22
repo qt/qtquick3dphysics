@@ -76,6 +76,8 @@ class Q_QUICK3DPHYSICS_EXPORT QPhysicsWorld : public QObject, public QQmlParserS
     Q_PROPERTY(float maximumTimestep READ maximumTimestep WRITE setMaximumTimestep NOTIFY
                        maximumTimestepChanged REVISION(6, 5))
     Q_PROPERTY(QQuick3DNode *scene READ scene WRITE setScene NOTIFY sceneChanged REVISION(6, 5))
+    Q_PROPERTY(int numThreads READ numThreads WRITE setNumThreads NOTIFY numThreadsChanged
+                       REVISION(6, 7))
 
     QML_NAMED_ELEMENT(PhysicsWorld)
 
@@ -108,6 +110,7 @@ public:
     void setHasIndividualDebugDraw();
     physx::PxControllerManager *controllerManager();
     Q_REVISION(6, 5) QQuick3DNode *scene() const;
+    Q_REVISION(6, 7) int numThreads() const;
 
 public slots:
     void setGravity(QVector3D gravity);
@@ -121,6 +124,7 @@ public slots:
     Q_REVISION(6, 5) void setMinimumTimestep(float minTimestep);
     Q_REVISION(6, 5) void setMaximumTimestep(float maxTimestep);
     Q_REVISION(6, 5) void setScene(QQuick3DNode *newScene);
+    Q_REVISION(6, 7) void setNumThreads(int newNumThreads);
 
 signals:
     void gravityChanged(QVector3D gravity);
@@ -136,6 +140,7 @@ signals:
     void simulateFrame(float minTimestep, float maxTimestep);
     Q_REVISION(6, 5) void frameDone(float timestep);
     Q_REVISION(6, 5) void sceneChanged();
+    Q_REVISION(6, 7) void numThreadsChanged();
 
 private:
     void frameFinished(float deltaTime);
@@ -225,6 +230,7 @@ private:
     QThread m_workerThread;
     QQuick3DNode *m_scene = nullptr;
     bool m_inDesignStudio = false;
+    int m_numThreads = -1;
 };
 
 QT_END_NAMESPACE
