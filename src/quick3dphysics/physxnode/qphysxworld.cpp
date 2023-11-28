@@ -144,13 +144,31 @@ private:
     QPhysicsWorld *world = nullptr;
 };
 
+static constexpr bool isBitSet(quint32 value, quint32 position)
+{
+    Q_ASSERT(position <= 32);
+    return value & (1 << (position));
+}
+
 static physx::PxFilterFlags
 contactReportFilterShader(physx::PxFilterObjectAttributes /*attributes0*/,
-                          physx::PxFilterData /*filterData0*/,
+                          physx::PxFilterData filterData0,
                           physx::PxFilterObjectAttributes /*attributes1*/,
-                          physx::PxFilterData /*filterData1*/, physx::PxPairFlags &pairFlags,
+                          physx::PxFilterData filterData1, physx::PxPairFlags &pairFlags,
                           const void * /*constantBlock*/, physx::PxU32 /*constantBlockSize*/)
 {
+    // First word is id, second is collision mask
+    const quint32 id0 = filterData0.word0;
+    const quint32 id1 = filterData1.word0;
+    const quint32 mask0 = filterData0.word1;
+    const quint32 mask1 = filterData1.word1;
+
+    // If any 'id' bit is set in the other mask it means collisions should be ignored
+    if (id0 < 32 && id1 < 32 && (isBitSet(mask0, id1) || isBitSet(mask1, id0))) {
+        // We return a 'suppress' since that will still re-evaluate when filter data is changed.
+        return physx::PxFilterFlag::eSUPPRESS;
+    }
+
     // Makes objects collide
     const auto defaultCollisonFlags =
             physx::PxPairFlag::eSOLVE_CONTACT | physx::PxPairFlag::eDETECT_DISCRETE_CONTACT;

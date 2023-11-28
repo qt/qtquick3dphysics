@@ -1144,6 +1144,7 @@ void QPhysicsWorld::frameFinished(float deltaTime)
     for (auto *physXBody : std::as_const(m_physXBodies)) {
         physXBody->markDirtyShapes();
         physXBody->rebuildDirtyShapes(this, m_physx);
+        physXBody->updateFilters();
 
         // Sync the physics world and the scene
         physXBody->sync(deltaTime, transformCache);
