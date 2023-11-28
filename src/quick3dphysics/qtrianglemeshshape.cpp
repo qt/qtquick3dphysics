@@ -1,18 +1,7 @@
-// Copyright (C) 2021 The Qt Company Ltd.
+// Copyright (C) 2023 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #include "qtrianglemeshshape_p.h"
-
-#include <QtQuick3D/QQuick3DGeometry>
-#include <extensions/PxExtensionsAPI.h>
-
-#include "qphysicsmeshutils_p_p.h"
-
-//########################################################################################
-// NOTE:
-// Triangle mesh, heightfield or plane geometry shapes configured as eSIMULATION_SHAPE are
-// not supported for non-kinematic PxRigidDynamic instances.
-//########################################################################################
 
 QT_BEGIN_NAMESPACE
 
@@ -42,58 +31,9 @@ QT_BEGIN_NAMESPACE
     for details.
 */
 
-QTriangleMeshShape::QTriangleMeshShape() = default;
-
-QTriangleMeshShape::~QTriangleMeshShape()
+QMeshShape::MeshType QTriangleMeshShape::shapeType() const
 {
-    delete m_meshGeometry;
-    if (m_mesh)
-        QQuick3DPhysicsMeshManager::releaseMesh(m_mesh);
-}
-
-physx::PxGeometry *QTriangleMeshShape::getPhysXGeometry()
-{
-    if (m_dirtyPhysx || m_scaleDirty) {
-        updatePhysXGeometry();
-    }
-    return m_meshGeometry;
-}
-
-void QTriangleMeshShape::updatePhysXGeometry()
-{
-    delete m_meshGeometry;
-    m_meshGeometry = nullptr;
-
-    if (!m_mesh)
-        return;
-    auto *triangleMesh = m_mesh->triangleMesh();
-    if (!triangleMesh)
-        return;
-
-    auto meshScale = sceneScale();
-    physx::PxMeshScale scale(physx::PxVec3(meshScale.x(), meshScale.y(), meshScale.z()),
-                             physx::PxQuat(physx::PxIdentity));
-
-    m_meshGeometry = new physx::PxTriangleMeshGeometry(triangleMesh, scale);
-    m_dirtyPhysx = false;
-}
-
-const QUrl &QTriangleMeshShape::source() const
-{
-    return m_meshSource;
-}
-
-void QTriangleMeshShape::setSource(const QUrl &newSource)
-{
-    if (m_meshSource == newSource)
-        return;
-    m_meshSource = newSource;
-    m_mesh = QQuick3DPhysicsMeshManager::getMesh(m_meshSource, this);
-
-    updatePhysXGeometry();
-
-    emit needsRebuild(this);
-    emit sourceChanged();
+    return QMeshShape::MeshType::TRIANGLE;
 }
 
 QT_END_NAMESPACE
