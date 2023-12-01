@@ -36,6 +36,9 @@ class PxRigidActor;
 class PxRigidStatic;
 class PxCooking;
 class PxControllerManager;
+class PxConvexMesh;
+class PxTriangleMesh;
+class PxHeightField;
 }
 
 QT_BEGIN_NAMESPACE
@@ -151,24 +154,36 @@ private:
         QQuick3DModel *model = nullptr;
         QQuick3DGeometry *geometry = nullptr;
         QVector3D data;
+        void *ptr = nullptr;
 
-        const QVector3D &halfExtents() const { return data; }
-        void setHalfExtents(const QVector3D &halfExtents) { data = halfExtents; }
+        void releaseMeshPointer();
 
-        float radius() const { return data.x(); }
-        void setRadius(float radius) { data.setX(radius); }
+        const QVector3D &halfExtents() const;
+        void setHalfExtents(const QVector3D &halfExtents);
 
-        float heightScale() const { return data.x(); }
-        void setHeightScale(float heightScale) { data.setX(heightScale); }
+        float radius() const;
+        void setRadius(float radius);
 
-        float halfHeight() const { return data.y(); }
-        void setHalfHeight(float halfHeight) { data.setY(halfHeight); }
+        float heightScale() const;
+        void setHeightScale(float heightScale);
 
-        float rowScale() const { return data.y(); }
-        void setRowScale(float rowScale) { data.setY(rowScale); }
+        float halfHeight() const;
+        void setHalfHeight(float halfHeight);
 
-        float columnScale() const { return data.z(); }
-        void setColumnScale(float columnScale) { data.setZ(columnScale); }
+        float rowScale() const;
+        void setRowScale(float rowScale);
+
+        float columnScale() const;
+        void setColumnScale(float columnScale);
+
+        physx::PxConvexMesh *getConvexMesh();
+        void setConvexMesh(physx::PxConvexMesh *mesh);
+
+        physx::PxTriangleMesh *getTriangleMesh();
+        void setTriangleMesh(physx::PxTriangleMesh *mesh);
+
+        physx::PxHeightField *getHeightField();
+        void setHeightField(physx::PxHeightField *hf);
     };
 
     QList<QAbstractPhysXNode *> m_physXBodies;
