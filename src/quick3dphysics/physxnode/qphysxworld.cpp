@@ -305,6 +305,11 @@ void QPhysXWorld::createScene(float typicalLength, float typicalSpeed, const QVe
     sceneDesc.solverType = physx::PxSolverType::eTGS;
     sceneDesc.simulationEventCallback = callback;
 
+    if (physicsWorld->reportKinematicKinematicCollisions())
+        sceneDesc.kineKineFilteringMode = physx::PxPairFilteringMode::eKEEP;
+    if (physicsWorld->reportStaticKinematicCollisions())
+        sceneDesc.staticKineFilteringMode = physx::PxPairFilteringMode::eKEEP;
+
     scene = s_physx.physics->createScene(sceneDesc);
 }
 

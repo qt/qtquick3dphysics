@@ -13,6 +13,7 @@ qt_internal_add_test(${PROJECT_NAME}
         Qt::Qml
     TESTDATA
         tst_callback.qml
+        tst_callback_report.qml
         PlaneScene.qml
     BUILTIN_TESTDATA
 )

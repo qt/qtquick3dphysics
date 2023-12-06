@@ -79,13 +79,15 @@ QT_BEGIN_NAMESPACE
     \qmlsignal PhysicsNode::bodyContact(PhysicsNode *body, list<vector3D> positions,
    list<vector3D> impulses, list<vector3D> normals)
 
-    This signal is emitted when there is a collision between a non-kinematic dynamic body and any
+    This signal is emitted when there is a collision between a dynamic body and any
     other body. The \l {PhysicsNode::} {receiveContactReports} in this body and \l {PhysicsNode::}
     {sendContactReports} in the colliding body need to be set to true. The parameters \a body, \a
     positions, \a impulses and \a normals contain the other body, position, impulse force and normal
     for each contact point at the same index.
 
     \sa CharacterController::shapeHit
+    \sa PhysicsWorld::reportKinematicKinematicCollisions
+    \sa PhysicsWorld::reportStaticKinematicCollisions
 */
 
 /*!

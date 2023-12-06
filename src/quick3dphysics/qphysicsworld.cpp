@@ -176,6 +176,37 @@ QT_BEGIN_NAMESPACE
     \note Once the scene has started running it is not possible to change the number of threads.
 */
 
+/*!
+    \qmlproperty bool PhysicsWorld::reportKinematicKinematicCollisions
+    \since 6.7
+
+    This property controls if collisions between pairs of \e{kinematic} dynamic rigid bodies will
+    trigger a contact report.
+
+    The default value is \c{false}.
+
+    \note Once the scene has started running it is not possible to change this setting.
+    \sa PhysicsWorld::reportStaticKinematicCollisions
+    \sa DynamicRigidBody
+    \sa PhysicsNode::bodyContact
+*/
+
+/*!
+    \qmlproperty bool PhysicsWorld::reportStaticKinematicCollisions
+    \since 6.7
+
+    This property controls if collisions between a static rigid body and a \e{kinematic} dynamic
+    rigid body will trigger a contact report.
+
+    The default value is \c{false}.
+
+    \note Once the scene has started running it is not possible to change this setting.
+    \sa PhysicsWorld::reportKinematicKinematicCollisions
+    \sa StaticRigidBody
+    \sa DynamicRigidBody
+    \sa PhysicsNode::bodyContact
+*/
+
 Q_LOGGING_CATEGORY(lcQuick3dPhysics, "qt.quick3d.physics");
 
 static const QQuaternion kMinus90YawRotation = QQuaternion::fromEulerAngles(0, -90, 0);
@@ -1304,6 +1335,33 @@ void QPhysicsWorld::setNumThreads(int newNumThreads)
         return;
     m_numThreads = newNumThreads;
     emit numThreadsChanged();
+}
+
+bool QPhysicsWorld::reportKinematicKinematicCollisions() const
+{
+    return m_reportKinematicKinematicCollisions;
+}
+
+void QPhysicsWorld::setReportKinematicKinematicCollisions(
+        bool newReportKinematicKinematicCollisions)
+{
+    if (m_reportKinematicKinematicCollisions == newReportKinematicKinematicCollisions)
+        return;
+    m_reportKinematicKinematicCollisions = newReportKinematicKinematicCollisions;
+    emit reportKinematicKinematicCollisionsChanged();
+}
+
+bool QPhysicsWorld::reportStaticKinematicCollisions() const
+{
+    return m_reportStaticKinematicCollisions;
+}
+
+void QPhysicsWorld::setReportStaticKinematicCollisions(bool newReportStaticKinematicCollisions)
+{
+    if (m_reportStaticKinematicCollisions == newReportStaticKinematicCollisions)
+        return;
+    m_reportStaticKinematicCollisions = newReportStaticKinematicCollisions;
+    emit reportStaticKinematicCollisionsChanged();
 }
 
 QT_END_NAMESPACE

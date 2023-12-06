@@ -8,6 +8,8 @@ import QtQuick3D.Physics
 View3D {
     id: viewport
     property real elapsedTime: 0
+    property bool reportKinematicKinematicCollisions: false
+    property bool reportStaticKinematicCollisions: false
 
     environment: SceneEnvironment {
         clearColor: "#d6dbdf"
@@ -33,6 +35,10 @@ View3D {
         scene: viewport.scene
         //maximumTimestep: 0.1
         //minimumTimestep: 0.1
+        forceDebugDraw: true
+        enableCCD: true
+        reportKinematicKinematicCollisions: viewport.reportKinematicKinematicCollisions
+        reportStaticKinematicCollisions: viewport.reportStaticKinematicCollisions
     }
 
     Connections {
