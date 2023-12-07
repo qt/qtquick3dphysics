@@ -1,4 +1,4 @@
-// Copyright (C) 2021 The Qt Company Ltd.
+// Copyright (C) 2023 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #include "qcacheutils_p.h"
@@ -32,6 +32,33 @@ physx::PxConvexMesh *QQuick3DPhysicsMesh::convexMesh()
     physx::PxPhysics *thePhysics = QPhysicsWorld::getPhysics();
     if (thePhysics == nullptr)
         return nullptr;
+
+    if (m_meshGeometry)
+        return convexMeshGeometrySource();
+    if (!m_meshPath.isEmpty())
+        return convexMeshQmlSource();
+    return nullptr;
+}
+
+physx::PxTriangleMesh *QQuick3DPhysicsMesh::triangleMesh()
+{
+    if (m_triangleMesh != nullptr)
+        return m_triangleMesh;
+
+    physx::PxPhysics *thePhysics = QPhysicsWorld::getPhysics();
+    if (thePhysics == nullptr)
+        return nullptr;
+
+    if (m_meshGeometry)
+        return triangleMeshGeometrySource();
+    if (!m_meshPath.isEmpty())
+        return triangleMeshQmlSource();
+    return nullptr;
+}
+
+physx::PxConvexMesh *QQuick3DPhysicsMesh::convexMeshQmlSource()
+{
+    physx::PxPhysics *thePhysics = QPhysicsWorld::getPhysics();
 
     m_convexMesh = QCacheUtils::readCachedConvexMesh(m_meshPath, *thePhysics);
     if (m_convexMesh != nullptr)
@@ -84,14 +111,52 @@ physx::PxConvexMesh *QQuick3DPhysicsMesh::convexMesh()
     return m_convexMesh;
 }
 
-physx::PxTriangleMesh *QQuick3DPhysicsMesh::triangleMesh()
+physx::PxConvexMesh *QQuick3DPhysicsMesh::convexMeshGeometrySource()
 {
-    if (m_triangleMesh != nullptr)
-        return m_triangleMesh;
+    physx::PxDefaultMemoryOutputStream buf;
+    physx::PxConvexMeshCookingResult::Enum result;
+    int vStride = m_meshGeometry->stride();
+    const auto vertexData = m_meshGeometry->vertexData();
+    int vCount = vertexData.size() / vStride;
+    const auto *vd = vertexData.constData();
+    if (m_meshGeometry->primitiveType() != QQuick3DGeometry::PrimitiveType::Triangles) {
+        qWarning() << "Geometry has invalid primitive type";
+    }
 
+    qCDebug(lcQuick3dPhysics) << "prepare cooking" << vCount << "verts";
+
+    QVector<physx::PxVec3> verts;
+
+    for (int i = 0; i < vCount; ++i) {
+        auto *vp = reinterpret_cast<const QVector3D *>(vd + vStride * i + m_posOffset);
+        verts << physx::PxVec3 { vp->x(), vp->y(), vp->z() };
+    }
+
+    const auto *convexVerts = verts.constData();
+
+    physx::PxConvexMeshDesc convexDesc;
+    convexDesc.points.count = vCount;
+    convexDesc.points.stride = sizeof(physx::PxVec3);
+    convexDesc.points.data = convexVerts;
+    convexDesc.flags = physx::PxConvexFlag::eCOMPUTE_CONVEX;
+
+    const auto cooking = QPhysicsWorld::getCooking();
+    if (cooking && cooking->cookConvexMesh(convexDesc, buf, &result)) {
+        auto size = buf.getSize();
+        auto *data = buf.getData();
+        physx::PxDefaultMemoryInputData input(data, size);
+        m_convexMesh = QPhysicsWorld::getPhysics()->createConvexMesh(input);
+        qCDebug(lcQuick3dPhysics) << "Created convex mesh" << m_convexMesh << "for mesh" << this;
+    } else {
+        qCWarning(lcQuick3dPhysics) << "Could not create convex mesh for" << this;
+    }
+
+    return m_convexMesh;
+}
+
+physx::PxTriangleMesh *QQuick3DPhysicsMesh::triangleMeshQmlSource()
+{
     physx::PxPhysics *thePhysics = QPhysicsWorld::getPhysics();
-    if (thePhysics == nullptr)
-        return nullptr;
 
     m_triangleMesh = QCacheUtils::readCachedTriangleMesh(m_meshPath, *thePhysics);
     if (m_triangleMesh != nullptr)
@@ -141,6 +206,34 @@ physx::PxTriangleMesh *QQuick3DPhysicsMesh::triangleMesh()
         QCacheUtils::writeCachedTriangleMesh(m_meshPath, buf);
     } else {
         qCWarning(lcQuick3dPhysics) << "Could not create triangle mesh from" << m_meshPath;
+    }
+
+    return m_triangleMesh;
+}
+
+physx::PxTriangleMesh *QQuick3DPhysicsMesh::triangleMeshGeometrySource()
+{
+    physx::PxDefaultMemoryOutputStream buf;
+    physx::PxTriangleMeshCookingResult::Enum result;
+    int vStride = m_meshGeometry->stride();
+    const auto vertexData = m_meshGeometry->vertexData();
+    int vCount = vertexData.size() / vStride;
+
+    physx::PxTriangleMeshDesc triangleDesc;
+    triangleDesc.points.count = vCount;
+    triangleDesc.points.stride = sizeof(physx::PxVec3);
+    triangleDesc.points.data = vertexData.constData();
+
+    const auto cooking = QPhysicsWorld::getCooking();
+    if (cooking && cooking->cookTriangleMesh(triangleDesc, buf, &result)) {
+        auto size = buf.getSize();
+        auto *data = buf.getData();
+        physx::PxDefaultMemoryInputData input(data, size);
+        m_triangleMesh = QPhysicsWorld::getPhysics()->createTriangleMesh(input);
+        qCDebug(lcQuick3dPhysics) << "Created triangle mesh" << m_triangleMesh << "for mesh"
+                                  << this;
+    } else {
+        qCWarning(lcQuick3dPhysics) << "Could not create triangle mesh for" << this;
     }
 
     return m_triangleMesh;
@@ -220,10 +313,21 @@ QQuick3DPhysicsMesh *QQuick3DPhysicsMeshManager::getMesh(const QUrl &source,
     const QQmlContext *context = qmlContext(contextObject);
     const auto resolvedUrl = context ? context->resolvedUrl(source) : source;
     const auto qmlSource = QQmlFile::urlToLocalFileOrQrc(resolvedUrl);
-    auto *mesh = meshHash.value(qmlSource);
+    auto *mesh = sourceMeshHash.value(qmlSource);
     if (!mesh) {
         mesh = new QQuick3DPhysicsMesh(qmlSource);
-        meshHash[qmlSource] = mesh;
+        sourceMeshHash[qmlSource] = mesh;
+    }
+    mesh->ref();
+    return mesh;
+}
+
+QQuick3DPhysicsMesh *QQuick3DPhysicsMeshManager::getMesh(QQuick3DGeometry *source)
+{
+    auto *mesh = geometryMeshHash.value(source);
+    if (!mesh) {
+        mesh = new QQuick3DPhysicsMesh(source);
+        geometryMeshHash.insert(source, mesh);
     }
     mesh->ref();
     return mesh;
@@ -231,16 +335,23 @@ QQuick3DPhysicsMesh *QQuick3DPhysicsMeshManager::getMesh(const QUrl &source,
 
 void QQuick3DPhysicsMeshManager::releaseMesh(QQuick3DPhysicsMesh *mesh)
 {
-    if (mesh->deref() == 0) {
-        qCDebug(lcQuick3dPhysics()) << "deleting mesh" << mesh;
-        erase_if(meshHash, [mesh](std::pair<const QString &, QQuick3DPhysicsMesh *&> h) {
-            return h.second == mesh;
-        });
-        delete mesh;
-    }
+    if (mesh == nullptr || mesh->deref() > 0)
+        return;
+
+    qCDebug(lcQuick3dPhysics()) << "deleting mesh" << mesh;
+    erase_if(sourceMeshHash, [mesh](std::pair<const QString &, QQuick3DPhysicsMesh *&> h) {
+        return h.second == mesh;
+    });
+    erase_if(geometryMeshHash, [mesh](std::pair<QQuick3DGeometry *, QQuick3DPhysicsMesh *&> h) {
+        return h.second == mesh;
+    });
+    delete mesh;
 }
 
-QHash<QString, QQuick3DPhysicsMesh *> QQuick3DPhysicsMeshManager::meshHash;
+QHash<QString, QQuick3DPhysicsMesh *> QQuick3DPhysicsMeshManager::sourceMeshHash;
+QHash<QQuick3DGeometry *, QQuick3DPhysicsMesh *> QQuick3DPhysicsMeshManager::geometryMeshHash;
+
+/////////////////////////////////////////////////////////////////////////////
 
 QMeshShape::~QMeshShape()
 {
@@ -298,13 +409,61 @@ void QMeshShape::setSource(const QUrl &newSource)
     if (m_meshSource == newSource)
         return;
     m_meshSource = newSource;
-    m_mesh = QQuick3DPhysicsMeshManager::getMesh(m_meshSource, this);
-    updatePhysXGeometry();
 
+    // If we get a new source and our mesh was from the old source
+    // (meaning it was NOT from a geometry) we deref
+    if (m_geometry == nullptr) {
+        QQuick3DPhysicsMeshManager::releaseMesh(m_mesh);
+        m_mesh = nullptr;
+    }
+
+    // Load new mesh only if we don't have a geometry as source
+    if (m_geometry == nullptr && !newSource.isEmpty())
+        m_mesh = QQuick3DPhysicsMeshManager::getMesh(m_meshSource, this);
+
+    updatePhysXGeometry();
     m_dirtyPhysx = true;
 
     emit needsRebuild(this);
     emit sourceChanged();
+}
+
+QQuick3DGeometry *QMeshShape::geometry() const
+{
+    return m_geometry;
+}
+
+void QMeshShape::setGeometry(QQuick3DGeometry *newGeometry)
+{
+    if (m_geometry == newGeometry)
+        return;
+    if (m_geometry)
+        m_geometry->disconnect(this);
+
+    m_geometry = newGeometry;
+
+    if (m_geometry != nullptr)
+        connect(m_geometry, &QObject::destroyed, this, &QMeshShape::geometryDestroyed);
+
+    // New geometry means we get a new mesh so deref the old one
+    QQuick3DPhysicsMeshManager::releaseMesh(m_mesh);
+    m_mesh = nullptr;
+    if (m_geometry != nullptr)
+        m_mesh = QQuick3DPhysicsMeshManager::getMesh(m_geometry);
+    else if (!m_meshSource.isEmpty())
+        m_mesh = QQuick3DPhysicsMeshManager::getMesh(m_meshSource, this);
+
+    updatePhysXGeometry();
+    m_dirtyPhysx = true;
+    emit needsRebuild(this);
+    emit geometryChanged();
+}
+
+void QMeshShape::geometryDestroyed(QObject *geometry)
+{
+    Q_ASSERT(m_geometry == geometry);
+    // Set geometry to null and the old one will be disconnected and dereferenced
+    setGeometry(nullptr);
 }
 
 QT_END_NAMESPACE
