@@ -1,5 +1,5 @@
 # Copyright (C) 2022 The Qt Company Ltd.
-# SPDX-License-Identifier: BSD-3-Clause WITH Qt-GPL-exception-1.0
+# SPDX-License-Identifier: LicenseRef-Qt-Commercial WITH Qt-GPL-exception-1.0
 
 set(target_name cooker)
 qt_internal_add_app(${target_name}
