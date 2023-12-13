@@ -117,11 +117,11 @@ Window {
                         return
 
                 instancesSpheres.forEach(sphere => {
-                                             sphere.collisionShapes = {}
+                                             sphere.collisionShapes = []
                                              sphere.destroy()
                                          })
                 instancesBoxes.forEach(box => {
-                                           box.object.collisionShapes = {}
+                                           box.object.collisionShapes = []
                                            box.object.destroy()
                                        })
                 instancesSpheres = []
