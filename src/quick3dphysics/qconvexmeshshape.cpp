@@ -35,4 +35,9 @@ QMeshShape::MeshType QConvexMeshShape::shapeType() const
     return QMeshShape::MeshType::CONVEX;
 }
 
+bool QConvexMeshShape::isStaticShape() const
+{
+    return false;
+}
+
 QT_END_NAMESPACE
