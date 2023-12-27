@@ -49,7 +49,6 @@ public:
 
     Q_REVISION(6, 5) const QUrl &source() const;
     Q_REVISION(6, 5) void setSource(const QUrl &newSource);
-    bool isStaticShape() const override { return false; }
 
 signals:
     Q_REVISION(6, 5) void sourceChanged();

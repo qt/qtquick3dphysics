@@ -36,4 +36,9 @@ QMeshShape::MeshType QTriangleMeshShape::shapeType() const
     return QMeshShape::MeshType::TRIANGLE;
 }
 
+bool QTriangleMeshShape::isStaticShape() const
+{
+    return true;
+}
+
 QT_END_NAMESPACE
