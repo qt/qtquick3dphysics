@@ -24,6 +24,7 @@ class Q_QUICK3DPHYSICS_EXPORT QTriangleMeshShape : public QMeshShape
     Q_OBJECT
     QML_NAMED_ELEMENT(TriangleMeshShape)
     virtual QMeshShape::MeshType shapeType() const override;
+    virtual bool isStaticShape() const override;
 };
 
 QT_END_NAMESPACE

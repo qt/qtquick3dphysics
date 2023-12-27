@@ -54,7 +54,6 @@ public:
     Q_REVISION(6, 5) void setSource(const QUrl &newSource);
     Q_REVISION(6, 7) QQuick3DGeometry *geometry() const;
     Q_REVISION(6, 7) void setGeometry(QQuick3DGeometry *newGeometry);
-    bool isStaticShape() const override { return false; }
 
 signals:
     Q_REVISION(6, 5) void sourceChanged();
