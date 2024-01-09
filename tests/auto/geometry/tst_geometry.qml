@@ -15,6 +15,7 @@ Item {
 
     PhysicsWorld {
         scene: viewport.scene
+        forceDebugDraw: true
     }
 
     View3D {
@@ -27,7 +28,7 @@ Item {
         }
 
         PerspectiveCamera {
-            position: Qt.vector3d(-200, 100, 500)
+            position: Qt.vector3d(-200, 300, 500)
             eulerRotation: Qt.vector3d(-20, -20, 0)
             clipFar: 5000
             clipNear: 1
@@ -63,9 +64,9 @@ Item {
                 dynamicBox.hit = true
             }
             receiveContactReports: true
-            sendContactReports: true
+            sendContactReports: false
 
-            position: Qt.vector3d(-50, 300, 0)
+            position: Qt.vector3d(-50, 400, 0)
             collisionShapes: ConvexMeshShape {
                 geometry: ExampleTriangleGeometry { }
             }
@@ -79,9 +80,50 @@ Item {
 
         StaticRigidBody {
             sendContactReports: true
-            position: Qt.vector3d(0, 50, 0)
+            position: Qt.vector3d(-175, 250, 0)
             collisionShapes: TriangleMeshShape {
-                geometry: ExampleTriangleGeometry { }
+                geometry: CapsuleGeometry {
+                    enableNormals: true
+                    enableUV: true
+                }
+            }
+            Model {
+                geometry: CapsuleGeometry { }
+                materials: PrincipledMaterial {
+                    baseColor: "yellow"
+                }
+            }
+        }
+
+        DynamicRigidBody {
+            id: dynamicCapsule
+            property bool hit : false
+            onBodyContact: () => {
+                dynamicCapsule.hit = true
+            }
+            receiveContactReports: true
+            sendContactReports: false
+
+            position: Qt.vector3d(175, 400, 0)
+            collisionShapes: ConvexMeshShape {
+                geometry: CapsuleGeometry {
+                    enableNormals: true
+                    enableUV: true
+                }
+            }
+            Model {
+                geometry: CapsuleGeometry { }
+                materials: PrincipledMaterial {
+                    baseColor: "yellow"
+                }
+            }
+        }
+
+        StaticRigidBody {
+            sendContactReports: true
+            position: Qt.vector3d(275, 250, 0)
+            collisionShapes: TriangleMeshShape {
+                geometry: ExampleTriangleGeometry {}
             }
             Model {
                 geometry: ExampleTriangleGeometry { }
@@ -93,8 +135,14 @@ Item {
     }
 
     TestCase {
-        name: "scene"
+        name: "box hit"
         when: dynamicBox.hit
+        function triggered() {  }
+    }
+
+    TestCase {
+        name: "capsule hit"
+        when: dynamicCapsule.hit
         function triggered() {  }
     }
 }

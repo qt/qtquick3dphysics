@@ -24,6 +24,20 @@
 
 QT_BEGIN_NAMESPACE
 
+static QQuick3DGeometry::Attribute
+attributeBySemantic(const QQuick3DGeometry *geometry,
+                    QQuick3DGeometry::Attribute::Semantic semantic)
+{
+    for (int i = 0; i < geometry->attributeCount(); i++) {
+        const auto attr = geometry->attribute(i);
+        if (attr.semantic == semantic)
+            return attr;
+    }
+
+    Q_UNREACHABLE();
+    return QQuick3DGeometry::Attribute();
+};
+
 physx::PxConvexMesh *QQuick3DPhysicsMesh::convexMesh()
 {
     if (m_convexMesh != nullptr)
@@ -213,17 +227,53 @@ physx::PxTriangleMesh *QQuick3DPhysicsMesh::triangleMeshQmlSource()
 
 physx::PxTriangleMesh *QQuick3DPhysicsMesh::triangleMeshGeometrySource()
 {
-    physx::PxDefaultMemoryOutputStream buf;
-    physx::PxTriangleMeshCookingResult::Enum result;
-    int vStride = m_meshGeometry->stride();
-    const auto vertexData = m_meshGeometry->vertexData();
-    int vCount = vertexData.size() / vStride;
+    auto vertexBuffer = m_meshGeometry->vertexData();
+
+    if (m_meshGeometry->primitiveType() != QQuick3DGeometry::PrimitiveType::Triangles) {
+        qWarning() << "QQuick3DPhysicsMesh: Invalid geometry primitive type, must be Triangles. ";
+        return nullptr;
+    }
+
+    if (!vertexBuffer.size()) {
+        qWarning() << "QQuick3DPhysicsMesh: Invalid geometry, vertexData is empty. ";
+        return nullptr;
+    }
+
+    const auto vertexAttribute =
+            attributeBySemantic(m_meshGeometry, QQuick3DGeometry::Attribute::PositionSemantic);
+    Q_ASSERT(vertexAttribute.componentType == QQuick3DGeometry::Attribute::F32Type);
+
+    const int posOffset = vertexAttribute.offset;
+    const auto stride = m_meshGeometry->stride();
+    const auto numVertices = vertexBuffer.size() / stride;
 
     physx::PxTriangleMeshDesc triangleDesc;
-    triangleDesc.points.count = vCount;
-    triangleDesc.points.stride = sizeof(physx::PxVec3);
-    triangleDesc.points.data = vertexData.constData();
+    triangleDesc.points.count = numVertices;
+    triangleDesc.points.stride = stride;
+    triangleDesc.points.data = vertexBuffer.constData() + posOffset;
 
+    auto indexBuffer = m_meshGeometry->indexData();
+    if (indexBuffer.size()) {
+        const auto indexAttribute =
+                attributeBySemantic(m_meshGeometry, QQuick3DGeometry::Attribute::IndexSemantic);
+        const bool u16IndexType =
+                indexAttribute.componentType == QQuick3DGeometry::Attribute::U16Type;
+
+        Q_ASSERT(indexAttribute.componentType == QQuick3DGeometry::Attribute::U16Type
+                 || indexAttribute.componentType == QQuick3DGeometry::Attribute::U32Type);
+
+        triangleDesc.triangles.data = indexBuffer.constData();
+        if (u16IndexType) {
+            triangleDesc.flags.set(physx::PxMeshFlag::e16_BIT_INDICES);
+            triangleDesc.triangles.stride = sizeof(quint16) * 3;
+        } else {
+            triangleDesc.triangles.stride = sizeof(quint32) * 3;
+        }
+        triangleDesc.triangles.count = indexBuffer.size() / triangleDesc.triangles.stride;
+    }
+
+    physx::PxDefaultMemoryOutputStream buf;
+    physx::PxTriangleMeshCookingResult::Enum result;
     const auto cooking = QPhysicsWorld::getCooking();
     if (cooking && cooking->cookTriangleMesh(triangleDesc, buf, &result)) {
         auto size = buf.getSize();
