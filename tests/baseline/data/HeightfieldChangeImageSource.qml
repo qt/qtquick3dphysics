@@ -13,7 +13,7 @@ Rectangle {
     }
 
     Timer {
-        interval: 500; running: true; repeat: false
+        interval: 1; running: true; repeat: false
         onTriggered: {
             image0.source = "cloth-heightmap.png"
             image1.source = "cloth-heightmap-small.png"

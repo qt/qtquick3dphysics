@@ -13,7 +13,7 @@ Rectangle {
     }
 
     Timer {
-        interval: 500; running: true; repeat: false
+        interval: 1; running: true; repeat: false
         onTriggered: {
             hfShape0.image = null
             hfShape1.image = null

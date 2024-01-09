@@ -13,7 +13,7 @@ Rectangle {
     }
 
     Timer {
-        interval: 500; running: true; repeat: false
+        interval: 1; running: true; repeat: false
         onTriggered: {
             tablecloth.scale = Qt.vector3d(10, 10, 10)
         }
