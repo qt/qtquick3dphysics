@@ -82,7 +82,7 @@ qt_internal_extend_target(qquick3dphysicsplugin
         Qt::Quick3DPhysicsPrivate
 )
 
-if (UNIX)
+if (UNIX OR MINGW)
     # Needed for PxPreprocessor.h error
     if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
         qt_internal_extend_target(Quick3DPhysics DEFINES _DEBUG)
