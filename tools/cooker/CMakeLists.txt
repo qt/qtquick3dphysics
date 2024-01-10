@@ -18,7 +18,7 @@ target_include_directories(${target_name} SYSTEM
     ../../src/3rdparty/PhysX/include
     ../../src/3rdparty/PhysX/pxshared/include
 )
-if (UNIX)
+if (UNIX OR MINGW)
     # Needed for PxPreprocessor.h error
     if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
         qt_internal_extend_target(${target_name} DEFINES _DEBUG)
