@@ -87,29 +87,22 @@ physx::PxConvexMesh *QQuick3DPhysicsMesh::convexMeshQmlSource()
     if (!m_ssgMesh.isValid())
         return nullptr;
 
-    physx::PxDefaultMemoryOutputStream buf;
-    physx::PxConvexMeshCookingResult::Enum result;
-    int vStride = m_ssgMesh.vertexBuffer().stride;
-    int vCount = m_ssgMesh.vertexBuffer().data.size() / vStride;
-    const auto *vd = m_ssgMesh.vertexBuffer().data.constData();
+    const int vStride = m_ssgMesh.vertexBuffer().stride;
+    const int vCount = m_ssgMesh.vertexBuffer().data.size() / vStride;
 
     qCDebug(lcQuick3dPhysics) << "prepare cooking" << vCount << "verts";
 
-    QVector<physx::PxVec3> verts;
-
-    for (int i = 0; i < vCount; ++i) {
-        auto *vp = reinterpret_cast<const QVector3D *>(vd + vStride * i + m_posOffset);
-        verts << physx::PxVec3 { vp->x(), vp->y(), vp->z() };
-    }
-
-    const auto *convexVerts = verts.constData();
-
     physx::PxConvexMeshDesc convexDesc;
     convexDesc.points.count = vCount;
-    convexDesc.points.stride = sizeof(physx::PxVec3);
-    convexDesc.points.data = convexVerts;
+    convexDesc.points.stride = vStride;
+    convexDesc.points.data = m_ssgMesh.vertexBuffer().data.constData() + m_posOffset;
     convexDesc.flags = physx::PxConvexFlag::eCOMPUTE_CONVEX;
 
+    // NOTE: Since we are making a mesh for the convex hull and are only
+    // interested in the positions we can Skip the index array.
+
+    physx::PxDefaultMemoryOutputStream buf;
+    physx::PxConvexMeshCookingResult::Enum result;
     const auto cooking = QPhysicsWorld::getCooking();
     if (cooking && cooking->cookConvexMesh(convexDesc, buf, &result)) {
         auto size = buf.getSize();
@@ -127,34 +120,37 @@ physx::PxConvexMesh *QQuick3DPhysicsMesh::convexMeshQmlSource()
 
 physx::PxConvexMesh *QQuick3DPhysicsMesh::convexMeshGeometrySource()
 {
-    physx::PxDefaultMemoryOutputStream buf;
-    physx::PxConvexMeshCookingResult::Enum result;
-    int vStride = m_meshGeometry->stride();
-    const auto vertexData = m_meshGeometry->vertexData();
-    int vCount = vertexData.size() / vStride;
-    const auto *vd = vertexData.constData();
+    auto vertexBuffer = m_meshGeometry->vertexData();
+
     if (m_meshGeometry->primitiveType() != QQuick3DGeometry::PrimitiveType::Triangles) {
-        qWarning() << "Geometry has invalid primitive type";
+        qWarning() << "QQuick3DPhysicsMesh: Invalid geometry primitive type, must be Triangles. ";
+        return nullptr;
     }
 
-    qCDebug(lcQuick3dPhysics) << "prepare cooking" << vCount << "verts";
-
-    QVector<physx::PxVec3> verts;
-
-    for (int i = 0; i < vCount; ++i) {
-        auto *vp = reinterpret_cast<const QVector3D *>(vd + vStride * i + m_posOffset);
-        verts << physx::PxVec3 { vp->x(), vp->y(), vp->z() };
+    if (!vertexBuffer.size()) {
+        qWarning() << "QQuick3DPhysicsMesh: Invalid geometry, vertexData is empty. ";
+        return nullptr;
     }
 
-    const auto *convexVerts = verts.constData();
+    const auto vertexAttribute =
+            attributeBySemantic(m_meshGeometry, QQuick3DGeometry::Attribute::PositionSemantic);
+    Q_ASSERT(vertexAttribute.componentType == QQuick3DGeometry::Attribute::F32Type);
+
+    const auto stride = m_meshGeometry->stride();
+    const auto numVertices = vertexBuffer.size() / stride;
 
     physx::PxConvexMeshDesc convexDesc;
-    convexDesc.points.count = vCount;
-    convexDesc.points.stride = sizeof(physx::PxVec3);
-    convexDesc.points.data = convexVerts;
+    convexDesc.points.count = numVertices;
+    convexDesc.points.stride = stride;
+    convexDesc.points.data = vertexBuffer.constData() + vertexAttribute.offset;
     convexDesc.flags = physx::PxConvexFlag::eCOMPUTE_CONVEX;
 
+    // NOTE: Since we are making a mesh for the convex hull and are only
+    // interested in the positions we can Skip the index array.
+
     const auto cooking = QPhysicsWorld::getCooking();
+    physx::PxDefaultMemoryOutputStream buf;
+    physx::PxConvexMeshCookingResult::Enum result;
     if (cooking && cooking->cookConvexMesh(convexDesc, buf, &result)) {
         auto size = buf.getSize();
         auto *data = buf.getData();
@@ -184,31 +180,39 @@ physx::PxTriangleMesh *QQuick3DPhysicsMesh::triangleMeshQmlSource()
     if (!m_ssgMesh.isValid())
         return nullptr;
 
-    physx::PxDefaultMemoryOutputStream buf;
-    physx::PxTriangleMeshCookingResult::Enum result;
-    const int vStride = m_ssgMesh.vertexBuffer().stride;
-    const int vCount = m_ssgMesh.vertexBuffer().data.size() / vStride;
-    const auto *vd = m_ssgMesh.vertexBuffer().data.constData();
+    auto vertexBuffer = m_ssgMesh.vertexBuffer().data;
 
-    const int iStride =
-            m_ssgMesh.indexBuffer().componentType == QSSGMesh::Mesh::ComponentType::UnsignedInt16
-            ? 2
-            : 4;
-    const int iCount = m_ssgMesh.indexBuffer().data.size() / iStride;
-
-    qCDebug(lcQuick3dPhysics) << "prepare cooking" << vCount << "verts" << iCount << "idxs";
+    const int posOffset = m_posOffset;
+    const auto stride =  m_ssgMesh.vertexBuffer().stride;
+    const auto numVertices = vertexBuffer.size() / stride;
 
     physx::PxTriangleMeshDesc triangleDesc;
-    triangleDesc.points.count = vCount;
-    triangleDesc.points.stride = vStride;
-    triangleDesc.points.data = vd + m_posOffset;
+    triangleDesc.points.count = numVertices;
+    triangleDesc.points.stride = stride;
+    triangleDesc.points.data = vertexBuffer.constData() + posOffset;
 
-    triangleDesc.flags = {}; //??? physx::PxMeshFlag::eFLIPNORMALS or
-                             // physx::PxMeshFlag::e16_BIT_INDICES
-    triangleDesc.triangles.count = iCount / 3;
-    triangleDesc.triangles.stride = iStride * 3;
-    triangleDesc.triangles.data = m_ssgMesh.indexBuffer().data.constData();
+    auto indexBuffer = m_ssgMesh.indexBuffer().data;
+    if (indexBuffer.size()) {
+        const bool u16IndexType =
+                m_ssgMesh.indexBuffer().componentType == QSSGMesh::Mesh::ComponentType::UnsignedInt16;
 
+        Q_ASSERT(m_ssgMesh.indexBuffer().componentType
+                         == QSSGMesh::Mesh::ComponentType::UnsignedInt16
+                 || m_ssgMesh.indexBuffer().componentType
+                         == QSSGMesh::Mesh::ComponentType::UnsignedInt32);
+
+        triangleDesc.triangles.data = indexBuffer.constData();
+        if (u16IndexType) {
+            triangleDesc.flags.set(physx::PxMeshFlag::e16_BIT_INDICES);
+            triangleDesc.triangles.stride = sizeof(quint16) * 3;
+        } else {
+            triangleDesc.triangles.stride = sizeof(quint32) * 3;
+        }
+        triangleDesc.triangles.count = indexBuffer.size() / triangleDesc.triangles.stride;
+    }
+
+    physx::PxDefaultMemoryOutputStream buf;
+    physx::PxTriangleMeshCookingResult::Enum result;
     const auto cooking = QPhysicsWorld::getCooking();
     if (cooking && cooking->cookTriangleMesh(triangleDesc, buf, &result)) {
         auto size = buf.getSize();
