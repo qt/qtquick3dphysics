@@ -371,16 +371,37 @@ void QPhysicsWorld::deregisterNode(QAbstractPhysicsNode *physicsNode)
 {
     for (auto world : worldManager.worlds) {
         world->m_newPhysicsNodes.removeAll(physicsNode);
+        QMutexLocker locker(&world->m_removedPhysicsNodesMutex);
         if (physicsNode->m_backendObject) {
             Q_ASSERT(physicsNode->m_backendObject->frontendNode == physicsNode);
             physicsNode->m_backendObject->frontendNode = nullptr;
             physicsNode->m_backendObject->isRemoved = true;
             physicsNode->m_backendObject = nullptr;
         }
-        QMutexLocker locker(&world->m_removedPhysicsNodesMutex);
         world->m_removedPhysicsNodes.insert(physicsNode);
     }
     worldManager.orphanNodes.removeAll(physicsNode);
+}
+
+void QPhysicsWorld::registerContact(QAbstractPhysicsNode *sender, QAbstractPhysicsNode *receiver,
+                                    const QVector<QVector3D> &positions,
+                                    const QVector<QVector3D> &impulses,
+                                    const QVector<QVector3D> &normals)
+{
+    // Since collision callbacks happen in the physx simulation thread we need
+    // to store these callbacks. Otherwise, if an object is deleted in the same
+    // frame a 'onBodyContact' signal is enqueued and a crash will happen.
+    // Therefore we save these contact callbacks and run them at the end of the
+    // physics frame when we know if the objects are deleted or not.
+
+    BodyContact contact;
+    contact.sender = sender;
+    contact.receiver = receiver;
+    contact.positions = positions;
+    contact.impulses = impulses;
+    contact.normals = normals;
+
+    m_registeredContacts.push_back(contact);
 }
 
 QPhysicsWorld::QPhysicsWorld(QObject *parent) : QObject(parent)
@@ -1161,6 +1182,7 @@ void QPhysicsWorld::initPhysics()
 void QPhysicsWorld::frameFinished(float deltaTime)
 {
     matchOrphanNodes();
+    emitContactCallbacks();
     cleanupRemovedNodes();
     for (auto *node : std::as_const(m_newPhysicsNodes)) {
         auto *body = node->createPhysXBackend();
@@ -1192,6 +1214,7 @@ void QPhysicsWorld::frameFinishedDesignStudio()
 {
     // Note sure if this is needed but do it anyway
     matchOrphanNodes();
+    emitContactCallbacks();
     cleanupRemovedNodes();
     // Ignore new physics nodes, we find them from the scene node anyway
     m_newPhysicsNodes.clear();
@@ -1272,6 +1295,19 @@ void QPhysicsWorld::findPhysicsNodes()
         }
         children.append(child->childItems());
     }
+}
+
+void QPhysicsWorld::emitContactCallbacks()
+{
+    for (const QPhysicsWorld::BodyContact &contact : m_registeredContacts) {
+        if (m_removedPhysicsNodes.contains(contact.sender)
+            || m_removedPhysicsNodes.contains(contact.receiver))
+            continue;
+        contact.receiver->registerContact(contact.sender, contact.positions, contact.impulses,
+                                          contact.normals);
+    }
+
+    m_registeredContacts.clear();
 }
 
 physx::PxPhysics *QPhysicsWorld::getPhysics()

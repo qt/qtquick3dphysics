@@ -112,6 +112,10 @@ public:
     static void registerNode(QAbstractPhysicsNode *physicsNode);
     static void deregisterNode(QAbstractPhysicsNode *physicsNode);
 
+    void registerContact(QAbstractPhysicsNode *sender, QAbstractPhysicsNode *receiver,
+                         const QVector<QVector3D> &positions, const QVector<QVector3D> &impulses,
+                         const QVector<QVector3D> &normals);
+
     Q_REVISION(6, 5) QQuick3DNode *viewport() const;
     void setHasIndividualDebugDraw();
     physx::PxControllerManager *controllerManager();
@@ -167,6 +171,16 @@ private:
     void disableDebugDraw();
     void matchOrphanNodes();
     void findPhysicsNodes();
+    void emitContactCallbacks();
+
+    struct BodyContact
+    {
+        QAbstractPhysicsNode *sender = nullptr;
+        QAbstractPhysicsNode *receiver = nullptr;
+        QVector<QVector3D> positions;
+        QVector<QVector3D> impulses;
+        QVector<QVector3D> normals;
+    };
 
     struct DebugModelHolder
     {
@@ -213,6 +227,7 @@ private:
             m_collisionShapeDebugModels;
     QSet<QAbstractPhysicsNode *> m_removedPhysicsNodes;
     QMutex m_removedPhysicsNodesMutex;
+    QList<BodyContact> m_registeredContacts;
 
     QVector3D m_gravity = QVector3D(0.f, -981.f, 0.f);
     float m_typicalLength = 100.f; // 100 cm
