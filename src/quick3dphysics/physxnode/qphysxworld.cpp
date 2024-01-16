@@ -91,8 +91,9 @@ public:
                 QAbstractPhysicsNode *other =
                         static_cast<QAbstractPhysicsNode *>(pairHeader.actors[1]->userData);
 
-                if (!trigger || !other || !trigger->m_backendObject || !other->m_backendObject
-                    || world->isNodeRemoved(trigger) || world->isNodeRemoved(other))
+                if (!trigger || !other || world->isNodeRemoved(trigger)
+                    || world->isNodeRemoved(other) || !trigger->m_backendObject
+                    || !other->m_backendObject)
                     continue;
 
                 const bool triggerReceive =
@@ -130,9 +131,9 @@ public:
                 }
 
                 if (triggerReceive)
-                    trigger->registerContact(other, positions, impulses, normals);
+                    world->registerContact(other, trigger, positions, impulses, normals);
                 if (otherReceive)
-                    other->registerContact(trigger, positions, impulses, normalsInverted);
+                    world->registerContact(trigger, other, positions, impulses, normalsInverted);
             }
         }
     };
