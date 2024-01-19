@@ -61,6 +61,7 @@ signals:
 
 private slots:
     void geometryDestroyed(QObject *geometry);
+    void geometryContentChanged();
 
 private:
     void updatePhysXGeometry();

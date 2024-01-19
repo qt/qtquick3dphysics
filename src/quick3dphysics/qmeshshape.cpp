@@ -18,6 +18,8 @@
 #include <QtQml/qqmlcontext.h>
 
 #include <QtQuick3DUtils/private/qssgmesh_p.h>
+#include <QtQuick3D/QQuick3DGeometry>
+
 #include "qmeshshape_p.h"
 #include "qphysicsworld_p.h"
 #include "qphysicsmeshutils_p_p.h"
@@ -496,8 +498,11 @@ void QMeshShape::setGeometry(QQuick3DGeometry *newGeometry)
 
     m_geometry = newGeometry;
 
-    if (m_geometry != nullptr)
+    if (m_geometry != nullptr) {
         connect(m_geometry, &QObject::destroyed, this, &QMeshShape::geometryDestroyed);
+        connect(m_geometry, &QQuick3DGeometry::geometryChanged, this,
+                &QMeshShape::geometryContentChanged);
+    }
 
     // New geometry means we get a new mesh so deref the old one
     QQuick3DPhysicsMeshManager::releaseMesh(m_mesh);
@@ -518,6 +523,17 @@ void QMeshShape::geometryDestroyed(QObject *geometry)
     Q_ASSERT(m_geometry == geometry);
     // Set geometry to null and the old one will be disconnected and dereferenced
     setGeometry(nullptr);
+}
+
+void QMeshShape::geometryContentChanged()
+{
+    Q_ASSERT(m_geometry != nullptr);
+    QQuick3DPhysicsMeshManager::releaseMesh(m_mesh);
+    m_mesh = QQuick3DPhysicsMeshManager::getMesh(m_geometry);
+
+    updatePhysXGeometry();
+    m_dirtyPhysx = true;
+    emit needsRebuild(this);
 }
 
 QT_END_NAMESPACE
