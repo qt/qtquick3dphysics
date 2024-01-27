@@ -209,8 +209,6 @@ QT_BEGIN_NAMESPACE
 
 Q_LOGGING_CATEGORY(lcQuick3dPhysics, "qt.quick3d.physics");
 
-static const QQuaternion kMinus90YawRotation = QQuaternion::fromEulerAngles(0, -90, 0);
-
 /////////////////////////////////////////////////////////////////////////////
 
 class SimulationWorker : public QObject
@@ -727,7 +725,7 @@ void QPhysicsWorld::updateDebugDraw()
                 physXShape->getPlaneGeometry(planeGeometry);
                 // Special rotation
                 const QQuaternion rotation =
-                        kMinus90YawRotation * QPhysicsUtils::toQtType(localPose.q);
+                        QPhysicsUtils::kMinus90YawRotation * QPhysicsUtils::toQtType(localPose.q);
                 localPose = physx::PxTransform(localPose.p, QPhysicsUtils::toPhysXType(rotation));
 
                 if (model->geometry() == nullptr) {
