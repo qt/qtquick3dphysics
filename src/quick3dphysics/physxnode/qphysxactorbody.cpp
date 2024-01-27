@@ -24,21 +24,12 @@
 
 QT_BEGIN_NAMESPACE
 
-static const QQuaternion kMinus90YawRotation = QQuaternion::fromEulerAngles(0, -90, 0);
-
-static inline bool fuzzyEquals(const physx::PxTransform &a, const physx::PxTransform &b)
-{
-    return qFuzzyCompare(a.p.x, b.p.x) && qFuzzyCompare(a.p.y, b.p.y) && qFuzzyCompare(a.p.z, b.p.z)
-            && qFuzzyCompare(a.q.x, b.q.x) && qFuzzyCompare(a.q.y, b.q.y)
-            && qFuzzyCompare(a.q.z, b.q.z) && qFuzzyCompare(a.q.w, b.q.w);
-}
-
 static physx::PxTransform getPhysXLocalTransform(const QQuick3DNode *node)
 {
     // Modify transforms to make the PhysX shapes match the QtQuick3D conventions
     if (qobject_cast<const QPlaneShape *>(node) != nullptr) {
         // Rotate the plane to make it match the built-in rectangle
-        const QQuaternion rotation = kMinus90YawRotation * node->rotation();
+        const QQuaternion rotation = QPhysicsUtils::kMinus90YawRotation * node->rotation();
         return physx::PxTransform(QPhysicsUtils::toPhysXType(node->position()),
                                   QPhysicsUtils::toPhysXType(rotation));
     } else if (auto *hf = qobject_cast<const QHeightFieldShape *>(node)) {
@@ -115,7 +106,7 @@ void QPhysXActorBody::markDirtyShapes()
                 auto poseNew = getPhysXLocalTransform(collisionShapes[i]);
                 auto poseOld = physXShapes[i]->getLocalPose();
 
-                if (!fuzzyEquals(poseNew, poseOld)) {
+                if (!QPhysicsUtils::fuzzyEquals(poseNew, poseOld)) {
                     setShapesDirty(true);
                     break;
                 }
