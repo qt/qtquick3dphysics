@@ -30,7 +30,7 @@ QT_BEGIN_NAMESPACE
     \c {DynamicRigidBody.CustomDensity} or \c {DynamicRigidBody.DefaultDensity}. Also note that
     a value of 0 is interpreted as infinite mass and that negative numbers are not allowed.
 
-    Default value is \c 1.
+    Default value: \c 1
 
     Range: \c{[0, inf]}
 
@@ -43,7 +43,7 @@ QT_BEGIN_NAMESPACE
     This property defines the density of the body. This is only used when massMode is set to \c
     {DynamicRigidBody.CustomDensity}.
 
-    Default value is \c{0.001}.
+    Default value: \c{0.001}
 
     Range: \c{(0, inf]}
     \sa massMode
@@ -58,7 +58,7 @@ QT_BEGIN_NAMESPACE
     Available options:
 
     \value  DynamicRigidBody.None
-            No axis lock (default value).
+            No axis lock.
 
     \value  DynamicRigidBody.LockX
             Lock X axis.
@@ -68,6 +68,8 @@ QT_BEGIN_NAMESPACE
 
     \value  DynamicRigidBody.LockZ
             Lock Z axis.
+
+    Default value: \c{DynamicRigidBody.None}
 */
 
 /*!
@@ -79,7 +81,7 @@ QT_BEGIN_NAMESPACE
     Available options:
 
     \value  DynamicRigidBody.None
-            No axis lock (default value).
+            No axis lock.
 
     \value  DynamicRigidBody.LockX
             Lock X axis.
@@ -89,6 +91,8 @@ QT_BEGIN_NAMESPACE
 
     \value  DynamicRigidBody.LockZ
             Lock Z axis.
+
+    Default value: \c{DynamicRigidBody.None}
 */
 
 /*!
@@ -99,20 +103,22 @@ QT_BEGIN_NAMESPACE
     regardless of external forces. Note that to move and rotate the kinematic object you need to use
     the kinematicPosition, kinematicRotation, kinematicEulerRotation and kinematicPivot properties.
 
+    Default value: \c{false}
+
     \sa kinematicPosition, kinematicRotation, kinematicEulerRotation, kinematicPivot
 */
 
 /*!
     \qmlproperty bool DynamicRigidBody::gravityEnabled
     This property defines whether the object is going to be affected by gravity or not.
+
+    Default value: \c{true}
 */
 
 /*!
     \qmlproperty MassMode DynamicRigidBody::massMode
 
     This property holds the enum which describes how mass and inertia are calculated for this body.
-
-    By default, \c DynamicRigidBody.DefaultDensity is used.
 
     Available options:
 
@@ -133,6 +139,8 @@ QT_BEGIN_NAMESPACE
     \value  DynamicRigidBody.MassAndInertiaMatrix
             Use the specified mass value and calculate inertia from the specified inertia
             matrix.
+
+    Default value: \c{DynamicRigidBody.DefaultDensity}
 */
 
 /*!
@@ -148,7 +156,7 @@ QT_BEGIN_NAMESPACE
     interpreted as infinite inertia along that axis. Note that this is only used when
     massMode is set to \c DynamicRigidBody.MassAndInertiaTensor.
 
-    Default value is (1, 1, 1).
+    Default value: \c{(1, 1, 1)}
 
     \sa massMode, inertiaMatrix
 */
@@ -158,6 +166,8 @@ QT_BEGIN_NAMESPACE
 
     Defines the position of the center of mass relative to the body. Note that this is only used
     when massMode is set to \c DynamicRigidBody.MassAndInertiaTensor.
+
+    Default value: \c{(0, 0, 0)}
 
     \sa massMode, inertiaTensor
 */
@@ -169,6 +179,8 @@ QT_BEGIN_NAMESPACE
     principal inertia axes relative to the body. Note that this is only used when massMode is set to
     \c DynamicRigidBody.MassAndInertiaTensor.
 
+    Default value: \c{(1, 0, 0, 0)}
+
     \sa massMode, inertiaTensor
 */
 
@@ -178,6 +190,8 @@ QT_BEGIN_NAMESPACE
     Defines the inertia tensor matrix. This is a 3x3 matrix in column-major order. Note that this
     matrix is expected to be diagonalizable. Note that this is only used when massMode is set to
     \c DynamicRigidBody.MassAndInertiaMatrix.
+
+    Default value: A 3x3 identity matrix
 
     \sa massMode, inertiaTensor
 */
@@ -190,6 +204,8 @@ QT_BEGIN_NAMESPACE
     true. On each iteration of the simulation the physical object will be updated according to this
     value.
 
+    Default value: \c{(0, 0, 0)}
+
     \sa isKinematic, kinematicRotation, kinematicEulerRotation, kinematicPivot
 */
 
@@ -200,6 +216,8 @@ QT_BEGIN_NAMESPACE
     Defines the rotation of the object when it is kinematic, i.e. when \l isKinematic is set to \c
     true. On each iteration of the simulation the physical object will be updated according to this
     value.
+
+    Default value: \c{(0, 0, 0)}
 
     \sa isKinematic, kinematicPosition, kinematicEulerRotation, kinematicPivot
 */
@@ -212,6 +230,8 @@ QT_BEGIN_NAMESPACE
     true. On each iteration of the simulation the physical object will be updated according to this
     value.
 
+    Default value: \c{(1, 0, 0, 0)}
+
     \sa isKinematic, kinematicPosition, kinematicEulerRotation, kinematicPivot
 */
 
@@ -222,6 +242,8 @@ QT_BEGIN_NAMESPACE
     Defines the pivot of the object when it is kinematic, i.e. when \l isKinematic is set to \c
     true. On each iteration of the simulation the physical object will be updated according to this
     value.
+
+    Default value: \c{(0, 0, 0)}
 
     \sa isKinematic, kinematicPosition, kinematicEulerRotation, kinematicRotation
 */

@@ -30,11 +30,15 @@ QT_BEGIN_NAMESPACE
 /*!
     \qmlproperty float CapsuleShape::diameter
     This property defines the diameter of the capsule
+
+    Default value: \c{100}
 */
 
 /*!
     \qmlproperty float CapsuleShape::height
     This property defines the height of the capsule
+
+    Default value: \c{100}
 */
 
 QCapsuleShape::QCapsuleShape() = default;

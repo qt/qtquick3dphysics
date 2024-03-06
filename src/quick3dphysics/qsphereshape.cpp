@@ -23,6 +23,8 @@ QT_BEGIN_NAMESPACE
 /*!
     \qmlproperty float SphereShape::diameter
     This property defines the diameter of the sphere
+
+    Default value: \c{100}
 */
 
 QSphereShape::QSphereShape() = default;
