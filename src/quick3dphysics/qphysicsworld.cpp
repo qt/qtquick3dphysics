@@ -672,7 +672,11 @@ void QPhysicsWorld::updateDebugDraw()
 
             // Special handling of CharacterController since it has collision shapes,
             // but not PhysX shapes
-            if (QCapsuleShape *capsuleShape = qobject_cast<QCapsuleShape *>(collisionShape); capsuleShape != nullptr) {
+            if (qobject_cast<QCharacterController *>(node->frontendNode)) {
+                QCapsuleShape *capsuleShape = qobject_cast<QCapsuleShape *>(collisionShape);
+                if (!capsuleShape)
+                    continue;
+
                 const float radius = capsuleShape->diameter() * 0.5;
                 const float halfHeight = capsuleShape->height() * 0.5;
 
