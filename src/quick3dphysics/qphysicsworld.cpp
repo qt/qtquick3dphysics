@@ -67,6 +67,9 @@ QT_BEGIN_NAMESPACE
     This property enables continuous collision detection. This will reduce the risk of bodies going
     through other bodies at high velocities (also known as tunnelling). The default value is \c
     false.
+
+    \warning Using trigger bodies with CCD enabled is not supported and can result in missing or
+    false trigger reports.
 */
 
 /*!
