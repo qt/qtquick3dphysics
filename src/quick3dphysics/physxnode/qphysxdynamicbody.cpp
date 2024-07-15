@@ -98,9 +98,9 @@ QPhysXDynamicBody::QPhysXDynamicBody(QDynamicRigidBody *frontEnd) : QPhysXRigidB
 
 DebugDrawBodyType QPhysXDynamicBody::getDebugDrawBodyType()
 {
-    auto dynamicActor = static_cast<physx::PxRigidDynamic *>(actor);
-    return dynamicActor->isSleeping() ? DebugDrawBodyType::DynamicSleeping
-                                      : DebugDrawBodyType::DynamicAwake;
+    auto *dynamicRigidBody = static_cast<QDynamicRigidBody *>(frontendNode);
+    return dynamicRigidBody->isSleeping() ? DebugDrawBodyType::DynamicSleeping
+                                          : DebugDrawBodyType::DynamicAwake;
 }
 
 void QPhysXDynamicBody::sync(float deltaTime, QHash<QQuick3DNode *, QMatrix4x4> &transformCache)
@@ -128,6 +128,8 @@ void QPhysXDynamicBody::sync(float deltaTime, QHash<QQuick3DNode *, QMatrix4x4> 
         if (!disabled && !dynamicRigidBody->isKinematic())
             dynamicActor->wakeUp();
     }
+
+    dynamicRigidBody->setIsSleeping(dynamicActor->isSleeping());
 
     QPhysXActorBody::sync(deltaTime, transformCache);
 }
