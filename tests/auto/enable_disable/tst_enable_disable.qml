@@ -19,8 +19,8 @@ Item {
         forceDebugDraw: true
         typicalLength: 1
         typicalSpeed: 10
-        minimumTimestep: 16.6667
-        maximumTimestep: 16.6667
+        minimumTimestep: 15
+        maximumTimestep: 15
         scene: viewport.scene
         property real elapsedTime: 0
     }

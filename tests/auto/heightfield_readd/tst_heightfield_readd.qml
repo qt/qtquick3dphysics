@@ -16,8 +16,8 @@ Item {
     PhysicsWorld {
         scene: viewport.scene
         forceDebugDraw: true
-        maximumTimestep: 16
-        minimumTimestep: 16
+        maximumTimestep: 15
+        minimumTimestep: 15
     }
 
     View3D {
