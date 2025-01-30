@@ -194,7 +194,7 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty vector3d DynamicRigidBody::kinematicRotation
+    \qmlproperty quaternion DynamicRigidBody::kinematicRotation
     \since 6.5
 
     Defines the rotation of the object when it is kinematic, i.e. when \l isKinematic is set to \c
@@ -205,7 +205,7 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlproperty vector4d DynamicRigidBody::kinematicEulerRotation
+    \qmlproperty vector3d DynamicRigidBody::kinematicEulerRotation
     \since 6.5
 
     Defines the euler rotation of the object when it is kinematic, i.e. when \l isKinematic is set to \c
