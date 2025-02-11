@@ -34,7 +34,8 @@ qhp.QtQuick3DPhysics.subprojects.manual.type = manual
 depends += qtcore qtgui qtdoc qtqml qtqmlmodels qtquick qtquickcontrols qtshadertools qtquicktimeline qtquick3d
 
 sourcedirs  += .. \
-               src
+               src \
+               ../../helpers
 
 exampledirs +=  ../../../examples/quick3dphysics
 
