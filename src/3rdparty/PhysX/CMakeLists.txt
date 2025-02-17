@@ -1345,7 +1345,7 @@ if (MSYS OR MINGW)
     qt_internal_extend_target(BundledPhysX DEFINES PX_SIMD_DISABLED PX_GCC_FAMILY)
 endif()
 
-if (UNIX)
+if (UNIX OR MINGW)
     # Needed for PxPreprocessor.h error
     if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
         qt_internal_extend_target(BundledPhysX DEFINES _DEBUG)

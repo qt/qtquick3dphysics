@@ -36,6 +36,9 @@ class PxRigidActor;
 class PxRigidStatic;
 class PxCooking;
 class PxControllerManager;
+class PxConvexMesh;
+class PxTriangleMesh;
+class PxHeightField;
 }
 
 QT_BEGIN_NAMESPACE
@@ -101,6 +104,10 @@ public:
     static void registerNode(QAbstractPhysicsNode *physicsNode);
     static void deregisterNode(QAbstractPhysicsNode *physicsNode);
 
+    void registerContact(QAbstractPhysicsNode *sender, QAbstractPhysicsNode *receiver,
+                         const QVector<QVector3D> &positions, const QVector<QVector3D> &impulses,
+                         const QVector<QVector3D> &normals);
+
     Q_REVISION(6, 5) QQuick3DNode *viewport() const;
     void setHasIndividualDebugDraw();
     physx::PxControllerManager *controllerManager();
@@ -145,30 +152,52 @@ private:
     void disableDebugDraw();
     void matchOrphanNodes();
     void findPhysicsNodes();
+    void emitContactCallbacks();
+
+    struct BodyContact
+    {
+        QAbstractPhysicsNode *sender = nullptr;
+        QAbstractPhysicsNode *receiver = nullptr;
+        QVector<QVector3D> positions;
+        QVector<QVector3D> impulses;
+        QVector<QVector3D> normals;
+    };
 
     struct DebugModelHolder
     {
         QQuick3DModel *model = nullptr;
         QQuick3DGeometry *geometry = nullptr;
         QVector3D data;
+        void *ptr = nullptr;
 
-        const QVector3D &halfExtents() const { return data; }
-        void setHalfExtents(const QVector3D &halfExtents) { data = halfExtents; }
+        void releaseMeshPointer();
 
-        float radius() const { return data.x(); }
-        void setRadius(float radius) { data.setX(radius); }
+        const QVector3D &halfExtents() const;
+        void setHalfExtents(const QVector3D &halfExtents);
 
-        float heightScale() const { return data.x(); }
-        void setHeightScale(float heightScale) { data.setX(heightScale); }
+        float radius() const;
+        void setRadius(float radius);
 
-        float halfHeight() const { return data.y(); }
-        void setHalfHeight(float halfHeight) { data.setY(halfHeight); }
+        float heightScale() const;
+        void setHeightScale(float heightScale);
 
-        float rowScale() const { return data.y(); }
-        void setRowScale(float rowScale) { data.setY(rowScale); }
+        float halfHeight() const;
+        void setHalfHeight(float halfHeight);
 
-        float columnScale() const { return data.z(); }
-        void setColumnScale(float columnScale) { data.setZ(columnScale); }
+        float rowScale() const;
+        void setRowScale(float rowScale);
+
+        float columnScale() const;
+        void setColumnScale(float columnScale);
+
+        physx::PxConvexMesh *getConvexMesh();
+        void setConvexMesh(physx::PxConvexMesh *mesh);
+
+        physx::PxTriangleMesh *getTriangleMesh();
+        void setTriangleMesh(physx::PxTriangleMesh *mesh);
+
+        physx::PxHeightField *getHeightField();
+        void setHeightField(physx::PxHeightField *hf);
     };
 
     QList<QAbstractPhysXNode *> m_physXBodies;
@@ -179,6 +208,7 @@ private:
             m_collisionShapeDebugModels;
     QSet<QAbstractPhysicsNode *> m_removedPhysicsNodes;
     QMutex m_removedPhysicsNodesMutex;
+    QList<BodyContact> m_registeredContacts;
 
     QVector3D m_gravity = QVector3D(0.f, -981.f, 0.f);
     float m_typicalLength = 100.f; // 100 cm

@@ -63,6 +63,8 @@ Window {
                 materials: DefaultMaterial {
                     diffuseColor: "green"
                 }
+                castsShadows: false
+                receivesShadows: true
             }
         }
         //! [floor]
