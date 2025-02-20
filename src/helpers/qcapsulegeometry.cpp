@@ -50,13 +50,13 @@ QT_BEGIN_NAMESPACE
     Number of sections in cylinder between hemispheres.
 */
 
-/*! \qmlproperty float CapsuleGeometry::height
+/*! \qmlproperty real CapsuleGeometry::height
     \default 100
 
     Height of the middle cylinder on the y axis, excluding the hemispheres.
 */
 
-/*! \qmlproperty float CapsuleGeometry::diameter
+/*! \qmlproperty real CapsuleGeometry::diameter
     \default 100
 
     Diameter on the xz plane.
