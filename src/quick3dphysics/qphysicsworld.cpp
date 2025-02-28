@@ -1199,6 +1199,9 @@ void QPhysicsWorld::initPhysics()
 
 void QPhysicsWorld::simulateFrame()
 {
+    constexpr double MILLIONTH = 0.000001;
+    constexpr double THOUSANDTH = 0.001;
+
     if (m_inDesignStudio) {
         frameFinishedDesignStudio();
         return;
@@ -1213,27 +1216,29 @@ void QPhysicsWorld::simulateFrame()
     }
 
     // Frame not ready yet
-    if (!m_physx->scene->checkResults()) {
+    if (!m_frameFetched && !m_physx->scene->checkResults()) {
         return;
+    }
+
+    // Frame ready, fetch and finish it
+    if (!m_frameFetched) {
+        m_physx->scene->fetchResults(true);
+        frameFinished(m_currTimeStep);
+        m_frameFetched = true;
+        if (Q_UNLIKELY(!qtPhysicsTimingsFile.isEmpty())) {
+            const double deltaMS = m_timer.nsecsElapsed() * MILLIONTH;
+            m_frameTimings.append(deltaMS);
+        }
     }
 
     // Assuming: 0 <= minTimestep <= maxTimestep
-    constexpr double MILLIONTH = 0.000001;
-    double deltaMS = m_timer.nsecsElapsed() * MILLIONTH;
+    const double deltaMS = m_timer.nsecsElapsed() * MILLIONTH;
     if (deltaMS < m_minTimestep)
         return;
-    m_physx->scene->fetchResults(true);
-
-    // Important to recalculate deltaMS after potentially expensive
-    // fetchResults() call
-    deltaMS = m_timer.nsecsElapsed() * MILLIONTH;
-    double deltaSecs = qMin(float(deltaMS), m_maxTimestep) * 0.001f;
+    const double deltaSecs = qMin<double>(deltaMS, m_maxTimestep) * THOUSANDTH;
     m_timer.restart();
     m_physx->scene->simulate(deltaSecs);
-    frameFinished(m_currTimeStep);
-    if (Q_UNLIKELY(!qtPhysicsTimingsFile.isEmpty())) {
-        m_frameTimings.append(deltaMS * MILLIONTH);
-    }
+    m_frameFetched = false;
     m_currTimeStep = deltaSecs;
 }
 

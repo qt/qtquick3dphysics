@@ -266,6 +266,7 @@ private:
     QElapsedTimer m_timer;
     float m_currTimeStep = 0.f;
     QList<float> m_frameTimings;
+    bool m_frameFetched = false;
 };
 
 QT_END_NAMESPACE
