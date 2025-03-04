@@ -2,6 +2,9 @@ import QtQuick
 import QtQuick3D
 import QtQuick3D.Physics
 
+// Two bodies where one is scaled 1.5x*2x and the other 3x
+// and they should have the same size.
+
 Rectangle {
     width: 640
     height: 480
@@ -37,6 +40,7 @@ Rectangle {
                 position: Qt.vector3d(0, -100, 0)
             }
             Model {
+                scale: Qt.vector3d(0.99, 0.99, 0.99) // just to avoid z-fight
                 position: Qt.vector3d(0, -100, 0)
                 source: "#Cube"
                 materials: PrincipledMaterial {
@@ -54,6 +58,7 @@ Rectangle {
                     position: Qt.vector3d(0, 100, 0)
                 }
                 Model {
+                    scale: Qt.vector3d(0.99, 0.99, 0.99) // just to avoid z-fight
                     position: Qt.vector3d(0, 100, 0)
                     source: "#Cube"
                     materials: PrincipledMaterial {

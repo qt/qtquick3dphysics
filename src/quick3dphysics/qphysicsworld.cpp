@@ -146,8 +146,6 @@ QT_BEGIN_NAMESPACE
 
 Q_LOGGING_CATEGORY(lcQuick3dPhysics, "qt.quick3d.physics");
 
-static const QQuaternion kMinus90YawRotation = QQuaternion::fromEulerAngles(0, -90, 0);
-
 /////////////////////////////////////////////////////////////////////////////
 
 class SimulationWorker : public QObject
@@ -204,6 +202,88 @@ private:
 
 /////////////////////////////////////////////////////////////////////////////
 
+void QPhysicsWorld::DebugModelHolder::releaseMeshPointer()
+{
+    if (auto base = static_cast<physx::PxBase *>(ptr); base)
+        base->release();
+    ptr = nullptr;
+}
+
+const QVector3D &QPhysicsWorld::DebugModelHolder::halfExtents() const
+{
+    return data;
+}
+void QPhysicsWorld::DebugModelHolder::setHalfExtents(const QVector3D &halfExtents)
+{
+    data = halfExtents;
+}
+float QPhysicsWorld::DebugModelHolder::radius() const
+{
+    return data.x();
+}
+void QPhysicsWorld::DebugModelHolder::setRadius(float radius)
+{
+    data.setX(radius);
+}
+float QPhysicsWorld::DebugModelHolder::heightScale() const
+{
+    return data.x();
+}
+void QPhysicsWorld::DebugModelHolder::setHeightScale(float heightScale)
+{
+    data.setX(heightScale);
+}
+float QPhysicsWorld::DebugModelHolder::halfHeight() const
+{
+    return data.y();
+}
+void QPhysicsWorld::DebugModelHolder::setHalfHeight(float halfHeight)
+{
+    data.setY(halfHeight);
+}
+float QPhysicsWorld::DebugModelHolder::rowScale() const
+{
+    return data.y();
+}
+void QPhysicsWorld::DebugModelHolder::setRowScale(float rowScale)
+{
+    data.setY(rowScale);
+}
+float QPhysicsWorld::DebugModelHolder::columnScale() const
+{
+    return data.z();
+}
+void QPhysicsWorld::DebugModelHolder::setColumnScale(float columnScale)
+{
+    data.setZ(columnScale);
+}
+physx::PxConvexMesh *QPhysicsWorld::DebugModelHolder::getConvexMesh()
+{
+    return static_cast<physx::PxConvexMesh *>(ptr);
+}
+void QPhysicsWorld::DebugModelHolder::setConvexMesh(physx::PxConvexMesh *mesh)
+{
+    ptr = static_cast<void *>(mesh);
+}
+physx::PxTriangleMesh *QPhysicsWorld::DebugModelHolder::getTriangleMesh()
+{
+    return static_cast<physx::PxTriangleMesh *>(ptr);
+}
+void QPhysicsWorld::DebugModelHolder::setTriangleMesh(physx::PxTriangleMesh *mesh)
+{
+    ptr = static_cast<void *>(mesh);
+}
+physx::PxHeightField *QPhysicsWorld::DebugModelHolder::getHeightField()
+{
+    return static_cast<physx::PxHeightField *>(ptr);
+}
+void QPhysicsWorld::DebugModelHolder::setHeightField(physx::PxHeightField *hf)
+{
+    ptr = static_cast<physx::PxHeightField *>(hf);
+}
+
+/////////////////////////////////////////////////////////////////////////////
+
 struct QWorldManager
 {
     QVector<QPhysicsWorld *> worlds;
@@ -226,16 +306,37 @@ void QPhysicsWorld::deregisterNode(QAbstractPhysicsNode *physicsNode)
 {
     for (auto world : worldManager.worlds) {
         world->m_newPhysicsNodes.removeAll(physicsNode);
+        QMutexLocker locker(&world->m_removedPhysicsNodesMutex);
         if (physicsNode->m_backendObject) {
             Q_ASSERT(physicsNode->m_backendObject->frontendNode == physicsNode);
             physicsNode->m_backendObject->frontendNode = nullptr;
             physicsNode->m_backendObject->isRemoved = true;
             physicsNode->m_backendObject = nullptr;
         }
-        QMutexLocker locker(&world->m_removedPhysicsNodesMutex);
         world->m_removedPhysicsNodes.insert(physicsNode);
     }
     worldManager.orphanNodes.removeAll(physicsNode);
+}
+
+void QPhysicsWorld::registerContact(QAbstractPhysicsNode *sender, QAbstractPhysicsNode *receiver,
+                                    const QVector<QVector3D> &positions,
+                                    const QVector<QVector3D> &impulses,
+                                    const QVector<QVector3D> &normals)
+{
+    // Since collision callbacks happen in the physx simulation thread we need
+    // to store these callbacks. Otherwise, if an object is deleted in the same
+    // frame a 'onBodyContact' signal is enqueued and a crash will happen.
+    // Therefore we save these contact callbacks and run them at the end of the
+    // physics frame when we know if the objects are deleted or not.
+
+    BodyContact contact;
+    contact.sender = sender;
+    contact.receiver = receiver;
+    contact.positions = positions;
+    contact.impulses = impulses;
+    contact.normals = normals;
+
+    m_registeredContacts.push_back(contact);
 }
 
 QPhysicsWorld::QPhysicsWorld(QObject *parent) : QObject(parent)
@@ -369,6 +470,7 @@ void QPhysicsWorld::setViewport(QQuick3DNode *viewport)
     m_debugMaterials.clear();
 
     for (auto &holder : m_collisionShapeDebugModels) {
+        holder.releaseMeshPointer();
         delete holder.model;
     }
     m_collisionShapeDebugModels.clear();
@@ -441,11 +543,11 @@ void QPhysicsWorld::updateDebugDraw()
 {
     if (!(m_forceDebugDraw || m_hasIndividualDebugDraw)) {
         // Nothing to draw, trash all previous models (if any) and return
-        if (!m_collisionShapeDebugModels.isEmpty()) {
-            for (const auto& holder : std::as_const(m_collisionShapeDebugModels))
-                delete holder.model;
-            m_collisionShapeDebugModels.clear();
+        for (auto &holder : m_collisionShapeDebugModels) {
+            holder.releaseMeshPointer();
+            delete holder.model;
         }
+        m_collisionShapeDebugModels.clear();
         return;
     }
 
@@ -560,7 +662,7 @@ void QPhysicsWorld::updateDebugDraw()
                 physXShape->getPlaneGeometry(planeGeometry);
                 // Special rotation
                 const QQuaternion rotation =
-                        kMinus90YawRotation * QPhysicsUtils::toQtType(localPose.q);
+                        QPhysicsUtils::kMinus90YawRotation * QPhysicsUtils::toQtType(localPose.q);
                 localPose = physx::PxTransform(localPose.p, QPhysicsUtils::toPhysXType(rotation));
 
                 if (model->geometry() == nullptr) {
@@ -571,17 +673,31 @@ void QPhysicsWorld::updateDebugDraw()
             }
                 break;
 
+            // For heightfield, convex mesh and triangle mesh we increase its reference count
+            // to make sure it does not get dereferenced and deleted so that the new mesh will
+            // have another memory address so we know when it has changed.
             case physx::PxGeometryType::eHEIGHTFIELD: {
                 physx::PxHeightFieldGeometry heightFieldGeometry;
-                physXShape->getHeightFieldGeometry(heightFieldGeometry);
+                bool success = physXShape->getHeightFieldGeometry(heightFieldGeometry);
+                Q_ASSERT(success);
                 const float heightScale = holder.heightScale();
                 const float rowScale = holder.rowScale();
                 const float columnScale = holder.columnScale();
 
+                if (auto heightField = holder.getHeightField();
+                    heightField && heightField != heightFieldGeometry.heightField) {
+                    heightField->release();
+                    holder.setHeightField(nullptr);
+                }
+
                 if (!qFuzzyCompare(heightFieldGeometry.heightScale, heightScale)
                     || !qFuzzyCompare(heightFieldGeometry.rowScale, rowScale)
-                    || !qFuzzyCompare(heightFieldGeometry.columnScale, columnScale)) {
-
+                    || !qFuzzyCompare(heightFieldGeometry.columnScale, columnScale)
+                    || !holder.getHeightField()) {
+                    if (!holder.getHeightField()) {
+                        heightFieldGeometry.heightField->acquireReference();
+                        holder.setHeightField(heightFieldGeometry.heightField);
+                    }
                     auto geom = QDebugDrawHelper::generateHeightFieldGeometry(
                             heightFieldGeometry.heightField, heightFieldGeometry.heightScale,
                             heightFieldGeometry.rowScale, heightFieldGeometry.columnScale);
@@ -596,12 +712,23 @@ void QPhysicsWorld::updateDebugDraw()
 
             case physx::PxGeometryType::eCONVEXMESH: {
                 physx::PxConvexMeshGeometry convexMeshGeometry;
-                physXShape->getConvexMeshGeometry(convexMeshGeometry);
+                const bool success = physXShape->getConvexMeshGeometry(convexMeshGeometry);
+                Q_ASSERT(success);
                 const auto rotation = convexMeshGeometry.scale.rotation * localPose.q;
                 localPose = physx::PxTransform(localPose.p, rotation);
                 model->setScale(QPhysicsUtils::toQtType(convexMeshGeometry.scale.scale));
 
-                if (model->geometry() == nullptr) {
+                if (auto convexMesh = holder.getConvexMesh();
+                    convexMesh && convexMesh != convexMeshGeometry.convexMesh) {
+                    convexMesh->release();
+                    holder.setConvexMesh(nullptr);
+                }
+
+                if (!model->geometry() || !holder.getConvexMesh()) {
+                    if (!holder.getConvexMesh()) {
+                        convexMeshGeometry.convexMesh->acquireReference();
+                        holder.setConvexMesh(convexMeshGeometry.convexMesh);
+                    }
                     auto geom = QDebugDrawHelper::generateConvexMeshGeometry(
                             convexMeshGeometry.convexMesh);
                     geom->setParent(model);
@@ -612,12 +739,23 @@ void QPhysicsWorld::updateDebugDraw()
 
             case physx::PxGeometryType::eTRIANGLEMESH: {
                 physx::PxTriangleMeshGeometry triangleMeshGeometry;
-                physXShape->getTriangleMeshGeometry(triangleMeshGeometry);
+                const bool success = physXShape->getTriangleMeshGeometry(triangleMeshGeometry);
+                Q_ASSERT(success);
                 const auto rotation = triangleMeshGeometry.scale.rotation * localPose.q;
                 localPose = physx::PxTransform(localPose.p, rotation);
                 model->setScale(QPhysicsUtils::toQtType(triangleMeshGeometry.scale.scale));
 
-                if (model->geometry() == nullptr) {
+                if (auto triangleMesh = holder.getTriangleMesh();
+                    triangleMesh && triangleMesh != triangleMeshGeometry.triangleMesh) {
+                    triangleMesh->release();
+                    holder.setTriangleMesh(nullptr);
+                }
+
+                if (!model->geometry() || !holder.getTriangleMesh()) {
+                    if (!holder.getTriangleMesh()) {
+                        triangleMeshGeometry.triangleMesh->acquireReference();
+                        holder.setTriangleMesh(triangleMeshGeometry.triangleMesh);
+                    }
                     auto geom = QDebugDrawHelper::generateTriangleMeshGeometry(
                             triangleMeshGeometry.triangleMesh);
                     geom->setParent(model);
@@ -648,6 +786,7 @@ void QPhysicsWorld::updateDebugDraw()
                       DebugModelHolder>::iterator it) {
                 if (!currentCollisionShapes.contains(it.key())) {
                     auto holder = it.value();
+                    holder.releaseMeshPointer();
                     if (holder.model)
                         delete holder.model;
                     return true;
@@ -830,6 +969,7 @@ void QPhysicsWorld::updateDebugDrawDesignStudio()
                       DebugModelHolder>::iterator it) {
                 if (!currentCollisionShapes.contains(it.key())) {
                     auto holder = it.value();
+                    holder.releaseMeshPointer();
                     if (holder.model) {
                         delete holder.geometry;
                         delete holder.model;
@@ -976,6 +1116,7 @@ void QPhysicsWorld::initPhysics()
 void QPhysicsWorld::frameFinished(float deltaTime)
 {
     matchOrphanNodes();
+    emitContactCallbacks();
     cleanupRemovedNodes();
     for (auto *node : std::as_const(m_newPhysicsNodes)) {
         auto *body = node->createPhysXBackend();
@@ -1006,6 +1147,7 @@ void QPhysicsWorld::frameFinishedDesignStudio()
 {
     // Note sure if this is needed but do it anyway
     matchOrphanNodes();
+    emitContactCallbacks();
     cleanupRemovedNodes();
     // Ignore new physics nodes, we find them from the scene node anyway
     m_newPhysicsNodes.clear();
@@ -1086,6 +1228,19 @@ void QPhysicsWorld::findPhysicsNodes()
         }
         children.append(child->childItems());
     }
+}
+
+void QPhysicsWorld::emitContactCallbacks()
+{
+    for (const QPhysicsWorld::BodyContact &contact : m_registeredContacts) {
+        if (m_removedPhysicsNodes.contains(contact.sender)
+            || m_removedPhysicsNodes.contains(contact.receiver))
+            continue;
+        contact.receiver->registerContact(contact.sender, contact.positions, contact.impulses,
+                                          contact.normals);
+    }
+
+    m_registeredContacts.clear();
 }
 
 physx::PxPhysics *QPhysicsWorld::getPhysics()

@@ -1,3 +1,4 @@
+add_subdirectory(callback_create_delete_node)
 add_subdirectory(changescene)
 add_subdirectory(character)
 add_subdirectory(character_remove)

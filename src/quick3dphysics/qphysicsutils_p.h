@@ -59,6 +59,15 @@ Q_ALWAYS_INLINE physx::PxTransform toPhysXTransform(const QVector3D &position,
     return physx::PxTransform(QPhysicsUtils::toPhysXType(position),
                               QPhysicsUtils::toPhysXType(rotation));
 }
+
+Q_ALWAYS_INLINE bool fuzzyEquals(const physx::PxTransform &a, const physx::PxTransform &b)
+{
+    return qFuzzyCompare(a.p.x, b.p.x) && qFuzzyCompare(a.p.y, b.p.y) && qFuzzyCompare(a.p.z, b.p.z)
+            && qFuzzyCompare(a.q.x, b.q.x) && qFuzzyCompare(a.q.y, b.q.y)
+            && qFuzzyCompare(a.q.z, b.q.z) && qFuzzyCompare(a.q.w, b.q.w);
+}
+
+inline const QQuaternion kMinus90YawRotation = QQuaternion::fromEulerAngles(0, -90, 0);
 }
 
 #endif // QPHYSICSUTILS_P_H
