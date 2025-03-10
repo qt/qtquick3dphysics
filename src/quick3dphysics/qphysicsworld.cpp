@@ -221,6 +221,7 @@ Q_LOGGING_CATEGORY(lcQuick3dPhysics, "qt.quick3d.physics");
 // set datafile separator ','
 // plot '<QT_PHYSICS_TIMINGS_FILE>' using 1:2 with lines
 //
+// Security note: This file is trusted since it is opened as write-only
 static const QString qtPhysicsTimingsFile = qEnvironmentVariable("QT_PHYSICS_TIMINGS_FILE");
 
 /////////////////////////////////////////////////////////////////////////////
