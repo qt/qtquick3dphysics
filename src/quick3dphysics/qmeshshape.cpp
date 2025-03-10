@@ -4,8 +4,6 @@
 #include "qcacheutils_p.h"
 #include "qmeshshape_p.h"
 
-#include <QFile>
-#include <QFileInfo>
 #include <QtQuick3D/QQuick3DGeometry>
 #include <extensions/PxExtensionsAPI.h>
 
@@ -14,7 +12,6 @@
 #include "extensions/PxDefaultStreams.h"
 
 #include <QtQml/qqml.h>
-#include <QtQml/QQmlFile>
 #include <QtQml/qqmlcontext.h>
 
 #include <QtQuick3DUtils/private/qssgmesh_p.h>
