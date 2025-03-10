@@ -133,6 +133,14 @@ QQuick3DPhysicsHeightField::~QQuick3DPhysicsHeightField()
 
 void QQuick3DPhysicsHeightField::writeSamples(const QImage &heightMap)
 {
+    if (Q_UNLIKELY(heightMap.isNull())) {
+        m_rows = 0;
+        m_columns = 0;
+        free(m_samples);
+        m_samples = nullptr;
+        return;
+    }
+
     m_rows = heightMap.height();
     m_columns = heightMap.width();
     int numRows = m_rows;
