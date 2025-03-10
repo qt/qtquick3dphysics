@@ -173,6 +173,9 @@ physx::PxHeightField *QQuick3DPhysicsHeightField::heightField()
     // Reading from image property has precedence
     const bool readFromFile = m_image == nullptr;
 
+    // Security note: This code reads user provided images and create heightfields from them.
+    // This is safe since we assume that QImage properly rejects invalid image files.
+    // It also reads cached and cooked heightfields but that file is marked.
     if (readFromFile) {
         // Try read cached file
         m_heightField = QCacheUtils::readCachedHeightField(m_sourcePath, *thePhysics);

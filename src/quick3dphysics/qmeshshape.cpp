@@ -303,6 +303,8 @@ void QQuick3DPhysicsMesh::loadSsgMesh()
 
     // A bit ugly to use QSSGRenderPath here but it is just a wrapper for
     // a QString and its hash.
+    // Security note: m_meshPath is a user provided file but QSSGBufferManager::loadMeshData is
+    // assumed to handle invalid meshes
     m_ssgMesh = QSSGBufferManager::loadMeshData(QSSGRenderPath(m_meshPath));
 
     static const char *compTypes[] = { "Null",  "UnsignedInt8",  "Int8",    "UnsignedInt16",
