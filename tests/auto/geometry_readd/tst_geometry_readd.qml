@@ -3,8 +3,8 @@
 import QtQuick
 import QtTest
 import QtQuick3D
+import QtQuick3D.Helpers
 import QtQuick3D.Physics
-import QtQuick3D.Physics.Helpers
 import Geometry
 
 // This test tries repeatedly adding and removing a static triangle mesh.
@@ -105,8 +105,8 @@ Item {
                 shape = Qt.createQmlObject(`
                     import QtQuick
                     import QtQuick3D
+                    import QtQuick3D.Helpers
                     import QtQuick3D.Physics
-                    import QtQuick3D.Physics.Helpers
                     import Geometry
                     TriangleMeshShape { geometry: ExampleTriangleGeometry {} }
                     `,
@@ -122,8 +122,8 @@ Item {
                 shape = Qt.createQmlObject(`
                     import QtQuick
                     import QtQuick3D
+                    import QtQuick3D.Helpers
                     import QtQuick3D.Physics
-                    import QtQuick3D.Physics.Helpers
                     import Geometry
                     TriangleMeshShape { geometry: ExampleTriangleGeometry {} }
                     `,
