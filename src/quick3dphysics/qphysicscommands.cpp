@@ -7,6 +7,8 @@
 #include "qdynamicrigidbody_p.h"
 #include "PxPhysicsAPI.h"
 
+#include <QtGui/qquaternion.h>
+
 QT_BEGIN_NAMESPACE
 
 static bool isKinematicBody(physx::PxRigidBody &body)

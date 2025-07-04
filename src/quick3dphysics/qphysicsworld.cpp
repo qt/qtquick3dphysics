@@ -28,6 +28,8 @@
 #include <QtQuick3D/private/qquick3dprincipledmaterial_p.h>
 #include <QtQuick3DUtils/private/qssgutils_p.h>
 
+#include <QtGui/qquaternion.h>
+
 #include <QtEnvironmentVariables>
 
 #define PHYSX_ENABLE_PVD 0
