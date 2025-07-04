@@ -19,7 +19,7 @@
 
 #include <QtCore/QList>
 #include <QtGui/QVector3D>
-#include <QQuaternion>
+#include <QtGui/qgenericmatrix.h>
 
 namespace physx {
 class PxRigidBody;
