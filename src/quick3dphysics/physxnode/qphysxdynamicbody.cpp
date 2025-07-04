@@ -11,6 +11,8 @@
 #include "qabstractphysicsbody_p.h"
 #include "qdynamicrigidbody_p.h"
 
+#include <QtGui/qquaternion.h>
+
 QT_BEGIN_NAMESPACE
 
 static void processCommandQueue(QQueue<QPhysicsCommand *> &commandQueue,
