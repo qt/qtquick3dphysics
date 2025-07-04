@@ -31,7 +31,9 @@ class QDynamicRigidBody;
 
 class QPhysicsCommand
 {
+    Q_DISABLE_COPY_MOVE(QPhysicsCommand)
 public:
+    QPhysicsCommand() = default;
     virtual ~QPhysicsCommand();
     virtual void execute(const QDynamicRigidBody &rigidBody, physx::PxRigidBody &body) = 0;
 };
