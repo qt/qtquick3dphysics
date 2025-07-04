@@ -21,6 +21,8 @@
 #include <QtCore/QQueue>
 #include <QtQuick3DUtils/private/qssgutils_p.h>
 
+#include <QtGui/qquaternion.h>
+
 QT_BEGIN_NAMESPACE
 
 class QPhysicsCommand;
