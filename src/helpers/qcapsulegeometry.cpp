@@ -65,12 +65,12 @@ QT_BEGIN_NAMESPACE
     Diameter on the xz plane.
 */
 
-CapsuleGeometry::CapsuleGeometry()
+CapsuleGeometryPhysics::CapsuleGeometryPhysics()
 {
     updateData();
 }
 
-void CapsuleGeometry::setEnableNormals(bool enable)
+void CapsuleGeometryPhysics::setEnableNormals(bool enable)
 {
     if (m_enableNormals == enable)
         return;
@@ -81,7 +81,7 @@ void CapsuleGeometry::setEnableNormals(bool enable)
     update();
 }
 
-void CapsuleGeometry::setEnableUV(bool enable)
+void CapsuleGeometryPhysics::setEnableUV(bool enable)
 {
     if (m_enableUV == enable)
         return;
@@ -92,7 +92,7 @@ void CapsuleGeometry::setEnableUV(bool enable)
     update();
 }
 
-void CapsuleGeometry::setLongitudes(int longitudes)
+void CapsuleGeometryPhysics::setLongitudes(int longitudes)
 {
     if (m_longitudes == longitudes)
         return;
@@ -103,7 +103,7 @@ void CapsuleGeometry::setLongitudes(int longitudes)
     update();
 }
 
-void CapsuleGeometry::setLatitudes(int latitudes)
+void CapsuleGeometryPhysics::setLatitudes(int latitudes)
 {
     if (m_latitudes == latitudes)
         return;
@@ -114,7 +114,7 @@ void CapsuleGeometry::setLatitudes(int latitudes)
     update();
 }
 
-void CapsuleGeometry::setRings(int rings)
+void CapsuleGeometryPhysics::setRings(int rings)
 {
     if (m_rings == rings)
         return;
@@ -125,7 +125,7 @@ void CapsuleGeometry::setRings(int rings)
     update();
 }
 
-void CapsuleGeometry::setHeight(float height)
+void CapsuleGeometryPhysics::setHeight(float height)
 {
     if (m_height == height)
         return;
@@ -136,7 +136,7 @@ void CapsuleGeometry::setHeight(float height)
     update();
 }
 
-void CapsuleGeometry::setDiameter(float diameter)
+void CapsuleGeometryPhysics::setDiameter(float diameter)
 {
     if (m_diameter == diameter)
         return;
@@ -157,7 +157,7 @@ struct Face
     uint32_t normalIdx = 0;
 };
 
-void CapsuleGeometry::updateData()
+void CapsuleGeometryPhysics::updateData()
 {
     clear();
 
@@ -295,13 +295,13 @@ void CapsuleGeometry::updateData()
     // Determine UV aspect ratio from the profile.
     float vtAspectRatio = 0.f;
     switch (m_uvProfile) {
-    case CapsuleGeometry::UvProfile::Fixed:
+    case CapsuleGeometryPhysics::UvProfile::Fixed:
         vtAspectRatio = 0.33333333f;
         break;
-    case CapsuleGeometry::UvProfile::Aspect:
+    case CapsuleGeometryPhysics::UvProfile::Aspect:
         vtAspectRatio = verifRad / (verifDepth + verifRad + verifRad);
         break;
-    case CapsuleGeometry::UvProfile::Uniform:
+    case CapsuleGeometryPhysics::UvProfile::Uniform:
         vtAspectRatio = (float)halfLats / (verifRingsp1 + verifLats);
         break;
     }
