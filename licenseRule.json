@@ -78,12 +78,12 @@
             "": {
                 "comment": "Default",
                 "file type": "module and plugin",
-                "spdx": ["LicenseRef-Qt-Commercial"]
+                "spdx": ["LicenseRef-Qt-Commercial OR GPL-3.0-only"]
             },
             "src/": {
                 "comment": "Default",
                 "file type": "module and plugin",
-                "spdx": ["LicenseRef-Qt-Commercial"]
+                "spdx": ["LicenseRef-Qt-Commercial OR GPL-3.0-only"]
             },
             "tests/": {
                 "comment": "Default",
