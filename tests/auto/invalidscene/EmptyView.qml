@@ -18,7 +18,7 @@ View3D {
     DirectionalLight {
         eulerRotation.x: -45
         eulerRotation.y: 45
-        castsShadow: true
+        castsShadow: false
         brightness: 1
         shadowFactor: 100
     }
