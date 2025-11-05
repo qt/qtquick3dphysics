@@ -7,7 +7,7 @@
     \title Qt Quick 3D Physics - Compound Shapes Example
     \examplecategory {3D}
     \brief Demonstrates using complex collision shapes.
-    \image compoundshapes-example.jpg
+    \image compoundshapes-example.jpg {Screenshot of a landscape and multiple square frames and rings chained together}
 
     This example demonstrates how to use more than one collision shape to create complex objects for collision detection.
     The scene consists of a green static plane and a series of links connected to each other.
@@ -73,5 +73,6 @@
     If we take a closer look when the debug mode is enabled, this is how the collision shapes form the compound
     collision shape.
 
-    \image compoundshapes-example-capsulelink.jpg
+    \image compoundshapes-example-capsulelink.jpg {Screenshot of a 3D rendering showing two rings connected through
+           a square frame and their rigid bodies}
 */

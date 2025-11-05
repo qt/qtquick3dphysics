@@ -7,7 +7,9 @@
     \title Qt Quick 3D Physics - Material Example
     \examplecategory {3D}
     \brief Demonstrates using physical materials.
-    \image material-example.jpg
+    \image material-example.jpg {A 3D simulation showing a red box on a tilted green surface, with a control
+           panel on the left containing sliders for static friction, dynamic friction, and restitution, and
+           a "Reset box" button}
 
     The \e {Material} example demonstrates how to control the material properties of a physical body.
     The scene contains the usual boilerplate of a View3D, PhysicsWorld, PerspectiveCamera and DirectionalLight.

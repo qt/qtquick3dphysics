@@ -7,7 +7,8 @@
     \title Qt Quick 3D Physics - Custom Shapes Example
     \examplecategory {3D}
     \brief Demonstrates using different shapes.
-    \image customshapes-example.jpg
+    \image customshapes-example.jpg {Screenshot of a 3D scene showing a transparent rectangular structure containing solid
+           geometric shapes, placed on a green terrain with a small multicolored object in a pot next to it}
 
     This example demonstrates loading and spawning several rigid body meshes as well as animating them.
     The scene consists of a dice tower, a tablecloth, a cup and a handful of dice. The cup is animated to collect spawning

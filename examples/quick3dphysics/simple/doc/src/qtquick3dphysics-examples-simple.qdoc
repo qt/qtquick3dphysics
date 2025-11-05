@@ -7,7 +7,8 @@
     \title Qt Quick 3D Physics - Simple Example
     \examplecategory {3D}
     \brief Demonstrates setting up a simple physics scene.
-    \image simple-example.jpg
+    \image simple-example.jpg {Screenshot of a green landscape with three different 3d objects next
+           to each other}
 
     This example gives an introductory overview of the basic Quick 3D Physics features by
     going through the code of a simple example. Note that this introduction assumes a familiarity

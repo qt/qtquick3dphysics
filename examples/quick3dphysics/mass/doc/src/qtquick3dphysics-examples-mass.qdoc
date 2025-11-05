@@ -7,7 +7,7 @@
     \title Qt Quick 3D Physics - Mass Example
     \examplecategory {3D}
     \brief Demonstrates different ways of setting mass and inertia of a body.
-    \image mass-example.jpg
+    \image mass-example.jpg {Screenshot of s 3D rendering showing three stacked sphere figures on a green surface, colored blue, purple, and red from left to right}
 
     This example demonstrates three different ways of setting up the mass and inertia of a body. The scene consists of three bodies that consist of three spheres stacked vertically. These bodies all have the same mass but differing centers of mass and inertia tensors giving them different behavior when colliding.
 

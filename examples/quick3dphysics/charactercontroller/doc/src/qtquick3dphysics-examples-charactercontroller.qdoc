@@ -7,7 +7,7 @@
     \title Qt Quick 3D Physics - CharacterController Example
     \examplecategory {3D}
     \brief Demonstrates the CharacterController type.
-    \image charactercontroller-example.jpg
+    \image charactercontroller-example.jpg {Screenshot of a test room}
 
     This example shows how to use a CharacterController to move the camera in a scene, giving
     a first-person view. The character controller represents the viewpoint of the user as an

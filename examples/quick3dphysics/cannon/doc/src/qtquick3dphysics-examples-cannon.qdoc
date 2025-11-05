@@ -7,7 +7,8 @@
     \title Qt Quick 3D Physics - Cannon Example
     \examplecategory {3D}
     \brief Demonstrates how to spawn physical objects.
-    \image cannon-example.jpg
+    \image cannon-example.jpg {Screenshot of a green landscape with multiple red boxes forming
+           a pyramid with a slider to control the boxes}
 
     This example demonstrates how to create and delete physical objects on demand.
     The scene consists of a number of stacks of boxes.
