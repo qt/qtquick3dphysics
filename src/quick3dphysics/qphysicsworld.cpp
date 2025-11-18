@@ -1212,8 +1212,9 @@ void QPhysicsWorld::simulateFrame()
     if (!m_physx->isRunning) {
         m_timer.start();
         m_physx->isRunning = true;
-        m_physx->scene->simulate(m_minTimestep);
-        m_currTimeStep = m_minTimestep;
+        const double minTimestepSecs = m_minTimestep * 0.001;
+        m_physx->scene->simulate(minTimestepSecs);
+        m_currTimeStep = minTimestepSecs;
         return;
     }
 
