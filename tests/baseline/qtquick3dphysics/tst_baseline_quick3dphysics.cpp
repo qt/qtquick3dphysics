@@ -211,7 +211,11 @@ quint16 tst_BaselineQuick3DPhysics::checksumFileOrDir(const QString &path)
     if (fi.isFile()) {
         QFile f(path);
         bool isBinary = path.endsWith(".png") || path.endsWith(".jpg");
-        f.open(isBinary ? QIODevice::ReadOnly : QIODevice::ReadOnly | QIODevice::Text);
+        if (!f.open(isBinary ? QIODevice::ReadOnly : QIODevice::ReadOnly | QIODevice::Text)) {
+            qWarning("Couldn't open file, %ls: %ls",
+                     qUtf16Printable(path), qUtf16Printable(f.errorString()));
+            return 0;
+        }
         QByteArray contents = f.readAll();
         return qChecksum(contents);
     }
