@@ -7,7 +7,7 @@
     \title Qt Quick 3D Physics - Impeller Example
     \examplecategory {3D}
     \brief Demonstrates using trigger bodies and collision info.
-    \image impeller-example. {Screenshot of a 3D rendering showing a blue sphere on a green surface, a pink rectangular block above it,
+    \image impeller-example.jpg {Screenshot of a 3D rendering showing a blue sphere on a green surface, a pink rectangular block above it,
            and a red sphere floating on top}
 
     This example demonstrates how to use trigger bodies and collision info.
