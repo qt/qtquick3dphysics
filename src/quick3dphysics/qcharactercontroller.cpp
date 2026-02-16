@@ -104,7 +104,7 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlmethod CharacterController::teleport(vector3d position)
+    \qmlmethod void CharacterController::teleport(vector3d position)
     Immediately move the character to \a position without checking for collisions.
     The caller is responsible for avoiding overlap with static objects.
 */

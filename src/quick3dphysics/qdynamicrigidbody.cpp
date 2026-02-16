@@ -258,55 +258,55 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
-    \qmlmethod DynamicRigidBody::applyCentralForce(vector3d force)
+    \qmlmethod void DynamicRigidBody::applyCentralForce(vector3d force)
 
     Applies  a \a force on the center of the body.
 */
 
 /*!
-    \qmlmethod DynamicRigidBody::applyForce(vector3d force, vector3d position)
+    \qmlmethod void DynamicRigidBody::applyForce(vector3d force, vector3d position)
 
     Applies a \a force at a \a position on the body.
 */
 
 /*!
-    \qmlmethod DynamicRigidBody::applyTorque(vector3d torque)
+    \qmlmethod void DynamicRigidBody::applyTorque(vector3d torque)
 
     Applies a \a torque on the body.
 */
 
 /*!
-    \qmlmethod DynamicRigidBody::applyCentralImpulse(vector3d impulse)
+    \qmlmethod void DynamicRigidBody::applyCentralImpulse(vector3d impulse)
 
     Applies an \a impulse on the center of the body.
 */
 
 /*!
-    \qmlmethod DynamicRigidBody::applyImpulse(vector3d impulse, vector3d position)
+    \qmlmethod void DynamicRigidBody::applyImpulse(vector3d impulse, vector3d position)
 
     Applies an \a impulse at a \a position on the body.
 */
 
 /*!
-    \qmlmethod DynamicRigidBody::applyTorqueImpulse(vector3d impulse)
+    \qmlmethod void DynamicRigidBody::applyTorqueImpulse(vector3d impulse)
 
     Applies a torque \a impulse on the body.
 */
 
 /*!
-    \qmlmethod DynamicRigidBody::setAngularVelocity(vector3d angularVelocity)
+    \qmlmethod void DynamicRigidBody::setAngularVelocity(vector3d angularVelocity)
 
     Sets the \a angularVelocity of the body.
 */
 
 /*!
-    \qmlmethod DynamicRigidBody::setLinearVelocity(vector3d linearVelocity)
+    \qmlmethod void DynamicRigidBody::setLinearVelocity(vector3d linearVelocity)
 
     Sets the \a linearVelocity of the body.
 */
 
 /*!
-    \qmlmethod DynamicRigidBody::reset(vector3d position, vector3d eulerRotation)
+    \qmlmethod void DynamicRigidBody::reset(vector3d position, vector3d eulerRotation)
 
     Resets the body's \a position and \a eulerRotation.
 */
