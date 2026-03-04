@@ -3,6 +3,7 @@
 
 // Based on:
 // https://behreajj.medium.com/making-a-capsule-mesh-via-script-in-five-3d-environments-c2214abf02db
+// Qt-Security score:significant reason:default
 
 #include "qcapsulegeometry_p.h"
 
