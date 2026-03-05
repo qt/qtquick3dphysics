@@ -1,11 +1,6 @@
 // Copyright (C) 2022 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR BSD-3-Clause
 import QtQuick
-import QtQuick3D
-import QtQuick3D.Physics
-import QtQuick3D.Helpers
-import QtQuick.Controls
-import QtQuick.Layouts
 
 Item {
     id: crossHair

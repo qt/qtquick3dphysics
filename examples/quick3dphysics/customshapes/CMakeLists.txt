@@ -34,6 +34,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
 # Resources:
 set(qml_resource_files
     main.qml
+    Die.qml
 
     maps/cloth-heightmap.png
     maps/numbers-normal.png

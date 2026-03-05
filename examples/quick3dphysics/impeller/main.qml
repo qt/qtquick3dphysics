@@ -121,9 +121,11 @@ Window {
             }
 
             onBodyContact: (body, positions, impulses, normals) => {
-                for (var normal of normals) {
+                for (let normal of normals) {
                     let velocity = normal.times(-700)
-                    body.setLinearVelocity(velocity)
+                    if (body instanceof DynamicRigidBody) {
+                        (body as DynamicRigidBody).setLinearVelocity(velocity)
+                    }
                 }
             }
         }

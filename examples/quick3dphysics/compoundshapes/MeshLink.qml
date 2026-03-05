@@ -1,18 +1,17 @@
 // Copyright (C) 2022 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR BSD-3-Clause
-
-
 import QtQuick
 import QtQuick3D
 import QtQuick3D.Physics
 
 //! [meshlink]
 DynamicRigidBody {
+    id: root
     scale: Qt.vector3d(100, 100, 100)
     property color color: "white"
     PrincipledMaterial {
         id: _material
-        baseColor: color
+        baseColor: root.color
         metalness: 1.0
         roughness: 0.5
     }

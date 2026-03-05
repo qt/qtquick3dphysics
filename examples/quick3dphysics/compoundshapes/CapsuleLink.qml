@@ -1,12 +1,12 @@
 // Copyright (C) 2022 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR BSD-3-Clause
-
 import QtQuick
 import QtQuick3D
 import QtQuick3D.Physics
 
 //! [capsulelink]
 DynamicRigidBody {
+    id: root
     property real len: 170
     property real w: 17
     PrincipledMaterial {
@@ -20,80 +20,80 @@ DynamicRigidBody {
         Model {
             materials: material3
             source: "#Cylinder"
-            scale: Qt.vector3d(w / 100, len / 100, w / 100)
+            scale: Qt.vector3d(root.w / 100, root.len / 100, root.w / 100)
             eulerRotation.z: 90
-            y: -len / 2
+            y: -root.len / 2
         }
         Model {
             materials: material3
             source: "#Cylinder"
-            scale: Qt.vector3d(w / 100, len / 100, w / 100)
+            scale: Qt.vector3d(root.w / 100, root.len / 100, root.w / 100)
             eulerRotation.z: 90
-            y: len / 2
+            y: root.len / 2
         }
         Model {
             materials: material3
             source: "#Cylinder"
-            scale: Qt.vector3d(w / 100, len / 100, w / 100)
-            x: len / 2
+            scale: Qt.vector3d(root.w / 100, root.len / 100, root.w / 100)
+            x: root.len / 2
         }
         Model {
             materials: material3
             source: "#Cylinder"
-            scale: Qt.vector3d(w / 100, len / 100, w / 100)
-            x: -len / 2
+            scale: Qt.vector3d(root.w / 100, root.len / 100, root.w / 100)
+            x: -root.len / 2
         }
         Model {
             materials: material3
             source: "#Sphere"
-            scale: Qt.vector3d(w / 100, w / 100, w / 100)
-            x: -len / 2
-            y: -len / 2
+            scale: Qt.vector3d(root.w / 100, root.w / 100, root.w / 100)
+            x: -root.len / 2
+            y: -root.len / 2
         }
         Model {
             materials: material3
             source: "#Sphere"
-            scale: Qt.vector3d(w / 100, w / 100, w / 100)
-            x: -len / 2
-            y: len / 2
+            scale: Qt.vector3d(root.w / 100, root.w / 100, root.w / 100)
+            x: -root.len / 2
+            y: root.len / 2
         }
         Model {
             materials: material3
             source: "#Sphere"
-            scale: Qt.vector3d(w / 100, w / 100, w / 100)
-            x: len / 2
-            y: -len / 2
+            scale: Qt.vector3d(root.w / 100, root.w / 100, root.w / 100)
+            x: root.len / 2
+            y: -root.len / 2
         }
         Model {
             materials: material3
             source: "#Sphere"
-            scale: Qt.vector3d(w / 100, w / 100, w / 100)
-            x: len / 2
-            y: len / 2
+            scale: Qt.vector3d(root.w / 100, root.w / 100, root.w / 100)
+            x: root.len / 2
+            y: root.len / 2
         }
     }
     collisionShapes: [
         CapsuleShape {
-            y: -len / 2
-            height: len
-            diameter: w
+            y: -root.len / 2
+            height: root.len
+            diameter: root.w
         },
         CapsuleShape {
-            y: len / 2
-            height: len
-            diameter: w
+            y: root.len / 2
+            height: root.len
+            diameter: root.w
         },
         CapsuleShape {
-            x: -len / 2
+            x: -root.len / 2
             eulerRotation.z: 90
-            height: len
-            diameter: w
+            height: root.len
+            diameter: root.w
         },
         CapsuleShape {
-            x: len / 2
+            x: root.len / 2
             eulerRotation.z: 90
-            height: len
-            diameter: w
+            height: root.len
+            diameter: root.w
         }
     ]
 }

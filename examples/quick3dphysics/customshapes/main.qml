@@ -4,8 +4,6 @@ import QtQuick
 import QtQuick3D
 import QtQuick3D.Physics
 import QtQuick3D.Helpers
-import QtQuick.Controls
-import QtQuick.Layouts
 
 //! [window]
 Window {
@@ -39,7 +37,7 @@ Window {
         }
         //! [environment]
 
-        //! [textures]
+        //! [textures 1]
         Texture {
             id: proceduralSky
             textureData: ProceduralSkyTextureData {
@@ -55,19 +53,7 @@ Window {
             generateMipmaps: true
             mipFilter: Texture.Linear
         }
-
-        Texture {
-            id: numberNormal
-            source: "maps/numbers-normal.png"
-        }
-
-        Texture {
-            id: numberFill
-            source: "maps/numbers.png"
-            generateMipmaps: true
-            mipFilter: Texture.Linear
-        }
-        //! [textures]
+        //! [textures 1]
 
         Node {
             //! [scene]
@@ -173,72 +159,24 @@ Window {
             }
             //! [tower]
 
-            //! [dice]
+            //! [dice 1]
             Component {
                 id: diceComponent
-
-                DynamicRigidBody {
-                    id: thisBody
-                    function randomInRange(min, max) {
-                        return Math.random() * (max - min) + min
-                    }
-
-                    function restore() {
-                        reset(initialPosition, eulerRotation)
-                    }
-
-                    scale: Qt.vector3d(scaleFactor, scaleFactor, scaleFactor)
-                    eulerRotation: Qt.vector3d(randomInRange(0, 360),
-                                               randomInRange(0, 360),
-                                               randomInRange(0, 360))
-
-                    property vector3d initialPosition: Qt.vector3d(11 + 1.5 * Math.cos(index/(Math.PI/4)),
-                                                                   diceCup.bottomPos.y + index * 1.5,
-                                                                   0)
-                    position: initialPosition
-
-                    property real scaleFactor: randomInRange(0.8, 1.4)
-                    property color baseCol: Qt.hsla(randomInRange(0, 1),
-                                                    randomInRange(0.6, 1.0),
-                                                    randomInRange(0.4, 0.7),
-                                                    1.0)
-
-                    collisionShapes: ConvexMeshShape {
-                        id: diceShape
-                        source: Math.random() < 0.25 ? "meshes/icosahedron.mesh"
-                              : Math.random() < 0.5 ? "meshes/dodecahedron.mesh"
-                              : Math.random() < 0.75 ? "meshes/octahedron.mesh"
-                                                     : "meshes/tetrahedron.mesh"
-                    }
-
-                    Model {
-                        id: thisModel
-                        source: diceShape.source
-                        receivesShadows: false
-                        materials: PrincipledMaterial {
-                            metalness: 1.0
-                            roughness: randomInRange(0.2, 0.6)
-                            baseColor: baseCol
-                            emissiveMap: numberFill
-                            emissiveFactor: Qt.vector3d(1, 1, 1)
-                            normalMap: numberNormal
-                            normalStrength: 0.75
-                        }
-                    }
-                }
+                Die {}
             }
 
             Repeater3D {
                 id: dicePool
                 model: 25
                 delegate: diceComponent
+                delegateModelAccess: DelegateModel.ReadWrite
                 function restore() {
-                    for (var i = 0; i < count; i++) {
-                        objectAt(i).restore()
+                    for (let i = 0; i < count; i++) {
+                        (objectAt(i) as Die).restore()
                     }
                 }
             }
-            //! [dice]
+            //! [dice 1]
 
             //! [animation]
             Connections {

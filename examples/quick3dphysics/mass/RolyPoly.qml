@@ -6,6 +6,7 @@ import QtQuick3D.Physics
 
 //! [rolypoly]
 DynamicRigidBody {
+    id: body
     property string color: "blue"
 
     collisionShapes: [
@@ -30,7 +31,7 @@ DynamicRigidBody {
         position: sphere0.position
         scale: Qt.vector3d(1,1,1).times(sphere0.diameter*0.01)
         materials: PrincipledMaterial {
-            baseColor: color
+            baseColor: body.color
         }
     }
 
@@ -39,7 +40,7 @@ DynamicRigidBody {
         position: sphere1.position
         scale: Qt.vector3d(1,1,1).times(sphere1.diameter*0.01)
         materials: PrincipledMaterial {
-            baseColor: color
+            baseColor: body.color
         }
     }
 
@@ -48,7 +49,7 @@ DynamicRigidBody {
         position: sphere2.position
         scale: Qt.vector3d(1,1,1).times(sphere2.diameter*0.01)
         materials: PrincipledMaterial {
-            baseColor: color
+            baseColor: body.color
         }
     }
 }

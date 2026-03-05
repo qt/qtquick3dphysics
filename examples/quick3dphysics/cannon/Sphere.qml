@@ -5,6 +5,7 @@ import QtQuick3D
 import QtQuick3D.Physics
 
 DynamicRigidBody {
+    id: body
     property bool inArea: false
     property real sphereDiameter: 2
     massMode: DynamicRigidBody.CustomDensity
@@ -12,7 +13,7 @@ DynamicRigidBody {
 
     Model {
         source: "#Sphere"
-        scale: Qt.vector3d(1, 1, 1).times(sphereDiameter * 0.01)
+        scale: Qt.vector3d(1, 1, 1).times(body.sphereDiameter * 0.01)
         materials: PrincipledMaterial {
             baseColor: "yellow"
         }
@@ -25,6 +26,6 @@ DynamicRigidBody {
     }
 
     collisionShapes: SphereShape {
-        diameter: sphereDiameter
+        diameter: body.sphereDiameter
     }
 }

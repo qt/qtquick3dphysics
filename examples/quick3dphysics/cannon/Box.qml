@@ -5,6 +5,7 @@ import QtQuick3D
 import QtQuick3D.Physics
 
 DynamicRigidBody {
+    id: body
     property bool inArea: false
     property real xyzExtents: 1
     massMode: DynamicRigidBody.CustomDensity
@@ -12,7 +13,7 @@ DynamicRigidBody {
 
     Model {
         source: "#Cube"
-        scale: Qt.vector3d(xyzExtents, xyzExtents, xyzExtents).times(0.01)
+        scale: Qt.vector3d(body.xyzExtents, body.xyzExtents, body.xyzExtents).times(0.01)
         materials: PrincipledMaterial {
             baseColor: "red"
         }
@@ -25,6 +26,6 @@ DynamicRigidBody {
     }
 
     collisionShapes: BoxShape {
-        extents: Qt.vector3d(xyzExtents, xyzExtents, xyzExtents)
+        extents: Qt.vector3d(body.xyzExtents, body.xyzExtents, body.xyzExtents)
     }
 }

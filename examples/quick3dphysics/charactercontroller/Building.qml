@@ -6,6 +6,7 @@ import QtQuick3D.Physics
 import QtQuick3D.Particles3D
 
 Node {
+    id: building
     property bool inGravityField: false
     signal teleporterTriggered
 
@@ -114,7 +115,6 @@ Node {
     }
 
     StaticRigidBody {
-        id: building
         position: Qt.vector3d(-165.234, -99.9, -443.476)
         collisionShapes: TriangleMeshShape {
             source: "meshes/building.mesh"
@@ -128,21 +128,21 @@ Node {
     TriggerBody {
         id: trigger
         position: Qt.vector3d(-162.316, -16.3654, -743.701)
-        scale: "13.26, 8.33, 5.58"
+        scale: Qt.vector3d(13.26, 8.33, 5.58)
         collisionShapes: BoxShape {}
         Model {
             source: "#Cube"
             materials: triggerMaterial
             opacity: 0.1
         }
-        onBodyEntered: inGravityField = true
-        onBodyExited: inGravityField = false
+        onBodyEntered: building.inGravityField = true
+        onBodyExited: building.inGravityField = false
     }
 
     Timer {
         id: teleportTriggerDelay
         interval: 250
-        onTriggered: teleporterTriggered() // emit signal
+        onTriggered: building.teleporterTriggered() // emit signal
     }
 
     TriggerBody {

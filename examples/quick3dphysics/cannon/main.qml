@@ -84,8 +84,8 @@ Window {
                 let size = 10
                 let extents = 400
 
-                for (var i = 0; i < size; i++) {
-                    for (var j = 0; j < size - i; j++) {
+                for (let i = 0; i < size; i++) {
+                    for (let j = 0; j < size - i; j++) {
                         let x = j * 2 - size + i
                         let y = i * 2 + 1
                         let z = 5 * (stackZ - numStacks)
@@ -100,8 +100,8 @@ Window {
             }
 
             function createBall(position, forward) {
-                var diameter = 600
-                var speed = 20000
+                const diameter = 600
+                const speed = 20000
                 let settings = {
                     "position": position,
                     "sphereDiameter": diameter
@@ -117,7 +117,7 @@ Window {
 
             function reset() {
                 // Only run method if previous stack has been created fully
-                for (var i = 0; i < instancesBoxes.length; i++)
+                for (let i = 0; i < instancesBoxes.length; i++)
                     if (!instancesBoxes[i].object)
                         return
 
@@ -132,7 +132,7 @@ Window {
                 instancesSpheres = []
                 instancesBoxes = []
 
-                for (var stackI = 0; stackI < stackSlider.value; stackI++) {
+                for (let stackI = 0; stackI < stackSlider.value; stackI++) {
                     shapeSpawner.createStack(stackI, stackSlider.value)
                 }
             }

@@ -3,8 +3,6 @@
 import QtQuick
 import QtQuick3D
 import QtQuick3D.Physics
-import QtQuick.Controls
-import QtQuick.Layouts
 
 Window {
     width: 1280

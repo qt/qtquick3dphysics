@@ -38,17 +38,17 @@ Item {
     DragHandler {
         id: dragHandler
         target: null
-        enabled: mouseEnabled
+        enabled: root.mouseEnabled
         onCentroidChanged: {
-            mouseMoved(Qt.vector2d(centroid.position.x, centroid.position.y))
+            root.mouseMoved(Qt.vector2d(centroid.position.x, centroid.position.y))
         }
 
         onActiveChanged: {
             if (active)
-                mousePressed(Qt.vector2d(centroid.position.x,
+                root.mousePressed(Qt.vector2d(centroid.position.x,
                                          centroid.position.y))
             else
-                mouseReleased(Qt.vector2d(centroid.position.x,
+                root.mouseReleased(Qt.vector2d(centroid.position.x,
                                           centroid.position.y))
         }
     }
@@ -223,7 +223,7 @@ Item {
         repeat: true
         running: root.inputsNeedProcessing
         onTriggered: {
-            processInputs()
+            root.processInputs()
         }
     }
 
@@ -243,19 +243,19 @@ Item {
         function processInput() {
             if (useMouse) {
                 // Get the delta
-                var delta = Qt.vector2d(lastPos.x - currentPos.x,
+                let delta = Qt.vector2d(lastPos.x - currentPos.x,
                                         lastPos.y - currentPos.y)
                 // rotate x
-                var rotateX = delta.x * xSpeed
-                if (xInvert)
+                let rotateX = delta.x * root.xSpeed
+                if (root.xInvert)
                     rotateX = -rotateX
-                cameraRotation.x += rotateX
+                root.cameraRotation.x += rotateX
 
                 // rotate y
-                var rotateY = delta.y * -ySpeed
-                if (yInvert)
+                let rotateY = delta.y * -root.ySpeed
+                if (root.yInvert)
                     rotateY = -rotateY
-                cameraRotation.y += rotateY
+                root.cameraRotation.y += rotateY
                 lastPos = currentPos
             }
         }
