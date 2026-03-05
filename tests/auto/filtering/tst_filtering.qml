@@ -14,18 +14,26 @@ Item {
 
     PhysicsWorld {
         scene: sceneA.scene
+        minimumTimestep: 15
+        maximumTimestep: 15
     }
 
     PhysicsWorld {
         scene: sceneB.scene
+        minimumTimestep: 15
+        maximumTimestep: 15
     }
 
     PhysicsWorld {
         scene: sceneC.scene
+        minimumTimestep: 15
+        maximumTimestep: 15
     }
 
     PhysicsWorld {
         scene: sceneD.scene
+        minimumTimestep: 15
+        maximumTimestep: 15
     }
 
     BoxesScene {
