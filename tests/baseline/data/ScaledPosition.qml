@@ -18,7 +18,7 @@ Rectangle {
         id: viewport
         anchors.fill: parent
 
-        PerspectiveCamera {
+        camera: PerspectiveCamera {
             position: Qt.vector3d(0, 0, 1200)
             eulerRotation: Qt.vector3d(0, 0, 0)
             clipFar: 5000
