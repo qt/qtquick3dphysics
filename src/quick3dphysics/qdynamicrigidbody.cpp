@@ -634,13 +634,13 @@ void QDynamicRigidBody::setKinematicRotation(const QQuaternion &rotation)
         return;
 
     m_kinematicRotation = rotation;
-    emit kinematicRotationChanged(m_kinematicRotation);
-    emit kinematicEulerRotationChanged(m_kinematicRotation.getEulerRotation());
+    emit kinematicRotationChanged(m_kinematicRotation.toQuaternion());
+    emit kinematicEulerRotationChanged(m_kinematicRotation.toEulerAngles());
 }
 
 QQuaternion QDynamicRigidBody::kinematicRotation() const
 {
-    return m_kinematicRotation.getQuaternionRotation();
+    return m_kinematicRotation.toQuaternion();
 }
 
 void QDynamicRigidBody::setKinematicEulerRotation(const QVector3D &rotation)
@@ -649,13 +649,13 @@ void QDynamicRigidBody::setKinematicEulerRotation(const QVector3D &rotation)
         return;
 
     m_kinematicRotation = rotation;
-    emit kinematicEulerRotationChanged(m_kinematicRotation);
-    emit kinematicRotationChanged(m_kinematicRotation.getQuaternionRotation());
+    emit kinematicEulerRotationChanged(m_kinematicRotation.toEulerAngles());
+    emit kinematicRotationChanged(m_kinematicRotation.toQuaternion());
 }
 
 QVector3D QDynamicRigidBody::kinematicEulerRotation() const
 {
-    return m_kinematicRotation.getEulerRotation();
+    return m_kinematicRotation.toEulerAngles();
 }
 
 void QDynamicRigidBody::setKinematicPivot(const QVector3D &pivot)
