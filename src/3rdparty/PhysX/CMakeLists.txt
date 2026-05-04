@@ -1210,10 +1210,6 @@ if(WIN32 OR MSVC)
             source/physx/src/windows/NpWindowsDelayLoadHook.cpp
             source/physxcooking/src/windows/WindowsCookingDelayLoadHook.cpp
         )
-    if(MSVC AND "${MSVC_TOOLSET_VERSION}" LESS_EQUAL 142)
-        # there's an ICE on MSVC 2019 (corresponds to 142)
-        set_property(TARGET BundledPhysX PROPERTY CXX_STANDARD 17)
-    endif()
 endif(WIN32 OR MSVC)
 
 if(UNIX)
@@ -1330,6 +1326,13 @@ qt_internal_extend_target(BundledPhysX
         source/simulationcontroller/include
         source/simulationcontroller/src
     )
+
+# Some modern compilers (Clang 18, GCC 14) have made bitwise operation
+# between different enumeration types a compile time error in C++26.
+# Reference: "Removing deprecated arithmetic conversion on enumerations"
+# P2864R2. There is also an ICE on MSVC 2019 using C++20, so we lock the
+# version to C++17.
+set_property(TARGET BundledPhysX PROPERTY CXX_STANDARD 17)
 
 ## ALL
 qt_internal_extend_target(BundledPhysX DEFINES PX_COOKING)
