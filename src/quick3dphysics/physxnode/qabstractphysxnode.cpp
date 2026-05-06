@@ -81,7 +81,7 @@ void QAbstractPhysXNode::updateFilters() { }
 
 void QAbstractPhysXNode::cleanup(QPhysXWorld *)
 {
-    for (auto *shape : shapes)
+    for (auto *shape : std::as_const(shapes))
         PHYSX_RELEASE(shape);
     if (material != sDefaultMaterial)
         PHYSX_RELEASE(material);

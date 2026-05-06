@@ -19,7 +19,7 @@ QT_BEGIN_NAMESPACE
 static void processCommandQueue(QQueue<QPhysicsCommand *> &commandQueue,
                                 const QDynamicRigidBody &rigidBody, physx::PxRigidBody &body)
 {
-    for (auto command : commandQueue) {
+    for (auto command : std::as_const(commandQueue)) {
         command->execute(rigidBody, body);
         delete command;
     }

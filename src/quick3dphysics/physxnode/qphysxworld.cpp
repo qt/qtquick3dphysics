@@ -127,7 +127,7 @@ public:
 
                 QList<QVector3D> normalsInverted;
                 normalsInverted.reserve(normals.size());
-                for (const QVector3D &v : normals) {
+                for (const QVector3D &v : std::as_const(normals)) {
                     normalsInverted.push_back(QVector3D(-v.x(), -v.y(), -v.z()));
                 }
 
