@@ -84,6 +84,7 @@ void QAbstractPhysXNode::cleanup(QPhysXWorld *)
         PHYSX_RELEASE(shape);
     if (material != sDefaultMaterial)
         PHYSX_RELEASE(material);
+    shapes.clear();
 }
 
 bool QAbstractPhysXNode::debugGeometryCapability()

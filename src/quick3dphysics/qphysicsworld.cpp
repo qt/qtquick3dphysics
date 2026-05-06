@@ -418,6 +418,7 @@ QPhysicsWorld::~QPhysicsWorld()
         body->cleanup(m_physx);
         delete body;
     }
+    m_physXBodies.clear();
     m_physx->deleteWorld();
     delete m_physx;
     worldManager.worlds.removeAll(this);
