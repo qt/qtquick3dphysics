@@ -146,7 +146,7 @@ physx::PxTransform QPhysXActorBody::getGlobalPose()
 void QPhysXActorBody::buildShapes(QPhysXWorld * /*physX*/)
 {
     auto body = actor;
-    for (auto *shape : shapes) {
+    for (auto *shape : std::as_const(shapes)) {
         body->detachShape(*shape);
         PHYSX_RELEASE(shape);
     }

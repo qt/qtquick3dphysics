@@ -355,7 +355,7 @@ void QPhysicsWorld::registerNode(QAbstractPhysicsNode *physicsNode)
 
 void QPhysicsWorld::deregisterNode(QAbstractPhysicsNode *physicsNode)
 {
-    for (auto world : worldManager.worlds) {
+    for (auto world : std::as_const(worldManager.worlds)) {
         world->m_newPhysicsNodes.removeAll(physicsNode);
         QMutexLocker locker(&world->m_removedPhysicsNodesMutex);
         if (physicsNode->m_backendObject) {
@@ -414,7 +414,7 @@ QPhysicsWorld::~QPhysicsWorld()
     if (m_physx->scene)
         m_physx->scene->fetchResults(true);
 
-    for (auto body : m_physXBodies) {
+    for (auto body : std::as_const(m_physXBodies)) {
         body->cleanup(m_physx);
         delete body;
     }
@@ -541,7 +541,7 @@ void QPhysicsWorld::setViewport(QQuick3DNode *viewport)
     m_viewport = viewport;
 
     // TODO: test this
-    for (auto material : m_debugMaterials)
+    for (auto material : std::as_const(m_debugMaterials))
         delete material;
     m_debugMaterials.clear();
 
@@ -640,7 +640,7 @@ void QPhysicsWorld::updateDebugDraw()
     QSet<QPair<QAbstractCollisionShape *, QAbstractPhysXNode *>> currentCollisionShapes;
     currentCollisionShapes.reserve(m_collisionShapeDebugModels.size());
 
-    for (QAbstractPhysXNode *node : m_physXBodies) {
+    for (QAbstractPhysXNode *node : std::as_const(m_physXBodies)) {
         if (!node->debugGeometryCapability())
             continue;
 
@@ -904,7 +904,8 @@ static void collectPhysicsNodes(QQuick3DObject *node, QList<QAbstractPhysicsNode
         return;
     }
 
-    for (QQuick3DObject *child : node->childItems())
+    auto childItems = node->childItems();
+    for (QQuick3DObject *child : std::as_const(childItems))
         collectPhysicsNodes(child, nodes);
 }
 
@@ -926,7 +927,7 @@ void QPhysicsWorld::updateDebugDrawDesignStudio()
     activePhysicsNodes.reserve(m_collisionShapeDebugModels.size());
     collectPhysicsNodes(m_scene, activePhysicsNodes);
 
-    for (QAbstractPhysicsNode *node : activePhysicsNodes) {
+    for (QAbstractPhysicsNode *node : std::as_const(activePhysicsNodes)) {
 
         const auto &collisionShapes = node->getCollisionShapesList();
         const int materialIdx = 0; // Just take first material
@@ -1086,7 +1087,7 @@ void QPhysicsWorld::disableDebugDraw()
 {
     m_hasIndividualDebugDraw = false;
 
-    for (QAbstractPhysXNode *body : m_physXBodies) {
+    for (QAbstractPhysXNode *body : std::as_const(m_physXBodies)) {
         const auto &collisionShapes = body->frontendNode->getCollisionShapesList();
         const int length = collisionShapes.length();
         for (int idx = 0; idx < length; idx++) {
@@ -1173,7 +1174,7 @@ void QPhysicsWorld::setDefaultDensity(float defaultDensity)
     m_defaultDensity = defaultDensity;
 
     // Go through all dynamic rigid bodies and update the default density
-    for (QAbstractPhysXNode *body : m_physXBodies)
+    for (QAbstractPhysXNode *body : std::as_const(m_physXBodies))
         body->updateDefaultDensity(m_defaultDensity);
 
     emit defaultDensityChanged(defaultDensity);
@@ -1287,7 +1288,7 @@ void QPhysicsWorld::frameFinishedDesignStudio()
 
 QPhysicsWorld *QPhysicsWorld::getWorld(QQuick3DNode *node)
 {
-    for (QPhysicsWorld *world : worldManager.worlds) {
+    for (QPhysicsWorld *world : std::as_const(worldManager.worlds)) {
         if (!world->m_scene) {
             continue;
         }
@@ -1360,7 +1361,7 @@ void QPhysicsWorld::findPhysicsNodes()
 
 void QPhysicsWorld::emitContactCallbacks()
 {
-    for (const QPhysicsWorld::BodyContact &contact : m_registeredContacts) {
+    for (const QPhysicsWorld::BodyContact &contact : std::as_const(m_registeredContacts)) {
         if (m_removedPhysicsNodes.contains(contact.sender)
             || m_removedPhysicsNodes.contains(contact.receiver))
             continue;
@@ -1403,13 +1404,13 @@ void QPhysicsWorld::setScene(QQuick3DNode *newScene)
     m_scene = newScene;
 
     // Delete all nodes since they are associated with the previous scene
-    for (auto body : m_physXBodies) {
+    for (auto body : std::as_const(m_physXBodies)) {
         deregisterNode(body->frontendNode);
     }
 
     // Check if scene is already used by another world
     bool sceneOK = true;
-    for (QPhysicsWorld *world : worldManager.worlds) {
+    for (QPhysicsWorld *world : std::as_const(worldManager.worlds)) {
         if (world != this && world->scene() == newScene) {
             sceneOK = false;
             qWarning() << "Warning: scene already associated with physics world";
