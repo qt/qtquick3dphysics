@@ -43,5 +43,8 @@ qt_copy_or_install(
         trianglemeshshape.png
         trianglemeshshape16.png
         trianglemeshshape@2x.png
+        joint.png
+        joint16.png
+        joint@2x.png
     DESTINATION "${destination}"
 )

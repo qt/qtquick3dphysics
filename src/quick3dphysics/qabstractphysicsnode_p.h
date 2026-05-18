@@ -30,6 +30,7 @@ class PxShape;
 QT_BEGIN_NAMESPACE
 
 class QAbstractPhysXNode;
+class QPhysicsJoint;
 
 class Q_QUICK3DPHYSICS_EXPORT QAbstractPhysicsNode : public QQuick3DNode
 {
@@ -120,6 +121,7 @@ private:
     int m_filterIgnoreGroups = 0;
     bool m_filtersDirty = false;
 
+    friend class QPhysicsJoint;
     friend class QAbstractPhysXNode;
     friend class QPhysicsWorld; // for register/deregister TODO: cleaner mechanism
     friend class SimulationEventCallback;

@@ -13,10 +13,13 @@ qt_copy_or_install(
         CollisionShapeSection.qml
         ConvexMeshShapeSection.qml
         ConvexMeshShapeSpecifics.qml
+        DistanceJointSpecifics.qml
         DynamicRigidBodySpecifics.qml
         DynamicRigidBodySection.qml
+        FixedJointSpecifics.qml
         HeightFieldShapeSection.qml
         HeightFieldShapeSpecifics.qml
+        JointSection.qml
         NodeSection.qml
         physics.metainfo
         PhysicsBodySection.qml
@@ -26,8 +29,11 @@ qt_copy_or_install(
         PhysicsWorldSection.qml
         PhysicsWorldSpecifics.qml
         PlaneShapeSpecifics.qml
+        PrismaticJointSpecifics.qml
+        RevoluteJointSpecifics.qml
         SphereShapeSection.qml
         SphereShapeSpecifics.qml
+        SphericalJointSpecifics.qml
         StaticRigidBodySpecifics.qml
         TriangleMeshShapeSection.qml
         TriangleMeshShapeSpecifics.qml

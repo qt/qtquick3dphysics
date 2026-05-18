@@ -3,7 +3,7 @@
 
 /*!
 \page qtquick3dphysics-shapes-bodies.html
-\title Qt Quick 3D Physics Shapes and Bodies
+\title Qt Quick 3D Physics Shapes, Bodies and Joints
 \brief An overview of Qt Quick 3D Physics objects and their physical shapes
 
 The objects in the simulation are represented by any of the following four types of bodies: \l{StaticRigidBody}, \l{DynamicRigidBody}, \l{CharacterController} and \l{TriggerBody}. The physical shape of a body is represented by subtypes of \l CollisionShape.
@@ -93,4 +93,8 @@ The \l PhysicsMaterial type specifies how an object behaves when it collides wit
 \l {PhysicsMaterial::dynamicFriction}{dynamicFriction} and \l {PhysicsMaterial::staticFriction}{staticFriction}
 properties determine how slippery the object is, and \l {PhysicsMaterial::restitution}{restitution}
 determines how bouncy it is.
+
+\section1 Joints
+
+A joint constrains how two bodies move in relation to each other. A joint can for instance be used to emulate a door hinge, a rope or an arm. Various joint types are supported for different use cases, see \l {DistanceJoint}, \l {FixedJoint}, \l {PrismaticJoint}, \l {RevoluteJoint} and \l {SphericalJoint}. Every joint is based on the \l{Joint} qml type and has two bodies it connects to as well as an orientation describing its location on each body it connects. Each joint type will have different properties governing its specific physical constraints.
 */

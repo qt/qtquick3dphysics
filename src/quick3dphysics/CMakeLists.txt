@@ -14,6 +14,12 @@ qt_internal_add_qml_module(Quick3DPhysics
         NO_PLUGIN_OPTIONAL
         NO_GENERATE_PLUGIN_SOURCE
     SOURCES
+        joints/qdistancejoint.cpp joints/qdistancejoint_p.h
+        joints/qfixedjoint.cpp joints/qfixedjoint_p.h
+        joints/qjoint.cpp joints/qjoint_p.h
+        joints/qprismaticjoint.cpp joints/qprismaticjoint_p.h
+        joints/qrevolutejoint.cpp joints/qrevolutejoint_p.h
+        joints/qsphericaljoint.cpp joints/qsphericaljoint_p.h
         physxnode/qabstractphysxnode.cpp physxnode/qabstractphysxnode_p.h
         physxnode/qphysxactorbody.cpp physxnode/qphysxactorbody_p.h
         physxnode/qphysxcharactercontroller.cpp physxnode/qphysxcharactercontroller_p.h

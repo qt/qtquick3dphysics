@@ -1,0 +1,8 @@
+<RCC>
+    <qresource prefix="/">
+        <file>main.qml</file>
+        <file>Revolute.qml</file>
+        <file>Rope.qml</file>
+        <file>Prismatic.qml</file>
+    </qresource>
+</RCC>

@@ -9,6 +9,7 @@
 #include "qabstractphysicsnode_p.h"
 #include "qdebugdrawhelper_p.h"
 #include "qphysicsutils_p.h"
+#include "joints/qjoint_p.h"
 #include "qstaticphysxobjects_p.h"
 #include "qboxshape_p.h"
 #include "qsphereshape_p.h"
@@ -340,6 +341,7 @@ struct QWorldManager
 {
     QVector<QPhysicsWorld *> worlds;
     QVector<QAbstractPhysicsNode *> orphanNodes;
+    QVector<QPhysicsJoint *> orphanJoints;
 };
 
 static QWorldManager worldManager = QWorldManager {};
@@ -368,6 +370,32 @@ void QPhysicsWorld::deregisterNode(QAbstractPhysicsNode *physicsNode)
         world->m_removedPhysicsNodes.insert(physicsNode);
     }
     worldManager.orphanNodes.removeAll(physicsNode);
+}
+
+void QPhysicsWorld::registerJoint(QPhysicsJoint *joint)
+{
+    auto world = getWorld(joint);
+    if (world) {
+        world->m_joints.push_back(joint);
+    } else {
+        worldManager.orphanJoints.push_back(joint);
+    }
+}
+
+void QPhysicsWorld::deregisterJoint(QPhysicsJoint *joint)
+{
+    for (auto world : worldManager.worlds) {
+        QMutexLocker locker(&world->m_removedPhysicsNodesMutex);
+        world->m_removedJoints.insert(joint->getPhysXBackend());
+
+        // Swap erase since order does not matter
+        qsizetype idx = world->m_joints.indexOf(joint);
+        if (idx != -1) {
+            world->m_joints.swapItemsAt(idx, world->m_joints.size() - 1);
+            world->m_joints.pop_back();
+        }
+    }
+    worldManager.orphanJoints.removeAll(joint);
 }
 
 void QPhysicsWorld::registerContact(QAbstractPhysicsNode *sender, QAbstractPhysicsNode *receiver,
@@ -399,6 +427,7 @@ QPhysicsWorld::QPhysicsWorld(QObject *parent) : QObject(parent)
 
     worldManager.worlds.push_back(this);
     matchOrphanNodes();
+    matchOrphanJoints();
 
     m_frameAnimator = new FrameAnimator;
     connect(m_frameAnimator, &QQuickFrameAnimation::triggered, this,
@@ -1192,6 +1221,15 @@ void QPhysicsWorld::cleanupRemovedNodes()
     m_removedPhysicsNodes.clear();
 }
 
+void QPhysicsWorld::cleanupRemovedJoints()
+{
+    for (physx::PxJoint *joint : m_removedJoints) {
+        if (joint)
+            joint->release();
+    }
+    m_removedJoints.clear();
+}
+
 void QPhysicsWorld::initPhysics()
 {
     Q_ASSERT(!m_physicsInitialized);
@@ -1251,8 +1289,11 @@ void QPhysicsWorld::simulateFrame()
 void QPhysicsWorld::frameFinished(float deltaTime)
 {
     matchOrphanNodes();
+    matchOrphanJoints();
     emitContactCallbacks();
     cleanupRemovedNodes();
+    cleanupRemovedJoints();
+
     for (auto *node : std::as_const(m_newPhysicsNodes)) {
         auto *body = node->createPhysXBackend();
         body->init(this, m_physx);
@@ -1272,6 +1313,10 @@ void QPhysicsWorld::frameFinished(float deltaTime)
         physXBody->sync(deltaTime, transformCache);
     }
 
+    for (QPhysicsJoint *joint : std::as_const(m_joints)) {
+        joint->updatePhysXBackend();
+    }
+
     updateDebugDraw();
     emit frameDone(deltaTime * 1000);
 }
@@ -1280,6 +1325,7 @@ void QPhysicsWorld::frameFinishedDesignStudio()
 {
     // Note sure if this is needed but do it anyway
     matchOrphanNodes();
+    matchOrphanJoints();
     emitContactCallbacks();
     cleanupRemovedNodes();
     // Ignore new physics nodes, we find them from the scene node anyway
@@ -1311,6 +1357,30 @@ QPhysicsWorld *QPhysicsWorld::getWorld(QQuick3DNode *node)
     return nullptr;
 }
 
+QPhysicsWorld *QPhysicsWorld::getWorld(QPhysicsJoint *joint)
+{
+    for (QPhysicsWorld *world : worldManager.worlds) {
+        if (!world->m_scene) {
+            continue;
+        }
+
+        QObject *nodeCurr = joint;
+
+        while (nodeCurr->parent()) {
+            nodeCurr = nodeCurr->parent();
+            if (nodeCurr == world->m_scene) {
+                return world;
+            } else if (auto view3d = qobject_cast<QQuick3DViewport *>(nodeCurr);
+                       view3d && view3d->scene() == world->m_scene) {
+                // HACK? if the parent is a view3d, check against its "implicit" scene
+                return world;
+            }
+        }
+    }
+
+    return nullptr;
+}
+
 void QPhysicsWorld::matchOrphanNodes()
 {
     // FIXME: does this need thread safety?
@@ -1328,6 +1398,29 @@ void QPhysicsWorld::matchOrphanNodes()
             // swap-erase
             worldManager.orphanNodes.swapItemsAt(idx, numNodes - 1);
             worldManager.orphanNodes.pop_back();
+            numNodes--;
+        } else {
+            idx++;
+        }
+    }
+}
+
+void QPhysicsWorld::matchOrphanJoints()
+{
+    if (worldManager.orphanJoints.isEmpty())
+        return;
+
+    qsizetype numNodes = worldManager.orphanJoints.length();
+    qsizetype idx = 0;
+
+    while (idx < numNodes) {
+        auto node = worldManager.orphanJoints[idx];
+        auto world = getWorld(node);
+        if (world == this) {
+            world->m_joints.push_back(node);
+            // swap-erase
+            worldManager.orphanJoints.swapItemsAt(idx, numNodes - 1);
+            worldManager.orphanJoints.pop_back();
             numNodes--;
         } else {
             idx++;

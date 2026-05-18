@@ -20,6 +20,7 @@
 #include "qtconfigmacros.h"
 
 #include <QVector>
+#include <qobject.h>
 
 namespace physx {
 class PxMaterial;
@@ -54,8 +55,9 @@ enum class DebugDrawBodyType {
    QPhysicsMaterial with default values. We should only have a qt material when set explicitly.
 */
 
-class QAbstractPhysXNode
+class QAbstractPhysXNode : public QObject
 {
+    Q_OBJECT
 public:
     QAbstractPhysXNode(QAbstractPhysicsNode *node);
     virtual ~QAbstractPhysXNode();

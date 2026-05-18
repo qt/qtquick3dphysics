@@ -1,0 +1,53 @@
+// Copyright (C) 2026 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GFDL-1.3-no-invariants-only
+
+/*!
+    \example joints
+    \ingroup quick3dphysics-examples
+    \title Qt Quick 3D Physics - Joints Example
+    \examplecategory {3D}
+    \brief Demonstrates using joints in a physics scene.
+    \image joints-example.png
+
+    This example demonstrates using a few of the joints available in Quick 3D
+    Physics.
+
+    The scene is a typical scene with a PhysicsWorld, a View3D with a
+    PerspectiveCamera and a DirectionalLight:
+
+    \snippet joints/main.qml full
+
+    There is a StaticRigidBody with a PlaneShape to act as the floor and three
+    custom QML objects; Rope, Prismatic and Revolute.
+
+    \snippet joints/main.qml joints
+
+    The Rope object is a series of capsules and a sphere that are connected
+    with \l{SphericalJoint}{spherical joints} for the capsules and a
+    \l{FixedJoint}{fixed joint} for the sphere.
+
+    \snippet joints/Rope.qml full
+
+    The Prismatic object consists of two bars locked in a
+    \l{PrismaticJoint}{prismatic joint} along the x-axis of both of them.
+    With this joint the smaller rod can move freely along this x-axis until it
+    reaches its \l{PrismaticJoint::upperLimit}{upper} and
+    \l{PrismaticJoint::lowerLimit}{lower} constraint limit.
+
+    \snippet joints/Prismatic.qml full
+
+    The Revolute object consists of two bars rotated by 90 degrees and locked
+    in a \l{RevoluteJoint}{revolute joint}.
+
+    \snippet joints/Revolute.qml full
+
+    Going back to the main scene there is a FrameAnimation object that rotates
+    the kinematic \l{PrismaticJoint}{prismatic} and \l{RevoluteJoint}{revolute}
+    joints.
+
+    \snippet joints/main.qml animation
+
+    With all these moving parts we can see how the different joints interact in
+    a physics scene.
+*/
+

@@ -27,6 +27,7 @@ QT_BEGIN_NAMESPACE
 
 class QPhysXActorBody : public QAbstractPhysXNode
 {
+    Q_OBJECT
 public:
     QPhysXActorBody(QAbstractPhysicsNode *frontEnd);
     void cleanup(QPhysXWorld *physX) override;

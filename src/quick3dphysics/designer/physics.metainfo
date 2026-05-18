@@ -258,4 +258,104 @@ MetaInfo {
             requiredImport: "QtQuick3D.Physics"
         }
     }
+
+    Type {
+        name: "QtQuick3D.Physics.DistanceJoint"
+        icon: "images/joint16.png"
+
+        Hints {
+            visibleInNavigator: true
+            canBeDroppedInNavigator: true
+            canBeDroppedInFormEditor: false
+            canBeDroppedInView3D: true
+        }
+
+        ItemLibraryEntry {
+            name: "Distance Joint"
+            category: "Joints"
+            libraryIcon: "images/joint.png"
+            version: "6.10"
+            requiredImport: "QtQuick3D.Physics"
+        }
+    }
+
+    Type {
+        name: "QtQuick3D.Physics.FixedJoint"
+        icon: "images/joint16.png"
+
+        Hints {
+            visibleInNavigator: true
+            canBeDroppedInNavigator: true
+            canBeDroppedInFormEditor: false
+            canBeDroppedInView3D: true
+        }
+
+        ItemLibraryEntry {
+            name: "Fixed Joint"
+            category: "Joints"
+            libraryIcon: "images/joint.png"
+            version: "6.10"
+            requiredImport: "QtQuick3D.Physics"
+        }
+    }
+
+    Type {
+        name: "QtQuick3D.Physics.PrismaticJoint"
+        icon: "images/joint16.png"
+
+        Hints {
+            visibleInNavigator: true
+            canBeDroppedInNavigator: true
+            canBeDroppedInFormEditor: false
+            canBeDroppedInView3D: true
+        }
+
+        ItemLibraryEntry {
+            name: "Prismatic Joint"
+            category: "Joints"
+            libraryIcon: "images/joint.png"
+            version: "6.10"
+            requiredImport: "QtQuick3D.Physics"
+        }
+    }
+
+    Type {
+        name: "QtQuick3D.Physics.RevoluteJoint"
+        icon: "images/joint16.png"
+
+        Hints {
+            visibleInNavigator: true
+            canBeDroppedInNavigator: true
+            canBeDroppedInFormEditor: false
+            canBeDroppedInView3D: true
+        }
+
+        ItemLibraryEntry {
+            name: "Revolute Joint"
+            category: "Joints"
+            libraryIcon: "images/joint.png"
+            version: "6.10"
+            requiredImport: "QtQuick3D.Physics"
+        }
+    }
+
+    Type {
+        name: "QtQuick3D.Physics.SphericalJoint"
+        icon: "images/joint16.png"
+
+        Hints {
+            visibleInNavigator: true
+            canBeDroppedInNavigator: true
+            canBeDroppedInFormEditor: false
+            canBeDroppedInView3D: true
+        }
+
+        ItemLibraryEntry {
+            name: "Spherical Joint"
+            category: "Joints"
+            libraryIcon: "images/joint.png"
+            version: "6.10"
+            requiredImport: "QtQuick3D.Physics"
+        }
+    }
 }

@@ -40,6 +40,7 @@ class PxControllerManager;
 class PxConvexMesh;
 class PxTriangleMesh;
 class PxHeightField;
+class PxJoint;
 }
 
 QT_BEGIN_NAMESPACE
@@ -55,6 +56,7 @@ class QQuick3DGeometry;
 class QQuick3DPrincipledMaterial;
 class QPhysXWorld;
 class FrameAnimator;
+class QPhysicsJoint;
 
 class Q_QUICK3DPHYSICS_EXPORT QPhysicsWorld : public QObject, public QQmlParserStatus
 {
@@ -110,9 +112,13 @@ public:
     bool isNodeRemoved(QAbstractPhysicsNode *object);
 
     static QPhysicsWorld *getWorld(QQuick3DNode *node);
+    static QPhysicsWorld *getWorld(QPhysicsJoint *joint);
 
     static void registerNode(QAbstractPhysicsNode *physicsNode);
     static void deregisterNode(QAbstractPhysicsNode *physicsNode);
+
+    static void registerJoint(QPhysicsJoint *joint);
+    static void deregisterJoint(QPhysicsJoint *joint);
 
     void registerContact(QAbstractPhysicsNode *sender, QAbstractPhysicsNode *receiver,
                          const QVector<QVector3D> &positions, const QVector<QVector3D> &impulses,
@@ -129,6 +135,8 @@ public:
     Q_REVISION(6, 7) bool reportStaticKinematicCollisions() const;
     Q_REVISION(6, 7)
     void setReportStaticKinematicCollisions(bool newReportStaticKinematicCollisions);
+
+    void cleanupRemovedJoints();
 
 public slots:
     void setGravity(QVector3D gravity);
@@ -172,6 +180,7 @@ private:
     void setupDebugMaterials(QQuick3DNode *sceneNode);
     void disableDebugDraw();
     void matchOrphanNodes();
+    void matchOrphanJoints();
     void findPhysicsNodes();
     void emitContactCallbacks();
 
@@ -222,12 +231,14 @@ private:
     };
 
     QList<QAbstractPhysXNode *> m_physXBodies;
+    QList<QPhysicsJoint *> m_joints;
     QList<QAbstractPhysicsNode *> m_newPhysicsNodes;
     QHash<QPair<QAbstractCollisionShape *, QAbstractPhysicsNode *>, DebugModelHolder>
             m_DesignStudioDebugModels;
     QHash<QPair<QAbstractCollisionShape *, QAbstractPhysXNode *>, DebugModelHolder>
             m_collisionShapeDebugModels;
     QSet<QAbstractPhysicsNode *> m_removedPhysicsNodes;
+    QSet<physx::PxJoint *> m_removedJoints;
     QMutex m_removedPhysicsNodesMutex;
     QList<BodyContact> m_registeredContacts;
 
