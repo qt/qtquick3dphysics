@@ -35,4 +35,9 @@ if(NOT TARGET Qt::Quick3D)
     return()
 endif()
 
+if(QT_QMAKE_TARGET_MKSPEC STREQUAL "win32-arm64ec-msvc")
+    message(STATUS "Skipping the build on ARM64EC: QTBUG-146978")
+    return()
+endif()
+
 qt_build_repo()
