@@ -1,0 +1,47 @@
+From 06ec7b51b3d9003421a776bbde199ac80e21f452 Mon Sep 17 00:00:00 2001
+From: Liang Qi <liang.qi@qt.io>
+Date: Thu, 4 Jun 2026 15:11:41 +0200
+Subject: [PATCH] ohos: fix PhysX build for pthread_cancel()
+
+HarmonyOS/OHOS has PTHREAD_CANCEL_DISABLE defined but doesn't
+provide pthread cancel related functions.
+
+Pick-to: 6.12
+Task-number: QTBUG-146708
+Change-Id: I76bbe499c01d49165fc56aa53cc8aa0b94b27f37
+---
+ .../PhysX/source/foundation/src/unix/PsUnixThread.cpp  | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/3rdparty/PhysX/source/foundation/src/unix/PsUnixThread.cpp b/src/3rdparty/PhysX/source/foundation/src/unix/PsUnixThread.cpp
+index 0fb6851..f8bab2b 100644
+--- a/src/3rdparty/PhysX/source/foundation/src/unix/PsUnixThread.cpp
++++ b/src/3rdparty/PhysX/source/foundation/src/unix/PsUnixThread.cpp
+@@ -41,6 +41,11 @@
+ #endif
+ #include <stdio.h>
+ #include <pthread.h>
++#if defined(__OHOS__)
++// OHOS SDK defines PTHREAD_CANCEL_DISABLE but lacks matching pthread_*() functions
++// Details in QTBUG-146708
++#  undef PTHREAD_CANCEL_DISABLE
++#endif
+ #include <unistd.h>
+ #if !PX_PS4
+ #include <sys/syscall.h>
+@@ -285,8 +290,11 @@ __attribute__((noreturn))
+ void ThreadImpl::kill()
+ {
+ #ifndef ANDROID
+-	if(getThread(this)->state == _PxThreadStarted)
++	if(getThread(this)->state == _PxThreadStarted) {
++#if defined(PTHREAD_CANCEL_DISABLE)
+ 		pthread_cancel(getThread(this)->thread);
++#endif
++	}
+ 	getThread(this)->state = _PxThreadStopped;
+ #else
+ 	shdfnd::getFoundation().error(PxErrorCode::eDEBUG_WARNING, __FILE__, __LINE__,
+-- 
+2.52.0
+
