@@ -41,6 +41,11 @@
 #endif
 #include <stdio.h>
 #include <pthread.h>
+#if defined(__OHOS__)
+// OHOS SDK defines PTHREAD_CANCEL_DISABLE but lacks matching pthread_*() functions
+// Details in QTBUG-146708
+#  undef PTHREAD_CANCEL_DISABLE
+#endif
 #include <unistd.h>
 #if !PX_PS4
 #include <sys/syscall.h>
@@ -285,8 +290,11 @@ __attribute__((noreturn))
 void ThreadImpl::kill()
 {
 #ifndef ANDROID
-	if(getThread(this)->state == _PxThreadStarted)
+	if(getThread(this)->state == _PxThreadStarted) {
+#if defined(PTHREAD_CANCEL_DISABLE)
 		pthread_cancel(getThread(this)->thread);
+#endif
+	}
 	getThread(this)->state = _PxThreadStopped;
 #else
 	shdfnd::getFoundation().error(PxErrorCode::eDEBUG_WARNING, __FILE__, __LINE__,
