@@ -5,7 +5,7 @@ import QtTest
 import QtQuick3D
 import QtQuick3D.Helpers
 import QtQuick3D.Physics
-import Geometry
+import PhysicsTest.GeometryReadd
 
 // This test tries repeatedly adding and removing a static triangle mesh.
 // It should not leak nor crash.
@@ -107,7 +107,7 @@ Item {
                     import QtQuick3D
                     import QtQuick3D.Helpers
                     import QtQuick3D.Physics
-                    import Geometry
+                    import PhysicsTest.GeometryReadd
                     TriangleMeshShape { geometry: ExampleTriangleGeometry {} }
                     `,
                     frameAnimation,
@@ -124,7 +124,7 @@ Item {
                     import QtQuick3D
                     import QtQuick3D.Helpers
                     import QtQuick3D.Physics
-                    import Geometry
+                    import PhysicsTest.GeometryReadd
                     TriangleMeshShape { geometry: ExampleTriangleGeometry {} }
                     `,
                     frameAnimation,

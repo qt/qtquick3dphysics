@@ -6,7 +6,7 @@ import QtQuick3D
 import QtQuick3D.Helpers
 import QtQuick3D.Physics
 
-import Geometry
+import PhysicsTest.Geometry
 
 Item {
     width: 640
