@@ -25,7 +25,7 @@ if(QT_BUILD_STANDALONE_TESTS)
 endif()
 
 qt_add_qml_module(${PROJECT_NAME}
-    URI Geometry
+    URI PhysicsTest.GeometrySource
     VERSION 1.0
     QML_FILES
         tst_geometry_source.qml

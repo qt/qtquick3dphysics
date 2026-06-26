@@ -5,7 +5,7 @@ import QtTest
 import QtQuick3D
 import QtQuick3D.Helpers
 import QtQuick3D.Physics
-import Geometry
+import PhysicsTest.GeometrySource
 
 // This test tries repeatedly adding and removing a geometry from a triangle mesh.
 // It should fallback to the source property.
@@ -113,7 +113,7 @@ Item {
                     import QtQuick3D
                     import QtQuick3D.Helpers
                     import QtQuick3D.Physics
-                    import Geometry
+                    import PhysicsTest.GeometrySource
                     ExampleTriangleGeometry { }
                     `,
                     frameAnimation,
