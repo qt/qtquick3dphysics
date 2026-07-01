@@ -18,7 +18,7 @@ QT_BEGIN_NAMESPACE
     StaticRigidBody: They only influence other bodies. Other bodies are fully governed by the
     simulation.
 
-    \sa {Qt Quick 3D Physics Shapes and Bodies}{Shapes and Bodies overview documentation}
+    \sa {Qt Quick 3D Physics Shapes, Bodies and Joints}
 */
 
 /*!

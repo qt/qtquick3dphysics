@@ -17,7 +17,7 @@ QT_BEGIN_NAMESPACE
     \l [QtQuick3D]{Model::source}{QtQuick3D.Model}. If the mesh is not convex, the convex hull of the
     mesh will be used.
 
-    \sa {Qt Quick 3D Physics Shapes and Bodies}{Shapes and Bodies overview documentation}, TriangleMeshShape
+    \sa {Qt Quick 3D Physics Shapes, Bodies and Joints}, TriangleMeshShape
 */
 
 /*!

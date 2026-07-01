@@ -22,7 +22,7 @@ QT_BEGIN_NAMESPACE
     However, combining non-uniform scale and rotation may lead to shearing, which will not be applied
     to the BoxShape: it will always be a rectilinear box.
 
-    \sa {Qt Quick 3D Physics Shapes and Bodies}{Shapes and Bodies overview documentation}
+    \sa {Qt Quick 3D Physics Shapes, Bodies and Joints}
 */
 
 /*!
