@@ -19,7 +19,8 @@ QT_BEGIN_NAMESPACE
     \brief A geometry for generating a capsule model.
     \deprecated [6.10]
 
-    Deprecated, use \l{QtQuick3D.Helpers.CapsuleGeometry}.
+    Deprecated, use \l{QtQuick3D.Helpers::CapsuleGeometry}
+    {QtQuick3D.Helpers.CapsuleGeometry} instead.
 
     A geometry for generating a capsule model.
 */
