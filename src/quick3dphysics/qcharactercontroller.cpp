@@ -33,7 +33,7 @@ QT_BEGIN_NAMESPACE
     \note The character controller is able to scale obstacles that are lower than one fourth of
     the capsule shape's height.
 
-    \sa {Qt Quick 3D Physics Shapes and Bodies}{Shapes and Bodies overview documentation}
+    \sa {Qt Quick 3D Physics Shapes, Bodies and Joints}
 */
 
 /*!

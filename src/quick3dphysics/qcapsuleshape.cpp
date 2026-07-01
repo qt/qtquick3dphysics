@@ -25,7 +25,7 @@ QT_BEGIN_NAMESPACE
     the y component will be used to scale the diameter. The cylinder will always be perfectly circular even if the
     scaling transformation is non-uniform.
 
-    \sa {Qt Quick 3D Physics Shapes and Bodies}{Shapes and Bodies overview documentation}
+    \sa {Qt Quick 3D Physics Shapes, Bodies and Joints}
 */
 
 /*!

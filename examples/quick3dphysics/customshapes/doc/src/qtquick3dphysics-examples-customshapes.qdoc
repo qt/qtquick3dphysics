@@ -23,7 +23,7 @@
     We define four textures which will be used for the skybox, the tablecloth and the numbers on the dice:
 
     \snippet customshapes/main.qml textures 1
-    \snippet customshapes/main.qml textures 2
+    \snippet customshapes/Die.qml textures 2
 
     \section1 Scene
     We have a Node which contains our scene with the camera and a directional light:
@@ -54,7 +54,7 @@
     The Die object contains a DynamicRigidBody with a ConvexMeshShape and a Model.
     The position, color, scale and mesh source are randomly generated for each die.
 
-    \snippet customshapes/main.qml dice 2
+    \snippet customshapes/Die.qml dice 2
 
     \section1 Animation
     To make the dice move from the cup to the dice tower we animate the cup and move it up and then tip it over.

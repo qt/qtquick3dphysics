@@ -264,7 +264,7 @@ int QQuick3DPhysicsHeightField::columns() const
     As long as the \l{extents} and the image aspect ratio are the same, the physics body and the
     visual item will overlap.
 
-    \sa {Qt Quick 3D Physics Shapes and Bodies}{Shapes and Bodies overview documentation}
+    \sa {Qt Quick 3D Physics Shapes, Bodies and Joints}
 */
 
 /*!

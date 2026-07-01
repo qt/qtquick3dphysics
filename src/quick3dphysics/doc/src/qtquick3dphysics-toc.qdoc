@@ -9,7 +9,7 @@
     in the Qt Quick 3D Physics module.
 
     \list
-    \li \l {Qt Quick 3D Physics Shapes and Bodies}{Shapes and Bodies}
+    \li \l {Qt Quick 3D Physics Shapes, Bodies and Joints}{Shapes, Bodies, and Joints}
     \li \l {Qt Quick 3D Physics Units}{Units}
     \li \l {Qt Quick 3D Physics Cooking}{Cooking}
     \li \l {Qt Quick 3D Physics API Changes from Tech Preview}{API Changes from Tech Preview}

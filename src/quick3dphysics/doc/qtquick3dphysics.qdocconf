@@ -5,6 +5,9 @@ description             = Qt Quick 3D Physics Reference Documentation
 version                 = $QT_VERSION
 buildversion            = Qt Quick 3D Physics | Commercial or GPLv3
 
+# No C++ API to document, clear module header
+moduleheader            =
+
 examplesinstallpath     = quick3dphysics
 
 qhp.projects            = QtQuick3DPhysics
@@ -41,9 +44,6 @@ exampledirs +=  ../../../examples/quick3dphysics
 
 imagedirs   += images
 
-# Exclude private header files from the documentation build
-excludefiles += "*_p.h"
-
 navigation.landingpage = "Qt Quick 3D Physics"
 navigation.qmltypespage = "Qt Quick 3D Physics QML Types"
 # Auto-generate navigation linking based on "Qt Quick 3D Physics module topics":
@@ -54,3 +54,6 @@ tagfile                 = qtquick3dphysics.tags
 
 # Highlighted examples in Data Visualization & 3D category
 manifestmeta.highlighted.names = "QtQuick3DPhysics/Qt Quick 3D Physics - CharacterController Example"
+
+# Allow zero documentation warnings in CI
+warninglimit = 0

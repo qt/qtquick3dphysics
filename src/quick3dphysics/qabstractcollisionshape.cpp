@@ -21,7 +21,7 @@ QT_BEGIN_NAMESPACE
     is used to define the physical shape and extent of an object for the
     purposes of the physics simulation.
 
-    \sa {Qt Quick 3D Physics Shapes and Bodies}{Shapes and Bodies overview documentation}
+    \sa {Qt Quick 3D Physics Shapes, Bodies and Joints}
 */
 
 /*!
