@@ -10,7 +10,7 @@ import QtQuick3D.Physics.TestUtils
 
 Item {
     width: 640
-    height: 480
+    height: 640
     visible: true
 
     PhysicsWorld {
@@ -37,15 +37,22 @@ Item {
         maximumTimestep: 15
     }
 
+    PhysicsWorld {
+        scene: sceneE.scene
+        minimumTimestep: 15
+        maximumTimestep: 15
+        enableCCD: true
+    }
+
     BoxesScene {
         width: parent.width/2
-        height: parent.height/2
+        height: parent.height/3
         id: sceneA
     }
 
     BoxesScene {
         width: parent.width/2
-        height: parent.height/2
+        height: parent.height/3
         x: parent.width/2
         id: sceneB
         filterIgnoreGroups: [1]
@@ -53,18 +60,26 @@ Item {
 
     BoxesScene {
         width: parent.width/2
-        height: parent.height/2
-        y: parent.height/2
+        height: parent.height/3
+        y: parent.height/3
         id: sceneC
         filterIgnoreGroups: [1,2]
     }
 
     BoxesScene {
         width: parent.width/2
-        height: parent.height/2
+        height: parent.height/3
         x: parent.width/2
-        y: parent.height/2
+        y: parent.height/3
         id: sceneD
+        filterIgnoreGroups: [1,2,3]
+    }
+
+    BoxesScene {
+        width: parent.width/2
+        height: parent.height/3
+        y: parent.height * 2/3
+        id: sceneE
         filterIgnoreGroups: [1,2,3]
     }
 
@@ -86,5 +101,10 @@ Item {
     PhysicsTestCase {
         name: "sceneD"
         goalReached: sceneD.numBouncesFloor >= 3
+    }
+
+    PhysicsTestCase {
+        name: "sceneE (CCD enabled)"
+        goalReached: sceneE.numBouncesFloor >= 3
     }
 }
