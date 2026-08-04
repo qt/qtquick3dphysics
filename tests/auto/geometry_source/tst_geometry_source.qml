@@ -5,6 +5,7 @@ import QtTest
 import QtQuick3D
 import QtQuick3D.Helpers
 import QtQuick3D.Physics
+import QtQuick3D.Physics.TestUtils
 import Geometry
 
 // This test tries repeatedly adding and removing a geometry from a triangle mesh.
@@ -124,9 +125,8 @@ Item {
         }
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "scene"
-        when: dynamicBox.hit
-        function triggered() {  }
+        goalReached: dynamicBox.hit
     }
 }

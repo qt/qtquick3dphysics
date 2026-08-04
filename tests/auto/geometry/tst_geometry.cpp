@@ -18,7 +18,8 @@ int main(int argc, char **argv)
         return QTest::qExec(&skip, argc, argv);
     }
     QTEST_SET_MAIN_SOURCE_PATH
-            return quick_test_main(argc, argv, "tst_geometry", QUICK_TEST_SOURCE_DIR);
+    registerTestUtilsTypes();
+    return quick_test_main(argc, argv, "tst_geometry", QUICK_TEST_SOURCE_DIR);
 }
 
 #include "tst_geometry.moc"

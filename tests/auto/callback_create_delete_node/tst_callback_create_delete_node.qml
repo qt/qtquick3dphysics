@@ -5,11 +5,12 @@
 // does not crash. QTBUG-121033
 
 import QtCore
+import QtQuick
 import QtTest
 import QtQuick3D
 import QtQuick3D.Helpers
 import QtQuick3D.Physics
-import QtQuick
+import QtQuick3D.Physics.TestUtils
 
 Item {
     width: 800
@@ -94,10 +95,9 @@ Item {
         }
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "100 cycles"
-        when: shapeSpawner.numSpawns > 100
-        function triggered() {}
+        goalReached: shapeSpawner.numSpawns > 100
     }
 
 }

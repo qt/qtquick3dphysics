@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 import QtCore
+import QtQuick
 import QtTest
 import QtQuick3D
 import QtQuick3D.Physics
-import QtQuick
+import QtQuick3D.Physics.TestUtils
 
 Item {
     width: 640
@@ -47,40 +48,39 @@ Item {
         id: sceneD
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "sceneA"
-        when: sceneA.numBounces == 1
+        goalReached: sceneA.numBounces == 1
         function test_next() { next() }
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "sceneB"
-        when: sceneB.numBounces > 0
+        goalReached: sceneB.numBounces > 0
         function test_next() { next() }
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "sceneA2"
-        when: sceneA.numBounces == 5
+        goalReached: sceneA.numBounces == 5
         function test_next() { next() }
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "sceneB2"
-        when: sceneB.numBounces == 5
+        goalReached: sceneB.numBounces == 5
         function test_next() { next() }
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "sceneC"
-        when: sceneC.numBounces == 1
+        goalReached: sceneC.numBounces == 1
         function test_next() { next() }
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "sceneD"
-        when: sceneD.numBounces == 1
-        function empty() {}
+        goalReached: sceneD.numBounces == 1
     }
 
     property int step: 0

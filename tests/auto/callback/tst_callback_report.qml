@@ -12,11 +12,12 @@
 // 21) kinematic vs kinematic (kinkin on) (callback)
 
 import QtCore
+import QtQuick
 import QtTest
 import QtQuick3D
 import QtQuick3D.Helpers
 import QtQuick3D.Physics
-import QtQuick
+import QtQuick3D.Physics.TestUtils
 
 Item {
     id: testItem
@@ -287,40 +288,34 @@ Item {
         }
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "00) static vs static (statkin off) (no callback)"
-        when: !scene00.contact && scene00.elapsedTime > 2000
-        function triggered() {}
+        goalReached: !scene00.contact && scene00.elapsedTime > 2000
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "01) static vs static (statkin on) (no callback)"
-        when: !scene01.contact && scene01.elapsedTime > 2000
-        function triggered() {}
+        goalReached: !scene01.contact && scene01.elapsedTime > 2000
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "10) static vs kinematic (statkin off) (no callback)"
-        when: !scene10.contact && scene10.elapsedTime > 2000
-        function triggered() {}
+        goalReached: !scene10.contact && scene10.elapsedTime > 2000
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "11) static vs kinematic (statkin on) (callback)"
-        when: scene11.contact
-        function triggered() {}
+        goalReached: scene11.contact
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "20) kinematic vs kinematic (kinkin off) (no callback)"
-        when: !scene20.contact && scene20.elapsedTime > 2000
-        function triggered() {}
+        goalReached: !scene20.contact && scene20.elapsedTime > 2000
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "21) kinematic vs kinematic (kinkin on) (callback)"
-        when: scene21.contact
-        function triggered() {}
+        goalReached: scene21.contact
     }
 }
 

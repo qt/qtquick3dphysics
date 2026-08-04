@@ -5,6 +5,7 @@ import QtTest
 import QtQuick3D
 import QtQuick3D.Helpers
 import QtQuick3D.Physics
+import QtQuick3D.Physics.TestUtils
 import TileGeometry
 
 // Drops two balls on two tiles. One tile with a hole and one without.
@@ -161,9 +162,8 @@ Item {
         }
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "scene"
-        when: !tileLeft.ballHit && tileRight.ballHit && floor.ballHit
-        function triggered() {  }
+        goalReached: !tileLeft.ballHit && tileRight.ballHit && floor.ballHit
     }
 }

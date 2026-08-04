@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 import QtCore
+import QtQuick
 import QtTest
 import QtQuick3D
 import QtQuick3D.Physics
-import QtQuick
+import QtQuick3D.Physics.TestUtils
 
 Item {
     width: 640
@@ -232,38 +233,28 @@ Item {
         }
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "trigger right"
-        when: collisionSphereRight.triggered
-        function triggered() {
-        }
+        goalReached: collisionSphereRight.triggered
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "trigger left"
-        when: collisionSphereLeft.triggered
-        function triggered() {
-        }
+        goalReached: collisionSphereLeft.triggered
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "trigger center"
-        when: collisionSphereCenter.triggered
-        function triggered() {
-        }
+        goalReached: collisionSphereCenter.triggered
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "trigger right box"
-        when: collisionSphereCenter.triggered
-        function triggered() {
-        }
+        goalReached: collisionSphereCenter.triggered
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "trigger center low box"
-        when: boxCentreLow.hasCollided
-        function triggered() {
-        }
+        goalReached: boxCentreLow.hasCollided
     }
 }

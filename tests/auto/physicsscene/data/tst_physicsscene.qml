@@ -6,6 +6,7 @@ import QtTest
 import QtQuick3D
 import QtQuick3D.Physics
 import QtQuick
+import QtQuick3D.Physics.TestUtils
 
 Item {
     width: 640
@@ -149,9 +150,9 @@ Item {
                     }
                 }
 
-                TestCase {
+                PhysicsTestCase {
                     name: "DynamicCreation"
-                    when: dynamicCreationNode.createdObjectIsStable
+                    goalReached: dynamicCreationNode.createdObjectIsStable
                     function test_created_object_is_simulated() {
                         fuzzyCompare(dynamicCreationNode.createdObject.y, 0, 0.001)
                     }
@@ -190,9 +191,9 @@ Item {
                     physicsMaterial: frictionMaterial
                     property real brakePoint: -9999
                 }
-                TestCase {
+                PhysicsTestCase {
                     name: "Friction"
-                    when: timer.simulationSteps > 20
+                    goalReached: timer.simulationSteps > 20
                     function test_low_friction() {
                         verify(!slidingBox.stable)
                         verify(slidingBox.x < 4)
@@ -203,9 +204,9 @@ Item {
                         slidingBox.brakePoint = slidingBox.x
                     }
                 }
-                TestCase {
+                PhysicsTestCase {
                     name: "Friction2"
-                    when: slidingBox.stable
+                    goalReached: slidingBox.stable
                     function test_high_friction() {
                         fuzzyCompare(slidingBox.y, 0, 0.001)
                         verify(slidingBox.x < slidingBox.brakePoint)
@@ -260,9 +261,9 @@ Item {
                     }
                 }
 
-                TestCase {
+                PhysicsTestCase {
                     name: "HeightField"
-                    when: hfBall.stable
+                    goalReached: hfBall.stable
                     function test_ball_position() {
                         fuzzyCompare(hfBall.x, 2, 0.5)
                         fuzzyCompare(hfBall.y, -0.75, 0.1)
@@ -295,9 +296,9 @@ Item {
         }
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "SceneStart"
-        when: simulationActuallyRunning
+        goalReached: simulationActuallyRunning
         function test_collision_sphere() {
             verify(!collisionSphere.inArea)
             compare(triggerEnterSpy.count, 0)
@@ -314,9 +315,9 @@ Item {
         }
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "FallingBox"
-        when: fallingBox.stable
+        goalReached: fallingBox.stable
         function test_stable_position() {
             fuzzyCompare(fallingBox.y, 0, 0.0001)
             fuzzyCompare(fallingBox.eulerRotation.x, 0, 1)
@@ -325,9 +326,9 @@ Item {
         }
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "TriggerBody"
-        when: collisionSphere.y < 0
+        goalReached: collisionSphere.y < 0
         function test_enter_exit() {
             compare(triggerEnterSpy.count, 1)
             compare(triggerExitSpy.count, 1)

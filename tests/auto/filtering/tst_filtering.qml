@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 import QtCore
+import QtQuick
 import QtTest
 import QtQuick3D
 import QtQuick3D.Physics
-import QtQuick
+import QtQuick3D.Physics.TestUtils
 
 Item {
     width: 640
@@ -67,27 +68,23 @@ Item {
         filterIgnoreGroups: [1,2,3]
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "sceneA"
-        when: sceneA.numBouncesTop >= 3
-        function empty() {}
+        goalReached: sceneA.numBouncesTop >= 3
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "sceneB"
-        when: sceneB.numBouncesMiddle >= 3
-        function empty() {}
+        goalReached: sceneB.numBouncesMiddle >= 3
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "sceneC"
-        when: sceneC.numBouncesBottom >= 3
-        function empty() {}
+        goalReached: sceneC.numBouncesBottom >= 3
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "sceneD"
-        when: sceneD.numBouncesFloor >= 3
-        function empty() {}
+        goalReached: sceneD.numBouncesFloor >= 3
     }
 }

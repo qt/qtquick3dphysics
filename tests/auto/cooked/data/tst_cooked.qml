@@ -9,6 +9,7 @@ import QtTest
 import QtQuick3D
 import QtQuick3D.Physics
 import QtQuick
+import QtQuick3D.Physics.TestUtils
 
 Item {
     width: 640
@@ -112,22 +113,19 @@ Item {
             }
         }
 
-        TestCase {
+        PhysicsTestCase {
             name: "Heightfield"
-            when: hfBall.collided
-            function triggered() {}
+            goalReached: hfBall.collided
         }
 
-        TestCase {
+        PhysicsTestCase {
             name: "Triangle mesh"
-            when: triBall.collided
-            function triggered() {}
+            goalReached: triBall.collided
         }
 
-        TestCase {
+        PhysicsTestCase {
             name: "Convex mesh"
-            when: cvxBall.collided
-            function triggered() {}
+            goalReached: cvxBall.collided
         }
     }
 }
