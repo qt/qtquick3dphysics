@@ -14,6 +14,8 @@ Item {
 
     PhysicsWorld {
         id: world
+        minimumTimestep: 15
+        maximumTimestep: 15
         scene: sceneA.scene
     }
 
