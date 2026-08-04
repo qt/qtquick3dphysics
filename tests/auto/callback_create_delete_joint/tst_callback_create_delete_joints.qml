@@ -4,11 +4,12 @@
 // Tests that removing and adding joints does not crash.
 
 import QtCore
+import QtQuick
 import QtTest
 import QtQuick3D
 import QtQuick3D.Physics
+import QtQuick3D.Physics.TestUtils
 import QtQuick3D.Physics.Helpers
-import QtQuick
 
 Item {
     width: 800
@@ -152,16 +153,14 @@ Item {
         }
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "100 joints"
-        when: jointSpawner.numSpawns > 100
-        function triggered() {}
+        goalReached: jointSpawner.numSpawns > 100
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "5 boxes"
-        when: boxSpawner.numSpawns > 5
-        function triggered() {}
+        goalReached: boxSpawner.numSpawns > 5
     }
 }
 

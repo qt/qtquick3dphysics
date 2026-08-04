@@ -3,10 +3,11 @@
 
 // Tests adding and removing character controller
 
+import QtQuick
 import QtTest
 import QtQuick3D
 import QtQuick3D.Physics
-import QtQuick
+import QtQuick3D.Physics.TestUtils
 
 Item {
     width: 640
@@ -105,10 +106,9 @@ Item {
             }
         }
 
-        TestCase {
+        PhysicsTestCase {
             name: "trigger box"
-            when: resetTimer.repeats > 5
-            function triggered() {}
+            goalReached: resetTimer.repeats > 5
         }
     }
 }

@@ -5,7 +5,7 @@ import QtTest
 import QtQuick3D
 import QtQuick3D.Helpers
 import QtQuick3D.Physics
-
+import QtQuick3D.Physics.TestUtils
 import PhysicsTest.Geometry
 
 Item {
@@ -134,15 +134,13 @@ Item {
         }
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "box hit"
-        when: dynamicBox.hit
-        function triggered() {  }
+        goalReached: dynamicBox.hit
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "capsule hit"
-        when: dynamicCapsule.hit
-        function triggered() {  }
+        goalReached: dynamicCapsule.hit
     }
 }

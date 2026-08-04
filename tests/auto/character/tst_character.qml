@@ -4,11 +4,12 @@
 // Tests the character controller with a trigger box and a static body
 
 import QtCore
+import QtQuick
 import QtTest
 import QtQuick3D
 import QtQuick3D.Helpers
 import QtQuick3D.Physics
-import QtQuick
+import QtQuick3D.Physics.TestUtils
 
 Item {
     width: 640
@@ -120,22 +121,19 @@ Item {
             }
         }
 
-        TestCase {
+        PhysicsTestCase {
             name: "character up"
-            when: characterUp.collisions === CharacterController.Down
-            function triggered() {}
+            goalReached: characterUp.collisions === CharacterController.Down
         }
 
-        TestCase {
+        PhysicsTestCase {
             name: "character down"
-            when: characterDown.collisions === CharacterController.Up
-            function triggered() {}
+            goalReached: characterDown.collisions === CharacterController.Up
         }
 
-        TestCase {
+        PhysicsTestCase {
             name: "trigger box"
-            when: triggerBox.entered
-            function triggered() {}
+            goalReached: triggerBox.entered
         }
     }
 }

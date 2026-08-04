@@ -4,6 +4,7 @@ import QtQuick
 import QtTest
 import QtQuick3D
 import QtQuick3D.Physics
+import QtQuick3D.Physics.TestUtils
 
 Item {
     width: 640
@@ -109,21 +110,18 @@ Item {
         }
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "scene"
-        when: cube.hit
-        function triggered() {  }
+        goalReached: cube.hit
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "scene"
-        when: sphere.hit
-        function triggered() {  }
+        goalReached: sphere.hit
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "scene"
-        when: cone.hit
-        function triggered() {  }
+        goalReached: cone.hit
     }
 }

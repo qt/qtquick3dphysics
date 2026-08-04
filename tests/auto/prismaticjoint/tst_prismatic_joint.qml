@@ -1,9 +1,10 @@
 // Copyright (C) 2026 The Qt Company Ltd.
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
+import QtQuick
 import QtTest
 import QtQuick3D
 import QtQuick3D.Physics
-import QtQuick
+import QtQuick3D.Physics.TestUtils
 
 Item {
     width: 800
@@ -105,9 +106,8 @@ Item {
         }
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "rotate"
-        when: trigger.hit
-        function triggered() {}
+        goalReached: trigger.hit
     }
 }
