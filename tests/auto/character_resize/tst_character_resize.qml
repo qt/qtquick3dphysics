@@ -5,11 +5,12 @@
 // boxes and can move over an obstacle.
 
 import QtCore
+import QtQuick
 import QtTest
 import QtQuick3D
 import QtQuick3D.Helpers
 import QtQuick3D.Physics
-import QtQuick
+import QtQuick3D.Physics.TestUtils
 
 Item {
     width: 640
@@ -165,28 +166,24 @@ Item {
             }
         }
 
-        TestCase {
+        PhysicsTestCase {
             name: "character up"
-            when: character.collisions === CharacterController.Down
-            function triggered() {}
+            goalReached: character.collisions === CharacterController.Down
         }
 
-        TestCase {
+        PhysicsTestCase {
             name: "trigger box up"
-            when: triggerBoxUp.entered
-            function triggered() {}
+            goalReached: triggerBoxUp.entered
         }
 
-        TestCase {
+        PhysicsTestCase {
             name: "trigger box side"
-            when: triggerBoxSide.entered
-            function triggered() {}
+            goalReached: triggerBoxSide.entered
         }
 
-        TestCase {
+        PhysicsTestCase {
             name: "trigger box step"
-            when: triggerBoxStep.entered
-            function triggered() {}
+            goalReached: triggerBoxStep.entered
         }
     }
 }

@@ -24,11 +24,12 @@
 // 33) kinematic vs dynamic
 
 import QtCore
+import QtQuick
 import QtTest
 import QtQuick3D
 import QtQuick3D.Helpers
 import QtQuick3D.Physics
-import QtQuick
+import QtQuick3D.Physics.TestUtils
 
 Item {
     id: testItem
@@ -83,10 +84,9 @@ Item {
         }
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "dynamic vs static"
-        when: scene00.contact
-        function triggered() {}
+        goalReached: scene00.contact
     }
 
     //////////////////////////////////////////////////
@@ -130,10 +130,9 @@ Item {
         }
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "dynamic vs kinematic"
-        when: scene01.contact
-        function triggered() {}
+        goalReached: scene01.contact
     }
 
     //////////////////////////////////////////////////
@@ -177,10 +176,9 @@ Item {
         }
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "dynamic vs character"
-        when: scene02.contact
-        function triggered() {}
+        goalReached: scene02.contact
     }
 
 
@@ -224,10 +222,9 @@ Item {
         }
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "dynamic vs dynamic"
-        when: scene03.contact
-        function triggered() {}
+        goalReached: scene03.contact
     }
 
     //////////////////////////////////////////////////
@@ -272,10 +269,9 @@ Item {
         }
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "character vs dynamic (no callback)"
-        when: scene10.elapsedTime > 2000 && !scene10.contact
-        function triggered() {}
+        goalReached: scene10.elapsedTime > 2000 && !scene10.contact
     }
 
     //////////////////////////////////////////////////
@@ -320,10 +316,9 @@ Item {
         }
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "character controller vs static (no callback)"
-        when: scene11.elapsedTime > 2000 && !scene11.contact
-        function triggered() {}
+        goalReached: scene11.elapsedTime > 2000 && !scene11.contact
     }
 
     //////////////////////////////////////////////////
@@ -369,10 +364,9 @@ Item {
         }
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "character vs kinematic (no callback)"
-        when: scene12.elapsedTime > 2000 && !scene12.contact
-        function triggered() {}
+        goalReached: scene12.elapsedTime > 2000 && !scene12.contact
     }
 
 
@@ -418,10 +412,9 @@ Item {
         }
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "character vs character (no callback)"
-        when: scene13.elapsedTime > 2000 && !scene13.contact
-        function triggered() {}
+        goalReached: scene13.elapsedTime > 2000 && !scene13.contact
     }
 
     //////////////////////////////////////////////////
@@ -466,10 +459,9 @@ Item {
         }
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "character vs dynamic (onShapeHit)"
-        when: scene20.contact
-        function triggered() {}
+        goalReached: scene20.contact
     }
 
     //////////////////////////////////////////////////
@@ -513,10 +505,9 @@ Item {
         }
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "character controller vs static (onShapeHit)"
-        when: scene21.contact
-        function triggered() {}
+        goalReached: scene21.contact
     }
 
     //////////////////////////////////////////////////
@@ -560,10 +551,9 @@ Item {
         }
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "character vs kinematic (onShapeHit)"
-        when: scene22.contact
-        function triggered() {}
+        goalReached: scene22.contact
     }
 
 
@@ -608,10 +598,9 @@ Item {
         }
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "character vs character (onShapeHit no callback)"
-        when: scene23.elapsedTime > 2000 && !scene23.contact
-        function triggered() {}
+        goalReached: scene23.elapsedTime > 2000 && !scene23.contact
     }
 
 
@@ -660,10 +649,9 @@ Item {
         }
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "kinematic vs static (no callback)"
-        when: !scene30.contact && scene30.elapsedTime > 2000
-        function triggered() {}
+        goalReached: !scene30.contact && scene30.elapsedTime > 2000
     }
 
     //////////////////////////////////////////////////
@@ -710,10 +698,9 @@ Item {
         }
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "kinematic vs kinematic (no callback)"
-        when: !scene31.contact && scene31.elapsedTime > 2000
-        function triggered() {}
+        goalReached: !scene31.contact && scene31.elapsedTime > 2000
     }
 
     //////////////////////////////////////////////////
@@ -760,10 +747,9 @@ Item {
         }
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "kinematic vs character (no callback)"
-        when: !scene32.contact && scene32.elapsedTime > 2000
-        function triggered() {}
+        goalReached: !scene32.contact && scene32.elapsedTime > 2000
     }
 
 
@@ -807,10 +793,9 @@ Item {
         }
     }
 
-    TestCase {
+    PhysicsTestCase {
         name: "kinematic vs dynamic"
-        when: scene33.contact
-        function triggered() {}
+        goalReached: scene33.contact
     }
 
     //////////////////////////////////////////////////

@@ -17,6 +17,7 @@ int main(int argc, char **argv)
         tst_callback skip;
         return QTest::qExec(&skip, argc, argv);
     }
+    registerTestUtilsTypes();
     QTEST_SET_MAIN_SOURCE_PATH
     return quick_test_main(argc, argv, "tst_callback", QUICK_TEST_SOURCE_DIR);
 }

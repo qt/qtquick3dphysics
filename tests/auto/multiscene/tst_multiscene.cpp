@@ -18,6 +18,7 @@ int main(int argc, char **argv)
         return QTest::qExec(&skip, argc, argv);
     }
     QTEST_SET_MAIN_SOURCE_PATH
+    registerTestUtilsTypes();
     return quick_test_main(argc, argv, "tst_multiscene", QUICK_TEST_SOURCE_DIR);
 }
 #include "tst_multiscene.moc"
