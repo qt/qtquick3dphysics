@@ -411,7 +411,7 @@ QPhysicsWorld::~QPhysicsWorld()
         delete m_frameAnimator;
     }
 
-    if (m_physx->scene)
+    if (m_physx->scene && m_physx->isRunning && !m_frameFetched)
         m_physx->scene->fetchResults(true);
 
     for (auto body : std::as_const(m_physXBodies)) {
