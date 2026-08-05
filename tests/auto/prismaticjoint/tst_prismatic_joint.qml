@@ -11,9 +11,17 @@ Item {
     visible: true
 
     PhysicsWorld {
+        id: world
         scene: viewport.scene
         minimumTimestep: 15
         maximumTimestep: 15
+    }
+
+    Connections {
+        target: world
+        function onFrameDone(timeStep) {
+            boxA.kinematicEulerRotation.z = boxA.kinematicEulerRotation.z + 1
+        }
     }
 
     View3D {
@@ -94,14 +102,6 @@ Item {
             onBodyEntered: {
                 hit = true;
             }
-        }
-    }
-
-    FrameAnimation {
-        id: animator
-        running: true
-        onTriggered: {
-            boxA.kinematicEulerRotation.z = boxA.kinematicEulerRotation.z + 1
         }
     }
 
