@@ -16,6 +16,7 @@
 // We mean it.
 //
 
+#include "qdynamicrigidbody_p.h"
 #include <QtQuick3DPhysics/qtquick3dphysicsglobal.h>
 
 #include <QtCore/QList>
@@ -27,8 +28,6 @@ class PxRigidBody;
 }
 
 QT_BEGIN_NAMESPACE
-
-class QDynamicRigidBody;
 
 class QPhysicsCommand
 {
@@ -190,13 +189,27 @@ private:
 class QPhysicsCommandSetIsKinematic : public QPhysicsCommand
 {
 public:
-    explicit QPhysicsCommandSetIsKinematic(bool inIsKinematic);
+    explicit QPhysicsCommandSetIsKinematic(bool inIsKinematic, bool worldEnableCCD);
     ~QPhysicsCommandSetIsKinematic() override;
 
     void execute(const QDynamicRigidBody &rigidBody, physx::PxRigidBody &body) override;
 
 private:
     bool isKinematic;
+    bool worldEnableCCD;
+};
+
+class QPhysicsCommandSetCCD : public QPhysicsCommand
+{
+public:
+    explicit QPhysicsCommandSetCCD(QDynamicRigidBody::CCDType ccdType, bool worldEnableCCD);
+    ~QPhysicsCommandSetCCD() override;
+
+    void execute(const QDynamicRigidBody &rigidBody, physx::PxRigidBody &body) override;
+
+private:
+    QDynamicRigidBody::CCDType ccdType;
+    bool worldEnableCCD;
 };
 
 class QPhysicsCommandSetGravityEnabled : public QPhysicsCommand

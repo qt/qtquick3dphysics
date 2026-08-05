@@ -69,12 +69,27 @@ QT_BEGIN_NAMESPACE
 
 /*!
     \qmlproperty bool PhysicsWorld::enableCCD
-    This property enables continuous collision detection. This will reduce the risk of bodies going
-    through other bodies at high velocities (also known as tunnelling). The default value is \c
-    false.
+    \deprecated [6.13] Use DynamicRigidBody::ccd instead.
 
-    \warning Using trigger bodies with CCD enabled is not supported and can result in missing or
-    false trigger reports.
+    This property enables continuous collision detection globally for every dynamic body
+    in the scene that does not explicitly set its own \l DynamicRigidBody::ccd mode.
+    It reduces the risk of fast-moving bodies passing through geometry at high velocities
+    (also known as tunnelling).
+
+    For non-kinematic dynamic bodies, enabling this property uses sweep-based CCD.
+    For kinematic bodies, it automatically uses speculative CCD, as sweep-based CCD
+    is not supported for them.
+
+    Continuous collision detection can also be configured per body via
+    \l DynamicRigidBody::ccd, which avoids paying its performance cost for
+    objects that do not need it.
+
+    \warning Using trigger bodies with CCD enabled is not supported and can
+    result in missing or false trigger reports.
+
+    \default false
+
+    \sa DynamicRigidBody::ccd
 */
 
 /*!
@@ -1235,7 +1250,7 @@ void QPhysicsWorld::initPhysics()
     Q_ASSERT(!m_physicsInitialized);
 
     const unsigned int numThreads = m_numThreads >= 0 ? m_numThreads : qMax(0, QThread::idealThreadCount());
-    m_physx->createScene(m_typicalLength, m_typicalSpeed, m_gravity, m_enableCCD, this, numThreads);
+    m_physx->createScene(m_typicalLength, m_typicalSpeed, m_gravity, this, numThreads);
     m_frameAnimator->start();
     m_physicsInitialized = true;
 }

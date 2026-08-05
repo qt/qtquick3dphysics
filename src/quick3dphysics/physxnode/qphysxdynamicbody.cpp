@@ -185,14 +185,41 @@ void QPhysXDynamicBody::rebuildDirtyShapes(QPhysicsWorld *world, QPhysXWorld *ph
     }
 
     const bool isKinematic = drb->isKinematic();
+    QDynamicRigidBody::CCDType ccd = drb->ccd();
+
     auto *dynamicBody = static_cast<physx::PxRigidDynamic *>(actor);
+
+    // Clear CCD before flipping kinematic mode: PhysX rejects sweep-based CCD on
+    // kinematic bodies, so leaving a stale CCD flag set while eKINEMATIC changes
+    // would trigger a spurious warning regardless of transition direction.
+    dynamicBody->setRigidBodyFlag(physx::PxRigidBodyFlag::eENABLE_CCD, false); // Sweep-based
+    dynamicBody->setRigidBodyFlag(physx::PxRigidBodyFlag::eENABLE_SPECULATIVE_CCD, false);
     dynamicBody->setRigidBodyFlag(physx::PxRigidBodyFlag::eKINEMATIC, isKinematic);
 
-    if (world->enableCCD()) {
-        // Regular sweep-based CCD is only available for non-kinematic bodies but speculative CCD
-        // is available for kinematic bodies so we use that.
-        dynamicBody->setRigidBodyFlag(physx::PxRigidBodyFlag::eENABLE_CCD, !isKinematic);
+    switch (ccd) {
+    case QDynamicRigidBody::CCDType::SweepBasedCCD: {
+        // Kinematic bodies only support speculative CCD
+        dynamicBody->setRigidBodyFlag(physx::PxRigidBodyFlag::eENABLE_CCD, // Sweep-based
+                                      !isKinematic);
         dynamicBody->setRigidBodyFlag(physx::PxRigidBodyFlag::eENABLE_SPECULATIVE_CCD, isKinematic);
+        break;
+    }
+
+    case QDynamicRigidBody::CCDType::SpeculativeCCD: {
+        dynamicBody->setRigidBodyFlag(physx::PxRigidBodyFlag::eENABLE_SPECULATIVE_CCD, true);
+        break;
+    }
+
+    case QDynamicRigidBody::CCDType::None: {
+        if (world->enableCCD()) {
+            // Kinematic bodies only support speculative CCD
+            dynamicBody->setRigidBodyFlag(physx::PxRigidBodyFlag::eENABLE_CCD, // Sweep-based
+                                          !isKinematic);
+            dynamicBody->setRigidBodyFlag(physx::PxRigidBodyFlag::eENABLE_SPECULATIVE_CCD,
+                                          isKinematic);
+        }
+        break;
+    }
     }
 
     setShapesDirty(false);

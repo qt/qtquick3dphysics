@@ -17,6 +17,32 @@ static bool isKinematicBody(physx::PxRigidBody &body)
     return static_cast<bool>(body.getRigidBodyFlags() & physx::PxRigidBodyFlag::eKINEMATIC);
 }
 
+static void resolveCCDFlags(physx::PxRigidBody &body, QDynamicRigidBody::CCDType ccd,
+                            bool isKinematic, bool worldEnableCCD)
+{
+    switch (ccd) {
+    case QDynamicRigidBody::CCDType::SweepBasedCCD: {
+        // Kinematic bodies only support speculative CCD
+        body.setRigidBodyFlag(physx::PxRigidBodyFlag::eENABLE_CCD, !isKinematic); // Sweep-based
+        body.setRigidBodyFlag(physx::PxRigidBodyFlag::eENABLE_SPECULATIVE_CCD, isKinematic);
+        break;
+    }
+
+    case QDynamicRigidBody::CCDType::SpeculativeCCD: {
+        body.setRigidBodyFlag(physx::PxRigidBodyFlag::eENABLE_SPECULATIVE_CCD, true);
+        break;
+    }
+
+    case QDynamicRigidBody::CCDType::None: {
+        if (worldEnableCCD) {
+            // Kinematic bodies only support speculative CCD
+            body.setRigidBodyFlag(physx::PxRigidBodyFlag::eENABLE_CCD, !isKinematic); // Sweep-based
+            body.setRigidBodyFlag(physx::PxRigidBodyFlag::eENABLE_SPECULATIVE_CCD, isKinematic);
+        }
+        break;
+    }
+    }
+}
 
 QPhysicsCommand::~QPhysicsCommand()
     = default;
@@ -248,8 +274,9 @@ void QPhysicsCommandSetDensity::execute(const QDynamicRigidBody &rigidBody,
     physx::PxRigidBodyExt::updateMassAndInertia(body, clampedDensity);
 }
 
-QPhysicsCommandSetIsKinematic::QPhysicsCommandSetIsKinematic(bool inIsKinematic)
-    : QPhysicsCommand(), isKinematic(inIsKinematic)
+QPhysicsCommandSetIsKinematic::QPhysicsCommandSetIsKinematic(bool inIsKinematic,
+                                                             bool worldEnableCCD)
+    : QPhysicsCommand(), isKinematic(inIsKinematic), worldEnableCCD(worldEnableCCD)
 {
 }
 
@@ -265,7 +292,34 @@ void QPhysicsCommandSetIsKinematic::execute(const QDynamicRigidBody &rigidBody,
         return;
     }
 
+    // Clear CCD before flipping kinematic mode: PhysX rejects sweep-based CCD on
+    // kinematic bodies, so leaving a stale CCD flag set while eKINEMATIC changes
+    // would trigger a spurious warning regardless of transition direction.
+    body.setRigidBodyFlag(physx::PxRigidBodyFlag::eENABLE_CCD, false); // Sweep-based
+    body.setRigidBodyFlag(physx::PxRigidBodyFlag::eENABLE_SPECULATIVE_CCD, false);
     body.setRigidBodyFlag(physx::PxRigidBodyFlag::eKINEMATIC, isKinematic);
+
+    // Sync CCD flags directly since changing kinematic mode alters supported CCD types
+    resolveCCDFlags(body, rigidBody.ccd(), isKinematic, worldEnableCCD);
+}
+
+QPhysicsCommandSetCCD::QPhysicsCommandSetCCD(QDynamicRigidBody::CCDType ccdType,
+                                             bool worldEnableCCD)
+    : QPhysicsCommand(), ccdType(ccdType), worldEnableCCD(worldEnableCCD)
+{
+}
+
+QPhysicsCommandSetCCD::~QPhysicsCommandSetCCD() = default;
+
+void QPhysicsCommandSetCCD::execute(const QDynamicRigidBody &rigidBody, physx::PxRigidBody &body)
+{
+    // Clear both flags first so the writes below can never collide with a stale
+    // flag from the previous ccd mode (PhysX rejects raising eENABLE_CCD while
+    // eENABLE_SPECULATIVE_CCD, or vice versa, is still set).
+    body.setRigidBodyFlag(physx::PxRigidBodyFlag::eENABLE_CCD, false); // Sweep-based
+    body.setRigidBodyFlag(physx::PxRigidBodyFlag::eENABLE_SPECULATIVE_CCD, false);
+
+    resolveCCDFlags(body, ccdType, rigidBody.isKinematic(), worldEnableCCD);
 }
 
 QPhysicsCommandSetGravityEnabled::QPhysicsCommandSetGravityEnabled(bool inGravityEnabled)

@@ -178,32 +178,9 @@ contactReportFilterShader(physx::PxFilterObjectAttributes /*attributes0*/,
 
     // Makes objects collide
     const auto defaultCollisonFlags =
-            physx::PxPairFlag::eSOLVE_CONTACT | physx::PxPairFlag::eDETECT_DISCRETE_CONTACT;
-
-    // For trigger body detection
-    const auto notifyTouchFlags =
-            physx::PxPairFlag::eNOTIFY_TOUCH_FOUND | physx::PxPairFlag::eNOTIFY_TOUCH_LOST;
-
-    // For contact detection
-    const auto notifyContactFlags = physx::PxPairFlag::eNOTIFY_CONTACT_POINTS;
-
-    pairFlags = defaultCollisonFlags | notifyTouchFlags | notifyContactFlags;
-    return physx::PxFilterFlag::eDEFAULT;
-}
-
-static physx::PxFilterFlags
-contactReportFilterShaderCCD(physx::PxFilterObjectAttributes /*attributes0*/,
-                             physx::PxFilterData filterData0,
-                             physx::PxFilterObjectAttributes /*attributes1*/,
-                             physx::PxFilterData filterData1, physx::PxPairFlags &pairFlags,
-                             const void * /*constantBlock*/, physx::PxU32 /*constantBlockSize*/)
-{
-    if (isFilteredOut(filterData0, filterData1))
-        return physx::PxFilterFlag::eSUPPRESS;
-
-    // Makes objects collide
-    const auto defaultCollisonFlags = physx::PxPairFlag::eSOLVE_CONTACT
-            | physx::PxPairFlag::eDETECT_DISCRETE_CONTACT | physx::PxPairFlag::eDETECT_CCD_CONTACT;
+            physx::PxPairFlag::eSOLVE_CONTACT |
+            physx::PxPairFlag::eDETECT_DISCRETE_CONTACT |
+            physx::PxPairFlag::eDETECT_CCD_CONTACT; // will be ignored by physX engine if the ccd is disabled
 
     // For trigger body detection
     const auto notifyTouchFlags =
@@ -276,7 +253,7 @@ void QPhysXWorld::deleteWorld()
 }
 
 void QPhysXWorld::createScene(float typicalLength, float typicalSpeed, const QVector3D &gravity,
-                              bool enableCCD, QPhysicsWorld *physicsWorld, unsigned int numThreads)
+                              QPhysicsWorld *physicsWorld, unsigned int numThreads)
 {
     if (scene) {
         qWarning() << "Scene already created";
@@ -306,12 +283,11 @@ void QPhysXWorld::createScene(float typicalLength, float typicalSpeed, const QVe
     sceneDesc.gravity = QPhysicsUtils::toPhysXType(gravity);
     sceneDesc.cpuDispatcher = s_physx.dispatcher;
 
-    if (enableCCD) {
-        sceneDesc.filterShader = contactReportFilterShaderCCD;
-        sceneDesc.flags |= physx::PxSceneFlag::eENABLE_CCD;
-    } else {
-        sceneDesc.filterShader = contactReportFilterShader;
-    }
+    sceneDesc.filterShader = contactReportFilterShader;
+    // CCD is always enabled at the scene level. Since PhysX's CCD pass is cheap enough
+    // (see PxsCCDContext::updateCCD) when there are no CCD-enabled bodies in the scene,
+    // it makes the code simpler.
+    sceneDesc.flags |= physx::PxSceneFlag::eENABLE_CCD;
     sceneDesc.solverType = physx::PxSolverType::eTGS;
     sceneDesc.simulationEventCallback = callback;
 

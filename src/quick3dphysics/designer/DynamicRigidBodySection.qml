@@ -120,6 +120,23 @@ Column {
             }
 
             PropertyLabel {
+                text: "CCD Mode"
+                tooltip: "Continuous collision detection mode for this body (None, SpeculativeCCD, SweepBasedCCD)."
+            }
+
+            SecondColumnLayout {
+                ComboBox {
+                    backendValue: backendValues.ccd
+                    model: ["None", "SpeculativeCCD", "SweepBasedCCD"]
+                    scope: "DynamicRigidBody"
+                    implicitWidth: StudioTheme.Values.twoControlColumnWidth
+                                   + StudioTheme.Values.actionIndicatorWidth
+                }
+
+                ExpandingSpacer {}
+            }
+
+            PropertyLabel {
                 text: "Linear Axis Lock"
                 tooltip: "Lock the linear axis of the body."
             }

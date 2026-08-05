@@ -97,6 +97,35 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
+    \qmlproperty enumeration DynamicRigidBody::ccd
+    \since 6.13
+
+    This property determines the continuous collision detection (CCD) mode
+    used for this body. Enabling CCD reduces the risk of fast-moving objects passing
+    through geometry between physics frames (tunnelling). The following values
+    are available:
+
+    \value DynamicRigidBody.None
+           CCD is disabled for this body unless enabled globally by \l PhysicsWorld::enableCCD.
+
+    \value DynamicRigidBody.SpeculativeCCD
+           Uses speculative continuous collision detection. Supported for both dynamic and
+           kinematic bodies.
+
+    \value DynamicRigidBody.SweepBasedCCD
+           Uses sweep-based continuous collision detection. This mode is supported only
+           for non-kinematic dynamic bodies. If applied to a kinematic body, it automatically
+           falls back to \c SpeculativeCCD.
+
+    \default DynamicRigidBody.None
+
+    \note CCD processing can significantly impact simulation performance. Enable it only for
+    objects moving at high velocities or having small bounds relative to their speed.
+
+    \sa PhysicsWorld::enableCCD
+*/
+
+/*!
     \qmlproperty bool DynamicRigidBody::isKinematic
     This property defines whether the object is kinematic or not. A kinematic object does not get
     influenced by external forces and can be seen as an object of infinite mass. If this property is
@@ -475,6 +504,11 @@ bool QDynamicRigidBody::isKinematic() const
     return m_isKinematic;
 }
 
+QDynamicRigidBody::CCDType QDynamicRigidBody::ccd() const
+{
+    return m_CCD;
+}
+
 bool QDynamicRigidBody::gravityEnabled() const
 {
     return m_gravityEnabled;
@@ -533,8 +567,21 @@ void QDynamicRigidBody::setIsKinematic(bool isKinematic)
     }
 
     m_isKinematic = isKinematic;
-    m_commandQueue.enqueue(new QPhysicsCommandSetIsKinematic(m_isKinematic));
+    auto world = QPhysicsWorld::getWorld(this);
+    m_commandQueue.enqueue(
+            new QPhysicsCommandSetIsKinematic(m_isKinematic, world && world->enableCCD()));
     emit isKinematicChanged(m_isKinematic);
+}
+
+void QDynamicRigidBody::setCCD(CCDType newCCD)
+{
+    if (m_CCD == newCCD)
+        return;
+
+    m_CCD = newCCD;
+    auto world = QPhysicsWorld::getWorld(this);
+    m_commandQueue.enqueue(new QPhysicsCommandSetCCD(m_CCD, world && world->enableCCD()));
+    emit ccdChanged();
 }
 
 void QDynamicRigidBody::setGravityEnabled(bool gravityEnabled)

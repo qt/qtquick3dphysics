@@ -40,6 +40,13 @@ public:
     };
     Q_ENUM(MassMode)
 
+    enum class CCDType {
+        None,
+        SpeculativeCCD,
+        SweepBasedCCD,
+    };
+    Q_ENUM(CCDType)
+
     enum AxisLock {
         LockNone = 0,
         LockX = 1,
@@ -56,6 +63,8 @@ public:
                        linearAxisLockChanged REVISION(6, 5))
     Q_PROPERTY(AxisLock angularAxisLock READ angularAxisLock WRITE setAngularAxisLock NOTIFY
                        angularAxisLockChanged REVISION(6, 5))
+
+    Q_PROPERTY(CCDType ccd READ ccd WRITE setCCD NOTIFY ccdChanged REVISION(6, 13))
 
     Q_PROPERTY(bool isKinematic READ isKinematic WRITE setIsKinematic NOTIFY isKinematicChanged)
     Q_PROPERTY(bool gravityEnabled READ gravityEnabled WRITE setGravityEnabled NOTIFY
@@ -109,6 +118,9 @@ public:
 
     bool isKinematic() const;
     void setIsKinematic(bool isKinematic);
+
+    Q_REVISION(6, 13) CCDType ccd() const;
+    Q_REVISION(6, 13) void setCCD(CCDType newCCD);
 
     Q_REVISION(6, 5) AxisLock linearAxisLock() const;
     Q_REVISION(6, 5) void setLinearAxisLock(AxisLock newAxisLockLinear);
@@ -171,6 +183,8 @@ Q_SIGNALS:
     void massChanged(float mass);
     void densityChanged(float density);
     void isKinematicChanged(bool isKinematic);
+    Q_REVISION(6, 13) void ccdChanged();
+
     Q_REVISION(6, 5) void linearAxisLockChanged();
     Q_REVISION(6, 5) void angularAxisLockChanged();
     void gravityEnabledChanged();
@@ -194,6 +208,7 @@ private:
     QMatrix3x3 m_inertiaMatrix;
     QVector3D m_inertiaTensor;
 
+    CCDType m_CCD = CCDType::None;
     bool m_isKinematic = false;
     AxisLock m_linearAxisLock = AxisLock::LockNone;
     AxisLock m_angularAxisLock = AxisLock::LockNone;

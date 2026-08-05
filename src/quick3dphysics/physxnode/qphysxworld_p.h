@@ -35,7 +35,7 @@ public:
     void createWorld();
     void deleteWorld();
     void createScene(float typicalLength, float typicalSpeed, const QVector3D &gravity,
-                     bool enableCCD, QPhysicsWorld *physicsWorld, unsigned int numThreads);
+                     QPhysicsWorld *physicsWorld, unsigned int numThreads);
 
     // variables unique to each world/scene
     physx::PxControllerManager *controllerManager = nullptr;
