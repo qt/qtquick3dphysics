@@ -1,0 +1,42 @@
+From 80bbcabcba0ea25c9d0c8857060cb870f60e5e54 Mon Sep 17 00:00:00 2001
+From: Jonas Karlsson <jonas.karlsson@qt.io>
+Date: Thu, 6 Aug 2026 16:25:32 +0200
+Subject: [PATCH] PhysX: Fix stack-buffer-overflow in CCD sweep
+
+CCDSweep() loaded lastTm0.p/lastTm1.p with an aligned 16-byte SIMD
+load (V3LoadA). PxVec3 p is the last member of the 28-byte
+PxTransform, so this load always reads 4 bytes past the end of the
+struct. The same function already uses the safe unaligned load
+(V3LoadU) for transform0.p/transform1.p a few lines below, so this
+was an inconsistency in the vendored code.
+
+This went unnoticed under ASan until CCD started running
+unconditionally for every scene and a sphere-vs-box CCD sweep test
+was added, both of which first exercise this code path.
+
+Pick-to: 6.12 6.11 6.8
+Change-Id: I8c0e6e3e2ff2be2c826c48f0b0dbd5d1f26cbeb1
+---
+ .../PhysX/source/geomutils/src/ccd/GuCCDSweepPrimitives.cpp   | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/3rdparty/PhysX/source/geomutils/src/ccd/GuCCDSweepPrimitives.cpp b/src/3rdparty/PhysX/source/geomutils/src/ccd/GuCCDSweepPrimitives.cpp
+index f5d26ad0..7d9aa479 100644
+--- a/src/3rdparty/PhysX/source/geomutils/src/ccd/GuCCDSweepPrimitives.cpp
++++ b/src/3rdparty/PhysX/source/geomutils/src/ccd/GuCCDSweepPrimitives.cpp
+@@ -67,10 +67,10 @@ static PxReal CCDSweep(ConvexA& a, ConvexB& b,  const PxTransform& transform0, c
+ 	const Vec3V zero = V3Zero();
+ 
+ 	const QuatV q0 = QuatVLoadA(&transform0.q.x);
+-	const Vec3V p0 = V3LoadA(&lastTm0.p.x);
++	const Vec3V p0 = V3LoadU(&lastTm0.p.x);
+ 
+ 	const QuatV q1 = QuatVLoadA(&transform1.q.x);
+-	const Vec3V p1 = V3LoadA(&lastTm1.p.x);
++	const Vec3V p1 = V3LoadU(&lastTm1.p.x);
+ 
+ 	const PsTransformV tr0(p0, q0);
+ 	const PsTransformV tr1(p1, q1);
+-- 
+2.55.0
+
