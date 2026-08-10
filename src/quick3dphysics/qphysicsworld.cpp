@@ -240,6 +240,61 @@ QT_BEGIN_NAMESPACE
     \sa PhysicsNode::bodyContact
 */
 
+/*!
+    \qmlproperty QueryStructure PhysicsWorld::staticQueryStructure
+    \since 6.13
+
+    The spatial pruning structure type used to accelerate scene queries
+    (raycasts, sweeps, overlaps - used in CharacterController and a \e{kinematic} dynamic rigid body)
+    against static actors in the physics scene. It has no effect on rigid-body
+    contact/collision detection during simulation.
+
+    The following values are available:
+
+    \value PhysicsWorld.StaticTree
+           Uses a pre-baked static AABB tree. Offers maximum scene query performance with zero per-frame management overhead.
+           Best for fully static, immutable scenes. Inserting or removing objects at runtime causes heavy scene rebuilds and frame spikes.
+    \value PhysicsWorld.DynamicTree
+           Uses a dynamic self-balancing AABB tree. Allows fast, local runtime insertion (logarithmic time) and removal of static objects without freezing the frame.
+           Ideal for seamless open-world streaming where static chunks are loaded dynamically.
+
+    \default PhysicsWorld.DynamicTree
+
+    \note Once the scene has started running it is not possible to change this setting.
+    \note PhysicsWorld.NoStructure is not supported for staticQueryStructure
+
+    \sa PhysicsWorld::dynamicQueryStructure
+
+*/
+
+/*!
+    \qmlproperty QueryStructure PhysicsWorld::dynamicQueryStructure
+    \since 6.13
+
+    The spatial pruning structure type used to accelerate scene queries
+    (raycasts, sweeps, overlaps - used in CharacterController and a \e{kinematic} dynamic rigid body)
+    against dynamic actors in the physics scene. It has no effect on rigid-body
+    contact/collision detection during simulation.
+
+    The following values are available:
+
+    \value PhysicsWorld.NoStructure
+        Disables the scene query acceleration structure for dynamic actors.
+        Eliminates CPU overhead for tree maintenance when objects move, spawn, or are destroyed.
+        Scene queries will fall back to a linear search. Ideal when scene queries are not needed for dynamic objects.
+    \value PhysicsWorld.StaticTree
+        Uses a static AABB tree. Offers faster scene queries for dynamic actors, but updating the tree when objects move or spawn is very expensive.
+        Best when dynamic actors rarely move or spend most of their time sleeping.
+    \value PhysicsWorld.DynamicTree
+        Uses a dynamic self-balancing AABB tree. Allows fast, local runtime insertion (logarithmic time), movement, and removal of dynamic objects without freezing the frame.
+        Ideal for active scenes with frequently moving or spawning dynamic actors.
+
+    \default PhysicsWorld.DynamicTree
+
+    \note Once the scene has started running it is not possible to change this setting.
+    \sa PhysicsWorld::staticQueryStructure
+*/
+
 Q_LOGGING_CATEGORY(lcQuick3dPhysics, "qt.quick3d.physics");
 
 // Setting QT_PHYSICS_TIMINGS_FILE to a filepath will generate a csv file with frame timings.
@@ -1570,6 +1625,52 @@ void QPhysicsWorld::setReportStaticKinematicCollisions(bool newReportStaticKinem
         return;
     m_reportStaticKinematicCollisions = newReportStaticKinematicCollisions;
     emit reportStaticKinematicCollisionsChanged();
+}
+
+QPhysicsWorld::QueryStructure QPhysicsWorld::staticQueryStructure() const
+{
+    return m_staticQueryStructure;
+}
+
+void QPhysicsWorld::setStaticQueryStructure(QueryStructure newStaticQueryStructure)
+{
+    if (m_staticQueryStructure == newStaticQueryStructure)
+        return;
+
+    if (newStaticQueryStructure == QueryStructure::NoStructure) {
+        qWarning()
+        << "Warning: The QueryStructure::NoStructure is not supported for staticQueryStructure. Available options: [StaticTree, DynamicTree]";
+        return;
+    }
+
+    if (m_physicsInitialized) {
+        qWarning()
+        << "Warning: Changing 'staticQueryStructure' after physics is initialized will have no effect";
+        return;
+    }
+
+    m_staticQueryStructure = newStaticQueryStructure;
+    emit staticQueryStructureChanged();
+}
+
+QPhysicsWorld::QueryStructure QPhysicsWorld::dynamicQueryStructure() const
+{
+    return m_dynamicQueryStructure;
+}
+
+void QPhysicsWorld::setDynamicQueryStructure(QueryStructure newDynamicQueryStructure)
+{
+    if (m_dynamicQueryStructure == newDynamicQueryStructure)
+        return;
+
+    if (m_physicsInitialized) {
+        qWarning()
+        << "Warning: Changing 'dynamicQueryStructure' after physics is initialized will have no effect";
+        return;
+    }
+
+    m_dynamicQueryStructure = newDynamicQueryStructure;
+    emit dynamicQueryStructureChanged();
 }
 
 QT_END_NAMESPACE

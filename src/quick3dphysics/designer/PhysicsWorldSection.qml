@@ -96,6 +96,42 @@ Section {
             ExpandingSpacer {}
         }
 
+        // Q_PROPERTY(QueryStructure staticQueryStructure
+        PropertyLabel {
+            text: qsTr("Static Query Structure")
+            tooltip: qsTr("The spatial query structure type used to accelerate scene queries against static actors in the physics scene.")
+        }
+
+        SecondColumnLayout {
+            ComboBox {
+                backendValue: backendValues.staticQueryStructure
+                model: ["StaticTree", "DynamicTree"]
+                scope: "PhysicsWorld"
+                implicitWidth: StudioTheme.Values.twoControlColumnWidth
+                               + StudioTheme.Values.actionIndicatorWidth
+            }
+
+            ExpandingSpacer {}
+        }
+
+        // Q_PROPERTY(QueryStructure dynamicQueryStructure
+        PropertyLabel {
+            text: qsTr("Dynamic Query Structure")
+            tooltip: qsTr("The spatial query structure type used to accelerate scene queries against dynamic actors in the physics scene.")
+        }
+
+        SecondColumnLayout {
+            ComboBox {
+                backendValue: backendValues.dynamicQueryStructure
+                model: ["NoStructure", "StaticTree", "DynamicTree"]
+                scope: "PhysicsWorld"
+                implicitWidth: StudioTheme.Values.twoControlColumnWidth
+                               + StudioTheme.Values.actionIndicatorWidth
+            }
+
+            ExpandingSpacer {}
+        }
+
         // Q_PROPERTY(QVector3D gravity)
         PropertyLabel {
             text: qsTr("Gravity")

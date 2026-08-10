@@ -296,6 +296,42 @@ void QPhysXWorld::createScene(float typicalLength, float typicalSpeed, const QVe
     if (physicsWorld->reportStaticKinematicCollisions())
         sceneDesc.staticKineFilteringMode = physx::PxPairFilteringMode::eKEEP;
 
+    switch (physicsWorld->staticQueryStructure()) {
+    case QPhysicsWorld::QueryStructure::NoStructure: {
+        Q_ASSERT(false && "Unreachable: setStaticQueryStructure() rejects NoStructure");
+        break;
+    }
+
+    case QPhysicsWorld::QueryStructure::StaticTree: {
+        sceneDesc.staticStructure = physx::PxPruningStructureType::eSTATIC_AABB_TREE;
+        break;
+    }
+
+    case QPhysicsWorld::QueryStructure::DynamicTree: {
+        sceneDesc.staticStructure = physx::PxPruningStructureType::eDYNAMIC_AABB_TREE;
+        break;
+    }
+
+    }
+
+    switch (physicsWorld->dynamicQueryStructure()) {
+    case QPhysicsWorld::QueryStructure::NoStructure: {
+        sceneDesc.dynamicStructure = physx::PxPruningStructureType::eNONE;
+        break;
+    }
+
+    case QPhysicsWorld::QueryStructure::StaticTree: {
+        sceneDesc.dynamicStructure = physx::PxPruningStructureType::eSTATIC_AABB_TREE;
+        break;
+    }
+
+    case QPhysicsWorld::QueryStructure::DynamicTree: {
+        sceneDesc.dynamicStructure = physx::PxPruningStructureType::eDYNAMIC_AABB_TREE;
+        break;
+    }
+
+    }
+
     scene = s_physx.physics->createScene(sceneDesc);
 }
 

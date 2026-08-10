@@ -89,9 +89,22 @@ class Q_QUICK3DPHYSICS_EXPORT QPhysicsWorld : public QObject, public QQmlParserS
                        setReportStaticKinematicCollisions NOTIFY
                                reportStaticKinematicCollisionsChanged FINAL REVISION(6, 7))
 
+    Q_PROPERTY(QueryStructure staticQueryStructure READ staticQueryStructure WRITE
+                       setStaticQueryStructure NOTIFY staticQueryStructureChanged FINAL REVISION(6, 13))
+
+    Q_PROPERTY(QueryStructure dynamicQueryStructure READ dynamicQueryStructure WRITE
+                       setDynamicQueryStructure NOTIFY dynamicQueryStructureChanged FINAL REVISION(6, 13))
+
     QML_NAMED_ELEMENT(PhysicsWorld)
 
 public:
+    enum class QueryStructure {
+        NoStructure,  // eNONE
+        StaticTree,  // eSTATIC_AABB_TREE
+        DynamicTree  // eDYNAMIC_AABB_TREE
+    };
+    Q_ENUM(QueryStructure)
+
     explicit QPhysicsWorld(QObject *parent = nullptr);
     ~QPhysicsWorld();
 
@@ -138,6 +151,12 @@ public:
 
     void cleanupRemovedJoints();
 
+    Q_REVISION(6, 13) QueryStructure staticQueryStructure() const;
+    Q_REVISION(6, 13) void setStaticQueryStructure(QueryStructure newStaticQueryStructure);
+
+    Q_REVISION(6, 13) QueryStructure dynamicQueryStructure() const;
+    Q_REVISION(6, 13) void setDynamicQueryStructure(QueryStructure newDynamicQueryStructure);
+
 public slots:
     void setGravity(QVector3D gravity);
     void setRunning(bool running);
@@ -168,6 +187,10 @@ signals:
     Q_REVISION(6, 7) void numThreadsChanged();
     Q_REVISION(6, 7) void reportKinematicKinematicCollisionsChanged();
     Q_REVISION(6, 7) void reportStaticKinematicCollisionsChanged();
+
+
+    Q_REVISION(6, 13) void staticQueryStructureChanged();
+    Q_REVISION(6, 13) void dynamicQueryStructureChanged();
 
 private:
     void simulateFrame();
@@ -279,6 +302,8 @@ private:
     float m_currTimeStep = 0.f;
     QList<float> m_frameTimings;
     bool m_frameFetched = false;
+    QueryStructure m_staticQueryStructure = QueryStructure::DynamicTree;
+    QueryStructure m_dynamicQueryStructure = QueryStructure::DynamicTree;
 };
 
 QT_END_NAMESPACE
