@@ -32,7 +32,8 @@ QT_BEGIN_NAMESPACE
     \since 6.12
     \default 0.0
 
-    The minimum distance of the joint constraint.
+    The minimum distance of the joint constraint. The constraint is only
+    enforced when this value is greater than \c 0.0.
 */
 
 /*!
@@ -40,7 +41,8 @@ QT_BEGIN_NAMESPACE
     \since 6.12
     \default 0.0
 
-    The maximum distance of the joint constraint.
+    The maximum distance of the joint constraint. The constraint is only
+    enforced when this value is greater than \c 0.0.
 */
 
 float QDistanceJoint::minDistance() const
@@ -85,6 +87,11 @@ void QDistanceJoint::setJointProperties()
     physx::PxDistanceJoint *joint = static_cast<physx::PxDistanceJoint *>(m_joint);
     joint->setMinDistance(m_minDistance);
     joint->setMaxDistance(m_maxDistance);
+
+    joint->setDistanceJointFlag(physx::PxDistanceJointFlag::eMIN_DISTANCE_ENABLED,
+                                m_minDistance > 0);
+    joint->setDistanceJointFlag(physx::PxDistanceJointFlag::eMAX_DISTANCE_ENABLED,
+                                m_maxDistance > 0);
 }
 
 QT_END_NAMESPACE
