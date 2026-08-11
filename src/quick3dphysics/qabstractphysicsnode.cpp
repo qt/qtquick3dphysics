@@ -71,7 +71,7 @@ QT_BEGIN_NAMESPACE
 
     Default value is \c 0.
 
-    Range: \c{[0, 32]}
+    Range: \c{[0, 31]}
 
     \sa PhysicsNode::filterIgnoreGroups
 */
@@ -307,6 +307,14 @@ void QAbstractPhysicsNode::setfilterGroup(int newfilterGroup)
 {
     if (m_filterGroup == newfilterGroup)
         return;
+
+    if (newfilterGroup < 0 || newfilterGroup >= 32) {
+        qWarning() << "PhysicsNode: filterGroup" << newfilterGroup
+                   << "is out of range [0, 31], ignoring. Values outside this range are"
+                      " silently excluded from collision filtering by the underlying engine.";
+        return;
+    }
+
     m_filterGroup = newfilterGroup;
     m_filtersDirty = true;
     emit filterGroupChanged();
