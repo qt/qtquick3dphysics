@@ -5,6 +5,9 @@
 #include "qcacheutils_p.h"
 #include "qheightfieldshape_p.h"
 
+#include <limits>
+#include <vector>
+
 #include <QFileInfo>
 #include <QImage>
 #include <QQmlContext>
@@ -36,7 +39,6 @@ class QQuick3DPhysicsHeightField
 public:
     QQuick3DPhysicsHeightField(const QString &qmlSource);
     QQuick3DPhysicsHeightField(QQuickImage *image);
-    ~QQuick3DPhysicsHeightField();
 
     void ref() { ++refCount; }
     int deref() { return --refCount; }
@@ -52,7 +54,7 @@ private:
     // HeightFieldShape is destroyed, this heightfield will be dereferenced
     // from all shapes and deleted.
     QQuickImage *m_image = nullptr;
-    physx::PxHeightFieldSample *m_samples = nullptr;
+    std::vector<physx::PxHeightFieldSample> m_samples;
     physx::PxHeightField *m_heightField = nullptr;
     int m_rows = 0;
     int m_columns = 0;
@@ -127,34 +129,35 @@ QQuick3DPhysicsHeightField::QQuick3DPhysicsHeightField(const QString &qmlSource)
 
 QQuick3DPhysicsHeightField::QQuick3DPhysicsHeightField(QQuickImage *image) : m_image(image) { }
 
-QQuick3DPhysicsHeightField::~QQuick3DPhysicsHeightField()
-{
-    free(m_samples);
-}
-
 void QQuick3DPhysicsHeightField::writeSamples(const QImage &heightMap)
 {
     if (Q_UNLIKELY(heightMap.isNull())) {
         m_rows = 0;
         m_columns = 0;
-        free(m_samples);
-        m_samples = nullptr;
+        m_samples.clear();
         return;
     }
 
     m_rows = heightMap.height();
     m_columns = heightMap.width();
-    int numRows = m_rows;
-    int numCols = m_columns;
 
-    free(m_samples);
-    m_samples = reinterpret_cast<physx::PxHeightFieldSample *>(
-            malloc(sizeof(physx::PxHeightFieldSample) * (numRows * numCols)));
-    for (int i = 0; i < numCols; i++)
-        for (int j = 0; j < numRows; j++) {
+    const quint64 sampleCount = quint64(m_rows) * quint64(m_columns);
+    if (sampleCount > std::numeric_limits<size_t>::max()) {
+        qWarning() << "QQuick3DPhysicsHeightField: height map" << m_columns << "x" << m_rows
+                   << "is too large to allocate.";
+        m_rows = 0;
+        m_columns = 0;
+        m_samples.clear();
+        return;
+    }
+
+    const size_t numRows = size_t(m_rows);
+    m_samples.resize(size_t(sampleCount));
+    for (int i = 0; i < m_columns; i++)
+        for (int j = 0; j < m_rows; j++) {
             float f = heightMap.pixelColor(i, j).valueF() - 0.5;
             // qDebug() << i << j << f;
-            m_samples[i * numRows + j] = { qint16(0xffff * f), 0, 0 }; //{qint16(i%3*2 + j), 0, 0};
+            m_samples[size_t(i) * numRows + size_t(j)] = { qint16(0xffff * f), 0, 0 }; //{qint16(i%3*2 + j), 0, 0};
         }
 }
 
@@ -202,7 +205,7 @@ physx::PxHeightField *QQuick3DPhysicsHeightField::heightField()
 
     int numRows = m_rows;
     int numCols = m_columns;
-    auto samples = m_samples;
+    const auto *samples = m_samples.data();
 
     physx::PxHeightFieldDesc hfDesc;
     hfDesc.format = physx::PxHeightFieldFormat::eS16_TM;
