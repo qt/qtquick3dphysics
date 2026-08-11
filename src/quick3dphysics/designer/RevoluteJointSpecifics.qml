@@ -24,8 +24,8 @@ Column {
 
             SecondColumnLayout {
                 SpinBox {
-                    minimumValue: -9999999
-                    maximumValue: 9999999
+                    minimumValue: -6.28318
+                    maximumValue: 6.28318
                     decimals: 5
                     backendValue: backendValues.angularLimitLower
                     implicitWidth: StudioTheme.Values.singleControlColumnWidth
@@ -41,8 +41,8 @@ Column {
 
             SecondColumnLayout {
                 SpinBox {
-                    minimumValue: -9999999
-                    maximumValue: 9999999
+                    minimumValue: -6.28318
+                    maximumValue: 6.28318
                     decimals: 5
                     backendValue: backendValues.angularLimitUpper
                     implicitWidth: StudioTheme.Values.singleControlColumnWidth

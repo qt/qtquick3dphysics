@@ -11,6 +11,8 @@
 
 #include <PxPhysics.h>
 
+#include <foundation/PxSimpleTypes.h>
+
 QT_BEGIN_NAMESPACE
 
 /*!
@@ -35,6 +37,10 @@ QT_BEGIN_NAMESPACE
     \default 0.0
 
     The lower limit of the constraint, i.e. how far along the negative x-axis the joint can extend.
+
+    Range: \c{[-inf, inf]}
+
+    \sa upperLimit
 */
 
 /*!
@@ -43,6 +49,10 @@ QT_BEGIN_NAMESPACE
     \default 0.0
 
     The upper limit of the constraint, i.e. how far along the positive x-axis the joint can extend.
+
+    Range: \c{[-inf, inf]}
+
+    \sa lowerLimit
 */
 
 physx::PxJoint *QPrismaticJoint::createPhysxJoint(physx::PxRigidActor *actorA,
@@ -72,6 +82,7 @@ float QPrismaticJoint::lowerLimit() const
 
 void QPrismaticJoint::setLowerLimit(float newLowerLimit)
 {
+    newLowerLimit = qBound(-PX_MAX_F32, newLowerLimit, PX_MAX_F32);
     if (qFuzzyCompare(m_lowerLimit, newLowerLimit))
         return;
     m_lowerLimit = newLowerLimit;
@@ -86,6 +97,7 @@ float QPrismaticJoint::upperLimit() const
 
 void QPrismaticJoint::setUpperLimit(float newUpperLimit)
 {
+    newUpperLimit = qBound(-PX_MAX_F32, newUpperLimit, PX_MAX_F32);
     if (qFuzzyCompare(m_upperLimit, newUpperLimit))
         return;
     m_upperLimit = newUpperLimit;

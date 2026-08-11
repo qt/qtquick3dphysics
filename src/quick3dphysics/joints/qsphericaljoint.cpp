@@ -32,6 +32,10 @@ QT_BEGIN_NAMESPACE
     \default 0.0
 
     The y limit (in radians) of the joint's cone constraint.
+
+    Range: \c{(0, pi)}
+
+    \sa coneLimitZ
 */
 
 /*!
@@ -40,6 +44,10 @@ QT_BEGIN_NAMESPACE
     \default 0.0
 
     The z limit (in radians) of the joint's cone constraint.
+
+    Range: \c{(0, pi)}
+
+    \sa coneLimitY
 */
 
 /*!
@@ -57,6 +65,9 @@ float QSphericalJoint::coneLimitY() const
 
 void QSphericalJoint::setConeLimitY(float newConeLimitY)
 {
+    // PxJointLimitCone::isValid() requires yAngle strictly within (0, PxPi),
+    // so the margin keeps the clamped value off both boundaries.
+    newConeLimitY = qBound(1e-4f, newConeLimitY, physx::PxPi - 1e-4f);
     if (qFuzzyCompare(m_coneLimitY, newConeLimitY))
         return;
     m_coneLimitY = newConeLimitY;
@@ -71,6 +82,9 @@ float QSphericalJoint::coneLimitZ() const
 
 void QSphericalJoint::setConeLimitZ(float newConeLimitZ)
 {
+    // PxJointLimitCone::isValid() requires zAngle strictly within (0, PxPi),
+    // so the margin keeps the clamped value off both boundaries.
+    newConeLimitZ = qBound(1e-4f, newConeLimitZ, physx::PxPi - 1e-4f);
     if (qFuzzyCompare(m_coneLimitZ, newConeLimitZ))
         return;
     m_coneLimitZ = newConeLimitZ;
