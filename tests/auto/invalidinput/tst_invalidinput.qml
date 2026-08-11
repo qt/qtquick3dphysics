@@ -15,6 +15,35 @@ Item {
     width: 64
     height: 64
 
+    TriggerBody {
+        id: filterGroupNode
+        collisionShapes: BoxShape {}
+    }
+
+    TestCase {
+        name: "invalidinput_filterGroup"
+
+        // PhysicsNode.filterGroup is only meaningful in [0, 31] (see
+        // physxnode/qphysxworld.cpp's isFilteredOut()/isBitSet()). Values outside
+        // that range used to be accepted silently and made the collision filter
+        // fail open (the pair would collide normally instead of being filtered).
+        function test_filterGroupRejectsOutOfRange() {
+            filterGroupNode.filterGroup = 5
+            compare(filterGroupNode.filterGroup, 5)
+
+            filterGroupNode.filterGroup = 31
+            compare(filterGroupNode.filterGroup, 31, "boundary value 31 should be accepted")
+
+            filterGroupNode.filterGroup = 32
+            compare(filterGroupNode.filterGroup, 31,
+                    "out-of-range value 32 should be rejected, keeping the previous value")
+
+            filterGroupNode.filterGroup = -1
+            compare(filterGroupNode.filterGroup, 31,
+                    "negative value should be rejected, keeping the previous value")
+        }
+    }
+
     // Shared smoke-test scene: bodies below previously crashed the simulation on
     // malformed input. Each PhysicsTestCase asserts the world keeps running instead.
     // No rendering is needed for any of this, so scene is a plain Node rather than
