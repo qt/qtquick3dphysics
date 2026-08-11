@@ -25,7 +25,7 @@ Column {
             SecondColumnLayout {
                 SpinBox {
                     minimumValue: 0
-                    maximumValue: 9999999
+                    maximumValue: 3.14159
                     decimals: 5
                     backendValue: backendValues.coneLimitY
                     implicitWidth: StudioTheme.Values.singleControlColumnWidth
@@ -42,7 +42,7 @@ Column {
             SecondColumnLayout {
                 SpinBox {
                     minimumValue: 0
-                    maximumValue: 9999999
+                    maximumValue: 3.14159
                     decimals: 5
                     backendValue: backendValues.coneLimitZ
                     implicitWidth: StudioTheme.Values.singleControlColumnWidth

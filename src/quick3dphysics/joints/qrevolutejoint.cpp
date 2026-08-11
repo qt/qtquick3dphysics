@@ -32,6 +32,10 @@ QT_BEGIN_NAMESPACE
     \default 0.0
 
     The lower angular limit (in radians) of the joint constraint.
+
+    Range: \c{[-2*pi, 2*pi]}
+
+    \sa angularLimitUpper
 */
 
 /*!
@@ -40,6 +44,10 @@ QT_BEGIN_NAMESPACE
     \default 0.0
 
     The Upper angular limit (in radians) of the joint constraint.
+
+    Range: \c{[-2*pi, 2*pi]}
+
+    \sa angularLimitLower
 */
 
 /*!
@@ -57,6 +65,7 @@ float QRevoluteJoint::angularLimitLower() const
 
 void QRevoluteJoint::setAngularLimitLower(float newAngularLimitLower)
 {
+    newAngularLimitLower = qBound(-2.0f * physx::PxPi, newAngularLimitLower, 2.0f * physx::PxPi);
     if (qFuzzyCompare(m_angularLimitLower, newAngularLimitLower))
         return;
     m_angularLimitLower = newAngularLimitLower;
@@ -71,6 +80,7 @@ float QRevoluteJoint::angularLimitUpper() const
 
 void QRevoluteJoint::setAngularLimitUpper(float newAngularLimitUpper)
 {
+    newAngularLimitUpper = qBound(-2.0f * physx::PxPi, newAngularLimitUpper, 2.0f * physx::PxPi);
     if (qFuzzyCompare(m_angularLimitUpper, newAngularLimitUpper))
         return;
     m_angularLimitUpper = newAngularLimitUpper;
@@ -104,7 +114,9 @@ physx::PxJoint *QRevoluteJoint::createPhysxJoint(physx::PxRigidActor *actorA,
 void QRevoluteJoint::setJointProperties()
 {
     physx::PxRevoluteJoint *joint = static_cast<physx::PxRevoluteJoint *>(m_joint);
-    joint->setLimit(physx::PxJointAngularLimitPair(m_angularLimitLower, m_angularLimitUpper));
+    const float lower = qMin(m_angularLimitLower, m_angularLimitUpper);
+    const float upper = qMax(m_angularLimitLower, m_angularLimitUpper);
+    joint->setLimit(physx::PxJointAngularLimitPair(lower, upper));
     joint->setRevoluteJointFlag(physx::PxRevoluteJointFlag::eLIMIT_ENABLED, m_enableAngularLimit);
 }
 

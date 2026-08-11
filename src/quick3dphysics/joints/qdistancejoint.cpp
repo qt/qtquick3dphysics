@@ -9,6 +9,8 @@
 
 #include <extensions/PxDistanceJoint.h>
 
+#include <foundation/PxSimpleTypes.h>
+
 QT_BEGIN_NAMESPACE
 
 /*!
@@ -34,6 +36,10 @@ QT_BEGIN_NAMESPACE
 
     The minimum distance of the joint constraint. The constraint is only
     enforced when this value is greater than \c 0.0.
+
+    Range: \c{[0, inf]}
+
+    \sa maxDistance
 */
 
 /*!
@@ -43,6 +49,10 @@ QT_BEGIN_NAMESPACE
 
     The maximum distance of the joint constraint. The constraint is only
     enforced when this value is greater than \c 0.0.
+
+    Range: \c{[0, inf]}
+
+    \sa minDistance
 */
 
 float QDistanceJoint::minDistance() const
@@ -52,6 +62,7 @@ float QDistanceJoint::minDistance() const
 
 void QDistanceJoint::setMinDistance(float newMinDistance)
 {
+    newMinDistance = qBound(0.0f, newMinDistance, PX_MAX_F32);
     if (qFuzzyCompare(m_minDistance, newMinDistance))
         return;
     m_minDistance = newMinDistance;
@@ -66,6 +77,7 @@ float QDistanceJoint::maxDistance() const
 
 void QDistanceJoint::setMaxDistance(float newMaxDistance)
 {
+    newMaxDistance = qBound(0.0f, newMaxDistance, PX_MAX_F32);
     if (qFuzzyCompare(m_maxDistance, newMaxDistance))
         return;
     m_maxDistance = newMaxDistance;
@@ -85,13 +97,24 @@ physx::PxJoint *QDistanceJoint::createPhysxJoint(physx::PxRigidActor *actorA,
 void QDistanceJoint::setJointProperties()
 {
     physx::PxDistanceJoint *joint = static_cast<physx::PxDistanceJoint *>(m_joint);
-    joint->setMinDistance(m_minDistance);
-    joint->setMaxDistance(m_maxDistance);
 
-    joint->setDistanceJointFlag(physx::PxDistanceJointFlag::eMIN_DISTANCE_ENABLED,
-                                m_minDistance > 0);
-    joint->setDistanceJointFlag(physx::PxDistanceJointFlag::eMAX_DISTANCE_ENABLED,
-                                m_maxDistance > 0);
+    float minDistance = m_minDistance;
+    float maxDistance = m_maxDistance;
+
+    // PhysX doesn't enforce minDistance <= maxDistance itself, but violating
+    // it produces a constraint that can never be satisfied. Only reorder when
+    // both limits are actually active - a value left at the 0 "disabled"
+    // default must never be treated as "smaller than" an actively-configured
+    // limit on the other side.
+    if (m_minDistance > 0 && m_maxDistance > 0) {
+        minDistance = qMin(m_minDistance, m_maxDistance);
+        maxDistance = qMax(m_minDistance, m_maxDistance);
+    }
+
+    joint->setMinDistance(minDistance);
+    joint->setMaxDistance(maxDistance);
+    joint->setDistanceJointFlag(physx::PxDistanceJointFlag::eMIN_DISTANCE_ENABLED, minDistance > 0);
+    joint->setDistanceJointFlag(physx::PxDistanceJointFlag::eMAX_DISTANCE_ENABLED, maxDistance > 0);
 }
 
 QT_END_NAMESPACE
