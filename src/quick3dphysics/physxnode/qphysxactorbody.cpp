@@ -163,6 +163,10 @@ void QPhysXActorBody::buildShapes(QPhysXWorld * /*physX*/)
 
         auto &s_physx = StaticPhysXObjects::getReference();
         auto physXShape = s_physx.physics->createShape(*geom, *material);
+        if (!physXShape) {
+            qWarning() << "QtQuick3DPhysics: could not create shape, invalid geometry.";
+            continue;
+        }
 
         if (useTriggerFlag()) {
             physXShape->setFlag(physx::PxShapeFlag::eSIMULATION_SHAPE, false);

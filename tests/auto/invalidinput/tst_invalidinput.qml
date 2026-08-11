@@ -62,6 +62,26 @@ Item {
             position: Qt.vector3d(0, -100, 0)
             collisionShapes: TriangleMeshShape { geometry: NoPositionGeometry {} }
         }
+
+        // Shapes with zero/negative dimensions used to crash
+        // QPhysXActorBody::rebuildShapes() via an unchecked null return from
+        // PxPhysics::createShape(). None of these are expected to do anything
+        // physically meaningful -- the goal here is just that the world keeps
+        // simulating instead of crashing.
+        StaticRigidBody {
+            position: Qt.vector3d(-100, 0, 0)
+            collisionShapes: SphereShape { diameter: 0 }
+        }
+
+        StaticRigidBody {
+            position: Qt.vector3d(100, 0, 0)
+            collisionShapes: BoxShape { extents: Qt.vector3d(-1, 5, 5) }
+        }
+
+        StaticRigidBody {
+            position: Qt.vector3d(200, 0, 0)
+            collisionShapes: CapsuleShape { diameter: 0; height: 0 }
+        }
     }
 
     PhysicsWorld {
@@ -77,6 +97,11 @@ Item {
 
     PhysicsTestCase {
         name: "invalidinput_noPositionGeometry"
+        goalReached: invalidShapeWorld.frameCount > 5
+    }
+
+    PhysicsTestCase {
+        name: "invalidinput_shapeDimensions"
         goalReached: invalidShapeWorld.frameCount > 5
     }
 }
