@@ -25,18 +25,19 @@
 
 QT_BEGIN_NAMESPACE
 
-static QQuick3DGeometry::Attribute
-attributeBySemantic(const QQuick3DGeometry *geometry,
-                    QQuick3DGeometry::Attribute::Semantic semantic)
+static bool attributeBySemantic(const QQuick3DGeometry *geometry,
+                                QQuick3DGeometry::Attribute::Semantic semantic,
+                                QQuick3DGeometry::Attribute *result)
 {
     for (int i = 0; i < geometry->attributeCount(); i++) {
         const auto attr = geometry->attribute(i);
-        if (attr.semantic == semantic)
-            return attr;
+        if (attr.semantic == semantic) {
+            *result = attr;
+            return true;
+        }
     }
 
-    Q_UNREACHABLE();
-    return QQuick3DGeometry::Attribute();
+    return false;
 };
 
 physx::PxConvexMesh *QQuick3DPhysicsMesh::convexMesh()
@@ -133,8 +134,12 @@ physx::PxConvexMesh *QQuick3DPhysicsMesh::convexMeshGeometrySource()
         return nullptr;
     }
 
-    const auto vertexAttribute =
-            attributeBySemantic(m_meshGeometry, QQuick3DGeometry::Attribute::PositionSemantic);
+    QQuick3DGeometry::Attribute vertexAttribute;
+    if (!attributeBySemantic(m_meshGeometry, QQuick3DGeometry::Attribute::PositionSemantic,
+                             &vertexAttribute)) {
+        qWarning() << "QQuick3DPhysicsMesh: Invalid geometry, no position attribute found.";
+        return nullptr;
+    }
     Q_ASSERT(vertexAttribute.componentType == QQuick3DGeometry::Attribute::F32Type);
 
     const auto stride = m_meshGeometry->stride();
@@ -244,8 +249,12 @@ physx::PxTriangleMesh *QQuick3DPhysicsMesh::triangleMeshGeometrySource()
         return nullptr;
     }
 
-    const auto vertexAttribute =
-            attributeBySemantic(m_meshGeometry, QQuick3DGeometry::Attribute::PositionSemantic);
+    QQuick3DGeometry::Attribute vertexAttribute;
+    if (!attributeBySemantic(m_meshGeometry, QQuick3DGeometry::Attribute::PositionSemantic,
+                             &vertexAttribute)) {
+        qWarning() << "QQuick3DPhysicsMesh: Invalid geometry, no position attribute found.";
+        return nullptr;
+    }
     Q_ASSERT(vertexAttribute.componentType == QQuick3DGeometry::Attribute::F32Type);
 
     const int posOffset = vertexAttribute.offset;
@@ -259,8 +268,13 @@ physx::PxTriangleMesh *QQuick3DPhysicsMesh::triangleMeshGeometrySource()
 
     auto indexBuffer = m_meshGeometry->indexData();
     if (indexBuffer.size()) {
-        const auto indexAttribute =
-                attributeBySemantic(m_meshGeometry, QQuick3DGeometry::Attribute::IndexSemantic);
+        QQuick3DGeometry::Attribute indexAttribute;
+        if (!attributeBySemantic(m_meshGeometry, QQuick3DGeometry::Attribute::IndexSemantic,
+                                 &indexAttribute)) {
+            qWarning() << "QQuick3DPhysicsMesh: Invalid geometry, index data present but no "
+                          "index attribute found.";
+            return nullptr;
+        }
         const bool u16IndexType =
                 indexAttribute.componentType == QQuick3DGeometry::Attribute::U16Type;
 
