@@ -38,6 +38,9 @@ public:
         if (!trigger || !other || !trigger->enableShapeHitCallback())
             return;
 
+        if (world->isNodeRemoved(other) || world->isNodeRemoved(trigger))
+            return;
+
         QVector3D position = QPhysicsUtils::toQtType(physx::toVec3(hit.worldPos));
         QVector3D impulse = QPhysicsUtils::toQtType(hit.dir * hit.length);
         QVector3D normal = QPhysicsUtils::toQtType(hit.worldNormal);
