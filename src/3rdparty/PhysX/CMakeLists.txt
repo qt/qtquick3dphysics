@@ -1337,6 +1337,8 @@ set_property(TARGET BundledPhysX PROPERTY CXX_STANDARD 17)
 ## ALL
 qt_internal_extend_target(BundledPhysX DEFINES PX_COOKING)
 
+qt_internal_extend_target(BundledPhysX DEFINES $<$<CONFIG:Debug>:PX_CHECKED=1>)
+
 ## MSVC/MSYS
 if (WIN32)
     qt_internal_extend_target(BundledPhysX DEFINES PX_PHYSX_STATIC_LIB)
