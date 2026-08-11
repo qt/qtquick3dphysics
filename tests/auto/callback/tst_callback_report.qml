@@ -27,8 +27,8 @@ Item {
     function xy(i, j) {
         return Qt.vector2d(j*testItem.sceneWidth, i*testItem.sceneHeight)
     }
-    width: sceneWidth*3
-    height: sceneHeight*2
+    width: sceneWidth*2
+    height: sceneHeight*3
     visible: true
 
     //////////////////////////////////////////////////
