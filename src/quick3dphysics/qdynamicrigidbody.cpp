@@ -6,6 +6,8 @@
 #include "qphysicsworld_p.h"
 #include "physxnode/qphysxdynamicbody_p.h"
 
+#include <foundation/PxSimpleTypes.h>
+
 QT_BEGIN_NAMESPACE
 
 /*!
@@ -510,6 +512,8 @@ float QDynamicRigidBody::density() const
 
 void QDynamicRigidBody::setDensity(float density)
 {
+    density = qBound(0.0000001f, density, PX_MAX_F32);
+
     if (qFuzzyCompare(m_density, density))
         return;
 
