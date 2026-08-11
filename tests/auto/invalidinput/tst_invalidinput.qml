@@ -82,6 +82,16 @@ Item {
             position: Qt.vector3d(200, 0, 0)
             collisionShapes: CapsuleShape { diameter: 0; height: 0 }
         }
+
+        // A running body with massMode: CustomDensity and density: 0 shouldn't hang or
+        // crash the simulation.
+        DynamicRigidBody {
+            id: zeroDensityBody
+            position: Qt.vector3d(0, 200, 0)
+            massMode: DynamicRigidBody.CustomDensity
+            density: 0
+            collisionShapes: SphereShape { diameter: 10 }
+        }
     }
 
     PhysicsWorld {
@@ -103,5 +113,17 @@ Item {
     PhysicsTestCase {
         name: "invalidinput_shapeDimensions"
         goalReached: invalidShapeWorld.frameCount > 5
+    }
+
+    TestCase {
+        name: "invalidinput_density"
+
+        // DynamicRigidBody.density's setter now clamps to (0, inf], matching its
+        // documented range, instead of silently storing an invalid value that only
+        // failed later in the deferred command execution.
+        function test_zeroDensityIsClamped() {
+            verify(zeroDensityBody.density > 0,
+                   "density: 0 should be clamped to a small positive value, not stored as-is")
+        }
     }
 }
