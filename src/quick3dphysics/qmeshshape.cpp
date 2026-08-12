@@ -40,6 +40,18 @@ static bool attributeBySemantic(const QQuick3DGeometry *geometry,
     return false;
 };
 
+static bool isValidPositionLayout(int offset, int stride, qsizetype bufferSize)
+{
+    const qsizetype positionSize = qsizetype(3 * sizeof(float));
+    if (stride <= 0 || offset < 0 || offset + positionSize > stride || bufferSize < stride) {
+        qWarning() << "QQuick3DPhysicsMesh: Invalid geometry, position attribute (offset"
+                   << offset << ") does not fit within stride" << stride << "and buffer size"
+                   << bufferSize;
+        return false;
+    }
+    return true;
+}
+
 physx::PxConvexMesh *QQuick3DPhysicsMesh::convexMesh()
 {
     if (m_convexMesh != nullptr)
@@ -90,6 +102,8 @@ physx::PxConvexMesh *QQuick3DPhysicsMesh::convexMeshQmlSource()
         return nullptr;
 
     const int vStride = m_ssgMesh.vertexBuffer().stride;
+    if (!isValidPositionLayout(m_posOffset, vStride, m_ssgMesh.vertexBuffer().data.size()))
+        return nullptr;
     const int vCount = m_ssgMesh.vertexBuffer().data.size() / vStride;
 
     qCDebug(lcQuick3dPhysics) << "prepare cooking" << vCount << "verts";
@@ -143,6 +157,8 @@ physx::PxConvexMesh *QQuick3DPhysicsMesh::convexMeshGeometrySource()
     Q_ASSERT(vertexAttribute.componentType == QQuick3DGeometry::Attribute::F32Type);
 
     const auto stride = m_meshGeometry->stride();
+    if (!isValidPositionLayout(vertexAttribute.offset, stride, vertexBuffer.size()))
+        return nullptr;
     const auto numVertices = vertexBuffer.size() / stride;
 
     physx::PxConvexMeshDesc convexDesc;
@@ -190,6 +206,8 @@ physx::PxTriangleMesh *QQuick3DPhysicsMesh::triangleMeshQmlSource()
 
     const int posOffset = m_posOffset;
     const auto stride =  m_ssgMesh.vertexBuffer().stride;
+    if (!isValidPositionLayout(posOffset, stride, vertexBuffer.size()))
+        return nullptr;
     const auto numVertices = vertexBuffer.size() / stride;
 
     physx::PxTriangleMeshDesc triangleDesc;
@@ -259,6 +277,8 @@ physx::PxTriangleMesh *QQuick3DPhysicsMesh::triangleMeshGeometrySource()
 
     const int posOffset = vertexAttribute.offset;
     const auto stride = m_meshGeometry->stride();
+    if (!isValidPositionLayout(posOffset, stride, vertexBuffer.size()))
+        return nullptr;
     const auto numVertices = vertexBuffer.size() / stride;
 
     physx::PxTriangleMeshDesc triangleDesc;

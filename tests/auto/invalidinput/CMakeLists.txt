@@ -30,6 +30,7 @@ qt_add_qml_module(${PROJECT_NAME}
         tst_invalidinput.qml
     SOURCES
         nopositiongeometry.cpp nopositiongeometry.h
+        badstridegeometry.cpp badstridegeometry.h
     RESOURCE_PREFIX "/qt/qml"
     IMPORTS
         QtQuick3D
