@@ -49,6 +49,11 @@ Window {
             position: Qt.vector3d(0, 500, 0)
         }
 
+        SoftRope {
+            eulerRotation: Qt.vector3d(0, 0, -90)
+            position: Qt.vector3d(100, 500, 0)
+        }
+
         Prismatic {
             id: prismatic
             position: Qt.vector3d(-250, 100, 0)
@@ -58,6 +63,12 @@ Window {
             id: revolute
             position: Qt.vector3d(200, 200, 100)
         }
+
+        Spring {
+            eulerRotation: Qt.vector3d(0, 0, 0)
+            position: Qt.vector3d(0, 1, -400)
+        }
+
         //! [joints]
 
         StaticRigidBody {

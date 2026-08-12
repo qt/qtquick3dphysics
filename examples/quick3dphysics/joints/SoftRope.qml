@@ -9,17 +9,24 @@ import QtQuick3D.Physics.Helpers
 Node {
     id: root
 
+    property real stiffness : 15000
+    property real damping : 500
+
     SphericalJoint {
         bodyB: shape0
         positionA: root.position
         positionB: Qt.vector3d(-25, 0, 0)
     }
 
-    SphericalJoint {
+    PrismaticJoint {
         bodyA: shape0
         bodyB: shape1
         positionA: Qt.vector3d(25, 0, 0)
         positionB: Qt.vector3d(-25, 0, 0)
+        stiffness: root.stiffness
+        damping: root.damping
+        lowerLimit: -20
+        upperLimit: 0
     }
 
     SphericalJoint {
@@ -29,29 +36,19 @@ Node {
         positionB: Qt.vector3d(-25, 0, 0)
     }
 
-    SphericalJoint {
+    PrismaticJoint {
         bodyA: shape2
         bodyB: shape3
         positionA: Qt.vector3d(25, 0, 0)
         positionB: Qt.vector3d(-25, 0, 0)
-    }
-
-    SphericalJoint {
-        bodyA: shape3
-        bodyB: shape4
-        positionA: Qt.vector3d(25, 0, 0)
-        positionB: Qt.vector3d(-25, 0, 0)
-    }
-
-    SphericalJoint {
-        bodyA: shape4
-        bodyB: shape5
-        positionA: Qt.vector3d(25, 0, 0)
-        positionB: Qt.vector3d(-25, 0, 0)
+        stiffness: root.stiffness
+        damping: root.damping
+        lowerLimit: -20
+        upperLimit: 0
     }
 
     FixedJoint {
-        bodyA: shape5
+        bodyA: shape3
         bodyB: sphere
         positionA: Qt.vector3d(25, 0, 0)
         positionB: Qt.vector3d(0, 0, 0)
@@ -63,7 +60,7 @@ Node {
         id: shape0
         position: Qt.vector3d(25, 0, 0)
         filterGroup: 0
-        filterIgnoreGroups: 0b0000010
+        filterIgnoreGroups: 0b00010
         collisionShapes: CapsuleShape {
             diameter: 10
             height: 40
@@ -74,7 +71,7 @@ Node {
                 height: 40
             }
             materials: PrincipledMaterial {
-                baseColor: "blue"
+                baseColor: "blueviolet"
             }
         }
     }
@@ -83,7 +80,7 @@ Node {
         id: shape1
         position: Qt.vector3d(75, 0, 0)
         filterGroup: 1
-        filterIgnoreGroups: 0b0000101
+        filterIgnoreGroups: 0b00101
         collisionShapes: CapsuleShape {
             diameter: 10
             height: 40
@@ -94,7 +91,7 @@ Node {
                 height: 40
             }
             materials: PrincipledMaterial {
-                baseColor: "blue"
+                baseColor: "blueviolet"
             }
         }
     }
@@ -103,7 +100,7 @@ Node {
         id: shape2
         position: Qt.vector3d(125, 0, 0)
         filterGroup: 2
-        filterIgnoreGroups: 0b0001010
+        filterIgnoreGroups: 0b01010
         collisionShapes: CapsuleShape {
             diameter: 10
             height: 40
@@ -114,7 +111,7 @@ Node {
                 height: 40
             }
             materials: PrincipledMaterial {
-                baseColor: "blue"
+                baseColor: "blueviolet"
             }
         }
     }
@@ -123,7 +120,7 @@ Node {
         id: shape3
         position: Qt.vector3d(175, 0, 0)
         filterGroup: 3
-        filterIgnoreGroups: 0b0010100
+        filterIgnoreGroups: 0b10100
         collisionShapes: CapsuleShape {
             diameter: 10
             height: 40
@@ -134,62 +131,24 @@ Node {
                 height: 40
             }
             materials: PrincipledMaterial {
-                baseColor: "blue"
-            }
-        }
-    }
-
-    DynamicRigidBody {
-        id: shape4
-        position: Qt.vector3d(225, 0, 0)
-        filterGroup: 4
-        filterIgnoreGroups: 0b0101000
-        collisionShapes: CapsuleShape {
-            diameter: 10
-            height: 40
-        }
-        Model {
-            geometry: CapsuleGeometry {
-                diameter: 10
-                height: 40
-            }
-            materials: PrincipledMaterial {
-                baseColor: "blue"
-            }
-        }
-    }
-
-    DynamicRigidBody {
-        id: shape5
-        position: Qt.vector3d(275, 0, 0)
-        filterGroup: 5
-        filterIgnoreGroups: 0b1010000
-        collisionShapes: CapsuleShape {
-            diameter: 10
-            height: 40
-        }
-        Model {
-            geometry: CapsuleGeometry {
-                diameter: 10
-                height: 40
-            }
-            materials: PrincipledMaterial {
-                baseColor: "blue"
+                baseColor: "blueviolet"
             }
         }
     }
 
     DynamicRigidBody {
         id: sphere
-        position: Qt.vector3d(300, 0, 0)
+        position: Qt.vector3d(200, 0, 0)
         scale: Qt.vector3d(0.5, 0.5, 0.5)
-        filterGroup: 6
-        filterIgnoreGroups: 0b0100000
+        filterGroup: 4
+        filterIgnoreGroups: 0b01000
         collisionShapes: SphereShape {}
+
+
         Model {
             source: "#Sphere"
             materials: PrincipledMaterial {
-                baseColor: "blue"
+                baseColor: "blueviolet"
             }
         }
     }

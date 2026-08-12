@@ -184,6 +184,74 @@ Item {
             }
         }
 
+        Node {
+            id: root
+            position: Qt.vector3d(0, -340, 0)
+
+            DynamicRigidBody {
+                id: baseStand
+                position: Qt.vector3d(0, 0, 0)
+
+                collisionShapes: BoxShape {
+                    extents: Qt.vector3d(50, 10, 50)
+                }
+
+                Model {
+                    source: "#Cube"
+                    scale: Qt.vector3d(0.50, 0.10, 0.50)
+
+                    materials: PrincipledMaterial {
+                        baseColor: "darkslategray"
+                    }
+                }
+            }
+
+            DynamicRigidBody {
+                id: floatingSphere
+                // position: Qt.vector3d(50, 0, 0)
+                sendTriggerReports: true
+
+                collisionShapes: SphereShape {
+                    diameter: 20
+                }
+
+                Model {
+                    source: "#Sphere"
+                    scale: Qt.vector3d(0.2, 0.2, 0.2)
+                    materials: PrincipledMaterial {
+                        baseColor: "cornflowerblue"
+                        roughness: 0.2
+                    }
+                }
+            }
+
+            // D6 Joint acting as a soft spring wire
+            D6Joint {
+                bodyA: baseStand
+                bodyB: floatingSphere
+
+                positionA: Qt.vector3d(0, 2.5, 0)
+                positionB: Qt.vector3d(0, -50, 0)
+
+                xMotion: D6Joint.Locked
+                yMotion: D6Joint.Locked
+                zMotion: D6Joint.Locked
+
+                // Allow omnidirectional rotation
+                twistMotion: D6Joint.Limited
+                swingMotionY: D6Joint.Limited
+                swingMotionZ: D6Joint.Limited
+
+                twistLimitLower: -0.07    // ~-4 degrees in radians
+                twistLimitUpper: 0.07     // ~+4 degrees in radians
+                swingLimitAngleY: 0.087   // ~5 degrees in radians
+                swingLimitAngleZ: 0.087   // ~5 degrees in radians
+
+                angularStiffness: 310000.0
+                angularDamping: 2500.0
+            }
+        }
+
         TriggerBody {
             id: trigger0
             property int numHits: 0
@@ -218,6 +286,25 @@ Item {
                 numEntered += 1
             }
         }
+
+        TriggerBody {
+            id: trigger2
+            property int numHits: 0
+            position: Qt.vector3d(0, -330, 0)
+            scale: Qt.vector3d(0.2, 0.2, 0.2)
+            collisionShapes: BoxShape {}
+            Model {
+                source: "#Cube"
+                materials: PrincipledMaterial {
+                    baseColor: "cyan"
+                    opacity: 0.5
+                }
+            }
+
+            onBodyExited: {
+                numHits += 1
+            }
+        }
     }
 
     FrameAnimation {
@@ -231,6 +318,6 @@ Item {
 
     PhysicsTestCase {
         name: "scene"
-        goalReached: trigger0.numHits == 2 && trigger1.numEntered == 0
+        goalReached: trigger0.numHits >= 2 && trigger1.numEntered == 0 && trigger2.numHits >= 3
     }
 }

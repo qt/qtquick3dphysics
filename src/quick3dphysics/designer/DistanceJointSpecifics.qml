@@ -12,6 +12,10 @@ Column {
         width: parent.width
     }
 
+    FlexibleJointSection {
+        width: parent.width
+    }
+
     Section {
         width: parent.width
         caption: qsTr("Distance Joint")

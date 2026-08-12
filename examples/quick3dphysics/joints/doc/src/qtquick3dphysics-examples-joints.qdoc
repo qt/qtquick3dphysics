@@ -9,16 +9,21 @@
     \brief Demonstrates using joints in a physics scene.
     \image joints-example.png
 
-    This example demonstrates using a few of the joints available in Quick 3D
-    Physics.
+    This example demonstrates using the joints available in Quick 3D Physics.
+    Most joint types (\l{DistanceJoint}, \l{PrismaticJoint}, \l{RevoluteJoint},
+    and \l{SphericalJoint}) inherit from \l{FlexibleJoint} to support soft constraints
+    via stiffness and damping. Additionally, \l{D6Joint} provides fully configurable
+    6-degrees-of-freedom constraints, while \l{FixedJoint} completely locks all degrees
+    of freedom.
 
     The scene is a typical scene with a PhysicsWorld, a View3D with a
     PerspectiveCamera and a DirectionalLight:
 
     \snippet joints/main.qml full
 
-    There is a StaticRigidBody with a PlaneShape to act as the floor and three
-    custom QML objects; Rope, Prismatic and Revolute.
+    There is a StaticRigidBody with a PlaneShape to act as the floor. There are
+    several custom QML objects (Rope, SoftRope, Spring, Prismatic, and Revolute)
+    demonstrating different joint configurations.
 
     \snippet joints/main.qml joints
 
@@ -27,6 +32,16 @@
     \l{FixedJoint}{fixed joint} for the sphere.
 
     \snippet joints/Rope.qml full
+
+    The SoftRope object demonstrates how \l{FlexibleJoint}{flexible joints} use
+    stiffness and damping properties to create spring-like soft connections.
+
+    \snippet joints/SoftRope.qml full
+
+    The Spring object shows how to use \l{D6Joint} to constrain motion across 6 degrees
+    of freedom with custom linear and angular spring parameters.
+
+    \snippet joints/Spring.qml full
 
     The Prismatic object consists of two bars locked in a
     \l{PrismaticJoint}{prismatic joint} along the x-axis of both of them.

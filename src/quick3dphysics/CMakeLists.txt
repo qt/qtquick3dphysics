@@ -14,8 +14,10 @@ qt_internal_add_qml_module(Quick3DPhysics
         NO_PLUGIN_OPTIONAL
         NO_GENERATE_PLUGIN_SOURCE
     SOURCES
+        joints/qd6joint.cpp joints/qd6joint_p.h
         joints/qdistancejoint.cpp joints/qdistancejoint_p.h
         joints/qfixedjoint.cpp joints/qfixedjoint_p.h
+        joints/qflexiblejoint.cpp joints/qflexiblejoint_p.h
         joints/qjoint.cpp joints/qjoint_p.h
         joints/qprismaticjoint.cpp joints/qprismaticjoint_p.h
         joints/qrevolutejoint.cpp joints/qrevolutejoint_p.h

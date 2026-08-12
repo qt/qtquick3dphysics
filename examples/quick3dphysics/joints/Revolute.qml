@@ -23,6 +23,8 @@ Node {
 
     DynamicRigidBody {
         id: revoluteBoxA
+        position: Qt.vector3d(0, 0, 0)
+        eulerRotation: root.jointRotation
         kinematicPosition: Qt.vector3d(0, 0, 0)
         kinematicEulerRotation: root.jointRotation
         isKinematic: true

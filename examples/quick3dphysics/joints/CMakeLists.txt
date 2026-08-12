@@ -37,6 +37,8 @@ set(qml_resource_files
     "Prismatic.qml"
     "Revolute.qml"
     "Rope.qml"
+    "SoftRope.qml"
+    "Spring.qml"
 )
 
 qt_add_resources(${PROJECT_NAME} "qml"

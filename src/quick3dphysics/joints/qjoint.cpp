@@ -33,6 +33,8 @@ QT_BEGIN_NAMESPACE
     \sa {PrismaticJoint}
     \sa {RevoluteJoint}
     \sa {SphericalJoint}
+    \sa {FlexibleJoint}
+    \sa {D6Joint}
 */
 
 /*!

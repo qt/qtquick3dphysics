@@ -15,6 +15,7 @@ QT_BEGIN_NAMESPACE
     \qmltype SphericalJoint
     \inqmlmodule QtQuick3D.Physics
     \since 6.12
+    \inherits FlexibleJoint
     \brief A spherical joint.
 
     A spherical joint, also known as a ball-and-socket joint, keeps the origins
@@ -24,6 +25,7 @@ QT_BEGIN_NAMESPACE
     \sa {FixedJoint}
     \sa {PrismaticJoint}
     \sa {RevoluteJoint}
+    \sa {D6Joint}
 */
 
 /*!
@@ -118,7 +120,12 @@ physx::PxJoint *QSphericalJoint::createPhysxJoint(physx::PxRigidActor *actorA,
 void QSphericalJoint::setJointProperties()
 {
     physx::PxSphericalJoint *joint = static_cast<physx::PxSphericalJoint *>(m_joint);
-    joint->setLimitCone(physx::PxJointLimitCone(m_coneLimitY, m_coneLimitZ));
+
+    physx::PxJointLimitCone limit(m_coneLimitY, m_coneLimitZ);
+    limit.stiffness = m_stiffness;
+    limit.damping = m_damping;
+
+    joint->setLimitCone(limit);
     joint->setSphericalJointFlag(physx::PxSphericalJointFlag::eLIMIT_ENABLED, m_enableConeLimit);
 }
 

@@ -23,6 +23,7 @@ QT_BEGIN_NAMESPACE
     \sa {PrismaticJoint}
     \sa {RevoluteJoint}
     \sa {SphericalJoint}
+    \sa {D6Joint}
 */
 
 physx::PxJoint *QFixedJoint::createPhysxJoint(physx::PxRigidActor *actorA,

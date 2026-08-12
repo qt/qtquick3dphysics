@@ -19,6 +19,7 @@ QT_BEGIN_NAMESPACE
     \qmltype PrismaticJoint
     \inqmlmodule QtQuick3D.Physics
     \since 6.12
+    \inherits FlexibleJoint
     \brief A prismatic joint.
 
     A prismatic joint permits relative translational movement between two bodies along an axis, but
@@ -29,6 +30,7 @@ QT_BEGIN_NAMESPACE
     \sa {FixedJoint}
     \sa {RevoluteJoint}
     \sa {SphericalJoint}
+    \sa {D6Joint}
 */
 
 /*!
@@ -71,7 +73,12 @@ void QPrismaticJoint::setJointProperties()
             StaticPhysXObjects::getReference().physics->getTolerancesScale();
     const float lowerLimit = qMin(m_lowerLimit, m_upperLimit);
     const float upperLimit = qMax(m_lowerLimit, m_upperLimit);
-    joint->setLimit(physx::PxJointLinearLimitPair(scale, lowerLimit, upperLimit));
+
+    physx::PxJointLinearLimitPair limit(scale, lowerLimit, upperLimit);
+    limit.stiffness = m_stiffness;
+    limit.damping = m_damping;
+
+    joint->setLimit(limit);
     joint->setPrismaticJointFlag(physx::PxPrismaticJointFlag::eLIMIT_ENABLED, true);
 }
 

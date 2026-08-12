@@ -8,7 +8,7 @@ import QtQuick3D.Physics.Helpers
 //! [full]
 Node {
     id: root
-    property vector3d jointRotation : Qt.vector3d(0, 0, 0)
+    property vector3d jointRotation : Qt.vector3d(0, 0, 90)
 
     PrismaticJoint {
         bodyA: prismaticBoxA
@@ -21,6 +21,8 @@ Node {
 
     DynamicRigidBody {
         id: prismaticBoxA
+        position: Qt.vector3d(0, 200, 0)
+        eulerRotation: root.jointRotation
         kinematicPosition: Qt.vector3d(0, 200, 0)
         kinematicEulerRotation: root.jointRotation
         isKinematic: true
@@ -36,7 +38,10 @@ Node {
 
     DynamicRigidBody {
         id: prismaticBoxB
-        position: Qt.vector3d(0, 0, 0)
+        position: Qt.vector3d(200 * Math.cos(root.jointRotation.z * Math.PI / 180),
+                               200 + 200 * Math.sin(root.jointRotation.z * Math.PI / 180),
+                               0)
+        eulerRotation: root.jointRotation
         scale: Qt.vector3d(2, 0.4, 0.4)
         collisionShapes: BoxShape {}
         Model {

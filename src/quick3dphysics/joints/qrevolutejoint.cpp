@@ -15,6 +15,7 @@ QT_BEGIN_NAMESPACE
     \qmltype RevoluteJoint
     \inqmlmodule QtQuick3D.Physics
     \since 6.12
+    \inherits FlexibleJoint
     \brief A revolute joint.
 
     A revolute joint, commonly referred to as a a hinge keeps the origins and x-axes
@@ -24,6 +25,7 @@ QT_BEGIN_NAMESPACE
     \sa {FixedJoint}
     \sa {PrismaticJoint}
     \sa {SphericalJoint}
+    \sa {D6Joint}
 */
 
 /*!
@@ -116,7 +118,12 @@ void QRevoluteJoint::setJointProperties()
     physx::PxRevoluteJoint *joint = static_cast<physx::PxRevoluteJoint *>(m_joint);
     const float lower = qMin(m_angularLimitLower, m_angularLimitUpper);
     const float upper = qMax(m_angularLimitLower, m_angularLimitUpper);
-    joint->setLimit(physx::PxJointAngularLimitPair(lower, upper));
+
+    physx::PxJointAngularLimitPair limit(lower, upper);
+    limit.stiffness = m_stiffness;
+    limit.damping = m_damping;
+
+    joint->setLimit(limit);
     joint->setRevoluteJointFlag(physx::PxRevoluteJointFlag::eLIMIT_ENABLED, m_enableAngularLimit);
 }
 

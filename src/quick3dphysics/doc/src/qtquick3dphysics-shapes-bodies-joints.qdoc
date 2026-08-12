@@ -96,5 +96,8 @@ determines how bouncy it is.
 
 \section1 Joints
 
-A joint constrains how two bodies move in relation to each other. A joint can for instance be used to emulate a door hinge, a rope or an arm. Various joint types are supported for different use cases, see \l {DistanceJoint}, \l {FixedJoint}, \l {PrismaticJoint}, \l {RevoluteJoint} and \l {SphericalJoint}. Every joint is based on the \l{Joint} qml type and has two bodies it connects to as well as an orientation describing its location on each body it connects. Each joint type will have different properties governing its specific physical constraints.
+A joint constrains how two bodies move in relation to each other.
+A joint can, for instance, be used to emulate a door hinge, a rope or an arm.
+Various joint types are supported for different use cases, see \l {DistanceJoint}, \l {FixedJoint}, \l {PrismaticJoint}, \l {RevoluteJoint}, \l {SphericalJoint} and \l {D6Joint}.
+Joints can form both rigid and soft constraints; types inheriting from \l {FlexibleJoint} or supporting soft limits provide stiffness and damping properties to simulate springs and flexible connections.
 */

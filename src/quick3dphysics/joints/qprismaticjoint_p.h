@@ -15,7 +15,7 @@
 // We mean it.
 //
 
-#include "joints/qjoint_p.h"
+#include "joints/qflexiblejoint_p.h"
 
 #include <QtQuick3DPhysics/qtquick3dphysicsglobal.h>
 #include <qobjectdefs.h>
@@ -27,7 +27,7 @@
 
 QT_BEGIN_NAMESPACE
 
-class Q_QUICK3DPHYSICS_EXPORT QPrismaticJoint : public QPhysicsJoint
+class Q_QUICK3DPHYSICS_EXPORT QPrismaticJoint : public QFlexibleJoint
 {
     Q_OBJECT
     Q_PROPERTY(float lowerLimit READ lowerLimit WRITE setLowerLimit NOTIFY lowerLimitChanged FINAL

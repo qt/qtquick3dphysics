@@ -17,6 +17,7 @@ QT_BEGIN_NAMESPACE
     \qmltype DistanceJoint
     \inqmlmodule QtQuick3D.Physics
     \since 6.12
+    \inherits FlexibleJoint
     \brief A distance joint.
 
     A distance joint that will keep the origins of the joint within the
@@ -27,6 +28,7 @@ QT_BEGIN_NAMESPACE
     \sa {PrismaticJoint}
     \sa {RevoluteJoint}
     \sa {SphericalJoint}
+    \sa {D6Joint}
 */
 
 /*!
@@ -115,6 +117,12 @@ void QDistanceJoint::setJointProperties()
     joint->setMaxDistance(maxDistance);
     joint->setDistanceJointFlag(physx::PxDistanceJointFlag::eMIN_DISTANCE_ENABLED, minDistance > 0);
     joint->setDistanceJointFlag(physx::PxDistanceJointFlag::eMAX_DISTANCE_ENABLED, maxDistance > 0);
+
+    joint->setStiffness(m_stiffness);
+    joint->setDamping(m_damping);
+
+    const bool enableSpring = (m_stiffness > 0.0f) || (m_damping > 0.0f);
+    joint->setDistanceJointFlag(physx::PxDistanceJointFlag::eSPRING_ENABLED, enableSpring);
 }
 
 QT_END_NAMESPACE
