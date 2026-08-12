@@ -63,6 +63,19 @@ Item {
             collisionShapes: TriangleMeshShape { geometry: NoPositionGeometry {} }
         }
 
+        // A Geometry whose position attribute offset doesn't fit within its stride
+        // used to make convexMeshGeometrySource()/triangleMeshGeometrySource() read
+        // past the end of the vertex buffer while cooking the mesh.
+        StaticRigidBody {
+            position: Qt.vector3d(0, 300, 0)
+            collisionShapes: ConvexMeshShape { geometry: BadStrideGeometry {} }
+        }
+
+        StaticRigidBody {
+            position: Qt.vector3d(0, -300, 0)
+            collisionShapes: TriangleMeshShape { geometry: BadStrideGeometry {} }
+        }
+
         // Shapes with zero/negative dimensions used to crash
         // QPhysXActorBody::rebuildShapes() via an unchecked null return from
         // PxPhysics::createShape(). None of these are expected to do anything
@@ -112,6 +125,11 @@ Item {
 
     PhysicsTestCase {
         name: "invalidinput_shapeDimensions"
+        goalReached: invalidShapeWorld.frameCount > 5
+    }
+
+    PhysicsTestCase {
+        name: "invalidinput_badStride"
         goalReached: invalidShapeWorld.frameCount > 5
     }
 
