@@ -54,6 +54,16 @@ Item {
             }
         }
 
+        // wall
+        DynamicRigidBody {
+            position.x: -2
+            position.y: 20
+
+            collisionShapes: BoxShape {
+                extents: Qt.vector3d(2, 2, 2)
+            }
+        }
+
         TriggerBody {
             id: triggerBox
             position: Qt.vector3d(2, 4, 0)
@@ -68,7 +78,7 @@ Item {
         }
 
         CharacterController {
-            id: characterUp
+            id: characterGravityUp
             property bool collided: false
             position: Qt.vector3d(2, 8, 0)
 
@@ -95,7 +105,7 @@ Item {
         }
 
         CharacterController {
-            id: characterDown
+            id: characterGravityDown
             property bool collided: false
             position: Qt.vector3d(-2, -20, 0)
             gravity: Qt.vector3d(-world.gravity.x, -world.gravity.y, -world.gravity.z)
@@ -121,19 +131,84 @@ Item {
             }
         }
 
-        PhysicsTestCase {
-            name: "character up"
-            goalReached: characterUp.collisions === CharacterController.Down
+        CharacterController {
+            id: characterUpDown
+            property bool collided: false
+            position: Qt.vector3d(-2, 3, 0)
+            gravity: Qt.vector3d(0, 1, 0)
+
+            onCollisionsChanged: {
+               collided = true
+            }
+
+            sendTriggerReports: true
+
+            collisionShapes: CapsuleShape {
+                height: 1
+                diameter: 1
+            }
+
+            Model {
+                eulerRotation.z: 90
+                scale: Qt.vector3d(0.01, 0.01, 0.01)
+                geometry: CapsuleGeometry {}
+                materials: PrincipledMaterial {
+                    baseColor: "green"
+                }
+            }
         }
 
         PhysicsTestCase {
-            name: "character down"
-            goalReached: characterDown.collisions === CharacterController.Up
+            name: "character gravity up collision up/down"
+            goalReached: characterUpDown.collisions === (CharacterController.Down | CharacterController.Up) // Squeezed between the wall above and the ground below
+        }
+
+        PhysicsTestCase {
+            name: "character gravity up"
+            goalReached: characterGravityUp.collisions === CharacterController.Down // should be down because up direction is -gravity
+        }
+
+        PhysicsTestCase {
+            name: "character gravity down"
+            goalReached: characterGravityDown.collisions === CharacterController.Down
         }
 
         PhysicsTestCase {
             name: "trigger box"
             goalReached: triggerBox.entered
+        }
+
+        // Drops 5 onto a floor of its own
+        StaticRigidBody {
+            position: Qt.vector3d(0, 0, -20)
+            collisionShapes: BoxShape {
+                extents: Qt.vector3d(4, 2, 4)
+            }
+        }
+
+        CharacterController {
+            id: characterLanding
+            property int landings: 0
+            property real landingSpeed: 0
+            position: Qt.vector3d(0, 7, -20)
+            gravity: world.gravity
+
+            onLanded: (speed) => {
+                ++landings
+                landingSpeed = speed
+            }
+
+            collisionShapes: CapsuleShape {
+                height: 1
+                diameter: 1
+            }
+        }
+
+        PhysicsTestCase {
+            name: "character landed"
+            // A fall of 5 at 9.82 lands at sqrt(2 * 9.82 * 5), about 9.9
+            goalReached: characterLanding.landings === 1 && characterLanding.landingSpeed > 9
+                         && characterLanding.landingSpeed < 11
         }
     }
 }

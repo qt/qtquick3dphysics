@@ -154,6 +154,76 @@ Section {
         }
 
         PropertyLabel {
+            text: "Movement Mode"
+            tooltip: "Defines how character movement vector is processed."
+        }
+
+        SecondColumnLayout {
+            ComboBox {
+                implicitWidth: StudioTheme.Values.singleControlColumnWidth
+                                + StudioTheme.Values.actionIndicatorWidth
+                scope: "CharacterController"
+                model: ["ForwardBased", "Free"]
+                backendValue: backendValues.movementMode
+            }
+
+            ExpandingSpacer {}
+        }
+
+        PropertyLabel {
+            text: "Maximum Step Height"
+            tooltip: "The maximum height the character can step up without jumping."
+        }
+
+        SecondColumnLayout {
+            SpinBox {
+                implicitWidth: StudioTheme.Values.singleControlColumnWidth
+                                + StudioTheme.Values.actionIndicatorWidth
+                minimumValue: -1
+                maximumValue: 9999999
+                decimals: 2
+                backendValue: backendValues.maximumStepHeight
+            }
+
+            ExpandingSpacer {}
+        }
+
+        PropertyLabel {
+            text: "Slope Limit"
+            tooltip: "The steepest slope, in degrees, that the character can climb."
+        }
+
+        SecondColumnLayout {
+            SpinBox {
+                implicitWidth: StudioTheme.Values.singleControlColumnWidth
+                                + StudioTheme.Values.actionIndicatorWidth
+                minimumValue: 0
+                maximumValue: 90
+                stepSize: 1
+                decimals: 1
+                backendValue: backendValues.slopeLimit
+            }
+
+            ExpandingSpacer {}
+        }
+
+        PropertyLabel {
+            text: "Slide On Steep Slopes"
+            tooltip: "Makes the character slide down slopes steeper than the slope limit."
+        }
+
+        SecondColumnLayout {
+            CheckBox {
+                text: backendValues.slideOnSteepSlopes.valueToString
+                backendValue: backendValues.slideOnSteepSlopes
+                implicitWidth: StudioTheme.Values.twoControlColumnWidth
+                                + StudioTheme.Values.actionIndicatorWidth
+            }
+
+            ExpandingSpacer {}
+        }
+
+        PropertyLabel {
             text: "Mid Air Control"
             tooltip: "Enables movement property to have an effect when the character is in free fall."
         }

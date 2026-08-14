@@ -1,0 +1,75 @@
+// Copyright (C) 2026 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GFDL-1.3-no-invariants-only
+
+/*!
+    \example planet
+    \ingroup quick3dphysics-examples
+    \title Qt Quick 3D Physics - Planet Example
+    \examplecategory {3D}
+    \brief Demonstrates using custom gravity configuration for character controllers and rigid bodies.
+    \image planet-example.webp
+
+    The \e {Planet Example} demonstrates how to implement dynamic, point-centered spherical gravity for a \l CharacterController and \l DynamicRigidBody objects in \l {Qt Quick 3D Physics}.
+    Instead of relying on a uniform downward gravity vector, a \l GravityField in \c Point mode
+    applies a directional gravity force pointing toward the center of the planet, allowing the
+    character to walk seamlessly around a 3D planetoid surface while physics objects fall toward its center.
+
+    \section1 Overview
+
+    In standard physics scenes, gravity is uniform and points along the negative Y-axis. For spherical worlds or micro-planets, the gravity vector must be calculated dynamically based on an object's position relative to the planet's center.
+
+    This example highlights four main mechanics:
+    \list
+    \li Applying a dynamic gravity vector pointing toward the planet center with a \l GravityField.
+    \li Orienting the \l CharacterController using its \c gravityOrientation property combined with player input.
+    \li Pulling the cubes towards the center with the same \l GravityField as the character.
+    \li Customizing the \l CharacterController slope limit, maximum step height, and sliding down steep slopes for curved geometry.
+    \endlist
+
+    The example also provides a control panel to adjust the gravity strength, the planet size,
+    the number of cubes, the movement speed, the slope limit, the maximum step height, whether
+    the character slides down steep slopes, and the mid-air control while the scene is running.
+
+    \section1 Dynamic Gravity Calculation
+
+    The global \l PhysicsWorld has no gravity. Instead, a \l GravityField in
+    \c Point mode pulls the character controller and the cubes towards the
+    center of the planet:
+
+    \snippet planet/main.qml dynamic-gravity
+
+    \section1 Surface Alignment and Rotation
+
+    To keep the character upright relative to the spherical surface,
+    its rotation incorporates the automatic alignment provided by \c gravityOrientation.
+
+    When navigating spherical or complex curved surfaces, traditional approaches compute surface orientation from scratch each frame using cross-products against a fixed reference vector:
+    \code
+    QVector3D forward = {0, 0, -1};
+    QVector3D right = QVector3D::crossProduct(forward, up).normalized();
+    \endcode
+
+    This classic method inevitably hits a geometric limitation as the character approaches the sphere poles.
+    When the gravity vector aligns directly with the global reference axis, the vectors lose orthogonal stability,
+    causing sudden snapping or unwanted spinning.
+
+    To solve this singularity problem, the \c gravityOrientation property uses an \e {incremental delta-rotation} approach (parallel transport):
+    \list
+    \li It tracks the previous surface alignment vector derived from the local gravity field.
+    \li As the character moves, it calculates the shortest arc rotation (\c QQuaternion::rotationTo) between the old gravity normal and the new gravity normal.
+    \li This gravitational delta is incrementally accumulated, bypassing global world axes and preventing polar instability.
+    \endlist
+
+    In QML, this orientation is seamlessly combined with the player's runtime look direction:
+
+    \snippet planet/main.qml character-orientation
+
+    \section1 Dynamic Objects Spawning
+
+    In addition to the character controller, dynamic cubic rigid bodies are spawned near the
+    character's starting position. The \l GravityField pulls each of them towards the center of
+    the planet, so the spawned cubes fall onto the surface. Changing the number of cubes or the
+    size of the planet removes the cubes and spawns them again.
+
+    \sa {Qt Quick 3D Physics}, CharacterController, PhysicsWorld, DynamicRigidBody
+*/

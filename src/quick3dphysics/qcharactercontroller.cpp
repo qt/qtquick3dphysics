@@ -7,6 +7,8 @@
 
 #include "physxnode/qphysxcharactercontroller_p.h"
 
+#include <QtCore/QPointer>
+
 QT_BEGIN_NAMESPACE
 
 /*!
@@ -30,9 +32,6 @@ QT_BEGIN_NAMESPACE
 
     \note \l {PhysicsNode::collisionShapes}{collisionShapes} must be set to
     a single \l {CapsuleShape}. No other shapes are supported.
-
-    \note The character controller is able to scale obstacles that are lower than one fourth of
-    the capsule shape's height.
 
     \sa {Qt Quick 3D Physics Shapes, Bodies and Joints}
 */
@@ -72,6 +71,10 @@ QT_BEGIN_NAMESPACE
     gravity, with
     \l movement applying as usual, until it lands on something.
 
+    \note The character's up direction, used for \l collisions, slopes, steps and
+    \l gravityOrientation, is opposite to this gravity plus the gravity of any
+    \l GravityField acting on it.
+
     Default value: \c{(0, 0, 0)}.
 */
 
@@ -106,9 +109,9 @@ QT_BEGIN_NAMESPACE
          The character is touching something below it. In standard gravity, this means
          that the character is on the ground.
 
-     \note The directions are defined relative to standard gravity: \c Up is always along the
-           positive y-axis, regardless of the value of \l {gravity}{CharacterController.gravity}
-           or \l{PhysicsWorld::gravity}{PhysicsWorld.gravity}
+    The directions are relative to the character's up direction, which is opposite
+    to its gravity: \l gravity plus the gravity of any \l GravityField acting on it.
+    If that gravity is zero, the last up direction is kept.
 */
 
 /*!
@@ -138,6 +141,156 @@ QT_BEGIN_NAMESPACE
     \l {CharacterController::} {enableShapeHitCallback} is set to \c true.
     The parameters \a body, \a position, \a impulse and \a normal contain the body, position,
     impulse force and normal for the contact point.
+*/
+
+/*!
+    \qmlproperty real CharacterController::maximumStepHeight
+    \since 6.13
+
+    This property defines the maximum height step that the character controller can automatically
+    climb over when moving on a surface.
+
+    A value of \c 0 disables stepping. A negative value, which is the default,
+    makes the controller pick a step height from the size of its capsule.
+
+    The step height picked for a negative value is currently a quarter of
+    the capsule's height, but this may change in future versions. To keep a
+    fixed relation to the capsule, bind the property to it instead:
+
+    \qml
+    CharacterController {
+        maximumStepHeight: capsule.height * 0.25
+        collisionShapes: CapsuleShape { id: capsule }
+    }
+    \endqml
+
+    \default -1
+
+    \note When using a \l CapsuleShape, the rounded bottom of the capsule interacts with sharp step
+    edges as if they were inclined surfaces. As a result, the controller may scale steps higher
+    than the defined \c maximumStepHeight if the step height is smaller than the bottom sphere radius of
+    the capsule and the surface angle does not exceed \l slopeLimit.
+
+    \sa slopeLimit
+*/
+
+/*!
+    \qmlproperty real CharacterController::slopeLimit
+    \since 6.13
+
+    This property defines the steepest slope, as an angle in degrees, that the
+    character controller can climb. The angle is measured from the plane
+    perpendicular to the character's up direction, so \c 0 only allows
+    flat ground and \c 90 allows any slope.
+
+    Range: \c{[0.0, 90.0]}
+
+    \default 45
+
+    \note The slope limit only applies to slopes on static bodies, such as a
+    \l StaticRigidBody, and not to \l SphereShape or \l CapsuleShape shapes. On a
+    dynamic or kinematic body, or on a sphere or capsule, it has no effect, and
+    neither has \l slideOnSteepSlopes.
+
+    \sa maximumStepHeight
+    \sa slideOnSteepSlopes
+    \sa sliding
+*/
+
+/*!
+    \qmlproperty bool CharacterController::sliding
+    \since 6.13
+
+    This read-only property is \c true while the character is on a slope steeper
+    than \l slopeLimit and \l slideOnSteepSlopes is \c true, so that the character
+    slides down instead of following its movement. It is always \c false when
+    \l slideOnSteepSlopes is \c false.
+
+    Use it to tell the character's animations and input handling that the
+    movement is being limited by the surface.
+
+    \sa slopeLimit
+    \sa slideOnSteepSlopes
+*/
+
+/*!
+    \qmlproperty bool CharacterController::slideOnSteepSlopes
+    \since 6.13
+
+    This property defines whether the character slides down slopes steeper than
+    \l slopeLimit. The character can never climb such a slope; with this
+    property \c false, it stays where it is on one, and with \c true, it slides
+    down, and \l sliding is \c true while it does.
+
+    \default false
+
+    \sa slopeLimit
+    \sa sliding
+*/
+
+/*!
+    \qmlproperty enumeration CharacterController::movementMode
+    \since 6.13
+
+    This property defines how the character controller uses the movement vector.
+
+    \value CharacterController.ForwardBased
+        The character moves relative to its own orientation. Gravity is applied if defined, and
+        \l landed is emitted.
+    \value CharacterController.Free
+        The character uses the movement vector as a global movement vector in the scene. In this mode,
+        gravity, midAirControl, and landed are ignored, though gravity is still used to determine the up
+        direction of the node.
+
+    \default CharacterController.ForwardBased
+
+    \sa gravity
+    \sa movement
+    \sa midAirControl
+    \sa landed
+*/
+
+/*!
+    \qmlsignal CharacterController::landed(real speed)
+    \since 6.13
+
+    This signal is emitted when the character lands after being in the air.
+    The \a speed parameter is how fast, in scene units per second, the character
+    was falling at the moment of impact. It is always positive.
+
+    \note This signal is not emitted when \l movementMode is
+    \c CharacterController.Free. It doesn't need \l enableShapeHitCallback.
+*/
+
+/*!
+    \qmlproperty quaternion CharacterController::gravityOrientation
+    \since 6.13
+
+    This property holds the rotation that turns the scene's up axis, positive y, into
+    the character's current up direction, which is opposite to its gravity. Use it
+    when the direction of gravity changes, such as on a planet, to keep the
+    character upright on the surface.
+
+    The rotation follows changes in the direction of gravity a small step at a time,
+    rather than being calculated from a fixed reference direction. This keeps it free
+    of sudden spins anywhere on a sphere, including at its poles. As a result, the
+    rotation depends on the path the character took, not only on where it is.
+
+    If the gravity is zero, the rotation keeps its last value.
+
+    Combine it with the player's look direction to rotate the character:
+
+    \qml
+    CharacterController {
+        id: playerController
+        property real playerYaw: 0
+
+        rotation: playerController.gravityOrientation
+                  .times(Quaternion.fromEulerAngles(0, playerYaw, 0))
+    }
+    \endqml
+
+    \sa gravity
 */
 
 QCharacterController::QCharacterController() = default;
@@ -198,89 +351,103 @@ QVector3D QCharacterController::effectiveGravity() const
     return m_gravity + m_environmentGravity;
 }
 
-// Calculate move based on movement/gravity
-
+// Calculates character displacement based on movement input and gravity field
 QVector3D QCharacterController::getDisplacement(float deltaTime)
 {
-    // Start with basic movement, assuming no other factors
-    QVector3D displacement = sceneRotation() * m_movement * deltaTime;
+    if (deltaTime <= 0.0f) {
+        return QVector3D(0.0f, 0.0f, 0.0f);
+    }
 
-    // modified based on gravity, including what fields contributed
-    // this frame, which is consumed here.
-    const auto g = effectiveGravity();
-    m_environmentGravity = QVector3D(0.0f, 0.0f, 0.0f);
-    // With no gravity left, a character that left a field keeps coasting on
-    // the speed it built up there until it hits something.
-    if (!g.isNull() || !m_freeFallVelocity.isNull()) {
+    // In Free mode, use the movement vector directly as provided.
+    // Custom movement mechanics and physics are managed externally by the user.
+    if (m_movementMode == MovementMode::Free) {
+        return m_movement * deltaTime;
+    }
 
-        // Avoid "spider mode": we are also supposed to be in free fall if gravity
-        // is pointing away from a surface we are touching. I.e. we are NOT in free
-        // fall only if gravity has a component in the direction of one of the collisions.
-        // Also: if we have "upwards" free fall velocity, that motion needs to stop
-        // when we hit the "ceiling"; i.e we are not in free fall at the moment of impact.
-        auto isGrounded = [this, g]() {
-            if (m_collisions == Collision::None)
-                return false;
+    // Transform local movement velocity relative to the character's orientation in the scene
+    const QVector3D moveVelocity = sceneRotation() * m_movement;
+    QVector3D displacement = moveVelocity * deltaTime;
 
-            // Coasting with no gravity: stopped by a contact in the direction
-            // it is moving. A side contact has no known direction, so it only
-            // stops a coast with nothing vertical in it; brushing a wall on the
-            // way down must not strand the character in mid-air.
-            if (g.isNull()) {
-                const float vy = m_freeFallVelocity.y();
-                if ((m_collisions & Collision::Down) && vy <= 0)
-                    return true;
-                if ((m_collisions & Collision::Up) && vy >= 0)
-                    return true;
-                return (m_collisions & Collision::Side) && qFuzzyIsNull(vy);
-            }
+    // This frame's gravity, including what GravityFields contribute
+    const QVector3D g = effectiveGravity();
+    if (g.isNull() && m_freeFallVelocity.isNull()) {
+        return displacement;
+    }
 
-            // Standard gravity case first
-            if (g.y() < 0) {
-                if (m_collisions & Collision::Down)
-                     return true; // We land on the ground
-                if ((m_collisions & Collision::Up) && m_freeFallVelocity.y() > 0)
-                    return true; // We bump our head on the way up
-            }
+    const bool hasGravity = !g.isNull();
+    const QVector3D gravityDir = hasGravity ? g.normalized() : QVector3D(0.0f, 0.0f, 0.0f);
 
-            // Inverse gravity next: exactly the opposite
-            if (g.y() > 0) {
-                if (m_collisions & Collision::Up)
-                     return true;
-                if ((m_collisions & Collision::Down) && m_freeFallVelocity.y() < 0)
-                    return true;
-            }
+    // Grounded check: verifies if the character is currently touching the surface below
+    const bool grounded = (m_collisions & Collision::Down);
 
-            // The sideways gravity case can't be perfectly handled since we don't
-            // know the direction of sideway contacts. We could in theory inspect
-            // the mesh, but that is far too complex for an extremely marginal use case.
+    // Detect state transitions (leaving ground vs landing)
+    const bool landing = (!m_lastGrounded && grounded);
 
-            if ((g.x() != 0 || g.z() != 0) && m_collisions & Collision::Side)
-                return true;
+    m_lastGrounded = grounded;
 
-            return false;
-        };
-
-        bool freeFalling = !isGrounded();
-        if (freeFalling) {
-            if (!m_midAirControl)
-                displacement = {}; // Ignore the movement() controls in true free fall
-
-            displacement += m_freeFallVelocity * deltaTime;
-            m_freeFallVelocity += g * deltaTime;
-        } else if (g.isNull()) {
-            // The coast has ended. Recording the walking speed, as below, would
-            // hand it back on top of the movement when contact is lost.
-            m_freeFallVelocity = QVector3D(0.0f, 0.0f, 0.0f);
-        } else {
-            m_freeFallVelocity = displacement / deltaTime + g * deltaTime;
-            if (m_midAirControl) // free fall only straight down
-                m_freeFallVelocity =
-                        QVector3D::dotProduct(m_freeFallVelocity, g.normalized()) * g.normalized();
+    // Upon landing, report the speed along the direction of gravity at the
+    // moment of impact. Lateral motion comes from movement input, or from
+    // the launch velocity when mid-air control is off.
+    if (landing) {
+        const QVector3D impactVelocity = m_freeFallVelocity + (m_midAirControl ? moveVelocity : m_jumpVelocity);
+        // Without gravity, a character coasting on the speed it built up under a
+        // GravityField lands along the way it was falling.
+        const QVector3D fallDir = hasGravity ? gravityDir : m_freeFallVelocity.normalized();
+        const float impactSpeed = QVector3D::dotProduct(impactVelocity, fallDir);
+        if (impactSpeed > 0.0f) {
+            const QPointer<QCharacterController> self(this);
+            emit landed(impactSpeed);
+            // A handler for landed can delete the controller.
+            if (!self)
+                return QVector3D(0.0f, 0.0f, 0.0f);
         }
-        const QVector3D gravityAcceleration = 0.5 * deltaTime * deltaTime * g;
-        displacement += gravityAcceleration; // always add gravitational acceleration, in case we start
-                                             // to fall. If we don't, PhysX will move us back to the ground.
+    }
+
+    const QVector3D gravityStepDisp = 0.5f * g * deltaTime * deltaTime;
+
+    if (grounded) {
+        // Contact consumes any free-fall velocity built up in the air, and the
+        // surface velocity is recorded so a take-off can lock onto it.
+        m_freeFallVelocity = QVector3D(0.0f, 0.0f, 0.0f);
+        m_jumpVelocity = moveVelocity;
+
+        const bool jump = QVector3D::dotProduct(gravityStepDisp + displacement, gravityDir) < 0.0f
+                && !landing;
+
+        if (m_sliding) {
+            // Slide down a slope too steep to stand on at a constant speed: the
+            // speed a free fall reaches after slideTime seconds. A jump has to
+            // be faster than that to leave the slope.
+            // TODO: Compute the slide speed from the slope angle and the material friction.
+            constexpr float slideTime = 0.7f;
+            return displacement + g * slideTime * deltaTime;
+        }
+
+        if (!jump) {
+            // Keep ground contact on steps and slopes with one frame's worth of
+            // gravity, as when the character starts to fall, so that walking off
+            // a ledge doesn't drop it further than falling would.
+            return displacement + gravityStepDisp;
+        }
+    }
+
+    // If mid-air control is disabled, lock motion strictly to the launch velocity
+    if (!m_midAirControl) {
+        displacement = m_jumpVelocity * deltaTime;
+    }
+
+    // Accumulate gravity over time and apply free-fall velocity to total displacement
+    displacement += m_freeFallVelocity * deltaTime;
+    m_freeFallVelocity += g * deltaTime;
+
+    const bool hitCeiling = (m_collisions & Collision::Up);
+    if (!m_midAirControl && hitCeiling && hasGravity) {
+        // Remove only the velocity component of m_jumpVelocity pointing opposite to gravity
+        const QVector3D upDir = -gravityDir;
+        const float upSpeed = QVector3D::dotProduct(m_jumpVelocity, upDir);
+        if (upSpeed > 0.0f) {
+            m_jumpVelocity -= upDir * upSpeed;
+        }
     }
 
     return displacement;
@@ -351,6 +518,102 @@ void QCharacterController::setEnableShapeHitCallback(bool newEnableShapeHitCallb
         return;
     m_enableShapeHitCallback = newEnableShapeHitCallback;
     emit enableShapeHitCallbackChanged();
+}
+
+float QCharacterController::maximumStepHeight() const
+{
+    return m_maximumStepHeight;
+}
+
+void QCharacterController::setMaximumStepHeight(float newMaximumStepHeight)
+{
+    if (!qIsFinite(newMaximumStepHeight)) {
+        qWarning() << "CharacterController: maximumStepHeight must be finite, ignoring"
+                   << newMaximumStepHeight;
+        return;
+    }
+
+    if (newMaximumStepHeight < 0.f)
+        newMaximumStepHeight = -1.f;
+
+    if (qFuzzyCompare(m_maximumStepHeight, newMaximumStepHeight))
+        return;
+
+    m_maximumStepHeight = newMaximumStepHeight;
+    emit maximumStepHeightChanged();
+}
+
+float QCharacterController::slopeLimit() const
+{
+    return m_slopeLimit;
+}
+
+void QCharacterController::setSlopeLimit(float newSlopeLimit)
+{
+    if (!qIsFinite(newSlopeLimit)) {
+        qWarning() << "CharacterController: slopeLimit must be finite, ignoring"
+                   << newSlopeLimit;
+        return;
+    }
+
+    newSlopeLimit = qBound(0.f, newSlopeLimit, 90.f);
+
+    if (qFuzzyCompare(m_slopeLimit, newSlopeLimit))
+        return;
+    m_slopeLimit = newSlopeLimit;
+    emit slopeLimitChanged();
+}
+
+bool QCharacterController::slideOnSteepSlopes() const
+{
+    return m_slideOnSteepSlopes;
+}
+
+void QCharacterController::setSlideOnSteepSlopes(bool newSlideOnSteepSlopes)
+{
+    if (m_slideOnSteepSlopes == newSlideOnSteepSlopes)
+        return;
+    m_slideOnSteepSlopes = newSlideOnSteepSlopes;
+    emit slideOnSteepSlopesChanged();
+}
+
+QCharacterController::MovementMode QCharacterController::movementMode() const
+{
+    return m_movementMode;
+}
+
+void QCharacterController::setMovementMode(MovementMode newMovementMode)
+{
+    if (m_movementMode == newMovementMode)
+        return;
+    m_movementMode = newMovementMode;
+    emit movementModeChanged();
+}
+
+QQuaternion QCharacterController::gravityOrientation() const
+{
+    return m_gravityOrientation;
+}
+
+bool QCharacterController::isSliding() const
+{
+    return m_sliding;
+}
+
+void QCharacterController::setSliding(bool sliding)
+{
+    if (m_sliding == sliding)
+        return;
+    m_sliding = sliding;
+    emit slidingChanged();
+}
+
+void QCharacterController::setGravityOrientation(const QQuaternion &newRotation)
+{
+    if (m_gravityOrientation != newRotation) {
+        m_gravityOrientation = newRotation;
+        emit gravityOrientationChanged();
+    }
 }
 
 QT_END_NAMESPACE

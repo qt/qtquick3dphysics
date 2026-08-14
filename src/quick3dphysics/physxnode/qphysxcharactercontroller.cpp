@@ -24,6 +24,43 @@
 
 QT_BEGIN_NAMESPACE
 
+static physx::PxControllerNonWalkableMode::Enum toPhysXNonWalkableMode(bool slideOnSteepSlopes)
+{
+    return slideOnSteepSlopes
+            ? physx::PxControllerNonWalkableMode::ePREVENT_CLIMBING_AND_FORCE_SLIDING
+            : physx::PxControllerNonWalkableMode::ePREVENT_CLIMBING;
+}
+
+// PhysX takes the cosine of the angle, and 0 there turns the slope limit off
+// for good: it can't be turned back on at runtime. Keep it just above 0.
+static float toPhysXSlopeLimit(float degrees)
+{
+    return std::max(std::cos(qDegreesToRadians(degrees)),
+                    std::numeric_limits<float>::epsilon());
+}
+
+// The step offset for PhysX: 0 turns stepping off, a negative value lets the
+// controller pick one from the capsule's size. PhysX won't create a controller
+// whose offset is more than height + 2 * radius, so clamp it below that.
+// sync() calls this every frame with the offset in use as current, so only
+// warn when the clamped offset changes.
+static float resolveStepOffset(float maximumStepHeight, float height, float radius,
+                               float current = -1.f)
+{
+    float stepOffset = maximumStepHeight < 0.f ? 0.25f * height : maximumStepHeight;
+    const float limit = height + 2.f * radius;
+    if (stepOffset >= limit) {
+        stepOffset = std::nextafter(limit, 0.f);
+        if (stepOffset != current) {
+            qWarning() << "CharacterController: maximumStepHeight of" << maximumStepHeight
+                       << "is at or above the PhysX limit of" << limit
+                       << "for a capsule of height" << height << "and radius" << radius
+                       << "; clamping the step offset.";
+        }
+    }
+    return stepOffset;
+}
+
 class ControllerCallback : public physx::PxUserControllerHitReport
 {
 public:
@@ -44,6 +81,20 @@ public:
         if (world->isNodeRemoved(other) || world->isNodeRemoved(trigger))
             return;
 
+        // A slope too steep to stand on: the normal points up, but less than the
+        // slope limit allows. Walls and ceilings don't count, and like PhysX, only
+        // static bodies that aren't spheres or capsules have a slope limit.
+        if (hit.controller->getNonWalkableMode()
+                    == physx::PxControllerNonWalkableMode::ePREVENT_CLIMBING_AND_FORCE_SLIDING
+            && hit.actor->getConcreteType() == physx::PxConcreteType::eRIGID_STATIC) {
+            const auto type = hit.shape->getGeometry().getType();
+            const float upness = hit.worldNormal.dot(hit.controller->getUpDirection());
+            if (type != physx::PxGeometryType::eSPHERE && type != physx::PxGeometryType::eCAPSULE
+                && upness > 0.f && upness < hit.controller->getSlopeLimit()) {
+                sliding = true;
+            }
+        }
+
         if (!trigger->enableShapeHitCallback())
             return;
 
@@ -55,6 +106,10 @@ public:
     }
     void onControllerHit(const physx::PxControllersHit & /*hit*/) override { }
     void onObstacleHit(const physx::PxControllerObstacleHit & /*hit*/) override { }
+
+    // Whether the last move() hit a slope it slides down. Read after move(), not
+    // set on the controller from in here, so that it changes at most once a frame.
+    bool sliding = false;
 
 private:
     QPhysicsWorld *world = nullptr;
@@ -162,7 +217,24 @@ void QPhysXCharacterController::init(QPhysicsWorld *world, QPhysXWorld * /*physX
     filter = new ControllerFilter;
     desc.radius = 0.5f * radiusScale * capsule->diameter();
     desc.height = heightScale * capsule->height();
-    desc.stepOffset = 0.25f * desc.height; // TODO: API
+    desc.stepOffset =
+            resolveStepOffset(characterController->maximumStepHeight() * heightScale,
+                              desc.height, desc.radius);
+
+    // Initialize the up direction depends on gravity - this is default practice for PhysX
+    // ignore this if the gravity is not set.
+    auto g = characterController->effectiveGravity();
+    if (!g.isNull()) {
+        QVector3D upDirection = -g.normalized();
+        desc.upDirection = QPhysicsUtils::toPhysXType(upDirection);
+
+        // apply initialized rotation in the space as gravity orientation
+        characterController->setGravityOrientation(
+                QQuaternion::rotationTo(QVector3D(0, 1, 0), upDirection));
+    }
+
+    desc.slopeLimit = toPhysXSlopeLimit(characterController->slopeLimit());
+    desc.nonWalkableMode = toPhysXNonWalkableMode(characterController->slideOnSteepSlopes());
 
     desc.material = material;
     const QVector3D pos = characterController->scenePosition();
@@ -202,13 +274,13 @@ void QPhysXCharacterController::sync(float deltaTime,
     auto *characterController = static_cast<QCharacterController *>(frontendNode);
 
     if (controller == nullptr) {
-        // getDisplacement() is never reached to consume this frame's gravity, so
-        // clear it here rather than let it pile up until the controller exists.
+        // Nothing moves the character without a controller, so drop this frame's
+        // gravity here rather than let it pile up until the controller exists.
         characterController->clearEnvironmentGravity();
         return;
     }
 
-    // Update capsule height, radius, stepOffset
+    // Update capsule height, radius, stepOffset (maximumStepHeight)
     const auto &shapes = characterController->getCollisionShapesList();
     auto capsule = shapes.length() == 1 ? qobject_cast<QCapsuleShape *>(shapes.front()) : nullptr;
 
@@ -221,9 +293,8 @@ void QPhysXCharacterController::sync(float deltaTime,
         const qreal heightScale = sceneScale.y();
         const qreal radiusScale = sceneScale.x();
 
-        // Update height
+        // Update height and radius
         const float heightNew = heightScale * capsule->height();
-        // Update radius
         const float radiusNew = 0.5f * radiusScale * capsule->diameter();
 
         if (!qIsFinite(heightNew) || heightNew <= 0.f || !qIsFinite(radiusNew)
@@ -236,10 +307,45 @@ void QPhysXCharacterController::sync(float deltaTime,
             if (!qFuzzyCompare(controller->getRadius(), radiusNew))
                 controller->setRadius(radiusNew);
         }
+
         // Update stepOffset
-        const float stepOffsetNew = 0.25f * heightNew;
-        if (!qFuzzyCompare(controller->getStepOffset(), stepOffsetNew))
-            controller->setStepOffset(stepOffsetNew);
+        const float stepOffset =
+                resolveStepOffset(characterController->maximumStepHeight() * heightScale, heightNew,
+                                  radiusNew, controller->getStepOffset());
+        if (!qFuzzyCompare(controller->getStepOffset(), stepOffset))
+            controller->setStepOffset(stepOffset);
+
+        // Update up direction
+        auto pxUpDirection = controller->getUpDirection();
+        QVector3D oldUpDirection = QPhysicsUtils::toQtType(pxUpDirection);
+
+        auto g = characterController->effectiveGravity();
+        if (!g.isNull()) {
+            QVector3D newUpDirection = -g.normalized();
+
+            // Use fuzzy comparison for floating-point vector tolerance
+            if (!qFuzzyCompare(oldUpDirection, newUpDirection)) {
+                controller->setUpDirection(QPhysicsUtils::toPhysXType(newUpDirection));
+
+                QQuaternion delta = QQuaternion::rotationTo(oldUpDirection, newUpDirection);
+                characterController->setGravityOrientation((delta * characterController->gravityOrientation()).normalized());
+                // That ran the controller's bindings, which can delete it.
+                if (!frontendNode)
+                    return;
+            }
+        }
+
+        // Update slope limit
+        const float slopeLimit = toPhysXSlopeLimit(characterController->slopeLimit());
+        if (!qFuzzyCompare(controller->getSlopeLimit(), slopeLimit)) {
+            controller->setSlopeLimit(slopeLimit);
+        }
+
+        const auto nonWalkableMode =
+                toPhysXNonWalkableMode(characterController->slideOnSteepSlopes());
+        if (controller->getNonWalkableMode() != nonWalkableMode) {
+            controller->setNonWalkableMode(nonWalkableMode);
+        }
     }
 
     // update node from physX
@@ -263,25 +369,35 @@ void QPhysXCharacterController::sync(float deltaTime,
     } else if (deltaTime > 0) {
         const auto displacement =
                 QPhysicsUtils::toPhysXType(characterController->getDisplacement(deltaTime));
+        // getDisplacement() emits landed, and a handler for that can delete
+        // the controller.
+        if (!frontendNode)
+            return;
         // No filter data on the query itself: PhysX's own query stage would
         // match it against query filter data the shapes were never given, and
         // let nothing through. The callback does the filtering instead.
         const physx::PxControllerFilters filters(nullptr, filter, filter);
-        auto collisions = controller->move(displacement, displacement.magnitude() / 100,
+
+        reportCallback->sliding = false;
+        auto collisions = controller->move(displacement, displacement.magnitude() * 0.01f,
                                            deltaTime, filters);
+
         // PxController::move() reports what it hits, and a handler for that
         // can delete the controller.
         if (!frontendNode)
             return;
         characterController->setCollisions(QCharacterController::Collisions(uint(collisions)));
+        // That ran the controller's bindings, which can delete it.
+        if (!frontendNode)
+            return;
+        characterController->setSliding(reportCallback->sliding);
     }
 
     // setCollisions() ran the controller's bindings, which can delete it.
     if (!frontendNode)
         return;
 
-    // A teleport, or a frame with no time in it, never reaches getDisplacement()
-    // to consume this frame's gravity, so clear it here.
+    // The fields add their gravity again before the next sync().
     characterController->clearEnvironmentGravity();
 
     // Materials are shared between nodes, so a change of the material properties moves this
