@@ -32,6 +32,7 @@ public:
     void sync(float deltaTime, QHash<QQuick3DNode *, QMatrix4x4> &transformCache) override;
     void rebuildDirtyShapes(QPhysicsWorld *world, QPhysXWorld *physX) override;
     void updateDefaultDensity(float density) override;
+    void createActor(QPhysXWorld *physX) override;
 };
 
 QT_END_NAMESPACE
