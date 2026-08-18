@@ -4,6 +4,7 @@
 
 #include "qphysxdynamicbody_p.h"
 
+#include "PxPhysics.h"
 #include "PxRigidDynamic.h"
 
 #include "qphysicscommands_p.h"
@@ -11,6 +12,7 @@
 #include "qphysicsworld_p.h"
 #include "qabstractphysicsbody_p.h"
 #include "qdynamicrigidbody_p.h"
+#include "qstaticphysxobjects_p.h"
 
 #include <QtGui/qquaternion.h>
 
@@ -98,6 +100,32 @@ static physx::PxTransform getPhysXWorldTransform(const QMatrix4x4 transform)
 }
 
 QPhysXDynamicBody::QPhysXDynamicBody(QDynamicRigidBody *frontEnd) : QPhysXRigidBody(frontEnd) { }
+
+void QPhysXDynamicBody::createActor(QPhysXWorld *physX)
+{
+    auto *dynamicRigidBody = static_cast<QDynamicRigidBody *>(frontendNode);
+    if (!dynamicRigidBody->isKinematic()) {
+        QPhysXRigidBody::createActor(physX);
+        return;
+    }
+
+    // A kinematic body is never moved by setGlobalPose()/the plain position/rotation
+    // properties; it's driven by setKinematicTarget() using kinematicPosition()/
+    // kinematicRotation() (see sync() below). If the actor were created at the plain,
+    // usually-unset position/rotation instead, the first simulated step would snap it
+    // over to its real kinematic pose in one step, which can violently yank anything
+    // jointed to it. So the initial pose must already match the kinematic one.
+    QHash<QQuick3DNode *, QMatrix4x4> transformCache;
+    const QMatrix4x4 transform = calculateKinematicNodeTransform(dynamicRigidBody, transformCache);
+    physx::PxTransform trf = getPhysXWorldTransform(transform);
+    if (!trf.isSane()) {
+        qWarning() << "DynamicRigidBody: kinematic position/rotation is not finite, using "
+                      "identity instead.";
+        trf = physx::PxTransform(physx::PxIdentity);
+    }
+    auto &s_physx = StaticPhysXObjects::getReference();
+    actor = s_physx.physics->createRigidDynamic(trf);
+}
 
 DebugDrawBodyType QPhysXDynamicBody::getDebugDrawBodyType()
 {
