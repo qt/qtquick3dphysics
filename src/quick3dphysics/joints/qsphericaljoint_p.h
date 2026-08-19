@@ -58,8 +58,8 @@ protected:
     void setJointProperties() final;
 
 private:
-    float m_coneLimitY = 0.0f;
-    float m_coneLimitZ = 0.0f;
+    float m_coneLimitY = M_PI_2;
+    float m_coneLimitZ = M_PI_2;
     bool m_enableConeLimit = false;
 };
 

@@ -34,7 +34,7 @@ QT_BEGIN_NAMESPACE
 /*!
     \qmlproperty real PrismaticJoint::lowerLimit
     \since 6.12
-    \default 0.0
+    \default -1000000
 
     The lower limit of the constraint, i.e. how far along the negative x-axis the joint can extend.
 
@@ -46,7 +46,7 @@ QT_BEGIN_NAMESPACE
 /*!
     \qmlproperty real PrismaticJoint::upperLimit
     \since 6.12
-    \default 0.0
+    \default 1000000
 
     The upper limit of the constraint, i.e. how far along the positive x-axis the joint can extend.
 

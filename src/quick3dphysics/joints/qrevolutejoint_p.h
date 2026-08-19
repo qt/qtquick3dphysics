@@ -58,9 +58,9 @@ protected:
     void setJointProperties() final;
 
 private:
-    float m_angularLimitLower = 0.f;
-    float m_angularLimitUpper = 0.f;
-    bool m_enableAngularLimit = 0.f;
+    float m_angularLimitLower = -M_PI_2;
+    float m_angularLimitUpper = M_PI_2;
+    bool m_enableAngularLimit = false;
 };
 
 QT_END_NAMESPACE
