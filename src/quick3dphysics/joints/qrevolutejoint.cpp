@@ -29,7 +29,7 @@ QT_BEGIN_NAMESPACE
 /*!
     \qmlproperty real RevoluteJoint::angularLimitLower
     \since 6.12
-    \default 0.0
+    \default -pi/2
 
     The lower angular limit (in radians) of the joint constraint.
 
@@ -41,7 +41,7 @@ QT_BEGIN_NAMESPACE
 /*!
     \qmlproperty real RevoluteJoint::angularLimitUpper
     \since 6.12
-    \default 0.0
+    \default pi/2
 
     The Upper angular limit (in radians) of the joint constraint.
 

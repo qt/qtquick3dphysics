@@ -29,7 +29,7 @@ QT_BEGIN_NAMESPACE
 /*!
     \qmlproperty real SphericalJoint::coneLimitY
     \since 6.12
-    \default 0.0
+    \default pi/2
 
     The y limit (in radians) of the joint's cone constraint.
 
@@ -41,7 +41,7 @@ QT_BEGIN_NAMESPACE
 /*!
     \qmlproperty real SphericalJoint::coneLimitZ
     \since 6.12
-    \default 0.0
+    \default pi/2
 
     The z limit (in radians) of the joint's cone constraint.
 

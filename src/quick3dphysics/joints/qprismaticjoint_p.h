@@ -53,8 +53,8 @@ protected:
     void setJointProperties() final;
 
 private:
-    float m_lowerLimit = 0.f;
-    float m_upperLimit = 0.f;
+    float m_lowerLimit = -1000000;
+    float m_upperLimit = 1000000;
 };
 
 QT_END_NAMESPACE
