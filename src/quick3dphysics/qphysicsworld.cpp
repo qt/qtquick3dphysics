@@ -201,8 +201,8 @@ QT_BEGIN_NAMESPACE
     \li No threading, simulation will run sequentially.
     \row
     \li Positive
-    \li \c{[1, inf]}
-    \li Specific thread count.
+    \li \c{[1, 256]}
+    \li Specific thread count. Values above 256 are clamped.
     \endtable
 
     The default value is \c{-1}, meaning automatic thread count.
@@ -1617,8 +1617,11 @@ int QPhysicsWorld::numThreads() const
 
 void QPhysicsWorld::setNumThreads(int newNumThreads)
 {
+    newNumThreads = qMin(newNumThreads, 256);
+
     if (m_numThreads == newNumThreads)
         return;
+
     m_numThreads = newNumThreads;
     emit numThreadsChanged();
 }
