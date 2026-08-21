@@ -245,10 +245,20 @@ void QPhysicsJoint::updatePhysXBackend()
     }
 
     if (m_needsRebuild && compatibleTypes) {
-        const auto trfA = physx::PxTransform(QPhysicsUtils::toPhysXType(m_positionA),
-                                             QPhysicsUtils::toPhysXType(m_orientationA));
-        const auto trfB = physx::PxTransform(QPhysicsUtils::toPhysXType(m_positionB),
-                                             QPhysicsUtils::toPhysXType(m_orientationB));
+        auto trfA = physx::PxTransform(QPhysicsUtils::toPhysXType(m_positionA),
+                                       QPhysicsUtils::toPhysXType(m_orientationA));
+        auto trfB = physx::PxTransform(QPhysicsUtils::toPhysXType(m_positionB),
+                                       QPhysicsUtils::toPhysXType(m_orientationB));
+        if (!trfA.isSane()) {
+            qWarning() << "PhysicsJoint: positionA/orientationA is not finite, using identity "
+                          "instead.";
+            trfA = physx::PxTransform(physx::PxIdentity);
+        }
+        if (!trfB.isSane()) {
+            qWarning() << "PhysicsJoint: positionB/orientationB is not finite, using identity "
+                          "instead.";
+            trfB = physx::PxTransform(physx::PxIdentity);
+        }
         m_joint = createPhysxJoint(actorA, actorB, trfA, trfB);
     }
 

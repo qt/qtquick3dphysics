@@ -335,9 +335,22 @@ void QHeightFieldShape::updatePhysXGeometry()
     updateExtents();
     if (hf && cols > 1 && rows > 1) {
         QVector3D scaledExtents = m_extents * sceneScale();
-        m_heightFieldGeometry = new physx::PxHeightFieldGeometry(
-                hf, physx::PxMeshGeometryFlags(), scaledExtents.y() / 0x10000,
-                scaledExtents.x() / (cols - 1), scaledExtents.z() / (rows - 1));
+        const float heightScale = scaledExtents.y() / 0x10000;
+        const float rowScale = scaledExtents.x() / (cols - 1);
+        const float columnScale = scaledExtents.z() / (rows - 1);
+        // 1e-8f/(0.0001f / 65535.0f) mirror PhysX's PX_MIN_HEIGHTFIELD_XZ_SCALE/
+        // PX_MIN_HEIGHTFIELD_Y_SCALE (PxHeightFieldGeometry.h); not used directly since
+        // those macros expand to an unqualified PxReal(), only valid inside namespace physx.
+        if (!qIsFinite(heightScale) || !qIsFinite(rowScale) || !qIsFinite(columnScale)
+            || rowScale < 1e-8f || columnScale < 1e-8f || heightScale < (0.0001f / 65535.0f)) {
+            qWarning() << "HeightFieldShape: extents" << m_extents
+                       << "produce an invalid scale, ignoring.";
+            m_dirtyPhysx = false;
+            return;
+        }
+        m_heightFieldGeometry = new physx::PxHeightFieldGeometry(hf, physx::PxMeshGeometryFlags(),
+                                                                  heightScale, rowScale,
+                                                                  columnScale);
         m_hfOffset = { -scaledExtents.x() / 2, 0, -scaledExtents.z() / 2 };
 
         qCDebug(lcQuick3dPhysics) << "created height field geom" << m_heightFieldGeometry << "scale"

@@ -22,6 +22,7 @@
 
 #include "PxPhysicsAPI.h"
 #include "cooking/PxCooking.h"
+#include <foundation/PxSimpleTypes.h>
 
 #include <QtQuick/private/qquickframeanimation_p.h>
 #include <QtQuick3D/private/qquick3dobject_p.h>
@@ -587,6 +588,11 @@ void QPhysicsWorld::setGravity(QVector3D gravity)
     if (m_gravity == gravity)
         return;
 
+    if (!QPhysicsUtils::isFinite(gravity)) {
+        qWarning() << "Warning: 'gravity' must be finite, ignored";
+        return;
+    }
+
     m_gravity = gravity;
     if (m_physx->scene) {
         m_physx->scene->setGravity(QPhysicsUtils::toPhysXType(m_gravity));
@@ -660,6 +666,11 @@ void QPhysicsWorld::setMinimumTimestep(float minTimestep)
     if (qFuzzyCompare(m_minTimestep, minTimestep))
         return;
 
+    if (!qIsFinite(minTimestep)) {
+        qWarning("Minimum timestep must be finite, ignoring");
+        return;
+    }
+
     if (minTimestep > m_maxTimestep) {
         qWarning("Minimum timestep greater than maximum timestep, value clamped");
         minTimestep = qMin(minTimestep, m_maxTimestep);
@@ -681,6 +692,11 @@ void QPhysicsWorld::setMaximumTimestep(float maxTimestep)
 {
     if (qFuzzyCompare(m_maxTimestep, maxTimestep))
         return;
+
+    if (!qIsFinite(maxTimestep)) {
+        qWarning("Maximum timestep must be finite, ignoring");
+        return;
+    }
 
     if (maxTimestep < 0.f) {
         qWarning("Maximum timestep less than zero, value clamped");
@@ -1221,7 +1237,7 @@ void QPhysicsWorld::setTypicalLength(float typicalLength)
     if (qFuzzyCompare(typicalLength, m_typicalLength))
         return;
 
-    if (typicalLength <= 0.f) {
+    if (!qIsFinite(typicalLength) || typicalLength <= 0.f) {
         qWarning() << "Warning: 'typicalLength' value less than zero, ignored";
         return;
     }
@@ -1241,6 +1257,11 @@ void QPhysicsWorld::setTypicalSpeed(float typicalSpeed)
 {
     if (qFuzzyCompare(typicalSpeed, m_typicalSpeed))
         return;
+
+    if (!qIsFinite(typicalSpeed) || typicalSpeed <= 0.f) {
+        qWarning() << "Warning: 'typicalSpeed' must be finite and greater than zero, ignored";
+        return;
+    }
 
     if (m_physicsInitialized) {
         qWarning() << "Warning: Changing 'typicalSpeed' after physics is initialized will have "
@@ -1270,6 +1291,8 @@ float QPhysicsWorld::maximumTimestep() const
 
 void QPhysicsWorld::setDefaultDensity(float defaultDensity)
 {
+    defaultDensity = qBound(0.0000001f, defaultDensity, PX_MAX_F32);
+
     if (qFuzzyCompare(m_defaultDensity, defaultDensity))
         return;
     m_defaultDensity = defaultDensity;

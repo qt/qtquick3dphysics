@@ -68,6 +68,21 @@ Q_ALWAYS_INLINE bool fuzzyEquals(const physx::PxTransform &a, const physx::PxTra
             && qFuzzyCompare(a.q.z, b.q.z) && qFuzzyCompare(a.q.w, b.q.w);
 }
 
+Q_ALWAYS_INLINE bool isFinite(const QVector3D &v)
+{
+    return qIsFinite(v.x()) && qIsFinite(v.y()) && qIsFinite(v.z());
+}
+
+Q_ALWAYS_INLINE bool isFinite(const QQuaternion &q)
+{
+    return qIsFinite(q.x()) && qIsFinite(q.y()) && qIsFinite(q.z()) && qIsFinite(q.scalar());
+}
+
+Q_ALWAYS_INLINE bool isFinite(const physx::PxVec3 &v)
+{
+    return qIsFinite(v.x) && qIsFinite(v.y) && qIsFinite(v.z);
+}
+
 inline const QQuaternion kMinus90YawRotation = QQuaternion::fromEulerAngles(0, -90, 0);
 }
 
