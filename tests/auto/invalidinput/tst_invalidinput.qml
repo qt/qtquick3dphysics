@@ -175,6 +175,12 @@ Item {
             verify(!isNaN(invalidShapeWorld.defaultDensity),
                    "non-finite defaultDensity should be clamped")
         }
+
+        function test_numThreadsClampsUnreasonableValues() {
+            invalidShapeWorld.numThreads = 1000000
+            verify(invalidShapeWorld.numThreads <= 256,
+                   "an unreasonably large numThreads should be clamped")
+        }
     }
 
     TestCase {
