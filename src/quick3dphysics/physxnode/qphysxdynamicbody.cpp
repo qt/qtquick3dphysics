@@ -119,7 +119,13 @@ void QPhysXDynamicBody::sync(float deltaTime, QHash<QQuick3DNode *, QMatrix4x4> 
         // bodies can occur in other bodies we need to calculate the tranform recursively for all
         // parents. To save some computation we cache these transforms in 'transformCache'.
         QMatrix4x4 transform = calculateKinematicNodeTransform(dynamicRigidBody, transformCache);
-        dynamicActor->setKinematicTarget(getPhysXWorldTransform(transform));
+        const physx::PxTransform worldTransform = getPhysXWorldTransform(transform);
+        if (worldTransform.isSane()) {
+            dynamicActor->setKinematicTarget(worldTransform);
+        } else {
+            qWarning() << "DynamicRigidBody: kinematic transform is not finite, keeping "
+                          "previous target.";
+        }
     } else {
         dynamicActor->setRigidDynamicLockFlags(getLockFlags(dynamicRigidBody));
     }

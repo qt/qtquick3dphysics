@@ -29,9 +29,12 @@ void QPhysXStaticBody::sync(float deltaTime, QHash<QQuick3DNode *, QMatrix4x4> &
                                                                        staticBody->sceneRotation());
     const physx::PxTransform poseOld = actor->getGlobalPose();
 
-    // For performance we only update static objects if they have been moved
-    if (!QPhysicsUtils::fuzzyEquals(poseNew, poseOld))
+    if (!poseNew.isSane()) {
+        qWarning() << "StaticRigidBody: position/rotation is not finite, keeping previous pose.";
+    } else if (!QPhysicsUtils::fuzzyEquals(poseNew, poseOld)) {
+        // For performance we only update static objects if they have been moved
         actor->setGlobalPose(poseNew);
+    }
 
     const bool disabledPrevious = actor->getActorFlags() & physx::PxActorFlag::eDISABLE_SIMULATION;
     const bool disabled = !staticBody->simulationEnabled();
@@ -45,8 +48,12 @@ void QPhysXStaticBody::sync(float deltaTime, QHash<QQuick3DNode *, QMatrix4x4> &
 void QPhysXStaticBody::createActor(QPhysXWorld * /*physX*/)
 {
     auto &s_physx = StaticPhysXObjects::getReference();
-    const physx::PxTransform trf = QPhysicsUtils::toPhysXTransform(frontendNode->scenePosition(),
-                                                                   frontendNode->sceneRotation());
+    physx::PxTransform trf = QPhysicsUtils::toPhysXTransform(frontendNode->scenePosition(),
+                                                              frontendNode->sceneRotation());
+    if (!trf.isSane()) {
+        qWarning() << "PhysicsNode: position/rotation is not finite, using identity instead.";
+        trf = physx::PxTransform(physx::PxIdentity);
+    }
     actor = s_physx.physics->createRigidStatic(trf);
 }
 

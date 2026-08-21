@@ -129,8 +129,12 @@ void QPhysXActorBody::rebuildDirtyShapes(QPhysicsWorld * /*world*/, QPhysXWorld 
 void QPhysXActorBody::createActor(QPhysXWorld * /*physX*/)
 {
     auto &s_physx = StaticPhysXObjects::getReference();
-    const physx::PxTransform trf = QPhysicsUtils::toPhysXTransform(frontendNode->scenePosition(),
-                                                                   frontendNode->sceneRotation());
+    physx::PxTransform trf = QPhysicsUtils::toPhysXTransform(frontendNode->scenePosition(),
+                                                              frontendNode->sceneRotation());
+    if (!trf.isSane()) {
+        qWarning() << "PhysicsNode: position/rotation is not finite, using identity instead.";
+        trf = physx::PxTransform(physx::PxIdentity);
+    }
     actor = s_physx.physics->createRigidDynamic(trf);
 }
 
@@ -182,7 +186,13 @@ void QPhysXActorBody::buildShapes(QPhysXWorld * /*physX*/)
         }
 
         shapes.push_back(physXShape);
-        physXShape->setLocalPose(getPhysXLocalTransform(collisionShape));
+        physx::PxTransform localPose = getPhysXLocalTransform(collisionShape);
+        if (!localPose.isSane()) {
+            qWarning() << "QtQuick3DPhysics: collision shape position/rotation is not finite, "
+                          "using identity local pose instead.";
+            localPose = physx::PxTransform(physx::PxIdentity);
+        }
+        physXShape->setLocalPose(localPose);
         body->attachShape(*physXShape);
     }
 

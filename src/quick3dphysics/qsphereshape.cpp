@@ -50,6 +50,12 @@ physx::PxGeometry *QSphereShape::getPhysXGeometry()
 
 void QSphereShape::setDiameter(float diameter)
 {
+    if (!qIsFinite(diameter) || diameter <= 0.f) {
+        qWarning() << "SphereShape: diameter must be finite and greater than zero, ignoring"
+                   << diameter;
+        return;
+    }
+
     if (qFuzzyCompare(m_diameter, diameter))
         return;
 
@@ -63,9 +69,16 @@ void QSphereShape::setDiameter(float diameter)
 void QSphereShape::updatePhysXGeometry()
 {
     delete m_physXGeometry;
-    auto s = sceneScale();
-    m_physXGeometry = new physx::PxSphereGeometry(m_diameter * 0.5f * s.x());
+    m_physXGeometry = nullptr;
     m_scaleDirty = false;
+
+    const float radius = m_diameter * 0.5f * sceneScale().x();
+    if (!qIsFinite(radius) || radius <= 0.f) {
+        qWarning() << "SphereShape: scaled radius must be finite and greater than zero, "
+                      "ignoring.";
+        return;
+    }
+    m_physXGeometry = new physx::PxSphereGeometry(radius);
 }
 
 QT_END_NAMESPACE

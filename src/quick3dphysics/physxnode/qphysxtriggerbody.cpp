@@ -24,6 +24,10 @@ void QPhysXTriggerBody::sync(float /*deltaTime*/,
     auto *triggerBody = static_cast<QTriggerBody *>(frontendNode);
     const physx::PxTransform trf = QPhysicsUtils::toPhysXTransform(triggerBody->scenePosition(),
                                                                    triggerBody->sceneRotation());
+    if (!trf.isSane()) {
+        qWarning() << "TriggerBody: position/rotation is not finite, keeping previous pose.";
+        return;
+    }
     actor->setGlobalPose(trf);
 }
 
