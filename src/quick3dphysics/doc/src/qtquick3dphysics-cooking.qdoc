@@ -19,6 +19,11 @@ To use the cache directory set the \c QT_PHYSICS_CACHE_PATH environment variable
 When the application runs for the first time all used meshes will be cooked and stored in this directory.
 The following times the application runs, the cooked meshes will be read from disk instead of being cooked.
 
+\warning The cache directory's files are not validated before being loaded. Loading a malformed
+or untrusted cache file may have security implications. Application developers should carefully
+consider these before pointing \c QT_PHYSICS_CACHE_PATH at a directory that is writable by other
+users or processes.
+
 \section1 Cooker tool
 
 The other way is to use the \c cooker tool. Build it, then simply call the tool with the mesh or heightfield image as the input argument:
