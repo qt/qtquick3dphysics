@@ -8,6 +8,7 @@ import QtQuick
 import QtTest
 import QtQuick3D
 import QtQuick3D.Physics
+import QtQuick3D.Physics.Helpers
 import QtQuick3D.Physics.TestUtils
 import PhysicsTest.InvalidInput
 
@@ -36,6 +37,10 @@ Item {
 
     BoxShape {
         id: boxShapeTestNode
+    }
+
+    CapsuleGeometry {
+        id: capsuleGeometryTestNode
     }
 
     CharacterController {
@@ -75,6 +80,25 @@ Item {
             boxShapeTestNode.extents = Qt.vector3d(10, -1, 10)
             compare(boxShapeTestNode.extents, Qt.vector3d(10, 10, 10),
                     "a negative extents component should be rejected")
+        }
+
+        // CapsuleGeometry.longitudes/latitudes/rings only had a lower-bound clamp; an
+        // unreasonably large value made the uint32_t vertex/face-count arithmetic in
+        // updateData() (qcapsulegeometry.cpp) overflow and wrap around to a small buffer
+        // size while the fill loops still iterated the real, huge count, writing past the
+        // allocation.
+        function test_capsuleGeometryTessellationClampsUnreasonableValues() {
+            capsuleGeometryTestNode.longitudes = 1000000
+            verify(capsuleGeometryTestNode.longitudes <= 1024,
+                   "an unreasonably large longitudes should be clamped")
+
+            capsuleGeometryTestNode.latitudes = 1000000
+            verify(capsuleGeometryTestNode.latitudes <= 1024,
+                   "an unreasonably large latitudes should be clamped")
+
+            capsuleGeometryTestNode.rings = 1000000
+            verify(capsuleGeometryTestNode.rings <= 1024,
+                   "an unreasonably large rings should be clamped")
         }
 
         // CharacterController.movement/gravity reach PxController::move() with no
