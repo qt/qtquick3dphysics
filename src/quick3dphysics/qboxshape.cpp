@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #include "qboxshape_p.h"
+#include "qphysicsutils_p.h"
 
 #include <QtQuick3D/QQuick3DGeometry>
 #include <extensions/PxExtensionsAPI.h>
@@ -52,6 +53,14 @@ physx::PxGeometry *QBoxShape::getPhysXGeometry()
 
 void QBoxShape::setExtents(QVector3D extents)
 {
+    if (!QPhysicsUtils::isFinite(extents) || extents.x() <= 0.f || extents.y() <= 0.f
+        || extents.z() <= 0.f) {
+        qWarning() << "BoxShape: extents must be finite and greater than zero in every "
+                      "component, ignoring"
+                   << extents;
+        return;
+    }
+
     if (m_extents == extents)
         return;
 
@@ -65,9 +74,16 @@ void QBoxShape::setExtents(QVector3D extents)
 void QBoxShape::updatePhysXGeometry()
 {
     delete m_physXGeometry;
-    const QVector3D half = m_extents * sceneScale() * 0.5f;
-    m_physXGeometry = new physx::PxBoxGeometry(half.x(), half.y(), half.z());
+    m_physXGeometry = nullptr;
     m_scaleDirty = false;
+
+    const QVector3D half = m_extents * sceneScale() * 0.5f;
+    if (!QPhysicsUtils::isFinite(half) || half.x() <= 0.f || half.y() <= 0.f || half.z() <= 0.f) {
+        qWarning() << "BoxShape: extents" << m_extents << "scaled by" << sceneScale()
+                   << "must be finite and greater than zero in every component, ignoring.";
+        return;
+    }
+    m_physXGeometry = new physx::PxBoxGeometry(half.x(), half.y(), half.z());
 }
 
 QT_END_NAMESPACE

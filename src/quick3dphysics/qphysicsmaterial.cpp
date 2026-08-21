@@ -5,9 +5,10 @@
 
 #include <foundation/PxSimpleTypes.h>
 
+// This order clamps a NaN value to max instead of leaving it as NaN.
 static float clamp(float value, float min, float max)
 {
-    return std::max(std::min(value, max), min);
+    return std::max(min, std::min(max, value));
 }
 
 QT_BEGIN_NAMESPACE

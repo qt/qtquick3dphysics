@@ -3,6 +3,7 @@
 
 #include "qcacheutils_p.h"
 #include "qmeshshape_p.h"
+#include "qphysicsutils_p.h"
 
 #include <QtQuick3D/QQuick3DGeometry>
 #include <extensions/PxExtensionsAPI.h>
@@ -475,6 +476,13 @@ void QMeshShape::updatePhysXGeometry()
     auto meshScale = sceneScale();
     physx::PxMeshScale scale(physx::PxVec3(meshScale.x(), meshScale.y(), meshScale.z()),
                              physx::PxQuat(physx::PxIdentity));
+
+    if (!QPhysicsUtils::isFinite(meshScale)
+        || !(convexMesh ? scale.isValidForConvexMesh() : scale.isValidForTriangleMesh())) {
+        qWarning() << "MeshShape: scaled mesh scale" << meshScale << "is invalid, ignoring.";
+        m_dirtyPhysx = false;
+        return;
+    }
 
     if (convexMesh)
         m_convexGeometry = new physx::PxConvexMeshGeometry(convexMesh, scale);

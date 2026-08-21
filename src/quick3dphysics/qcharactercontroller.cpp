@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GPL-3.0-only
 
 #include "qcharactercontroller_p.h"
+#include "qphysicsutils_p.h"
 
 #include "physxnode/qphysxcharactercontroller_p.h"
 
@@ -131,6 +132,11 @@ const QVector3D &QCharacterController::movement() const
 
 void QCharacterController::setMovement(const QVector3D &newMovement)
 {
+    if (!QPhysicsUtils::isFinite(newMovement)) {
+        qWarning() << "CharacterController: movement must be finite, ignoring" << newMovement;
+        return;
+    }
+
     if (m_movement == newMovement)
         return;
     m_movement = newMovement;
@@ -144,6 +150,11 @@ const QVector3D &QCharacterController::gravity() const
 
 void QCharacterController::setGravity(const QVector3D &newGravity)
 {
+    if (!QPhysicsUtils::isFinite(newGravity)) {
+        qWarning() << "CharacterController: gravity must be finite, ignoring" << newGravity;
+        return;
+    }
+
     if (m_gravity == newGravity)
         return;
     m_gravity = newGravity;
@@ -232,6 +243,12 @@ void QCharacterController::setMidAirControl(bool newMidAirControl)
 
 void QCharacterController::teleport(const QVector3D &position)
 {
+    if (!QPhysicsUtils::isFinite(position)) {
+        qWarning() << "CharacterController: teleport() position must be finite, ignoring"
+                   << position;
+        return;
+    }
+
     m_teleport = true;
     m_teleportPosition = position;
     m_freeFallVelocity = {};

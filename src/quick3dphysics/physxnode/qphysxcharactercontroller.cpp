@@ -144,12 +144,19 @@ void QPhysXCharacterController::sync(float deltaTime,
 
         // Update height
         const float heightNew = heightScale * capsule->height();
-        if (!qFuzzyCompare(controller->getHeight(), heightNew))
-            controller->resize(heightNew);
         // Update radius
         const float radiusNew = 0.5f * radiusScale * capsule->diameter();
-        if (!qFuzzyCompare(controller->getRadius(), radiusNew))
-            controller->setRadius(radiusNew);
+
+        if (!qIsFinite(heightNew) || heightNew <= 0.f || !qIsFinite(radiusNew)
+            || radiusNew <= 0.f) {
+            qWarning() << "CharacterController: scaled capsule height/radius must be finite "
+                          "and positive, ignoring.";
+        } else {
+            if (!qFuzzyCompare(controller->getHeight(), heightNew))
+                controller->resize(heightNew);
+            if (!qFuzzyCompare(controller->getRadius(), radiusNew))
+                controller->setRadius(radiusNew);
+        }
         // Update stepOffset
         const float stepOffsetNew = 0.25f * heightNew;
         if (!qFuzzyCompare(controller->getStepOffset(), stepOffsetNew))

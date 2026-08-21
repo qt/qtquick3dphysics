@@ -212,8 +212,12 @@ void QPhysicsCommandSetMassAndInertiaMatrix::execute(const QDynamicRigidBody &ri
 
     physx::PxQuat massFrame;
     physx::PxVec3 diagTensor = physx::PxDiagonalize(QPhysicsUtils::toPhysXType(inertia), massFrame);
-    if ((diagTensor.x <= 0.0f) || (diagTensor.y <= 0.0f) || (diagTensor.z <= 0.0f))
-        return; // FIXME: print error?
+    if (!QPhysicsUtils::isFinite(diagTensor) || diagTensor.x <= 0.0f || diagTensor.y <= 0.0f
+        || diagTensor.z <= 0.0f) {
+        qWarning() << "Invalid inertiaMatrix, does not diagonalize to a positive-definite "
+                      "tensor, ignoring.";
+        return;
+    }
 
     body.setCMassLocalPose(physx::PxTransform(
             QPhysicsUtils::toPhysXType(rigidBody.centerOfMassPosition()), massFrame));
