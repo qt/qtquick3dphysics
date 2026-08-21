@@ -40,19 +40,20 @@ QT_BEGIN_NAMESPACE
 /*! \qmlproperty int CapsuleGeometry::longitudes
     \default 32
 
-    Number of longitudes, or meridians, distributed by azimuth.
+    Number of longitudes, or meridians, distributed by azimuth. Values above 1024 are clamped.
 */
 
 /*! \qmlproperty int CapsuleGeometry::latitudes
     \default 16
 
-    Number of latitudes, distributed by inclination. Must be even.
+    Number of latitudes, distributed by inclination. Must be even. Values above 1024 are
+    clamped.
 */
 
 /*! \qmlproperty int CapsuleGeometry::rings
     \default 1
 
-    Number of sections in cylinder between hemispheres.
+    Number of sections in cylinder between hemispheres. Values above 1024 are clamped.
 */
 
 /*! \qmlproperty real CapsuleGeometry::height
@@ -96,6 +97,8 @@ void CapsuleGeometryPhysics::setEnableUV(bool enable)
 
 void CapsuleGeometryPhysics::setLongitudes(int longitudes)
 {
+    longitudes = qMin(longitudes, 1024);
+
     if (m_longitudes == longitudes)
         return;
 
@@ -107,6 +110,8 @@ void CapsuleGeometryPhysics::setLongitudes(int longitudes)
 
 void CapsuleGeometryPhysics::setLatitudes(int latitudes)
 {
+    latitudes = qMin(latitudes, 1024);
+
     if (m_latitudes == latitudes)
         return;
 
@@ -118,6 +123,8 @@ void CapsuleGeometryPhysics::setLatitudes(int latitudes)
 
 void CapsuleGeometryPhysics::setRings(int rings)
 {
+    rings = qMin(rings, 1024);
+
     if (m_rings == rings)
         return;
 
