@@ -53,14 +53,16 @@ public:
             if (world->isNodeRemoved(triggerNode) || world->isNodeRemoved(otherNode))
                 continue;
 
-            if (pairs->status == physx::PxPairFlag::eNOTIFY_TOUCH_FOUND) {
+            const auto status = pairs[i].status;
+
+            if (status == physx::PxPairFlag::eNOTIFY_TOUCH_FOUND) {
                 if (otherNode->sendTriggerReports()) {
                     triggerNode->registerCollision(otherNode);
                 }
                 if (otherNode->receiveTriggerReports()) {
                     emit otherNode->enteredTriggerBody(triggerNode);
                 }
-            } else if (pairs->status == physx::PxPairFlag::eNOTIFY_TOUCH_LOST) {
+            } else if (status == physx::PxPairFlag::eNOTIFY_TOUCH_LOST) {
                 if (otherNode->sendTriggerReports()) {
                     triggerNode->deregisterCollision(otherNode);
                 }
