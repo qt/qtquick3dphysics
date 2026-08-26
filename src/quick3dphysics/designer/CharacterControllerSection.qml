@@ -176,8 +176,8 @@ Section {
 
         SecondColumnLayout {
             CheckBox {
-                text: backendValues.midAirControl.valueToString
-                backendValue: backendValues.midAirControl
+                text: backendValues.enableShapeHitCallback.valueToString
+                backendValue: backendValues.enableShapeHitCallback
                 implicitWidth: StudioTheme.Values.twoControlColumnWidth
                                 + StudioTheme.Values.actionIndicatorWidth
             }
