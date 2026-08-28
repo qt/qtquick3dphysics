@@ -166,15 +166,26 @@ static bool isFilteredOut(physx::PxFilterData filterData0, physx::PxFilterData f
 }
 
 static physx::PxFilterFlags
-contactReportFilterShader(physx::PxFilterObjectAttributes /*attributes0*/,
+contactReportFilterShader(physx::PxFilterObjectAttributes attributes0,
                           physx::PxFilterData filterData0,
-                          physx::PxFilterObjectAttributes /*attributes1*/,
+                          physx::PxFilterObjectAttributes attributes1,
                           physx::PxFilterData filterData1, physx::PxPairFlags &pairFlags,
                           const void * /*constantBlock*/, physx::PxU32 /*constantBlockSize*/)
 {
     if (isFilteredOut(filterData0, filterData1)) {
         // We return a 'suppress' since that will still re-evaluate when filter data is changed.
         return physx::PxFilterFlag::eSUPPRESS;
+    }
+
+    // A trigger shape does not collide, it only reports what overlaps it, so
+    // there is nothing to solve and nothing for a continuous sweep to do. The
+    // scene has CCD enabled unconditionally (see below), and PhysX warns for
+    // every trigger pair that asks for a CCD contact, so ask only for what a
+    // trigger actually needs.
+    if (physx::PxFilterObjectIsTrigger(attributes0)
+        || physx::PxFilterObjectIsTrigger(attributes1)) {
+        pairFlags = physx::PxPairFlag::eTRIGGER_DEFAULT;
+        return physx::PxFilterFlag::eDEFAULT;
     }
 
     // Makes objects collide
