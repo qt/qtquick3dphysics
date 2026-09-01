@@ -74,9 +74,12 @@ public:
                     emit otherNode->enteredTriggerBody(triggerNode);
                 }
             } else if (status == physx::PxPairFlag::eNOTIFY_TOUCH_LOST) {
-                if (otherNode->sendTriggerReports()) {
-                    triggerNode->deregisterCollision(otherNode);
-                }
+                // Asked without asking the body first, unlike entering: what
+                // decides whether it is on the trigger's list is what it asked
+                // for as it entered, and a body that turned sendTriggerReports
+                // off while inside would otherwise never come off that list.
+                // Taking one off that was never on it does nothing.
+                triggerNode->deregisterCollision(otherNode);
                 if (!trigger.isNull() && !other.isNull() && otherNode->receiveTriggerReports()) {
                     emit otherNode->exitedTriggerBody(triggerNode);
                 }

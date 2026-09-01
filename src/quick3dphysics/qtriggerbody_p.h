@@ -42,6 +42,8 @@ Q_SIGNALS:
     void collisionCountChanged();
 
 private:
+    void dropDestroyedBody(QObject *body);
+
     QSet<QAbstractPhysicsNode *> m_collisions;
 };
 
