@@ -22,6 +22,7 @@
 #include <QtCore/QObject>
 #include <QtCore/QTimerEvent>
 #include <QtCore/QElapsedTimer>
+#include <QtCore/QSpan>
 #include <QtGui/QVector3D>
 #include <QtQml/qqml.h>
 #include <QBasicTimer>
@@ -197,6 +198,8 @@ private:
     void frameFinished(float deltaTime);
     void frameFinishedDesignStudio();
     void initPhysics();
+    void invalidateTriggerOverlaps(QSpan<QAbstractPhysXNode *const> rebuiltBodies);
+    void dropUnreportedTriggerOverlaps();
     void cleanupRemovedNodes();
     void updateDebugDraw();
     void updateDebugDrawDesignStudio();
@@ -262,6 +265,9 @@ private:
             m_collisionShapeDebugModels;
     QSet<QAbstractPhysicsNode *> m_removedPhysicsNodes;
     QSet<physx::PxJoint *> m_removedJoints;
+    // Whether any trigger is holding shape pairs that are waiting to be reported
+    // again after the shapes on one side of them were replaced.
+    bool m_triggerOverlapsInvalidated = false;
     QList<BodyContact> m_registeredContacts;
 
     QVector3D m_gravity = QVector3D(0.f, -981.f, 0.f);

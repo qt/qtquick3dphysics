@@ -19,6 +19,7 @@
 #include "qcapsuleshape_p.h"
 #include "qplaneshape_p.h"
 #include "qheightfieldshape_p.h"
+#include "qtriggerbody_p.h"
 
 #include "PxPhysicsAPI.h"
 #include "cooking/PxCooking.h"
@@ -31,6 +32,7 @@
 #include <QtQuick3D/private/qquick3dprincipledmaterial_p.h>
 #include <QtQuick3DUtils/private/qssgutils_p.h>
 
+#include <QtCore/qvarlengtharray.h>
 #include <QtGui/qquaternion.h>
 
 #include <QtEnvironmentVariables>
@@ -753,7 +755,8 @@ void QPhysicsWorld::updateDebugDraw()
     currentCollisionShapes.reserve(m_collisionShapeDebugModels.size());
 
     for (QAbstractPhysXNode *node : std::as_const(m_physXBodies)) {
-        // A deleted node keeps its backend until the next frame takes it out.
+        // A node deleted from a report earlier in this frame keeps its backend
+        // until the next one takes it out.
         if (!node->frontendNode || !node->debugGeometryCapability())
             continue;
 
@@ -1315,6 +1318,46 @@ void QPhysicsWorld::cleanupRemovedNodes()
     m_removedPhysicsNodes.clear();
 }
 
+// Tell the triggers which nodes have had their shapes replaced, and drop what
+// the reports that followed the last such replacement did not mention
+
+void QPhysicsWorld::invalidateTriggerOverlaps(QSpan<QAbstractPhysXNode *const> rebuiltBodies)
+{
+    for (QAbstractPhysXNode *body : std::as_const(m_physXBodies)) {
+        auto *trigger = qobject_cast<QTriggerBody *>(body->frontendNode);
+        if (!trigger)
+            continue;
+        for (QAbstractPhysXNode *rebuilt : rebuiltBodies) {
+            // The rebuilt nodes are held as backends, which outlive the frame,
+            // since syncing the frame can run a handler that deletes a node
+            // that was rebuilt earlier in it. deregisterNode() takes the
+            // frontend off the backend of whatever is deleted.
+            if (rebuilt->frontendNode)
+                trigger->invalidateOverlaps(rebuilt->frontendNode);
+        }
+    }
+
+    m_triggerOverlapsInvalidated = true;
+}
+
+void QPhysicsWorld::dropUnreportedTriggerOverlaps()
+{
+    // Nothing is waiting to be reported again unless shapes were replaced, so
+    // this stays off the frame of a scene that never rebuilds any.
+    if (!m_triggerOverlapsInvalidated)
+        return;
+    m_triggerOverlapsInvalidated = false;
+
+    // A body reported as having left can be deleted from the handler, and so can
+    // a trigger that has not been reached yet. deregisterNode() takes the
+    // frontend off whatever is deleted, so what still has one here is what
+    // is left.
+    for (QAbstractPhysXNode *body : std::as_const(m_physXBodies)) {
+        if (auto *trigger = qobject_cast<QTriggerBody *>(body->frontendNode))
+            trigger->dropUnreportedOverlaps();
+    }
+}
+
 void QPhysicsWorld::cleanupRemovedJoints()
 {
     for (physx::PxJoint *joint : m_removedJoints) {
@@ -1384,6 +1427,13 @@ void QPhysicsWorld::frameFinished(float deltaTime)
 {
     matchOrphanNodes();
     matchOrphanJoints();
+
+    // One round of reports has been fetched since the shapes rebuilt below were
+    // replaced, so whatever it did not mention is no longer overlapping. Kept
+    // ahead of cleanupRemovedNodes(), like the contact callbacks, since a body
+    // reported as having left can be deleted from the handler.
+    dropUnreportedTriggerOverlaps();
+
     emitContactCallbacks();
     cleanupRemovedNodes();
     cleanupRemovedJoints();
@@ -1396,26 +1446,35 @@ void QPhysicsWorld::frameFinished(float deltaTime)
     m_newPhysicsNodes.clear();
 
     QHash<QQuick3DNode *, QMatrix4x4> transformCache;
+    QVarLengthArray<QAbstractPhysXNode *, 8> rebuiltBodies;
 
     // TODO: Use dirty flag/dirty list to avoid redoing things that didn't change
     for (auto *physXBody : std::as_const(m_physXBodies)) {
-        // Syncing runs a node's bindings, so one can be deleted while this
-        // loop runs, leaving its backend with nothing to sync.
+        // Syncing runs a node's bindings, and a character controller reports
+        // what it hits from here, so one can be deleted while this loop runs.
         if (!physXBody->frontendNode)
             continue;
 
         physXBody->markDirtyShapes();
+        const bool wasDirty = physXBody->shapesDirty();
         physXBody->rebuildDirtyShapes(this, m_physx);
 
-        // Rebuilding writes to the body too, when it forces it kinematic.
+        // Rebuilding reports too, when it has to force a body kinematic.
         if (!physXBody->frontendNode)
             continue;
 
+        // Dirty before and clean after is the backend having replaced the shapes
+        // of the node, which the triggers holding them need to hear about.
+        if (wasDirty && !physXBody->shapesDirty())
+            rebuiltBodies.append(physXBody);
         physXBody->updateFilters();
 
         // Sync the physics world and the scene
         physXBody->sync(deltaTime, transformCache);
     }
+
+    if (!rebuiltBodies.isEmpty())
+        invalidateTriggerOverlaps(rebuiltBodies);
 
     for (QPhysicsJoint *joint : std::as_const(m_joints)) {
         joint->updatePhysXBackend();
@@ -1603,7 +1662,8 @@ void QPhysicsWorld::setScene(QQuick3DNode *newScene)
     m_scene = newScene;
 
     // Delete all nodes since they are associated with the previous scene. One
-    // deleted this frame has nothing left to deregister.
+    // deleted from a report earlier in this frame has nothing left to
+    // deregister.
     for (auto body : std::as_const(m_physXBodies)) {
         if (body->frontendNode)
             deregisterNode(body->frontendNode);

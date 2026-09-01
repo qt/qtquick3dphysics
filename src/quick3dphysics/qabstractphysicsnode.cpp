@@ -54,6 +54,9 @@ QT_BEGIN_NAMESPACE
     This property determines whether this body will send reports when entering or leaving a trigger
     body.
 
+    Read as this body enters a trigger body, and what it says then decides what is reported for
+    that stay.
+
     Default value: \c{false}
 */
 
@@ -61,6 +64,9 @@ QT_BEGIN_NAMESPACE
     \qmlproperty bool PhysicsNode::receiveTriggerReports
     This property determines whether this body will receive reports when entering or leaving a
     trigger body.
+
+    Read as this body enters a trigger body, and what it says then decides what is reported for
+    that stay.
 
     Default value: \c{false}
 */
@@ -107,7 +113,10 @@ QT_BEGIN_NAMESPACE
 
     This signal is emitted when this body enters the specified trigger \a body.
 
-    \note Only emitted when receiveTriggerReports is \c true
+    Emitted once per trigger body, however many collision shapes this body and that trigger body
+    have inside each other.
+
+    \note Only emitted when receiveTriggerReports was \c true as this body entered
     \sa receiveTriggerReports exitedTriggerBody
 */
 
@@ -116,8 +125,11 @@ QT_BEGIN_NAMESPACE
 
     This signal is emitted when this body exits the specified trigger \a body.
 
-    \note Only emitted when receiveTriggerReports is \c true, and not emitted for a trigger body
-    that is deleted while this body is still inside it.
+    Emitted once the last of this body's collision shapes has left the trigger body, not when the
+    first one does.
+
+    \note Only emitted when receiveTriggerReports was \c true as this body entered, and not
+    emitted for a trigger body that is deleted while this body is still inside it.
     \sa receiveTriggerReports enteredTriggerBody
 */
 
