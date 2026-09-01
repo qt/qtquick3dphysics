@@ -175,6 +175,10 @@ void QPhysXCharacterController::sync(float deltaTime,
         characterController->setPosition(parentNode->mapPositionFromScene(position));
     }
 
+    // setPosition() ran the controller's bindings, which can delete it.
+    if (!frontendNode)
+        return;
+
     QVector3D teleportPos;
     bool teleport = characterController->getTeleport(teleportPos);
     if (teleport) {
@@ -186,6 +190,11 @@ void QPhysXCharacterController::sync(float deltaTime,
                 controller->move(displacement, displacement.magnitude() / 100, deltaTime, {});
         characterController->setCollisions(QCharacterController::Collisions(uint(collisions)));
     }
+
+    // setCollisions() ran the controller's bindings, which can delete it.
+    if (!frontendNode)
+        return;
+
     // Materials are shared between nodes, so a change of the material properties moves this
     // node to another material, which the shape of the controller then has to be pointed at.
     // The shape is created exclusive to the actor of the controller, so it stays writable.

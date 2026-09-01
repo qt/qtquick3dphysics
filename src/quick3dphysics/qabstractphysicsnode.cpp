@@ -155,15 +155,20 @@ void QAbstractPhysicsNode::updateFromPhysicsTransform(const physx::PxTransform &
     // Get this nodes parent transform
     const QQuick3DNode *parentNode = static_cast<QQuick3DNode *>(parentItem());
 
-    if (!parentNode) {
-        // then it is the same space
-        setRotation(qtRotation);
-        setPosition(qtPosition);
-    } else {
-        setPosition(parentNode->mapPositionFromScene(qtPosition));
-        const auto relativeRotation = parentNode->sceneRotation().inverted() * qtRotation;
-        setRotation(relativeRotation);
-    }
+    // setPosition() and setRotation() run this node's bindings, which can move
+    // the parent, so the parent is read before either write. A binding that
+    // deletes the node cannot be survived from here: setPosition() goes on
+    // writing to the node after running them. The backends ask whether the node
+    // is still there once a write has returned.
+    //
+    // No parent is the same space.
+    const QVector3D localPosition =
+            parentNode ? parentNode->mapPositionFromScene(qtPosition) : qtPosition;
+    const QQuaternion localRotation =
+            parentNode ? parentNode->sceneRotation().inverted() * qtRotation : qtRotation;
+
+    setPosition(localPosition);
+    setRotation(localRotation);
 }
 
 bool QAbstractPhysicsNode::sendContactReports() const

@@ -478,6 +478,63 @@ Item {
         }
     }
 
+    // A shape that cannot be simulated is only allowed on a kinematic body, so a
+    // body given one while it is not kinematic is made kinematic, before it is
+    // given the shape rather than after. What shows that the shape really
+    // reached the actor is the plane holding a body up, and that needs a scene
+    // and a world to itself: the shared one above is full of bodies built from
+    // degenerate input, and they shove whatever is near them hard enough that
+    // where a body ends up there says nothing about why.
+    Node {
+        id: forcedKinematicScene
+
+        DynamicRigidBody {
+            id: forcedKinematicBody
+            isKinematic: false
+            // Laid flat through the kinematic pose, since that is what drives
+            // the actor once the body has been forced kinematic.
+            eulerRotation: Qt.vector3d(-90, 0, 0)
+            kinematicEulerRotation: Qt.vector3d(-90, 0, 0)
+            collisionShapes: PlaneShape {}
+        }
+
+        // Comes to rest on the plane above, which it can only do if the plane
+        // reached the actor: PhysX drops a shape it will not attach without
+        // telling the caller anything it checks.
+        DynamicRigidBody {
+            id: forcedKinematicLander
+            position: Qt.vector3d(0, 200, 0)
+            collisionShapes: SphereShape {}
+        }
+    }
+
+    PhysicsWorld {
+        id: forcedKinematicWorld
+        scene: forcedKinematicScene
+        running: true
+        minimumTimestep: 15
+        maximumTimestep: 15
+
+        property int frameCount: 0
+        property int restingFrames: 0
+        onFrameDone: {
+            forcedKinematicWorld.frameCount++;
+            // The lander's radius above the plane at y = 0 is where it comes
+            // to rest, and only a frame it spends there counts: one falling
+            // past covers this whole window in a single step.
+            if (Math.abs(forcedKinematicLander.position.y - 50) < 0.5)
+                forcedKinematicWorld.restingFrames++;
+            else
+                forcedKinematicWorld.restingFrames = 0;
+        }
+    }
+
+    PhysicsTestCase {
+        name: "invalidinput_staticShapeForcesKinematic"
+        goalReached: forcedKinematicBody.isKinematic
+                     && forcedKinematicWorld.restingFrames > 30
+    }
+
     PhysicsTestCase {
         name: "invalidinput_noPositionGeometry"
         goalReached: invalidShapeWorld.frameCount > 5
