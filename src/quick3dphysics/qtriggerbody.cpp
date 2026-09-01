@@ -33,6 +33,11 @@ QT_BEGIN_NAMESPACE
 /*!
     \qmlsignal TriggerBody::bodyExited(PhysicsNode *body)
     This signal is emitted when the trigger body is no longer penetrated by the specified \a body.
+
+    \note This signal is not emitted for a body that is deleted while it is still inside the
+    trigger body, since there is no longer a body to report. \l collisionCount does count such a
+    body out, so a list kept by hand from these signals has to be cleared of deleted bodies
+    another way.
 */
 
 QTriggerBody::QTriggerBody() = default;
@@ -43,12 +48,24 @@ void QTriggerBody::registerCollision(QAbstractPhysicsNode *collision)
     m_collisions.insert(collision);
 
     if (size != m_collisions.size()) {
+        // Nothing takes a body off this list when it is deleted while still
+        // inside, so the count would keep reporting a body that no longer
+        // exists, and the list would keep a pointer to it. Connected before the
+        // report below, since a handler for that is free to delete the body it
+        // is handed.
+        connect(collision, &QObject::destroyed, this, &QTriggerBody::dropDestroyedBody,
+                Qt::UniqueConnection);
+
         // The first runs handlers, which are free to delete this trigger.
         const QPointer<QTriggerBody> self(this);
         emit bodyEntered(collision);
         if (self.isNull())
             return;
-        emit collisionCountChanged();
+
+        // Back to what it was is a handler having deleted the body it was just
+        // handed, which counted it out and reported that itself.
+        if (size != m_collisions.size())
+            emit collisionCountChanged();
     }
 }
 
@@ -58,12 +75,40 @@ void QTriggerBody::deregisterCollision(QAbstractPhysicsNode *collision)
     m_collisions.remove(collision);
 
     if (size != m_collisions.size()) {
+        disconnect(collision, &QObject::destroyed, this, &QTriggerBody::dropDestroyedBody);
+
         const QPointer<QTriggerBody> self(this);
         emit bodyExited(collision);
         if (self.isNull())
             return;
-        emit collisionCountChanged();
+
+        // Back to what it was is a handler having put a body inside, which
+        // counted it in and reported that itself.
+        if (size != m_collisions.size())
+            emit collisionCountChanged();
     }
+}
+
+void QTriggerBody::dropDestroyedBody(QObject *body)
+{
+    // Runs from ~QObject, when nothing is left of the body but its QObject part,
+    // so it is matched by comparing pointers rather than by casting one back to
+    // what it can no longer be. Nothing is reported for it either, in either
+    // direction: bodyExited would pass a half destroyed body to a handler, and
+    // there is no body left to tell that it has left anything.
+    QAbstractPhysicsNode *destroyed = nullptr;
+    for (QAbstractPhysicsNode *collision : std::as_const(m_collisions)) {
+        if (static_cast<QObject *>(collision) == body) {
+            destroyed = collision;
+            break;
+        }
+    }
+
+    if (!destroyed)
+        return;
+
+    m_collisions.remove(destroyed);
+    emit collisionCountChanged();
 }
 
 int QTriggerBody::collisionCount() const
