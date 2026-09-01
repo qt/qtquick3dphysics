@@ -113,9 +113,42 @@ Item {
             }
         }
 
+        // A body that is kinematic to begin with, carrying a shape that cannot be
+        // simulated: the dice cup of the customshapes example is one of these. The shape
+        // only reaches the actor if the actor was told it is kinematic before the shape
+        // was built, so a collision here means it did.
+        DynamicRigidBody {
+            id: kinematicMesh
+            isKinematic: true
+            position: Qt.vector3d(0, 0, -6)
+            kinematicPosition: Qt.vector3d(0, 0, -6)
+            collisionShapes: TriangleMeshShape {
+                source: "qrc:/data/tetrahedron.cooked.tri"
+            }
+            sendContactReports: true
+        }
+
+        DynamicRigidBody {
+            id: kinematicMeshBall
+            position: Qt.vector3d(0, 6, -6)
+            collisionShapes: SphereShape {
+                diameter: 1
+            }
+            property bool collided: false
+            receiveContactReports: true
+            onBodyContact: (body, positions, impulses, normals) => {
+                collided = true;
+            }
+        }
+
         PhysicsTestCase {
             name: "Heightfield"
             goalReached: hfBall.collided
+        }
+
+        PhysicsTestCase {
+            name: "Kinematic triangle mesh"
+            goalReached: kinematicMeshBall.collided
         }
 
         PhysicsTestCase {

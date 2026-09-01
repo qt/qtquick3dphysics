@@ -688,7 +688,8 @@ void QPhysicsWorld::updateDebugDraw()
     currentCollisionShapes.reserve(m_collisionShapeDebugModels.size());
 
     for (QAbstractPhysXNode *node : std::as_const(m_physXBodies)) {
-        if (!node->debugGeometryCapability())
+        // A deleted node keeps its backend until the next frame takes it out.
+        if (!node->frontendNode || !node->debugGeometryCapability())
             continue;
 
         const auto &collisionShapes = node->frontendNode->getCollisionShapesList();
@@ -1135,6 +1136,9 @@ void QPhysicsWorld::disableDebugDraw()
     m_hasIndividualDebugDraw = false;
 
     for (QAbstractPhysXNode *body : std::as_const(m_physXBodies)) {
+        if (!body->frontendNode)
+            continue;
+
         const auto &collisionShapes = body->frontendNode->getCollisionShapesList();
         const int length = collisionShapes.length();
         for (int idx = 0; idx < length; idx++) {
@@ -1228,8 +1232,10 @@ void QPhysicsWorld::setDefaultDensity(float defaultDensity)
     m_defaultDensity = defaultDensity;
 
     // Go through all dynamic rigid bodies and update the default density
-    for (QAbstractPhysXNode *body : std::as_const(m_physXBodies))
-        body->updateDefaultDensity(m_defaultDensity);
+    for (QAbstractPhysXNode *body : std::as_const(m_physXBodies)) {
+        if (body->frontendNode)
+            body->updateDefaultDensity(m_defaultDensity);
+    }
 
     emit defaultDensityChanged(defaultDensity);
 }
@@ -1328,8 +1334,18 @@ void QPhysicsWorld::frameFinished(float deltaTime)
 
     // TODO: Use dirty flag/dirty list to avoid redoing things that didn't change
     for (auto *physXBody : std::as_const(m_physXBodies)) {
+        // Syncing runs a node's bindings, so one can be deleted while this
+        // loop runs, leaving its backend with nothing to sync.
+        if (!physXBody->frontendNode)
+            continue;
+
         physXBody->markDirtyShapes();
         physXBody->rebuildDirtyShapes(this, m_physx);
+
+        // Rebuilding writes to the body too, when it forces it kinematic.
+        if (!physXBody->frontendNode)
+            continue;
+
         physXBody->updateFilters();
 
         // Sync the physics world and the scene
@@ -1521,9 +1537,11 @@ void QPhysicsWorld::setScene(QQuick3DNode *newScene)
 
     m_scene = newScene;
 
-    // Delete all nodes since they are associated with the previous scene
+    // Delete all nodes since they are associated with the previous scene. One
+    // deleted this frame has nothing left to deregister.
     for (auto body : std::as_const(m_physXBodies)) {
-        deregisterNode(body->frontendNode);
+        if (body->frontendNode)
+            deregisterNode(body->frontendNode);
     }
 
     // Check if scene is already used by another world

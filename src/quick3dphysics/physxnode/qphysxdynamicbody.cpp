@@ -140,6 +140,11 @@ void QPhysXDynamicBody::sync(float deltaTime, QHash<QQuick3DNode *, QMatrix4x4> 
     // first update front end node from physx simulation
     dynamicRigidBody->updateFromPhysicsTransform(actor->getGlobalPose());
 
+    // The writes in updateFromPhysicsTransform() ran the body's bindings,
+    // which can delete it.
+    if (!frontendNode)
+        return;
+
     auto *dynamicActor = static_cast<physx::PxRigidDynamic *>(actor);
     processCommandQueue(dynamicRigidBody->commandQueue(), *dynamicRigidBody, *dynamicActor);
 
@@ -174,6 +179,10 @@ void QPhysXDynamicBody::sync(float deltaTime, QHash<QQuick3DNode *, QMatrix4x4> 
 
     dynamicRigidBody->setIsSleeping(dynamicActor->isSleeping());
 
+    // setIsSleeping() ran the body's bindings, which can delete the body.
+    if (!frontendNode)
+        return;
+
     QPhysXActorBody::sync(deltaTime, transformCache);
 }
 
@@ -182,9 +191,43 @@ void QPhysXDynamicBody::rebuildDirtyShapes(QPhysicsWorld *world, QPhysXWorld *ph
     if (!shapesDirty())
         return;
 
+    QDynamicRigidBody *drb = static_cast<QDynamicRigidBody *>(frontendNode);
+
+    // Before buildShapes(), since setIsKinematic() runs the body's bindings and
+    // can delete it, which would leave the shapes half built.
+    if (drb->hasStaticShapes() && !drb->isKinematic()) {
+        // Body with static shapes that is not kinematic, this is disallowed
+        qWarning() << "Cannot make body containing trimesh/heightfield/plane non-kinematic, "
+                      "forcing kinematic.";
+        drb->setIsKinematic(true);
+        if (!frontendNode)
+            return;
+    }
+
+    const bool isKinematic = drb->isKinematic();
+    auto *dynamicBody = static_cast<physx::PxRigidDynamic *>(actor);
+
+    // Clear CCD before flipping kinematic mode: PhysX rejects sweep-based CCD on
+    // kinematic bodies, so leaving a stale CCD flag set while eKINEMATIC changes
+    // would trigger a spurious warning regardless of transition direction.
+    dynamicBody->setRigidBodyFlag(physx::PxRigidBodyFlag::eENABLE_CCD, false); // Sweep-based
+    dynamicBody->setRigidBodyFlag(physx::PxRigidBodyFlag::eENABLE_SPECULATIVE_CCD, false);
+
+    // Becoming kinematic has to be told before the shapes are built: PhysX
+    // refuses to attach a trimesh, heightfield or plane simulation shape to a
+    // body that is not kinematic yet, and drops it without telling the caller
+    // anything it checks.
+    if (isKinematic)
+        dynamicBody->setRigidBodyFlag(physx::PxRigidBodyFlag::eKINEMATIC, true);
+
     buildShapes(physX);
 
-    QDynamicRigidBody *drb = static_cast<QDynamicRigidBody *>(frontendNode);
+    // Ceasing to be kinematic has to wait until they have been, for the mirror
+    // reason: PhysX refuses to take eKINEMATIC off a body while such a shape is
+    // still attached, so the flag can only be dropped once buildShapes() has
+    // detached the shapes it objects to.
+    if (!isKinematic)
+        dynamicBody->setRigidBodyFlag(physx::PxRigidBodyFlag::eKINEMATIC, false);
 
     // Density must be set after shapes so the inertia tensor is set
     if (!drb->hasStaticShapes()) {
@@ -217,16 +260,7 @@ void QPhysXDynamicBody::rebuildDirtyShapes(QPhysicsWorld *world, QPhysXWorld *ph
         }
 
         drb->commandQueue().enqueue(command);
-    } else if (!drb->isKinematic()) {
-        // Body with static shapes that is not kinematic, this is disallowed
-        qWarning() << "Cannot make body containing trimesh/heightfield/plane non-kinematic, "
-                      "forcing kinematic.";
-        drb->setIsKinematic(true);
     }
-
-    const bool isKinematic = drb->isKinematic();
-    auto *dynamicBody = static_cast<physx::PxRigidDynamic *>(actor);
-    dynamicBody->setRigidBodyFlag(physx::PxRigidBodyFlag::eKINEMATIC, isKinematic);
 
     if (world->enableCCD()) {
         // Regular sweep-based CCD is only available for non-kinematic bodies but speculative CCD

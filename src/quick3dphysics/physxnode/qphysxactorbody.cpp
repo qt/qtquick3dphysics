@@ -182,7 +182,6 @@ void QPhysXActorBody::buildShapes(QPhysXWorld * /*physX*/)
             physXShape->setSimulationFilterData(filterData);
         }
 
-        shapes.push_back(physXShape);
         physx::PxTransform localPose = getPhysXLocalTransform(collisionShape);
         if (!localPose.isSane()) {
             qWarning() << "QtQuick3DPhysics: collision shape position/rotation is not finite, "
@@ -190,7 +189,19 @@ void QPhysXActorBody::buildShapes(QPhysXWorld * /*physX*/)
             localPose = physx::PxTransform(physx::PxIdentity);
         }
         physXShape->setLocalPose(localPose);
-        body->attachShape(*physXShape);
+
+        // A shape PhysX will not take is not kept: left in 'shapes' it would make
+        // markDirtyShapes() find the body's shapes to be in order, so nothing would
+        // ever rebuild them, and the next rebuild would detach a shape that had never
+        // been attached.
+        if (!body->attachShape(*physXShape)) {
+            qWarning() << "QtQuick3DPhysics: could not attach collision shape to body, it will "
+                          "not take part in the simulation.";
+            PHYSX_RELEASE(physXShape);
+            continue;
+        }
+
+        shapes.push_back(physXShape);
     }
 
     // Filters are always clean after building shapes
