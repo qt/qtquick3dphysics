@@ -28,7 +28,12 @@ void QPhysXTriggerBody::sync(float /*deltaTime*/,
         qWarning() << "TriggerBody: position/rotation is not finite, keeping previous pose.";
         return;
     }
-    actor->setGlobalPose(trf);
+
+    // Only when it has moved: writing the pose wakes the actor, and a trigger
+    // that stands still should cost nothing. Writing it when it does move is
+    // what has PhysX test its pairs again.
+    if (!QPhysicsUtils::fuzzyEquals(trf, actor->getGlobalPose()))
+        actor->setGlobalPose(trf);
 }
 
 QT_END_NAMESPACE

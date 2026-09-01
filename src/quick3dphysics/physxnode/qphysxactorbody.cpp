@@ -131,7 +131,18 @@ void QPhysXActorBody::createActor(QPhysXWorld * /*physX*/)
         qWarning() << "PhysicsNode: position/rotation is not finite, using identity instead.";
         trf = physx::PxTransform(physx::PxIdentity);
     }
-    actor = s_physx.physics->createRigidDynamic(trf);
+    auto *dynamicActor = s_physx.physics->createRigidDynamic(trf);
+
+    // A trigger has to be a dynamic actor, since PhysX only reports a trigger
+    // pair when one of the two is, but it is not simulated and nothing reads
+    // the velocity gravity would give it. Without gravity it stays where it is
+    // put and can fall asleep, which is what stops its pairs being tested:
+    // PhysX skips a trigger pair's overlap test only when both of its actors
+    // are asleep (see Sc::TriggerInteraction).
+    if (useTriggerFlag())
+        dynamicActor->setActorFlag(physx::PxActorFlag::eDISABLE_GRAVITY, true);
+
+    actor = dynamicActor;
 }
 
 bool QPhysXActorBody::debugGeometryCapability()
@@ -169,6 +180,11 @@ void QPhysXActorBody::buildShapes(QPhysXWorld * /*physX*/)
             qWarning() << "QtQuick3DPhysics: could not create shape, invalid geometry.";
             continue;
         }
+
+        // Ties the PxShape back to the collision shape it was built for: a
+        // trigger pair is matched by those, which survive a rebuild replacing
+        // every PxShape of a node.
+        physXShape->userData = reinterpret_cast<void *>(collisionShape);
 
         if (useTriggerFlag()) {
             physXShape->setFlag(physx::PxShapeFlag::eSIMULATION_SHAPE, false);

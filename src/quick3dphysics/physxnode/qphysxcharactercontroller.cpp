@@ -125,6 +125,12 @@ void QPhysXCharacterController::init(QPhysicsWorld *world, QPhysXWorld * /*physX
         actor->userData = characterController;
     else
         qWarning() << "QtQuick3DPhysics internal error: CharacterController created without actor.";
+
+    // No collision shape in the userData here, unlike the shapes a body builds,
+    // which is how a trigger tells one body's pairs apart. A controller has
+    // exactly one shape, checked above, so its pairs are one per trigger shape
+    // either way, and pointing at the capsule would go stale: the controller's
+    // shape is never rebuilt, so swapping the capsule would re-report nothing.
 }
 
 void QPhysXCharacterController::sync(float deltaTime,
