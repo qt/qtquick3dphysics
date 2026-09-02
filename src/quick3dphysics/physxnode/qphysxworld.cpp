@@ -14,6 +14,8 @@
 #include "PxScene.h"
 #include "PxSimulationEventCallback.h"
 
+#include <QtCore/QPointer>
+
 #include "qabstractphysicsnode_p.h"
 #include "qphysicsutils_p.h"
 #include "qphysicsworld_p.h"
@@ -30,8 +32,6 @@ public:
 
     void onTrigger(physx::PxTriggerPair *pairs, physx::PxU32 count) override
     {
-        QMutexLocker locker(&world->m_removedPhysicsNodesMutex);
-
         for (physx::PxU32 i = 0; i < count; i++) {
             // ignore pairs when shapes have been deleted
             if (pairs[i].flags
@@ -50,23 +50,34 @@ public:
                 continue;
             }
 
+            // Asked once per pair, since one batch can report the same node
+            // in several pairs, and a handler run for one pair is free to
+            // delete a node that a later pair points at. PhysX sends these
+            // from the thread that called fetchResults(), which is also the
+            // thread that deletes nodes, so the only thing that can delete
+            // one while this loop runs is a handler the reports below call.
             if (world->isNodeRemoved(triggerNode) || world->isNodeRemoved(otherNode))
                 continue;
 
             const auto status = pairs[i].status;
 
+            // Watched across the two reports below: the first runs handlers,
+            // which are free to delete either end before the second is made.
+            const QPointer<QTriggerBody> trigger(triggerNode);
+            const QPointer<QAbstractPhysicsNode> other(otherNode);
+
             if (status == physx::PxPairFlag::eNOTIFY_TOUCH_FOUND) {
                 if (otherNode->sendTriggerReports()) {
                     triggerNode->registerCollision(otherNode);
                 }
-                if (otherNode->receiveTriggerReports()) {
+                if (!trigger.isNull() && !other.isNull() && otherNode->receiveTriggerReports()) {
                     emit otherNode->enteredTriggerBody(triggerNode);
                 }
             } else if (status == physx::PxPairFlag::eNOTIFY_TOUCH_LOST) {
                 if (otherNode->sendTriggerReports()) {
                     triggerNode->deregisterCollision(otherNode);
                 }
-                if (otherNode->receiveTriggerReports()) {
+                if (!trigger.isNull() && !other.isNull() && otherNode->receiveTriggerReports()) {
                     emit otherNode->exitedTriggerBody(triggerNode);
                 }
             }
@@ -80,7 +91,6 @@ public:
     void onContact(const physx::PxContactPairHeader &pairHeader, const physx::PxContactPair *pairs,
                    physx::PxU32 nbPairs) override
     {
-        QMutexLocker locker(&world->m_removedPhysicsNodesMutex);
         constexpr physx::PxU32 bufferSize = 64;
         physx::PxContactPairPoint contacts[bufferSize];
 

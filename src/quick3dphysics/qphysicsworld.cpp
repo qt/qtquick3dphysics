@@ -359,7 +359,6 @@ void QPhysicsWorld::deregisterNode(QAbstractPhysicsNode *physicsNode)
 {
     for (auto world : std::as_const(worldManager.worlds)) {
         world->m_newPhysicsNodes.removeAll(physicsNode);
-        QMutexLocker locker(&world->m_removedPhysicsNodesMutex);
         if (physicsNode->m_backendObject) {
             Q_ASSERT(physicsNode->m_backendObject->frontendNode == physicsNode);
             physicsNode->m_backendObject->frontendNode = nullptr;
@@ -384,7 +383,6 @@ void QPhysicsWorld::registerJoint(QPhysicsJoint *joint)
 void QPhysicsWorld::deregisterJoint(QPhysicsJoint *joint)
 {
     for (auto world : worldManager.worlds) {
-        QMutexLocker locker(&world->m_removedPhysicsNodesMutex);
         world->m_removedJoints.insert(joint->getPhysXBackend());
 
         // Swap erase since order does not matter
@@ -402,11 +400,10 @@ void QPhysicsWorld::registerContact(QAbstractPhysicsNode *sender, QAbstractPhysi
                                     const QVector<QVector3D> &impulses,
                                     const QVector<QVector3D> &normals)
 {
-    // Since collision callbacks happen in the physx simulation thread we need
-    // to store these callbacks. Otherwise, if an object is deleted in the same
-    // frame a 'onBodyContact' signal is enqueued and a crash will happen.
-    // Therefore we save these contact callbacks and run them at the end of the
-    // physics frame when we know if the objects are deleted or not.
+    // The callbacks come from fetchResults(), on this thread, but a contact is
+    // between two nodes and reporting the first is free to delete the second.
+    // So the contacts are saved and run at the end of the physics frame, when
+    // it is known which of their nodes are still there.
 
     BodyContact contact;
     contact.sender = sender;
