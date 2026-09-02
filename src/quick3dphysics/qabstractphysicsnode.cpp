@@ -116,7 +116,8 @@ QT_BEGIN_NAMESPACE
 
     This signal is emitted when this body exits the specified trigger \a body.
 
-    \note Only emitted when receiveTriggerReports is \c true
+    \note Only emitted when receiveTriggerReports is \c true, and not emitted for a trigger body
+    that is deleted while this body is still inside it.
     \sa receiveTriggerReports enteredTriggerBody
 */
 

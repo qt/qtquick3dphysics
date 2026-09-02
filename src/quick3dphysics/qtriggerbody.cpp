@@ -5,6 +5,8 @@
 #include "qtriggerbody_p.h"
 #include "physxnode/qphysxtriggerbody_p.h"
 
+#include <QtCore/QPointer>
+
 QT_BEGIN_NAMESPACE
 
 /*!
@@ -41,7 +43,11 @@ void QTriggerBody::registerCollision(QAbstractPhysicsNode *collision)
     m_collisions.insert(collision);
 
     if (size != m_collisions.size()) {
+        // The first runs handlers, which are free to delete this trigger.
+        const QPointer<QTriggerBody> self(this);
         emit bodyEntered(collision);
+        if (self.isNull())
+            return;
         emit collisionCountChanged();
     }
 }
@@ -52,7 +58,10 @@ void QTriggerBody::deregisterCollision(QAbstractPhysicsNode *collision)
     m_collisions.remove(collision);
 
     if (size != m_collisions.size()) {
+        const QPointer<QTriggerBody> self(this);
         emit bodyExited(collision);
+        if (self.isNull())
+            return;
         emit collisionCountChanged();
     }
 }

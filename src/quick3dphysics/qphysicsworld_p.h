@@ -262,7 +262,6 @@ private:
             m_collisionShapeDebugModels;
     QSet<QAbstractPhysicsNode *> m_removedPhysicsNodes;
     QSet<physx::PxJoint *> m_removedJoints;
-    QMutex m_removedPhysicsNodesMutex;
     QList<BodyContact> m_registeredContacts;
 
     QVector3D m_gravity = QVector3D(0.f, -981.f, 0.f);

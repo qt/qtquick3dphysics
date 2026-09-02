@@ -30,16 +30,20 @@ public:
 
     void onShapeHit(const physx::PxControllerShapeHit &hit) override
     {
-        QMutexLocker locker(&world->m_removedPhysicsNodesMutex);
-
         QAbstractPhysicsNode *other = static_cast<QAbstractPhysicsNode *>(hit.actor->userData);
         QCharacterController *trigger =
                 static_cast<QCharacterController *>(hit.controller->getUserData());
 
-        if (!trigger || !other || !trigger->enableShapeHitCallback())
+        if (!trigger || !other)
             return;
 
+        // Before either is read: one PxController::move() reports every shape
+        // it hits, and the handler for the first is free to delete a node the
+        // second one points at.
         if (world->isNodeRemoved(other) || world->isNodeRemoved(trigger))
+            return;
+
+        if (!trigger->enableShapeHitCallback())
             return;
 
         QVector3D position = QPhysicsUtils::toQtType(physx::toVec3(hit.worldPos));
@@ -188,6 +192,10 @@ void QPhysXCharacterController::sync(float deltaTime,
                 QPhysicsUtils::toPhysXType(characterController->getDisplacement(deltaTime));
         auto collisions =
                 controller->move(displacement, displacement.magnitude() / 100, deltaTime, {});
+        // PxController::move() reports what it hits, and a handler for that
+        // can delete the controller.
+        if (!frontendNode)
+            return;
         characterController->setCollisions(QCharacterController::Collisions(uint(collisions)));
     }
 
