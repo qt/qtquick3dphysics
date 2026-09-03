@@ -63,7 +63,7 @@ void QPhysXActorBody::init(QPhysicsWorld * /*world*/, QPhysXWorld *physX)
 {
     Q_ASSERT(!actor);
 
-    createMaterial(physX);
+    updateMaterial();
     createActor(physX);
 
     actor->userData = reinterpret_cast<void *>(frontendNode);
@@ -74,17 +74,13 @@ void QPhysXActorBody::init(QPhysicsWorld * /*world*/, QPhysXWorld *physX)
 void QPhysXActorBody::sync(float /*deltaTime*/,
                            QHash<QQuick3DNode *, QMatrix4x4> & /*transformCache*/)
 {
-    auto *body = static_cast<QAbstractPhysicsBody *>(frontendNode);
-    if (QPhysicsMaterial *qtMaterial = body->physicsMaterial()) {
-        const float staticFriction = qtMaterial->staticFriction();
-        const float dynamicFriction = qtMaterial->dynamicFriction();
-        const float restitution = qtMaterial->restitution();
-        if (material->getStaticFriction() != staticFriction)
-            material->setStaticFriction(staticFriction);
-        if (material->getDynamicFriction() != dynamicFriction)
-            material->setDynamicFriction(dynamicFriction);
-        if (material->getRestitution() != restitution)
-            material->setRestitution(restitution);
+    // The physicsMaterial property, and the properties of the material itself, can change while
+    // the simulation is running. Materials are shared between all nodes that need the same
+    // properties, so rather than modifying the material in place, the node is moved to the
+    // material with the new properties, and its shapes are pointed at it.
+    if (updateMaterial() && material) {
+        for (auto *shape : std::as_const(shapes))
+            shape->setMaterials(&material, 1);
     }
 }
 

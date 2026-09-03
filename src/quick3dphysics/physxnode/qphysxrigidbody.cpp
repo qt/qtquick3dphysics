@@ -10,10 +10,9 @@ QT_BEGIN_NAMESPACE
 
 QPhysXRigidBody::QPhysXRigidBody(QAbstractPhysicsBody *frontEnd) : QPhysXActorBody(frontEnd) { }
 
-void QPhysXRigidBody::createMaterial(QPhysXWorld *physX)
+QPhysicsMaterial *QPhysXRigidBody::qtMaterial() const
 {
-    createMaterialFromQtMaterial(
-            physX, static_cast<QAbstractPhysicsBody *>(frontendNode)->physicsMaterial());
+    return static_cast<QAbstractPhysicsBody *>(frontendNode)->physicsMaterial();
 }
 
 QT_END_NAMESPACE
