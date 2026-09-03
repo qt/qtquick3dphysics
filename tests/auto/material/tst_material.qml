@@ -12,7 +12,8 @@ import QtQuick3D.Physics.TestUtils
 // properties. The test cases below check that such bodies are not affected by the materials
 // of other bodies, and that the physicsMaterial property can be changed while the
 // simulation is running. Most of them slide two cubes across a floor and compare how far
-// they travel, which is decided by the friction of the cube and of the floor.
+// they travel, which is decided by the friction of the cube and of the floor. The character
+// controller cases instead drop a ball on its capsule and measure how high it bounces.
 
 Item {
     width: 640
@@ -24,6 +25,14 @@ Item {
     property bool materialAssigned: false
     property bool materialSwitched: false
     property bool materialUnset: false
+    property bool characterMaterialSwitched: false
+    property bool characterMaterialUnset: false
+
+    // How high the ball bounced off the character, before and after its material was unset
+    property bool ballReachedCharacter: false
+    property real ballApexAfterBounce: -999
+    property bool ballReachedCharacterAgain: false
+    property real ballApexAfterUnset: -999
 
     PhysicsWorld {
         gravity: Qt.vector3d(0, -9.81, 0)
@@ -72,6 +81,11 @@ Item {
                 id: stickyMaterial
                 staticFriction: 1
                 dynamicFriction: 1
+            }
+
+            PhysicsMaterial {
+                id: bouncyMaterial
+                restitution: 1
             }
 
             // A body with no physicsMaterial is simulated with the default properties
@@ -217,6 +231,42 @@ Item {
                 }
             }
 
+            // The material of a CharacterController must reach the shape of the controller,
+            // so that the bodies bouncing off it do so according to the new material
+            Node {
+                id: characterNode
+                x: 24
+
+                StaticRigidBody {
+                    position: Qt.vector3d(0, -1, 0)
+                    collisionShapes: BoxShape { extents: Qt.vector3d(20, 1, 20) }
+                }
+
+                CharacterController {
+                    id: character
+                    position: Qt.vector3d(0, 0.5, 0)
+                    gravity: Qt.vector3d(0, 0, 0)
+                    movement: Qt.vector3d(0, 0, 0)
+                    collisionShapes: CapsuleShape { diameter: 1; height: 1 }
+                    physicsMaterial: PhysicsMaterial { restitution: 0 }
+                }
+
+                DynamicRigidBody {
+                    id: characterBall
+                    position: Qt.vector3d(0, 12, 0)
+                    massMode: DynamicRigidBody.CustomDensity
+                    density: 1000
+                    angularAxisLock: DynamicRigidBody.LockX | DynamicRigidBody.LockY
+                                     | DynamicRigidBody.LockZ
+                    collisionShapes: SphereShape { diameter: 0.5 }
+                    Model {
+                        source: "#Sphere"
+                        scale: Qt.vector3d(0.5, 0.5, 0.5).times(0.01)
+                        materials: PrincipledMaterial { baseColor: "yellow" }
+                    }
+                }
+            }
+
             // A body that keeps falling, used to drive the per-step checks
             DynamicRigidBody {
                 id: stepDriver
@@ -237,6 +287,21 @@ Item {
                         sharedControlCube.checkStable()
                         unsetControlCube.checkStable()
                         unsetCube.checkStable()
+                        // Only track the apex from the moment the ball is about to land on
+                        // the capsule, so that the height it is dropped from is not counted
+                        if (characterBall.y < 2) {
+                            if (characterMaterialUnset)
+                                ballReachedCharacterAgain = true
+                            else
+                                ballReachedCharacter = true
+                        }
+                        if (characterMaterialUnset) {
+                            if (ballReachedCharacterAgain)
+                                ballApexAfterUnset = Math.max(ballApexAfterUnset,
+                                                              characterBall.y)
+                        } else if (ballReachedCharacter) {
+                            ballApexAfterBounce = Math.max(ballApexAfterBounce, characterBall.y)
+                        }
                     }
                     // Send the cubes sliding once the bodies have been created
                     if (simulationSteps === 4) {
@@ -327,6 +392,41 @@ Item {
             // have been affected by the switch
             verify(!switchControlCube.stable)
             verify(switchControlCube.x > switchCube.x + 2)
+        }
+    }
+
+    PhysicsTestCase {
+        name: "CharacterControllerMaterial"
+        // The ball is still well above the capsule of the character
+        goalReached: characterBall.y < 6
+        function test_switch_the_character_material() {
+            character.physicsMaterial = bouncyMaterial
+            characterMaterialSwitched = true
+        }
+    }
+
+    PhysicsTestCase {
+        // The ball bounces back up high above the capsule, which it only does if the new
+        // material reached the shape of the character controller. Times out otherwise.
+        name: "CharacterControllerMaterial2"
+        goalReached: characterMaterialSwitched && ballApexAfterBounce > 4.5
+        function test_unset_the_character_material() {
+            // Drop the ball again, with the character back to the default properties
+            character.physicsMaterial = null
+            characterBall.reset(Qt.vector3d(0, 12, 0), Qt.vector3d(0, 0, 0))
+            characterMaterialUnset = true
+        }
+    }
+
+    PhysicsTestCase {
+        // The ball has bounced off the character again and is on its way down
+        name: "CharacterControllerMaterial3"
+        goalReached: ballApexAfterUnset > 2
+                     && characterBall.y < ballApexAfterUnset - 0.5
+        function test_character_uses_default_properties_again() {
+            // The default restitution is lower than that of the material it had, so the ball
+            // does not come anywhere near as high as it did before
+            verify(ballApexAfterUnset < 5.5)
         }
     }
 

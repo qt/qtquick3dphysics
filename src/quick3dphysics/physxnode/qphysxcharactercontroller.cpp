@@ -5,6 +5,7 @@
 #include "qphysxcharactercontroller_p.h"
 
 #include "PxRigidDynamic.h"
+#include "PxShape.h"
 #include "characterkinematic/PxController.h"
 #include "characterkinematic/PxControllerManager.h"
 #include "characterkinematic/PxCapsuleController.h"
@@ -185,9 +186,16 @@ void QPhysXCharacterController::sync(float deltaTime,
                 controller->move(displacement, displacement.magnitude() / 100, deltaTime, {});
         characterController->setCollisions(QCharacterController::Collisions(uint(collisions)));
     }
-    // TODO: handle material changes, by calling updateMaterial() and, if it returns true,
-    // applying 'material' to the shape of the controller. Materials are shared between nodes,
-    // so modifying the one this node uses is not an option.
+    // Materials are shared between nodes, so a change of the material properties moves this
+    // node to another material, which the shape of the controller then has to be pointed at.
+    // The shape is created exclusive to the actor of the controller, so it stays writable.
+    if (updateMaterial() && material) {
+        physx::PxShape *shape = nullptr;
+        auto *actor = controller->getActor();
+        // The controller is created with an actor holding exactly one shape, its capsule
+        if (actor && actor->getShapes(&shape, 1) == 1)
+            shape->setMaterials(&material, 1);
+    }
 }
 
 QPhysicsMaterial *QPhysXCharacterController::qtMaterial() const
