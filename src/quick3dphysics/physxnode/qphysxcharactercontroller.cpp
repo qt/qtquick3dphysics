@@ -67,7 +67,7 @@ void QPhysXCharacterController::cleanup(QPhysXWorld *physX)
     QAbstractPhysXNode::cleanup(physX);
 }
 
-void QPhysXCharacterController::init(QPhysicsWorld *world, QPhysXWorld *physX)
+void QPhysXCharacterController::init(QPhysicsWorld *world, QPhysXWorld * /*physX*/)
 {
     Q_ASSERT(!controller);
 
@@ -89,7 +89,7 @@ void QPhysXCharacterController::init(QPhysicsWorld *world, QPhysXWorld *physX)
         return;
     }
 
-    createMaterial(physX);
+    updateMaterial();
 
     const QVector3D scale = characterController->sceneScale();
     const qreal heightScale = scale.y();
@@ -185,15 +185,14 @@ void QPhysXCharacterController::sync(float deltaTime,
                 controller->move(displacement, displacement.magnitude() / 100, deltaTime, {});
         characterController->setCollisions(QCharacterController::Collisions(uint(collisions)));
     }
-    // QCharacterController has a material property, but we don't inherit from
-    // QPhysXMaterialBody, so we create the material manually in init()
-    // TODO: handle material changes
+    // TODO: handle material changes, by calling updateMaterial() and, if it returns true,
+    // applying 'material' to the shape of the controller. Materials are shared between nodes,
+    // so modifying the one this node uses is not an option.
 }
 
-void QPhysXCharacterController::createMaterial(QPhysXWorld *physX)
+QPhysicsMaterial *QPhysXCharacterController::qtMaterial() const
 {
-    createMaterialFromQtMaterial(
-            physX, static_cast<QCharacterController *>(frontendNode)->physicsMaterial());
+    return static_cast<QCharacterController *>(frontendNode)->physicsMaterial();
 }
 
 bool QPhysXCharacterController::debugGeometryCapability()

@@ -273,6 +273,10 @@ void QPhysXWorld::deleteWorld()
         PHYSX_RELEASE(s_physx.cooking);
         PHYSX_RELEASE(s_physx.transport);
         PHYSX_RELEASE(s_physx.pvd);
+        // Every node releases its material when it is cleaned up, which happens before the
+        // last world is deleted, so nothing should be left to release here
+        Q_ASSERT(s_physx.materials.isEmpty());
+        s_physx.materials.clear();
         PHYSX_RELEASE(s_physx.physics);
         PHYSX_RELEASE(s_physx.foundation);
 
