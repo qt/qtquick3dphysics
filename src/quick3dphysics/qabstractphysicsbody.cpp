@@ -23,6 +23,13 @@ QT_BEGIN_NAMESPACE
 /*!
     \qmlproperty PhysicsMaterial PhysicsBody::physicsMaterial
     This property defines how the body behaves when it collides with or slides against other bodies in the simulation.
+
+    \note This property currently holds a \l PhysicsMaterial with default values unless another
+    one is assigned, but it may default to \c null in a future version of Qt, so do not rely on
+    it being non-null. Assign a \l PhysicsMaterial explicitly to the bodies whose material you
+    read or modify.
+
+    \sa PhysicsMaterial
 */
 
 /*!

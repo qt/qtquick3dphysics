@@ -22,12 +22,13 @@
 QT_BEGIN_NAMESPACE
 
 class QAbstractPhysicsBody;
+class QPhysicsMaterial;
 
 class QPhysXRigidBody : public QPhysXActorBody
 {
 public:
     QPhysXRigidBody(QAbstractPhysicsBody *frontEnd);
-    void createMaterial(QPhysXWorld *physX) override;
+    QPhysicsMaterial *qtMaterial() const override;
 };
 
 QT_END_NAMESPACE

@@ -19,8 +19,6 @@
 
 QT_BEGIN_NAMESPACE
 
-physx::PxMaterial *QAbstractPhysXNode::sDefaultMaterial = nullptr;
-
 QAbstractPhysXNode::QAbstractPhysXNode(QAbstractPhysicsNode *node) : frontendNode(node)
 {
     Q_ASSERT(node->m_backendObject == nullptr);
@@ -49,27 +47,65 @@ bool QAbstractPhysXNode::cleanupIfRemoved(QPhysXWorld *physX)
 
 void QAbstractPhysXNode::updateDefaultDensity(float) { }
 
-void QAbstractPhysXNode::createMaterial(QPhysXWorld *physX)
+static PhysicsMaterialProperties propertiesFor(const QPhysicsMaterial *qtMaterial)
 {
-    createMaterialFromQtMaterial(physX, nullptr);
+    if (!qtMaterial) {
+        return { QPhysicsMaterial::defaultStaticFriction, QPhysicsMaterial::defaultDynamicFriction,
+                 QPhysicsMaterial::defaultRestitution };
+    }
+    return { qtMaterial->staticFriction(), qtMaterial->dynamicFriction(),
+             qtMaterial->restitution() };
 }
 
-void QAbstractPhysXNode::createMaterialFromQtMaterial(QPhysXWorld *, QPhysicsMaterial *qtMaterial)
+QPhysicsMaterial *QAbstractPhysXNode::qtMaterial() const
 {
-    auto &s_physx = StaticPhysXObjects::getReference();
+    return nullptr;
+}
 
-    if (qtMaterial) {
-        material = s_physx.physics->createMaterial(qtMaterial->staticFriction(),
-                                                   qtMaterial->dynamicFriction(),
-                                                   qtMaterial->restitution());
-    } else {
-        if (!sDefaultMaterial) {
-            sDefaultMaterial = s_physx.physics->createMaterial(
-                    QPhysicsMaterial::defaultStaticFriction,
-                    QPhysicsMaterial::defaultDynamicFriction, QPhysicsMaterial::defaultRestitution);
+bool QAbstractPhysXNode::updateMaterial()
+{
+    const PhysicsMaterialProperties properties = propertiesFor(qtMaterial());
+    if (properties == materialProperties)
+        return false;
+
+    physx::PxMaterial *previousMaterial = material;
+    releaseMaterial();
+    materialProperties = properties;
+
+    auto &s_physx = StaticPhysXObjects::getReference();
+    SharedPhysicsMaterial &shared = s_physx.materials[properties];
+    if (!shared.material) {
+        shared.material = s_physx.physics->createMaterial(
+                properties.staticFriction, properties.dynamicFriction, properties.restitution);
+        if (!shared.material) {
+            // PhysX allows at most 64K materials. Without a material the node gets no shapes,
+            // so it will not collide with anything.
+            qWarning() << "QtQuick3DPhysics: could not create physics material, the body will "
+                          "not take part in collisions.";
+            s_physx.materials.remove(properties);
+            return material != previousMaterial;
         }
-        material = sDefaultMaterial;
     }
+
+    ++shared.nodeCount;
+    material = shared.material;
+    return material != previousMaterial;
+}
+
+void QAbstractPhysXNode::releaseMaterial()
+{
+    if (!material)
+        return;
+
+    auto &materials = StaticPhysXObjects::getReference().materials;
+    const auto it = materials.find(materialProperties);
+    if (it != materials.end() && it->material == material && --it->nodeCount == 0) {
+        // Any shape still referencing the material keeps it alive until it is rebuilt
+        it->material->release();
+        materials.erase(it);
+    }
+    material = nullptr;
+    materialProperties = PhysicsMaterialProperties::none();
 }
 
 void QAbstractPhysXNode::markDirtyShapes() { }
@@ -82,8 +118,7 @@ void QAbstractPhysXNode::cleanup(QPhysXWorld *)
 {
     for (auto *shape : std::as_const(shapes))
         PHYSX_RELEASE(shape);
-    if (material != sDefaultMaterial)
-        PHYSX_RELEASE(material);
+    releaseMaterial();
     shapes.clear();
 }
 

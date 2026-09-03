@@ -34,7 +34,7 @@ public:
     void cleanup(QPhysXWorld *physX) override;
     void init(QPhysicsWorld *world, QPhysXWorld *physX) override;
     void sync(float deltaTime, QHash<QQuick3DNode *, QMatrix4x4> &transformCache) override;
-    void createMaterial(QPhysXWorld *physX) override;
+    QPhysicsMaterial *qtMaterial() const override;
     bool debugGeometryCapability() override;
     DebugDrawBodyType getDebugDrawBodyType() override;
 
