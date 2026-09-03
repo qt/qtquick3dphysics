@@ -159,14 +159,15 @@ void QPhysXActorBody::buildShapes(QPhysXWorld * /*physX*/)
     shapes.clear();
 
     for (const auto &collisionShape : frontendNode->getCollisionShapesList()) {
-        // TODO: shapes can be shared between multiple actors.
-        // Do we need to create new ones for every body?
         auto *geom = collisionShape->getPhysXGeometry();
         if (!geom || !material)
             continue;
 
         auto &s_physx = StaticPhysXObjects::getReference();
-        auto physXShape = s_physx.physics->createShape(*geom, *material);
+        // The shape is created exclusive to this actor: a shape that may be shared between
+        // actors cannot be modified once it is attached to one, and these shapes are modified
+        // while attached, for instance when their filter data changes.
+        auto physXShape = s_physx.physics->createShape(*geom, *material, true);
         if (!physXShape) {
             qWarning() << "QtQuick3DPhysics: could not create shape, invalid geometry.";
             continue;
