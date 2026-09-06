@@ -122,6 +122,13 @@ void QPhysXActorBody::rebuildDirtyShapes(QPhysicsWorld * /*world*/, QPhysXWorld 
     setShapesDirty(false);
 }
 
+void QPhysXActorBody::detachFrontend()
+{
+    if (actor)
+        actor->userData = nullptr;
+    QAbstractPhysXNode::detachFrontend();
+}
+
 void QPhysXActorBody::createActor(QPhysXWorld * /*physX*/)
 {
     auto &s_physx = StaticPhysXObjects::getReference();
@@ -187,6 +194,7 @@ void QPhysXActorBody::buildShapes(QPhysXWorld * /*physX*/)
         physXShape->userData = reinterpret_cast<void *>(collisionShape);
 
         if (useTriggerFlag()) {
+            physXShape->setFlag(physx::PxShapeFlag::eSCENE_QUERY_SHAPE, false);
             physXShape->setFlag(physx::PxShapeFlag::eSIMULATION_SHAPE, false);
             physXShape->setFlag(physx::PxShapeFlag::eTRIGGER_SHAPE, true);
         }

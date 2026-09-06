@@ -89,6 +89,8 @@ public:
     bool filtersDirty() const;
     void setFiltersDirty(bool dirty);
 
+    virtual void detachFrontend();
+
     QVector<physx::PxShape *> shapes;
     physx::PxMaterial *material = nullptr;
     // The properties 'material' was created for

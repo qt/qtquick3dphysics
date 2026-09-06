@@ -38,6 +38,7 @@ public:
     QPhysicsMaterial *qtMaterial() const override;
     bool debugGeometryCapability() override;
     DebugDrawBodyType getDebugDrawBodyType() override;
+    void detachFrontend() override;
 
 private:
     physx::PxCapsuleController *controller = nullptr;

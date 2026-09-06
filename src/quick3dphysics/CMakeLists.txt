@@ -30,6 +30,8 @@ qt_internal_add_qml_module(Quick3DPhysics
         physxnode/qphysxstaticbody.cpp physxnode/qphysxstaticbody_p.h
         physxnode/qphysxtriggerbody.cpp physxnode/qphysxtriggerbody_p.h
         physxnode/qphysxworld.cpp physxnode/qphysxworld_p.h
+        queries/qquick3dphysicslocationhit.cpp queries/qquick3dphysicslocationhit_p.h
+        queries/qquick3dphysicsqueryhit.cpp queries/qquick3dphysicsqueryhit_p.h
         qabstractcollisionshape.cpp qabstractcollisionshape_p.h
         qabstractphysicsbody.cpp qabstractphysicsbody_p.h
         qabstractphysicsnode.cpp qabstractphysicsnode_p.h

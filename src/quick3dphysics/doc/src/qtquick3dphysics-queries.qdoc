@@ -1,0 +1,153 @@
+// Copyright (C) 2026 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GFDL-1.3-no-invariants-only
+
+/*!
+\page qtquick3dphysics-queries.html
+\title Qt Quick 3D Physics Scene Queries
+\brief Overview of scene query mechanics, types, and best practices in Qt
+Quick 3D Physics.
+
+Scene queries allow applications to test spatial relationships and detect
+collisions programmatically within a \l PhysicsWorld. They enable mechanics
+such as line-of-sight checks, spatial probing, volume clearance testing, and
+interactive picking without relying on standard physical contact callbacks.
+
+\section1 Types of Scene Queries
+
+Qt Quick 3D Physics provides three main query modes, each optimized for different
+spatial operations:
+
+\table
+\header
+\li Query Type
+\li Operation
+\li Typical Use Cases
+\row
+\li \b Raycast
+\li Casts an infinitely thin line segment along a direction vector.
+\li Line-of-sight checks, weapon ballistics, laser pointers, user object
+  picking.
+\row
+\li \b Sweep
+\li Sweeps a 3D volume (\l CollisionShape) from its scene position along a linear
+  direction vector.
+\li Character volume clearance checks, wall-sliding, predictive movement
+  checks.
+\row
+\li \b Overlap
+\li Tests a stationary 3D volume (\l CollisionShape) at its current scene position.
+\li Spawn-point occupation, area-of-effect (AoE) damage, proximity
+  detection.
+\endtable
+
+Each query mode is split into three performance variants depending on the detail
+level required:
+
+\list
+\li \b {Test Queries} (\c testRaycastQuery, \c testSweepQuery,
+  \c testOverlapQuery):
+  Boolean checks that terminate immediately upon finding the first
+  intersection. They return no detailed hit data, making them the fastest
+  option for occlusion or clearance validation.
+\li \b {Single Queries} (\c singleRaycastQuery, \c singleSweepQuery):
+  Return detailed information (\l locationHit, \l queryHit)
+  for the \b closest intersecting body.
+\li \b {Multi Queries} (\c multiRaycastQuery, \c multiSweepQuery,
+  \c multiOverlapQuery):
+  Return a list of hit objects for all intersecting bodies along the query
+  path or volume.
+\endlist
+
+\section1 Query Mechanics and Key Nuances
+
+When using scene queries, several system behaviors should be taken
+into consideration.
+
+\section2 Bodies Excluded from Queries
+
+Trigger bodies, such as \l TriggerBody, are not physical colliders and never appear in
+scene query results. Use an overlap query if you need the equivalent of a trigger volume
+that you can poll on demand.
+
+\section2 Filter Groups Do Not Apply
+
+The \l {PhysicsNode::filterGroup} {filterGroup} and
+\l {PhysicsNode::filterIgnoreGroups} {filterIgnoreGroups} properties control which bodies
+collide with each other during simulation. They have no effect on scene queries: a query
+evaluates every collider matching its \c includeStatic and \c includeDynamic arguments,
+regardless of the filter groups involved. If a query needs to ignore specific bodies,
+filter the results after the query returns.
+
+\section2 Query Shape Transforms
+
+For \b Sweep and \b Overlap queries, the provided \l CollisionShape defines not only
+the geometry and scale, but also the starting position and orientation for the query.
+The shape's scene transform (including parent node transformations) is baked directly
+into the query execution.
+
+\section2 Asynchronous Frame Timing and Latency
+
+The physics simulation steps concurrently alongside QML scene graph rendering.
+Scene queries executed while a physics step is in flight reflect object
+positions, poses, and bounding structures from the \e {last completed physics
+frame}.
+
+Consequently, queries triggered inside QML event handlers (such as \c onClicked
+or a \c Timer) operate on the state of the last completed step. That is the same
+state the scene's visual representation reflects, so a query result agrees with
+what is currently rendered; it does not account for motion occurring during the
+step being computed.
+
+\section2 Triangle Mesh Multi-Hit Behavior
+
+Multi-hit queries against complex triangle meshes or heightfield shapes yield a
+single intersection result per mesh object (the closest entry point). Individual
+triangles of a single mesh are not reported as separate hits.
+
+Furthermore, rays or volume sweeps that originate from \e inside a mesh or exit
+through back-facing surface triangles will not report hits for that mesh.
+
+\section2 Result Ordering in Multi-Queries
+
+Hit objects returned by multi-queries (\c multiRaycastQuery, \c multiSweepQuery,
+\c multiOverlapQuery) are populated based on spatial tree traversal order.
+\b {The results in the returned list are not guaranteed to be ordered by
+distance.} If a distance-sorted list is required, applications should sort the
+resulting list explicitly.
+
+\section2 Minimum Translation Distance (MTD) in Initial Overlaps
+
+By default, sweep queries handle initial overlaps with existing colliders using
+Minimum Translation Distance (MTD). If a query shape already overlaps a body at its
+starting position, the hit result reports a negative \c distance (representing the
+penetration depth), along with the separation \c position and \c normal.
+
+\section2 Character Controller Query Hits
+
+When scene queries hit a \l CharacterController, the returned hit structure
+(\l queryHit, or \l locationHit) will contain a valid \c body, but
+its \c shape property will be \c null. This occurs because the underlying
+character proxy shape does not maintain individual shape metadata. Applications
+should check if \c shape is \c null before accessing shape-specific properties.
+
+\section1 Filtering and Optimization Best Practices
+
+To achieve optimal performance when using scene queries:
+
+\list
+\li \b {Use Test Queries First:} Use \c testRaycastQuery or \c testSweepQuery
+  when you only need a \c true / \c false answer (e.g., AI visibility
+  checks). They bypass allocation and computation of hit geometry.
+\li \b {Filter Body Types:} Constrain query searches using the \c includeStatic
+  and \c includeDynamic parameters. If a raycast only needs to hit dynamic
+  objects, setting \c includeStatic to \c false reduces traversal overhead.
+\li \b {Limit Distance:} Keep \c maxDistance as short as practical to minimize
+  the number of candidate bounds evaluated by the spatial acceleration
+  structures.
+\endlist
+
+\section1 Example
+The \l {Qt Quick 3D Physics - Queries Example} shows how to get physical bodies from the scene.
+
+\sa PhysicsWorld, locationHit, queryHit
+*/

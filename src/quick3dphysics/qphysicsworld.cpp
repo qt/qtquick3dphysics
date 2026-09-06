@@ -296,6 +296,277 @@ QT_BEGIN_NAMESPACE
     \sa PhysicsWorld::staticQueryStructure
 */
 
+/*!
+    \qmlmethod bool PhysicsWorld::testRaycastQuery(vector3d origin, vector3d direction,
+                                                   real maxDistance,
+                                                   bool includeStatic = true,
+                                                   bool includeDynamic = true)
+    \since 6.13
+
+    Performs a fast occlusion check along a ray without computing precise hit
+    geometry or returning hit data.
+
+    Returns \c true if the ray hits a body within \a maxDistance; otherwise returns
+    \c false. The query stops at the first body it finds, which makes it the cheapest
+    of the raycast queries.
+
+    \list
+    \li \a origin is the starting position of the ray, in world space.
+    \li \a direction is the direction of the ray. It must not be a null vector and does
+        not need to be normalized; the query normalizes it.
+    \li \a maxDistance is the maximum distance along \a direction to cast the ray. It
+        must be greater than 0.
+    \li \a includeStatic includes static bodies in the query when \c true.
+    \li \a includeDynamic includes dynamic bodies in the query when \c true.
+    \endlist
+
+    \include qtquick3dphysics-queries.qdocinc include_flags
+
+    \include qtquick3dphysics-queries.qdocinc query_exclusions
+
+    \include qtquick3dphysics-queries.qdocinc mesh_raycast_limits
+
+    \sa singleRaycastQuery, multiRaycastQuery, {Qt Quick 3D Physics Scene Queries}
+*/
+
+/*!
+    \qmlmethod locationHit PhysicsWorld::singleRaycastQuery(vector3d origin,
+                                                            vector3d direction,
+                                                            real maxDistance,
+                                                            bool includeStatic = true,
+                                                            bool includeDynamic = true)
+    \since 6.13
+
+    Casts a ray through the physics scene and returns the closest body it hits.
+
+    The ray starts at \a origin and extends along \a direction up to \a maxDistance.
+    Returns a \l locationHit describing the closest intersection.
+
+    \list
+    \li \a origin is the starting position of the ray, in world space.
+    \li \a direction is the direction of the ray. It must not be a null vector and does
+        not need to be normalized; the query normalizes it.
+    \li \a maxDistance is the maximum distance along \a direction to cast the ray. It
+        must be greater than 0.
+    \li \a includeStatic includes static bodies in the query when \c true.
+    \li \a includeDynamic includes dynamic bodies in the query when \c true.
+    \endlist
+
+    \include qtquick3dphysics-queries.qdocinc include_flags
+
+    \include qtquick3dphysics-queries.qdocinc hit_miss_return
+
+    \include qtquick3dphysics-queries.qdocinc query_exclusions
+
+    \include qtquick3dphysics-queries.qdocinc mesh_raycast_limits
+
+    \sa testRaycastQuery, multiRaycastQuery, {Qt Quick 3D Physics Scene Queries}
+*/
+
+/*!
+    \qmlmethod list<locationHit> PhysicsWorld::multiRaycastQuery(vector3d origin,
+                                                                 vector3d direction,
+                                                                 real maxDistance,
+                                                                 bool includeStatic = true,
+                                                                 bool includeDynamic = true)
+    \since 6.13
+
+    Casts a ray through the physics scene and returns every body it passes through,
+    rather than stopping at the closest one.
+
+    The ray starts at \a origin and extends along \a direction up to \a maxDistance.
+    Returns a \l locationHit for each body hit, or an empty list if the ray hits
+    nothing.
+
+    \list
+    \li \a origin is the starting position of the ray, in world space.
+    \li \a direction is the direction of the ray. It must not be a null vector and does
+        not need to be normalized; the query normalizes it.
+    \li \a maxDistance is the maximum distance along \a direction to cast the ray. It
+        must be greater than 0.
+    \li \a includeStatic includes static bodies in the query when \c true.
+    \li \a includeDynamic includes dynamic bodies in the query when \c true.
+    \endlist
+
+    \include qtquick3dphysics-queries.qdocinc include_flags
+
+    \include qtquick3dphysics-queries.qdocinc query_exclusions
+
+    \include qtquick3dphysics-queries.qdocinc mesh_raycast_limits
+
+    \include qtquick3dphysics-queries.qdocinc mesh_multi_intersection
+
+    \include qtquick3dphysics-queries.qdocinc unordered_hits_note
+
+    \sa testRaycastQuery, singleRaycastQuery, {Qt Quick 3D Physics Scene Queries}
+*/
+
+/*!
+    \qmlmethod bool PhysicsWorld::testSweepQuery(CollisionShape shape, vector3d direction,
+                                                 real maxDistance,
+                                                 bool includeStatic = true,
+                                                 bool includeDynamic = true)
+    \since 6.13
+
+    Sweeps a collision shape along a straight path and reports whether the path is
+    obstructed, without computing precise hit geometry.
+
+    Returns \c true if \a shape hits a body before travelling \a maxDistance; otherwise
+    returns \c false. The query stops at the first body it finds, which makes it the
+    cheapest of the sweep queries.
+
+    \list
+    \li \a shape is the \l CollisionShape to sweep through the scene.
+    \li \a direction is the direction of the sweep. It must not be a null vector and does
+        not need to be normalized; the query normalizes it.
+    \li \a maxDistance is the maximum distance along \a direction to travel. It must be
+        greater than 0.
+    \li \a includeStatic includes static bodies in the query when \c true.
+    \li \a includeDynamic includes dynamic bodies in the query when \c true.
+    \endlist
+
+    \include qtquick3dphysics-queries.qdocinc query_shape
+
+    \include qtquick3dphysics-queries.qdocinc include_flags
+
+    \include qtquick3dphysics-queries.qdocinc query_exclusions
+
+    \sa singleSweepQuery, multiSweepQuery, {Qt Quick 3D Physics Scene Queries}
+*/
+
+/*!
+    \qmlmethod locationHit PhysicsWorld::singleSweepQuery(CollisionShape shape,
+                                                          vector3d direction,
+                                                          real maxDistance,
+                                                          bool includeStatic = true,
+                                                          bool includeDynamic = true)
+    \since 6.13
+
+    Sweeps a collision shape along a straight path and returns the closest body it
+    hits.
+
+    Returns a \l locationHit describing the closest intersection encountered along the
+    sweep.
+
+    \list
+    \li \a shape is the \l CollisionShape to sweep through the scene.
+    \li \a direction is the direction of the sweep. It must not be a null vector and does
+        not need to be normalized; the query normalizes it.
+    \li \a maxDistance is the maximum distance along \a direction to travel. It must be
+        greater than 0.
+    \li \a includeStatic includes static bodies in the query when \c true.
+    \li \a includeDynamic includes dynamic bodies in the query when \c true.
+    \endlist
+
+    \include qtquick3dphysics-queries.qdocinc query_shape
+
+    \include qtquick3dphysics-queries.qdocinc include_flags
+
+    \include qtquick3dphysics-queries.qdocinc hit_miss_return
+
+    \include qtquick3dphysics-queries.qdocinc query_exclusions
+
+    \include qtquick3dphysics-queries.qdocinc mtd_overlap_note
+
+    \sa testSweepQuery, multiSweepQuery, {Qt Quick 3D Physics Scene Queries}
+*/
+
+/*!
+    \qmlmethod list<locationHit> PhysicsWorld::multiSweepQuery(CollisionShape shape,
+                                                               vector3d direction,
+                                                               real maxDistance,
+                                                               bool includeStatic = true,
+                                                               bool includeDynamic = true)
+    \since 6.13
+
+    Sweeps a collision shape along a straight path and returns every body it passes
+    through, rather than stopping at the closest one.
+
+    Returns a \l locationHit for each body hit, or an empty list if the sweep hits
+    nothing.
+
+    \list
+    \li \a shape is the \l CollisionShape to sweep through the scene.
+    \li \a direction is the direction of the sweep. It must not be a null vector and does
+        not need to be normalized; the query normalizes it.
+    \li \a maxDistance is the maximum distance along \a direction to travel. It must be
+        greater than 0.
+    \li \a includeStatic includes static bodies in the query when \c true.
+    \li \a includeDynamic includes dynamic bodies in the query when \c true.
+    \endlist
+
+    \include qtquick3dphysics-queries.qdocinc query_shape
+
+    \include qtquick3dphysics-queries.qdocinc include_flags
+
+    \include qtquick3dphysics-queries.qdocinc query_exclusions
+
+    \include qtquick3dphysics-queries.qdocinc mesh_multi_intersection
+
+    \include qtquick3dphysics-queries.qdocinc unordered_hits_note
+
+    \include qtquick3dphysics-queries.qdocinc mtd_overlap_note
+
+    \sa testSweepQuery, singleSweepQuery, {Qt Quick 3D Physics Scene Queries}
+*/
+
+/*!
+    \qmlmethod bool PhysicsWorld::testOverlapQuery(CollisionShape shape,
+                                                   bool includeStatic = true,
+                                                   bool includeDynamic = true)
+    \since 6.13
+
+    Reports whether any body occupies the volume of a stationary collision shape.
+
+    Returns \c true if \a shape overlaps a body; otherwise returns \c false. The query
+    stops at the first body it finds and builds no hit data, which makes it the cheapest
+    of the overlap queries.
+
+    \list
+    \li \a shape is the \l CollisionShape defining the overlap volume.
+    \li \a includeStatic includes static bodies in the query when \c true.
+    \li \a includeDynamic includes dynamic bodies in the query when \c true.
+    \endlist
+
+    \include qtquick3dphysics-queries.qdocinc query_shape
+
+    \include qtquick3dphysics-queries.qdocinc include_flags
+
+    \include qtquick3dphysics-queries.qdocinc query_exclusions
+
+    \sa multiOverlapQuery, {Qt Quick 3D Physics Scene Queries}
+*/
+
+/*!
+    \qmlmethod list<queryHit> PhysicsWorld::multiOverlapQuery(CollisionShape shape,
+                                                              bool includeStatic = true,
+                                                              bool includeDynamic = true)
+    \since 6.13
+
+    Returns every body that overlaps the volume of a stationary collision shape.
+
+    Returns a \l queryHit for each overlapping body, or an empty list if the volume is
+    unoccupied.
+
+    \list
+    \li \a shape is the \l CollisionShape defining the overlap volume.
+    \li \a includeStatic includes static bodies in the query when \c true.
+    \li \a includeDynamic includes dynamic bodies in the query when \c true.
+    \endlist
+
+    \include qtquick3dphysics-queries.qdocinc query_shape
+
+    \include qtquick3dphysics-queries.qdocinc include_flags
+
+    \include qtquick3dphysics-queries.qdocinc query_exclusions
+
+    \include qtquick3dphysics-queries.qdocinc mesh_multi_intersection
+
+    \include qtquick3dphysics-queries.qdocinc unordered_hits_note
+
+    \sa testOverlapQuery, {Qt Quick 3D Physics Scene Queries}
+*/
+
 Q_LOGGING_CATEGORY(lcQuick3dPhysics, "qt.quick3d.physics");
 
 // Setting QT_PHYSICS_TIMINGS_FILE to a filepath will generate a csv file with frame timings.
@@ -312,6 +583,176 @@ static const QString qtPhysicsTimingsFile = qEnvironmentVariable("QT_PHYSICS_TIM
 
 /////////////////////////////////////////////////////////////////////////////
 
+static bool validateQuery(const physx::PxScene *scene,
+               bool includeStatic,
+               bool includeDynamic)
+{
+    if (!scene) {
+        qWarning() << "QtQuick3DPhysics: cannot run a scene query before the physics world is "
+                      "initialized.";
+        return false;
+    }
+
+    if (!(includeStatic || includeDynamic)) {
+        qWarning() << "QtQuick3DPhysics: a scene query needs includeStatic or includeDynamic to "
+                      "be true.";
+        return false;
+    }
+
+    return true;
+}
+
+static bool raycastImpl(const physx::PxScene *scene,
+                 const QVector3D &origin,
+                 const QVector3D &direction,
+                 float maxDistance,
+                 bool includeStatic,
+                 bool includeDynamic,
+                 physx::PxRaycastCallback &hitCallback,
+                 physx::PxHitFlags hitFlags,
+                 physx::PxQueryFlags extraQueryFlags = {})
+{
+    if (!validateQuery(scene, includeStatic, includeDynamic))
+        return false;
+
+    const physx::PxVec3 pxOrigin = QPhysicsUtils::toPhysXType(origin);
+    if (!pxOrigin.isFinite()) {
+        qWarning() << "QtQuick3DPhysics: the query origin must be finite.";
+        return false;
+    }
+
+    const physx::PxVec3 pxDirection = QPhysicsUtils::toPhysXType(direction.normalized());
+    if (!pxDirection.isNormalized()) {
+        qWarning() << "QtQuick3DPhysics: the query direction must be a non-null, finite vector.";
+        return false;
+    }
+
+    if (!qIsFinite(maxDistance) || maxDistance <= 0) {
+        qWarning() << "QtQuick3DPhysics: the query distance must be finite and greater than 0.";
+        return false;
+    }
+
+    // Combine base flags with optional query flags (e.g., eANY_HIT or eNO_BLOCK)
+    physx::PxQueryFlags filter = extraQueryFlags;
+    if (includeStatic)
+        filter |= physx::PxQueryFlag::eSTATIC;
+    if (includeDynamic)
+        filter |= physx::PxQueryFlag::eDYNAMIC;
+
+    // Execute PhysX scene raycast
+    return scene->raycast(pxOrigin, pxDirection, maxDistance, hitCallback, hitFlags,
+                          physx::PxQueryFilterData(filter));
+}
+
+static const physx::PxGeometry *validateQueryShape(const physx::PxScene *scene,
+                                               QAbstractCollisionShape *shape,
+                                               bool includeStatic,
+                                               bool includeDynamic)
+{
+    if (!validateQuery(scene, includeStatic, includeDynamic)) {
+        return nullptr;
+    }
+
+    const physx::PxGeometry *geometry = shape ? shape->getPhysXGeometry() : nullptr;
+    if (!geometry) {
+        qWarning() << "QtQuick3DPhysics: the query shape has no geometry yet.";
+        return nullptr;
+    }
+
+    // PhysX only supports sphere, capsule, box and convex mesh as the query geometry. Anything
+    // else leaves Gu::ShapeData's bounds uninitialized in a release build.
+    switch (geometry->getType()) {
+    case physx::PxGeometryType::eSPHERE:
+    case physx::PxGeometryType::eCAPSULE:
+    case physx::PxGeometryType::eBOX:
+    case physx::PxGeometryType::eCONVEXMESH:
+        break;
+    default:
+        qWarning() << "QtQuick3DPhysics: sweep and overlap queries only support SphereShape, "
+                      "CapsuleShape, BoxShape and ConvexMeshShape as the query shape.";
+        return nullptr;
+    }
+
+    return geometry;
+}
+
+static bool sweepImpl(const physx::PxScene *scene,
+                      QAbstractCollisionShape *shape,
+                      const QVector3D &direction,
+                      float maxDistance,
+                      bool includeStatic,
+                      bool includeDynamic,
+                      physx::PxSweepCallback &hitCallback,
+                      physx::PxHitFlags hitFlags,
+                      physx::PxQueryFlags extraQueryFlags = {})
+{
+    const physx::PxGeometry *geometry = validateQueryShape(scene, shape, includeStatic, includeDynamic);
+    if (!geometry) {
+        return false;
+    }
+
+    const physx::PxVec3 pxDirection = QPhysicsUtils::toPhysXType(direction.normalized());
+    if (!pxDirection.isNormalized()) {
+        qWarning() << "QtQuick3DPhysics: the query direction must be a non-null, finite vector.";
+        return false;
+    }
+
+    if (!qIsFinite(maxDistance) || maxDistance <= 0) {
+        qWarning() << "QtQuick3DPhysics: the query distance must be finite and greater than 0.";
+        return false;
+    }
+
+    // Combine base flags with optional query flags (e.g., eANY_HIT or eNO_BLOCK)
+    physx::PxQueryFlags filter = extraQueryFlags;
+    if (includeStatic)
+        filter |= physx::PxQueryFlag::eSTATIC;
+    if (includeDynamic)
+        filter |= physx::PxQueryFlag::eDYNAMIC;
+
+    const physx::PxTransform pose(QPhysicsUtils::toPhysXType(shape->scenePosition()),
+                                  QPhysicsUtils::toPhysXType(shape->sceneRotation()));
+    if (!pose.isSane()) {
+        qWarning() << "QtQuick3DPhysics: the query position/rotation is not finite.";
+        return false;
+    }
+
+    // Execute PhysX scene sweep
+    return scene->sweep(*geometry, pose, pxDirection, maxDistance, hitCallback, hitFlags,
+                        physx::PxQueryFilterData(filter));
+}
+
+static bool overlapImpl(const physx::PxScene *scene,
+                        QAbstractCollisionShape *shape,
+                        bool includeStatic,
+                        bool includeDynamic,
+                        physx::PxOverlapCallback &hitCallback,
+                        physx::PxQueryFlags extraQueryFlags = {})
+{
+
+    const physx::PxGeometry *geometry = validateQueryShape(scene, shape, includeStatic, includeDynamic);
+    if (!geometry) {
+        return false;
+    }
+
+    // Combine base static/dynamic flags with query behavior flags (e.g., eANY_HIT or eNO_BLOCK)
+    physx::PxQueryFlags filter = extraQueryFlags;
+    if (includeStatic)
+        filter |= physx::PxQueryFlag::eSTATIC;
+    if (includeDynamic)
+        filter |= physx::PxQueryFlag::eDYNAMIC;
+
+    const physx::PxTransform pose(QPhysicsUtils::toPhysXType(shape->scenePosition()),
+                                  QPhysicsUtils::toPhysXType(shape->sceneRotation()));
+    if (!pose.isSane()) {
+        qWarning() << "QtQuick3DPhysics: the query position/rotation is not finite.";
+        return false;
+    }
+
+    // Execute PhysX scene overlap query
+    return scene->overlap(*geometry, pose, hitCallback,
+                          physx::PxQueryFilterData(filter));
+}
+
 class FrameAnimator : public QQuickFrameAnimation
 {
     Q_OBJECT
@@ -323,6 +764,31 @@ public:
         componentComplete();
     }
 };
+
+namespace {
+
+// Collects every touching hit from a scene query. PhysX needs a caller-owned buffer to sort
+// into, and hands the hits over in batches of at most BufferSize once it fills up, so the
+// buffer stays and processTouches() appends each batch to hits.
+// A struct because the PhysX callback bases declare all their members public.
+template<class PxCbT, class HitT, class PxHitT, physx::PxU32 BufferSize = 16>
+struct DynamicQueryCallback : public PxCbT
+{
+    DynamicQueryCallback() : PxCbT(localBuffer, BufferSize) {}
+
+    physx::PxAgain processTouches(const PxHitT *buffer, physx::PxU32 nbHits) override
+    {
+        hits.reserve(hits.size() + nbHits);
+        for (physx::PxU32 i = 0; i < nbHits; ++i)
+            hits.emplaceBack(buffer[i], buffer[i]);
+        return true;
+    }
+
+    PxHitT localBuffer[BufferSize];
+    QList<HitT> hits;
+};
+
+} // namespace
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -433,6 +899,7 @@ void QPhysicsWorld::deregisterNode(QAbstractPhysicsNode *physicsNode)
         world->m_newPhysicsNodes.removeAll(physicsNode);
         if (physicsNode->m_backendObject) {
             Q_ASSERT(physicsNode->m_backendObject->frontendNode == physicsNode);
+            physicsNode->m_backendObject->detachFrontend();
             physicsNode->m_backendObject->frontendNode = nullptr;
             physicsNode->m_backendObject->isRemoved = true;
             physicsNode->m_backendObject = nullptr;
@@ -1778,6 +2245,145 @@ void QPhysicsWorld::setDynamicQueryStructure(QueryStructure newDynamicQueryStruc
 
     m_dynamicQueryStructure = newDynamicQueryStructure;
     emit dynamicQueryStructureChanged();
+}
+
+bool QPhysicsWorld::testRaycastQuery(const QVector3D &origin,
+                                     const QVector3D &direction,
+                                     float maxDistance,
+                                     bool includeStatic,
+                                     bool includeDynamic) const
+{
+    physx::PxRaycastBuffer hitBuffer;
+    return raycastImpl(m_physx->scene, origin, direction,
+                       maxDistance, includeStatic, includeDynamic,
+                       hitBuffer,
+                       physx::PxHitFlags(),
+                       physx::PxQueryFlag::eANY_HIT);
+}
+
+QQuick3DPhysicsLocationHit QPhysicsWorld::singleRaycastQuery(const QVector3D &origin,
+                                                             const QVector3D &direction,
+                                                             float maxDistance,
+                                                             bool includeStatic,
+                                                             bool includeDynamic) const
+{
+    physx::PxRaycastBuffer hitBuffer;
+    const bool status = raycastImpl(m_physx->scene, origin, direction,
+                                    maxDistance, includeStatic, includeDynamic,
+                                    hitBuffer,
+                                    physx::PxHitFlag::eDEFAULT);
+
+    if (status && hitBuffer.hasBlock) {
+        return QQuick3DPhysicsLocationHit(hitBuffer.block,
+                                          hitBuffer.block);
+    }
+
+    return {};
+}
+
+QList<QQuick3DPhysicsLocationHit> QPhysicsWorld::multiRaycastQuery(const QVector3D &origin,
+                                                                   const QVector3D &direction,
+                                                                   float maxDistance,
+                                                                   bool includeStatic,
+                                                                   bool includeDynamic) const
+{
+    DynamicQueryCallback<physx::PxRaycastCallback,
+                         QQuick3DPhysicsLocationHit,
+                         physx::PxRaycastHit> hitBuffer;
+
+    if (raycastImpl(m_physx->scene, origin, direction,
+                    maxDistance, includeStatic, includeDynamic,
+                    hitBuffer,
+                    physx::PxHitFlag::eDEFAULT,
+                    physx::PxQueryFlag::eNO_BLOCK)) {
+
+        return hitBuffer.hits;
+    }
+
+    return {};
+}
+
+bool QPhysicsWorld::testSweepQuery(QAbstractCollisionShape *shape,
+                                   const QVector3D &direction,
+                                   float maxDistance,
+                                   bool includeStatic,
+                                   bool includeDynamic) const
+{
+    physx::PxSweepBuffer hitBuffer;
+    return sweepImpl(m_physx->scene, shape, direction,
+                     maxDistance, includeStatic, includeDynamic,
+                     hitBuffer,
+                     physx::PxHitFlags(),
+                     physx::PxQueryFlag::eANY_HIT);
+}
+
+QQuick3DPhysicsLocationHit QPhysicsWorld::singleSweepQuery(QAbstractCollisionShape *shape,
+                                                           const QVector3D &direction,
+                                                           float maxDistance,
+                                                           bool includeStatic,
+                                                           bool includeDynamic) const
+{
+    physx::PxSweepBuffer hitBuffer;
+    const bool status = sweepImpl(m_physx->scene, shape,
+                                  direction, maxDistance, includeStatic, includeDynamic,
+                                  hitBuffer,
+                                  physx::PxHitFlag::eDEFAULT | physx::PxHitFlag::eMTD);
+
+    if (status && hitBuffer.hasBlock) {
+        return QQuick3DPhysicsLocationHit(hitBuffer.block, hitBuffer.block);
+    }
+
+    return {};
+}
+
+QList<QQuick3DPhysicsLocationHit> QPhysicsWorld::multiSweepQuery(QAbstractCollisionShape *shape,
+                                                                 const QVector3D &direction,
+                                                                 float maxDistance,
+                                                                 bool includeStatic,
+                                                                 bool includeDynamic) const
+{
+    DynamicQueryCallback<physx::PxSweepCallback,
+                         QQuick3DPhysicsLocationHit,
+                         physx::PxSweepHit> hitBuffer;
+
+    if (sweepImpl(m_physx->scene, shape,
+                  direction, maxDistance, includeStatic, includeDynamic,
+                  hitBuffer,
+                  physx::PxHitFlag::eDEFAULT | physx::PxHitFlag::eMTD,
+                  physx::PxQueryFlag::eNO_BLOCK)) {
+        return hitBuffer.hits;
+    }
+
+    return {};
+}
+
+bool QPhysicsWorld::testOverlapQuery(QAbstractCollisionShape *shape,
+                                     bool includeStatic,
+                                     bool includeDynamic) const
+{
+    physx::PxOverlapBuffer hitBuffer;
+    return overlapImpl(m_physx->scene,
+                       shape, includeStatic, includeDynamic,
+                       hitBuffer,
+                       physx::PxQueryFlag::eANY_HIT);
+}
+
+QList<QQuick3DPhysicsQueryHit> QPhysicsWorld::multiOverlapQuery(QAbstractCollisionShape *shape,
+                                                                bool includeStatic,
+                                                                bool includeDynamic) const
+{
+    DynamicQueryCallback<physx::PxOverlapCallback,
+                         QQuick3DPhysicsQueryHit,
+                         physx::PxOverlapHit> hitBuffer;
+
+    if (overlapImpl(m_physx->scene,
+                    shape, includeStatic, includeDynamic,
+                    hitBuffer,
+                    physx::PxQueryFlag::eNO_BLOCK)) {
+        return hitBuffer.hits;
+    }
+
+    return {};
 }
 
 QT_END_NAMESPACE

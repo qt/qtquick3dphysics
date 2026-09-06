@@ -236,4 +236,15 @@ DebugDrawBodyType QPhysXCharacterController::getDebugDrawBodyType()
     return DebugDrawBodyType::Character;
 }
 
+void QPhysXCharacterController::detachFrontend()
+{
+    if (controller) {
+        controller->setUserData(nullptr);
+        if (auto *actor = controller->getActor())
+            actor->userData = nullptr;
+    }
+
+    QAbstractPhysXNode::detachFrontend();
+}
+
 QT_END_NAMESPACE

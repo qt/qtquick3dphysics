@@ -164,4 +164,10 @@ void QAbstractPhysXNode::setFiltersDirty(bool dirty)
     frontendNode->m_filtersDirty = dirty;
 }
 
+void QAbstractPhysXNode::detachFrontend()
+{
+    for (auto *shape : std::as_const(shapes))
+        shape->userData = nullptr;
+}
+
 QT_END_NAMESPACE

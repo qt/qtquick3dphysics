@@ -41,6 +41,7 @@ public:
     physx::PxTransform getGlobalPose() override;
     void buildShapes(QPhysXWorld *physX);
     void updateFilters() override;
+    void detachFrontend() override;
 
     physx::PxRigidActor *actor = nullptr;
 };

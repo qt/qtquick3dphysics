@@ -1,0 +1,50 @@
+// Copyright (C) 2026 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GFDL-1.3-no-invariants-only
+
+//! [include_flags]
+At least one of \a includeStatic and \a includeDynamic must be \c true. If both are
+\c false the query does no work and reports no hit.
+//! [include_flags]
+
+//! [query_exclusions]
+Trigger bodies, such as \l TriggerBody, are not colliders and are never reported. The
+\l {PhysicsNode::filterGroup} {filterGroup} and
+\l {PhysicsNode::filterIgnoreGroups} {filterIgnoreGroups} properties affect simulation
+collisions only; scene queries ignore them.
+//! [query_exclusions]
+
+//! [hit_miss_return]
+If nothing is hit, or the arguments are invalid, the returned hit has a \c null \c body.
+Every body in the scene has an associated node, so \c {hit.body === null} is the reliable
+test for a miss; the \c distance of a missed hit is \c 0 and carries no meaning.
+//! [hit_miss_return]
+
+//! [mesh_raycast_limits]
+A ray that starts inside a mesh, or that exits through a back-facing triangle, does not
+report that mesh.
+//! [mesh_raycast_limits]
+
+//! [mesh_multi_intersection]
+Triangle mesh and heightfield shapes are reported once, at their closest intersection.
+The individual triangles of one mesh are not returned as separate hits.
+//! [mesh_multi_intersection]
+
+//! [query_shape]
+The \a shape supplies the geometry of the query as well as its starting position and
+orientation: it is evaluated at its current scene transform, and any scaling on its node,
+including scaling inherited from parent nodes, is baked into the query geometry. Only
+\l BoxShape, \l SphereShape, \l CapsuleShape and \l ConvexMeshShape can be used; passing
+\l PlaneShape, \l TriangleMeshShape or \l HeightFieldShape produces no result and emits a
+warning.
+//! [query_shape]
+
+//! [unordered_hits_note]
+\note Hits are returned in spatial tree traversal order, not sorted by distance. Sort the
+list yourself if you need depth order.
+//! [unordered_hits_note]
+
+//! [mtd_overlap_note]
+\note If \a shape already overlaps a body at its starting position, that hit reports a
+negative \c distance whose magnitude is the penetration depth, along with the \c position
+and \c normal needed to separate the two shapes.
+//! [mtd_overlap_note]

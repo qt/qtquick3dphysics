@@ -26,6 +26,7 @@
 #include <QtGui/QVector3D>
 #include <QtQml/qqml.h>
 #include <QBasicTimer>
+#include <QtQuick3DPhysics/private/qquick3dphysicslocationhit_p.h>
 
 #include <QtQuick3D/private/qquick3dviewport_p.h>
 
@@ -158,6 +159,50 @@ public:
     Q_REVISION(6, 13) QueryStructure dynamicQueryStructure() const;
     Q_REVISION(6, 13) void setDynamicQueryStructure(QueryStructure newDynamicQueryStructure);
 
+    Q_REVISION(6, 13) Q_INVOKABLE bool testRaycastQuery(const QVector3D &origin,
+                                                        const QVector3D &direction,
+                                                        float maxDistance,
+                                                        bool includeStatic = true,
+                                                        bool includeDynamic = true) const;
+
+    Q_REVISION(6, 13) Q_INVOKABLE QQuick3DPhysicsLocationHit singleRaycastQuery(const QVector3D &origin,
+                                                                                const QVector3D &direction,
+                                                                                float maxDistance,
+                                                                                bool includeStatic = true,
+                                                                                bool includeDynamic = true) const;
+
+    Q_REVISION(6, 13) Q_INVOKABLE QList<QQuick3DPhysicsLocationHit> multiRaycastQuery(const QVector3D &origin,
+                                                                                      const QVector3D &direction,
+                                                                                      float maxDistance,
+                                                                                      bool includeStatic = true,
+                                                                                      bool includeDynamic = true) const;
+
+    Q_REVISION(6, 13) Q_INVOKABLE bool testSweepQuery(QAbstractCollisionShape *shape,
+                                                      const QVector3D &direction,
+                                                      float maxDistance,
+                                                      bool includeStatic = true,
+                                                      bool includeDynamic = true) const;
+
+    Q_REVISION(6, 13) Q_INVOKABLE QQuick3DPhysicsLocationHit singleSweepQuery(QAbstractCollisionShape *shape,
+                                                                              const QVector3D &direction,
+                                                                              float maxDistance,
+                                                                              bool includeStatic = true,
+                                                                              bool includeDynamic = true) const;
+
+    Q_REVISION(6, 13) Q_INVOKABLE QList<QQuick3DPhysicsLocationHit> multiSweepQuery(QAbstractCollisionShape *shape,
+                                                                                    const QVector3D &direction,
+                                                                                    float maxDistance,
+                                                                                    bool includeStatic = true,
+                                                                                    bool includeDynamic = true) const;
+
+    Q_REVISION(6, 13) Q_INVOKABLE bool testOverlapQuery(QAbstractCollisionShape *shape,
+                                                        bool includeStatic = true,
+                                                        bool includeDynamic = true) const;
+
+    Q_REVISION(6, 13) Q_INVOKABLE QList<QQuick3DPhysicsQueryHit> multiOverlapQuery(QAbstractCollisionShape *shape,
+                                                                                   bool includeStatic = true,
+                                                                                   bool includeDynamic = true) const;
+
 public slots:
     void setGravity(QVector3D gravity);
     void setRunning(bool running);
@@ -188,7 +233,6 @@ signals:
     Q_REVISION(6, 7) void numThreadsChanged();
     Q_REVISION(6, 7) void reportKinematicKinematicCollisionsChanged();
     Q_REVISION(6, 7) void reportStaticKinematicCollisionsChanged();
-
 
     Q_REVISION(6, 13) void staticQueryStructureChanged();
     Q_REVISION(6, 13) void dynamicQueryStructureChanged();
