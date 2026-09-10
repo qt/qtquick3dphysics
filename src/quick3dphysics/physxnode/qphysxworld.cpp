@@ -7,7 +7,6 @@
 #include "characterkinematic/PxControllerManager.h"
 #include "cooking/PxCooking.h"
 #include "extensions/PxDefaultCpuDispatcher.h"
-#include "pvd/PxPvdTransport.h"
 #include "PxFoundation.h"
 #include "PxPhysics.h"
 #include "PxPhysicsVersion.h"
@@ -227,12 +226,6 @@ void QPhysXWorld::createWorld()
 
     s_physx.foundationCreated = true;
 
-#if PHYSX_ENABLE_PVD
-    s_physx.pvd = PxCreatePvd(*m_physx->foundation);
-    s_physx.transport = physx::PxDefaultPvdSocketTransportCreate("qt", 5425, 10);
-    s_physx.pvd->connect(*m_physx->transport, physx::PxPvdInstrumentationFlag::eALL);
-#endif
-
     // FIXME: does the tolerance matter?
     s_physx.cooking = PxCreateCooking(PX_PHYSICS_VERSION, *s_physx.foundation,
                                       physx::PxCookingParams(physx::PxTolerancesScale()));
@@ -248,8 +241,6 @@ void QPhysXWorld::deleteWorld()
         PHYSX_RELEASE(scene);
         PHYSX_RELEASE(s_physx.dispatcher);
         PHYSX_RELEASE(s_physx.cooking);
-        PHYSX_RELEASE(s_physx.transport);
-        PHYSX_RELEASE(s_physx.pvd);
         // Every node releases its material when it is cleaned up, which happens before the
         // last world is deleted, so nothing should be left to release here
         Q_ASSERT(s_physx.materials.isEmpty());
@@ -286,7 +277,7 @@ void QPhysXWorld::createScene(float typicalLength, float typicalSpeed, const QVe
     if (!s_physx.physicsCreated) {
         constexpr bool recordMemoryAllocations = true;
         s_physx.physics = PxCreatePhysics(PX_PHYSICS_VERSION, *s_physx.foundation, scale,
-                                          recordMemoryAllocations, s_physx.pvd);
+                                          recordMemoryAllocations);
         if (!s_physx.physics)
             qFatal("PxCreatePhysics failed!");
 

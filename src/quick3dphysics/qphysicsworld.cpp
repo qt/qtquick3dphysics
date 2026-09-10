@@ -35,8 +35,6 @@
 
 #include <QtEnvironmentVariables>
 
-#define PHYSX_ENABLE_PVD 0
-
 QT_BEGIN_NAMESPACE
 
 /*!
