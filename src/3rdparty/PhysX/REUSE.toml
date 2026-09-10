@@ -3,7 +3,9 @@ version = 1
 [[annotations]]
 path = ["include/**", "pxshared/**", "source/**"]
 precedence = "closest"
-SPDX-FileCopyrightText = "Copyright (c) 2021 NVIDIA Corporation"
+SPDX-FileCopyrightText = ["Copyright (c) 2008-2021 NVIDIA Corporation",
+                          "Copyright (c) 2004-2008 AGEIA Technologies, Inc.",
+                          "Copyright (c) 2001-2004 NovodeX AG"]
 SPDX-License-Identifier = "BSD-3-Clause"
 
 [[annotations]]

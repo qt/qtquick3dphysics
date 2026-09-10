@@ -7,11 +7,16 @@
     "SecurityCritical": true,
 
     "Homepage": "https://github.com/NVIDIAGameWorks/PhysX/",
-    "Version": "PhysX_4.1.2.29882248",
-    "DownloadLocation": "https://github.com/NVIDIAGameWorks/PhysX/commit/93c6dd21b545605185f2febc8eeacebe49a99479",
+    "Version": "4.1.2.29882248",
+    "DownloadLocation": "https://github.com/NVIDIAGameWorks/PhysX/commit/c3d5537bdebd6f5cd82fcaf87474b838fe6fd5fa",
+    "PURL": "pkg:github/NVIDIAGameWorks/PhysX@c3d5537bdebd6f5cd82fcaf87474b838fe6fd5fa",
 
     "License": "BSD 3-Clause \"New\" or \"Revised\" License",
     "LicenseId": "BSD-3-Clause",
     "LicenseFile": "LICENSE.md",
-    "Copyright": "Copyright (c) 2021 NVIDIA Corporation"
+    "Copyright": [
+        "Copyright (c) 2008-2021 NVIDIA Corporation",
+        "Copyright (c) 2004-2008 AGEIA Technologies, Inc.",
+        "Copyright (c) 2001-2004 NovodeX AG"
+    ]
 }
