@@ -24,8 +24,6 @@
 #include "extensions/PxDefaultErrorCallback.h"
 
 namespace physx {
-class PxPvdTransport;
-class PxPvd;
 class PxFoundation;
 class PxDefaultCpuDispatcher;
 class PxCooking;
@@ -74,8 +72,6 @@ struct StaticPhysXObjects
     physx::PxDefaultErrorCallback defaultErrorCallback;
     physx::PxDefaultAllocator defaultAllocatorCallback;
     physx::PxFoundation *foundation = nullptr;
-    physx::PxPvd *pvd = nullptr;
-    physx::PxPvdTransport *transport = nullptr;
     physx::PxPhysics *physics = nullptr;
     physx::PxDefaultCpuDispatcher *dispatcher = nullptr;
     physx::PxCooking *cooking = nullptr;
