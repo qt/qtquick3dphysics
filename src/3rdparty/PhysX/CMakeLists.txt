@@ -1,6 +1,10 @@
 
 #####################################################################
 ## BundledPhysX Generic Library:
+##
+## The lists between the BEGIN GENERATED and END GENERATED markers are
+## written by find_includes.py from the files copy_sources.py imported,
+## so do not edit them by hand.
 #####################################################################
 
 qt_internal_add_3rdparty_library(BundledPhysX
@@ -14,6 +18,7 @@ qt_internal_add_3rdparty_library(BundledPhysX
 
 qt_internal_extend_target(BundledPhysX
     SOURCES
+        # BEGIN GENERATED SOURCES
         include/PxActor.h
         include/PxAggregate.h
         include/PxArticulation.h
@@ -1178,11 +1183,13 @@ qt_internal_extend_target(BundledPhysX
         source/simulationcontroller/src/ScTriggerInteraction.h
         source/simulationcontroller/src/ScTriggerPairs.h
         source/task/src/TaskManager.cpp
+        # END GENERATED SOURCES
     )
 
 if(WIN32 OR MSVC)
     qt_internal_extend_target(BundledPhysX
         SOURCES
+            # BEGIN GENERATED WINDOWS SOURCES
             include/common/windows/PxWindowsDelayLoadHook.h
             pxshared/include/foundation/windows/PxWindowsIntrinsics.h
             source/common/include/windows/CmWindowsLoadLibrary.h
@@ -1209,12 +1216,14 @@ if(WIN32 OR MSVC)
             source/physx/src/device/windows/PhysXIndicatorWindows.cpp
             source/physx/src/windows/NpWindowsDelayLoadHook.cpp
             source/physxcooking/src/windows/WindowsCookingDelayLoadHook.cpp
+            # END GENERATED WINDOWS SOURCES
         )
 endif(WIN32 OR MSVC)
 
 if(UNIX)
     qt_internal_extend_target(BundledPhysX
         SOURCES
+            # BEGIN GENERATED UNIX SOURCES
             pxshared/include/foundation/unix/PxUnixIntrinsics.h
             source/foundation/include/unix/PsUnixAoS.h
             source/foundation/include/unix/PsUnixFPU.h
@@ -1236,6 +1245,7 @@ if(UNIX)
             source/foundation/src/unix/PsUnixThread.cpp
             source/foundation/src/unix/PsUnixTime.cpp
             source/physx/src/device/linux/PhysXIndicatorLinux.cpp
+            # END GENERATED UNIX SOURCES
         )
 endif(UNIX)
 
@@ -1249,6 +1259,7 @@ endif()
 
 qt_internal_extend_target(BundledPhysX
     INCLUDE_DIRECTORIES
+        # BEGIN GENERATED INCLUDE DIRECTORIES
         include
         include/characterkinematic
         include/collision
@@ -1325,6 +1336,7 @@ qt_internal_extend_target(BundledPhysX
         source/scenequery/src
         source/simulationcontroller/include
         source/simulationcontroller/src
+        # END GENERATED INCLUDE DIRECTORIES
     )
 
 # Some modern compilers (Clang 18, GCC 14) have made bitwise operation
