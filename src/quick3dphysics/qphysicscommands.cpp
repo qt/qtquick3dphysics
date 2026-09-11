@@ -17,6 +17,15 @@ static bool isKinematicBody(physx::PxRigidBody &body)
     return static_cast<bool>(body.getRigidBodyFlags() & physx::PxRigidBodyFlag::eKINEMATIC);
 }
 
+// A body with its simulation disabled has no simulation object behind it, and the PhysX
+// functions that accumulate forces and impulses dereference that object without checking, so
+// they must not be called for such a body. Forces on a body that is not being simulated would
+// have no effect anyway.
+static bool isSimulationDisabled(physx::PxRigidBody &body)
+{
+    return static_cast<bool>(body.getActorFlags() & physx::PxActorFlag::eDISABLE_SIMULATION);
+}
+
 static void resolveCCDFlags(physx::PxRigidBody &body, QDynamicRigidBody::CCDType ccd,
                             bool isKinematic, bool worldEnableCCD)
 {
@@ -59,7 +68,7 @@ void QPhysicsCommandApplyCentralForce::execute(const QDynamicRigidBody &rigidBod
                                                physx::PxRigidBody &body)
 {
     Q_UNUSED(rigidBody)
-    if (isKinematicBody(body))
+    if (isKinematicBody(body) || isSimulationDisabled(body))
         return;
     body.addForce(QPhysicsUtils::toPhysXType(force));
 }
@@ -77,7 +86,7 @@ void QPhysicsCommandApplyForce::execute(const QDynamicRigidBody &rigidBody,
                                         physx::PxRigidBody &body)
 {
     Q_UNUSED(rigidBody)
-    if (isKinematicBody(body))
+    if (isKinematicBody(body) || isSimulationDisabled(body))
         return;
     physx::PxRigidBodyExt::addForceAtPos(body, QPhysicsUtils::toPhysXType(force),
                                          QPhysicsUtils::toPhysXType(position));
@@ -95,7 +104,7 @@ void QPhysicsCommandApplyTorque::execute(const QDynamicRigidBody &rigidBody,
                                          physx::PxRigidBody &body)
 {
     Q_UNUSED(rigidBody)
-    if (isKinematicBody(body))
+    if (isKinematicBody(body) || isSimulationDisabled(body))
         return;
     body.addTorque(QPhysicsUtils::toPhysXType(torque));
 }
@@ -112,7 +121,7 @@ void QPhysicsCommandApplyCentralImpulse::execute(const QDynamicRigidBody &rigidB
                                                  physx::PxRigidBody &body)
 {
     Q_UNUSED(rigidBody)
-    if (isKinematicBody(body))
+    if (isKinematicBody(body) || isSimulationDisabled(body))
         return;
     body.addForce(QPhysicsUtils::toPhysXType(impulse), physx::PxForceMode::eIMPULSE);
 }
@@ -130,7 +139,7 @@ void QPhysicsCommandApplyImpulse::execute(const QDynamicRigidBody &rigidBody,
                                           physx::PxRigidBody &body)
 {
     Q_UNUSED(rigidBody)
-    if (isKinematicBody(body))
+    if (isKinematicBody(body) || isSimulationDisabled(body))
         return;
     physx::PxRigidBodyExt::addForceAtPos(body, QPhysicsUtils::toPhysXType(impulse),
                                          QPhysicsUtils::toPhysXType(position),
@@ -149,7 +158,7 @@ void QPhysicsCommandApplyTorqueImpulse::execute(const QDynamicRigidBody &rigidBo
                                                 physx::PxRigidBody &body)
 {
     Q_UNUSED(rigidBody)
-    if (isKinematicBody(body))
+    if (isKinematicBody(body) || isSimulationDisabled(body))
         return;
 
     body.addTorque(QPhysicsUtils::toPhysXType(impulse), physx::PxForceMode::eIMPULSE);
