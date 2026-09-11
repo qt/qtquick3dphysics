@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -48,7 +47,7 @@ namespace Gu
     #pragma warning(push)
 	#pragma warning( disable : 4251 ) // class needs to have dll-interface to be used by clients of class
 #endif
-	class PX_PHYSX_COMMON_API SeparatingAxes
+	class SeparatingAxes
 	{
 	public:
 		PX_INLINE SeparatingAxes() : mNbAxes(0)	{}

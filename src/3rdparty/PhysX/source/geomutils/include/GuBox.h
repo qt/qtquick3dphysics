@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,22 +22,17 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
 #ifndef GU_BOX_H
 #define GU_BOX_H
 
-/** \addtogroup geomutils
-@{
-*/
 
 #include "foundation/PxTransform.h"
 #include "foundation/PxMat33.h"
 #include "common/PxPhysXCommonConfig.h"
-#include "CmPhysXCommon.h"
-#include "CmScaling.h"
 
 namespace physx
 {
@@ -214,26 +208,6 @@ namespace Gu
 	};
 	PX_COMPILE_TIME_ASSERT(sizeof(Gu::BoxPadded) == 64);
 
-	//! Transforms a shape space AABB to a vertex space AABB (conservative).
-	PX_FORCE_INLINE void computeVertexSpaceAABB(Gu::Box& vertexSpaceOBB, const PxBounds3& worldBounds, const PxTransform& world2Shape, const Cm::FastVertex2ShapeScaling& scaling, bool idtScaleMesh)
-	{
-		PX_ASSERT(!worldBounds.isEmpty());
-		const PxBounds3 boundsInMesh = PxBounds3::transformFast(world2Shape, worldBounds);	// transform bounds from world to shape (excluding mesh scale)
-
-		vertexSpaceOBB.rot = PxMat33(PxIdentity);
-		if(idtScaleMesh)
-		{
-			vertexSpaceOBB.center = boundsInMesh.getCenter();
-			vertexSpaceOBB.extents = boundsInMesh.getExtents();
-		}
-		else
-		{
-			const PxBounds3 bounds = PxBounds3::basisExtent(scaling.getShape2VertexSkew() * boundsInMesh.getCenter(), scaling.getShape2VertexSkew(), boundsInMesh.getExtents());
-			vertexSpaceOBB.center = bounds.getCenter();
-			vertexSpaceOBB.extents = bounds.getExtents();
-		}
-	}
-
 #if PX_VC 
      #pragma warning(pop) 
 #endif
@@ -242,5 +216,4 @@ namespace Gu
 
 }
 
-/** @} */
 #endif

@@ -1,0 +1,49 @@
+From: Jonas Karlsson <jonas.karlsson@qt.io>
+Subject: [PATCH] PhysX: Do not use feenableexcept/fedisableexcept on musl
+
+musl does not provide feenableexcept and fedisableexcept. Those calls
+have only been used on linux so far. This patch extends the #ifdef logic
+to only use them on Linux if additionally glibc is used.
+
+Fixes
+src/3rdparty/PhysX/source/foundation/unix/FdUnixFPU.cpp:65:2: error: use of undeclared identifier 'fedisableexcept'; did you mean 'feraiseexcept'?
+   65 |         fedisableexcept(FE_ALL_EXCEPT);
+      |         ^~~~~~~~~~~~~~~
+      |         feraiseexcept
+
+This is the PhysX 4.1 patch of the same name, forward ported to 5.9.0,
+where the foundation sources moved to source/foundation/unix.
+---
+ src/3rdparty/PhysX/source/foundation/unix/FdUnixFPU.cpp | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/3rdparty/PhysX/source/foundation/unix/FdUnixFPU.cpp b/src/3rdparty/PhysX/source/foundation/unix/FdUnixFPU.cpp
+--- a/src/3rdparty/PhysX/source/foundation/unix/FdUnixFPU.cpp
++++ b/src/3rdparty/PhysX/source/foundation/unix/FdUnixFPU.cpp
+@@ -53,7 +53,7 @@ physx::PxFPUGuard::PxFPUGuard()
+ 	fegetenv(reinterpret_cast<fenv_t*>(mControlWords));
+ 	fesetenv(FE_DFL_ENV);
+ 
+-#if PX_LINUX
++#if PX_LINUX && __GLIBC__
+ 	// need to explicitly disable exceptions because fesetenv does not modify
+ 	// the sse control word on 32bit linux (64bit is fine, but do it here just be sure)
+ 	fedisableexcept(FE_ALL_EXCEPT);
+@@ -79,7 +79,7 @@ physx::PxFPUGuard::~PxFPUGuard()
+ 
+ PX_FOUNDATION_API void physx::PxEnableFPExceptions()
+ {
+-#if PX_LINUX && !defined(__EMSCRIPTEN__)
++#if (PX_LINUX && __GLIBC__) && !defined(__EMSCRIPTEN__)
+ 	feclearexcept(FE_ALL_EXCEPT);
+ 	feenableexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW);
+ #elif PX_OSX
+@@ -96,7 +96,7 @@ PX_FOUNDATION_API void physx::PxEnableFPExceptions()
+ 
+ PX_FOUNDATION_API void physx::PxDisableFPExceptions()
+ {
+-#if PX_LINUX && !defined(__EMSCRIPTEN__)
++#if (PX_LINUX && __GLIBC__) && !defined(__EMSCRIPTEN__)
+ 	fedisableexcept(FE_ALL_EXCEPT);
+ #elif PX_OSX
+ 	// clear any pending exceptions

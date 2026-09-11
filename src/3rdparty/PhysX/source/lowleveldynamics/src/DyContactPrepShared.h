@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -31,20 +30,25 @@
 #define DY_CONTACT_PREP_SHARED_H
      
 #include "foundation/PxPreprocessor.h"
-#include "PxSceneDesc.h"
-#include "PsVecMath.h"
-#include "PsMathUtils.h"
+#include "foundation/PxVecMath.h"
+#include "PxMaterial.h"
 #include "DyContactPrep.h"
 #include "DyCorrelationBuffer.h"
 #include "DyArticulationContactPrep.h"
 #include "PxsContactManager.h"
 #include "PxsContactManagerState.h"
+#include "PxcNpContactPrepShared.h"
+#include "DySolverContact4.h"
 
 namespace physx
 {
 namespace Dy
 {
-
+template<class PxSolverContactDescT>
+PX_FORCE_INLINE Sc::ShapeInteraction* getInteraction(const PxSolverContactDescT& desc)
+{
+	return reinterpret_cast<Sc::ShapeInteraction*>(desc.shapeInteraction);
+}
 
 PX_FORCE_INLINE bool pointsAreClose(const PxTransform& body1ToBody0,
 									const PxVec3& localAnchor0, const PxVec3& localAnchor1,
@@ -66,7 +70,6 @@ PX_FORCE_INLINE bool isSeparated(const FrictionPatch& patch, const PxTransform& 
 	return false;
 }
 
-
 inline bool getFrictionPatches(CorrelationBuffer& c,
 						const PxU8* frictionCookie,
 						PxU32 frictionPatchCount,
@@ -74,7 +77,6 @@ inline bool getFrictionPatches(CorrelationBuffer& c,
 						const PxTransform& bodyFrame1,
 						PxReal correlationDistance)
 {
-	PX_UNUSED(correlationDistance);
 	if(frictionCookie == NULL || frictionPatchCount == 0)
 		return true;
 
@@ -87,7 +89,7 @@ inline bool getFrictionPatches(CorrelationBuffer& c,
 
 	while(frictionPatchCount--)
 	{
-		Ps::prefetchLine(patches,128);
+		PxPrefetchLine(patches,128);
 		const FrictionPatch& patch = *patches++;
 		PX_ASSERT (patch.broken == 0 || patch.broken == 1);
 		if(!patch.broken)
@@ -97,14 +99,12 @@ inline bool getFrictionPatches(CorrelationBuffer& c,
 			if(patch.anchorCount != 0 && !(patch.materialFlags & PxMaterialFlag::eDISABLE_STRONG_FRICTION))
 			{
 				PX_ASSERT(patch.anchorCount <= 2);
-
-				
+			
 				if(!evaluated)
 				{
 					body1ToBody0 = bodyFrame0.transformInv(bodyFrame1);
 					evaluated = true;
 				}
-
 
 				if(patch.body0Normal.dot(body1ToBody0.rotate(patch.body1Normal)) > PXC_SAME_NORMAL)
 				{
@@ -130,10 +130,10 @@ inline bool getFrictionPatches(CorrelationBuffer& c,
 	return true;
 }
 
-PX_FORCE_INLINE PxU32 extractContacts(Gu::ContactBuffer& buffer, PxsContactManagerOutput& npOutput, bool& hasMaxImpulse, bool& hasTargetVelocity,
+PX_FORCE_INLINE PxU32 extractContacts(PxContactBuffer& buffer, const PxsContactManagerOutput& npOutput, bool& hasMaxImpulse, bool& hasTargetVelocity,
 							 PxReal& invMassScale0, PxReal& invMassScale1, PxReal& invInertiaScale0, PxReal& invInertiaScale1, PxReal defaultMaxImpulse)
 {
-	PxContactStreamIterator iter(npOutput.contactPatches, npOutput.contactPoints, npOutput.getInternalFaceIndice(), npOutput.nbPatches, npOutput.nbContacts);	
+	PxContactStreamIterator iter(npOutput.contactPatches, npOutput.contactPoints, npOutput.getInternalFaceIndice(), npOutput.nbPatches, npOutput.nbContacts);
 
 	PxU32 numContacts = buffer.count, origContactCount = buffer.count;
 	if(!iter.forceNoResponse)
@@ -148,24 +148,27 @@ PX_FORCE_INLINE PxU32 extractContacts(Gu::ContactBuffer& buffer, PxsContactManag
 		while(iter.hasNextPatch())
 		{
 			iter.nextPatch();
-			while(iter.hasNextContact())
+			while(iter.hasNextContact() && (numContacts < PxContactBuffer::MAX_CONTACTS))
 			{
 				iter.nextContact();
-				Ps::prefetchLine(iter.contact, 128);
-				Ps::prefetchLine(&buffer.contacts[numContacts], 128);
+				PxPrefetchLine(iter.contact, 128);
+				PxPrefetchLine(&buffer.contacts[numContacts], 128);
 				PxReal maxImpulse = hasMaxImpulse ? iter.getMaxImpulse() : defaultMaxImpulse;
 				if(maxImpulse != 0.f)
 				{
-					PX_ASSERT(numContacts < Gu::ContactBuffer::MAX_CONTACTS);
+					PX_ASSERT(numContacts < PxContactBuffer::MAX_CONTACTS);
 					buffer.contacts[numContacts].normal = iter.getContactNormal();
+					PX_ASSERT(PxAbs(buffer.contacts[numContacts].normal.magnitude() - 1) < 1e-3f);
 					buffer.contacts[numContacts].point = iter.getContactPoint();
 					buffer.contacts[numContacts].separation = iter.getSeparation();
 					//KS - we use the face indices to cache the material indices and flags - avoids bloating the PxContact structure
+					PX_ASSERT(iter.getMaterialFlags() <= PX_MAX_U8);
 					buffer.contacts[numContacts].materialFlags = PxU8(iter.getMaterialFlags());
 					buffer.contacts[numContacts].maxImpulse = maxImpulse;
 					buffer.contacts[numContacts].staticFriction = iter.getStaticFriction();
 					buffer.contacts[numContacts].dynamicFriction = iter.getDynamicFriction();
 					buffer.contacts[numContacts].restitution = iter.getRestitution();
+					buffer.contacts[numContacts].damping = iter.getDamping();
 					const PxVec3& targetVel = iter.getTargetVel();
 					buffer.contacts[numContacts].targetVel = targetVel;
 					++numContacts;
@@ -200,7 +203,7 @@ struct CorrelationListIterator
 	}
 
 	//Returns true if it has another contact pre-loaded. Returns false otherwise
-	PX_FORCE_INLINE bool hasNextContact()
+	PX_FORCE_INLINE bool hasNextContact()	const
 	{
 		return (currPatch != CorrelationBuffer::LIST_END && currContact < buffer.contactPatches[currPatch].count);
 	}
@@ -229,80 +232,165 @@ private:
 
 };
 
+namespace {
 
-	PX_FORCE_INLINE void constructContactConstraint(const Mat33V& invSqrtInertia0, const Mat33V& invSqrtInertia1,  const FloatVArg invMassNorLenSq0, 
-		const FloatVArg invMassNorLenSq1, const FloatVArg angD0, const FloatVArg angD1, const Vec3VArg bodyFrame0p, const Vec3VArg bodyFrame1p,
-		const Vec3VArg normal, const FloatVArg norVel, const VecCrossV& norCross, const Vec3VArg angVel0, const Vec3VArg angVel1,
-		const FloatVArg invDt, const FloatVArg invDtp8, const FloatVArg restDistance, const FloatVArg maxPenBias,  const FloatVArg restitution,
-		const FloatVArg bounceThreshold, const Gu::ContactPoint& contact, SolverContactPoint& solverContact,
-		const FloatVArg ccdMaxSeparation, const Vec3VArg solverOffsetSlop)
+// Decides whether or not the damper should be turned on. We don't want damping if the contact
+// is not expected to be closed this step because the damper can produce repulsive forces
+// even before the contact is closed.
+PX_FORCE_INLINE FloatV computeCompliantDamping(const BoolVArg isSeparated, const BoolVArg collidingWithVrel,
+                                               const FloatVArg damping)
+{
+	const FloatV zero = FZero();
+	const FloatV dampingIfEnabled = FSel(BAndNot(isSeparated, collidingWithVrel), zero, damping);
+	return dampingIfEnabled;
+}
+
+PX_FORCE_INLINE void computeCompliantContactCoefficients(
+    const FloatVArg dt, const FloatVArg restitution, const FloatVArg damping, const FloatVArg recipResponse,
+    const FloatVArg unitResponse, const FloatVArg penetration, const FloatVArg targetVelocity,
+    const BoolVArg accelerationSpring, const BoolVArg isSeparated, const BoolVArg collidingWithVrel,
+    FloatVArg velMultiplier, FloatVArg impulseMultiplier, FloatVArg unbiasedErr, FloatVArg biasedErr)
+{
+	// negative restitution interpreted as spring stiffness for compliant contact
+	const FloatV nrdt = FMul(dt, restitution); // -dt*stiffness
+
+	const FloatV one = FOne();
+	const FloatV massIfAccelElseOne = FSel(accelerationSpring, recipResponse, one);
+	const FloatV dampingIfEnabled = computeCompliantDamping(isSeparated, collidingWithVrel, damping);
+
+	const FloatV a = FMul(dt, FSub(dampingIfEnabled, nrdt));                  // a = dt * (damping + dt*stiffness)
+	const FloatV b = FMul(FNeg(FMul(nrdt, penetration)), massIfAccelElseOne); // b = dt * stiffness * penetration
+	const FloatV x = FRecip(FScaleAdd(a, FSel(accelerationSpring, one, unitResponse), one));
+	const FloatV scaledBias = FMul(x, b);
+	// FloatV scaledBias = FSel(isSeparated, FNeg(invStepDt), FDiv(FMul(nrdt, FMul(x, unitResponse)), velMultiplier));
+
+	velMultiplier = FMul(FMul(x, a), massIfAccelElseOne);
+	impulseMultiplier = FSub(one, x);
+	unbiasedErr = biasedErr = FScaleAdd(targetVelocity, velMultiplier, FNeg(scaledBias));
+}
+
+PX_FORCE_INLINE void computeCompliantContactCoefficientsTGS(const FloatVArg dt, const FloatVArg restitution,
+                                                            const FloatVArg damping, const FloatVArg recipResponse,
+                                                            const FloatVArg unitResponse,
+                                                            const BoolVArg accelerationSpring,
+                                                            const BoolVArg isSeparated, const BoolVArg collidingWithVrel,
+                                                            FloatVArg velMultiplier, FloatVArg biasCoeff)
+{
+	const FloatV nrdt = FMul(dt, restitution);      // -dt * stiffness
+	const FloatV dampingIfEnabled = computeCompliantDamping(isSeparated, collidingWithVrel, damping);
+	const FloatV a = FMul(dt, FSub(dampingIfEnabled, nrdt)); // a = dt * (damping + dt * stiffness)
+
+	const FloatV one = FOne();
+	const FloatV massIfAccelElseOne = FSel(accelerationSpring, recipResponse, one);
+	const FloatV oneIfAccelElseR = FSel(accelerationSpring, one, unitResponse);
+
+	const FloatV x = FRecip(FScaleAdd(a, oneIfAccelElseR, one));
+
+	velMultiplier = FMul(FMul(x, a), massIfAccelElseOne);
+	// biasCoeff = FSel(isSeparated, FNeg(invStepDt), FDiv(FMul(nrdt, FMul(x, unitResponse)), velMultiplier));
+	// biasCoeff includes the unit response s.t. velDeltaFromPosError = separation*biasCoeff
+	biasCoeff = FMul(nrdt, FMul(x, oneIfAccelElseR));
+}
+
+} // anonymous namespace
+
+// PGS rigid-rigid or rigid-static normal contact prepping code
+PX_FORCE_INLINE void constructContactConstraint(const Mat33V& invSqrtInertia0, const Mat33V& invSqrtInertia1, const FloatVArg invMassNorLenSq0, 
+	const FloatVArg invMassNorLenSq1, const FloatVArg angD0, const FloatVArg angD1, const Vec3VArg bodyFrame0p, const Vec3VArg bodyFrame1p,
+	const Vec3VArg normal, const FloatVArg norVel, const VecCrossV& norCross, const Vec3VArg angVel0, const Vec3VArg angVel1,
+	const FloatVArg invDt, const FloatVArg invDtWithBiasCoefficient, const FloatVArg dt, const FloatVArg restDistance, const FloatVArg maxPenBias, const FloatVArg restitution,
+	const FloatVArg bounceThreshold, const PxContactPoint& contact, SolverContactPoint& solverContact,
+	const FloatVArg ccdMaxSeparation, const Vec3VArg solverOffsetSlop, const FloatVArg damping, const BoolVArg accelerationSpring)
+{
+	const FloatV zero = FZero();
+	const Vec3V point = V3LoadA(contact.point);
+	const FloatV separation = FLoad(contact.separation);
+
+	const FloatV cTargetVel = V3Dot(normal, V3LoadA(contact.targetVel));
+
+	const Vec3V ra = V3Sub(point, bodyFrame0p);
+	const Vec3V rb = V3Sub(point, bodyFrame1p);
+
+	/*ra = V3Sel(V3IsGrtr(solverOffsetSlop, V3Abs(ra)), V3Zero(), ra);
+	rb = V3Sel(V3IsGrtr(solverOffsetSlop, V3Abs(rb)), V3Zero(), rb);*/
+
+	Vec3V raXn = V3Cross(ra, norCross);
+	Vec3V rbXn = V3Cross(rb, norCross);
+
+	FloatV vRelAng = FSub(V3Dot(raXn, angVel0), V3Dot(rbXn, angVel1));
+
+	const Vec3V slop = V3Scale(solverOffsetSlop, FMax(FSel(FIsEq(norVel, zero), FMax(), FDiv(vRelAng, norVel)), FOne()));
+
+	raXn = V3Sel(V3IsGrtr(slop, V3Abs(raXn)), V3Zero(), raXn);
+	rbXn = V3Sel(V3IsGrtr(slop, V3Abs(rbXn)), V3Zero(), rbXn);
+
+	vRelAng = FSub(V3Dot(raXn, angVel0), V3Dot(rbXn, angVel1));
+
+	const FloatV vrel = FAdd(norVel, vRelAng);
+
+	const Vec3V raXnSqrtInertia = M33MulV3(invSqrtInertia0, raXn);
+	const Vec3V rbXnSqrtInertia = M33MulV3(invSqrtInertia1, rbXn);				
+
+	const FloatV resp0 = FAdd(invMassNorLenSq0, FMul(V3Dot(raXnSqrtInertia, raXnSqrtInertia), angD0));
+	const FloatV resp1 = FSub(FMul(V3Dot(rbXnSqrtInertia, rbXnSqrtInertia), angD1), invMassNorLenSq1);
+
+	const FloatV unitResponse = FAdd(resp0, resp1);
+
+	const FloatV penetration = FSub(separation, restDistance);
+	const FloatV penetrationInvDt = FMul(penetration, invDt);
+	const BoolV isSeparated = FIsGrtrOrEq(penetration, zero);
+
+	const BoolV collidingWithVrel = FIsGrtr(FNeg(vrel), penetrationInvDt); // true if pen + dt*vrel < 0
+	const BoolV isGreater2 = BAnd(BAnd(FIsGrtr(restitution, zero), FIsGrtr(bounceThreshold, vrel)), collidingWithVrel);
+
+	FloatV targetVelocity = FAdd(cTargetVel, FSel(isGreater2, FMul(FNeg(vrel), restitution), zero));
+
+	//Note - we add on the initial target velocity
+	targetVelocity = FSub(targetVelocity, vrel);
+
+	const FloatV recipResponse = FSel(FIsGrtr(unitResponse, zero), FRecip(unitResponse), zero);
+
+	FloatV biasedErr, unbiasedErr;
+	FloatV velMultiplier, impulseMultiplier;
+
+	if (FAllGrtr(zero, restitution))
 	{
-		const FloatV zero = FZero();
-		const Vec3V point = V3LoadA(contact.point);
-		const FloatV separation = FLoad(contact.separation);
+		computeCompliantContactCoefficients(dt, restitution, damping, recipResponse, unitResponse, penetration,
+		                                    targetVelocity, accelerationSpring, isSeparated, collidingWithVrel,
+		                                    velMultiplier, impulseMultiplier, unbiasedErr, biasedErr);
+	}
+	else
+	{
+		velMultiplier = recipResponse;
 
-		const FloatV cTargetVel = V3Dot(normal, V3LoadA(contact.targetVel));
+		// Divide bias term by dt and additionally scale it down if it's in penetration
+		// Do not scale it if it's not in penetration, otherwise we falsely act on contacts that are still
+		// sufficiently far away.
+		const FloatV penetrationInvDtScaled = FSel(isSeparated, penetrationInvDt, FMul(penetration, invDtWithBiasCoefficient));
 
-		const Vec3V ra = V3Sub(point, bodyFrame0p);
-		const Vec3V rb = V3Sub(point, bodyFrame1p);
-
-		/*ra = V3Sel(V3IsGrtr(solverOffsetSlop, V3Abs(ra)), V3Zero(), ra);
-		rb = V3Sel(V3IsGrtr(solverOffsetSlop, V3Abs(rb)), V3Zero(), rb);*/
-
-		Vec3V raXn = V3Cross(ra, norCross);
-		Vec3V rbXn = V3Cross(rb, norCross);
-
-		raXn = V3Sel(V3IsGrtr(solverOffsetSlop, V3Abs(raXn)), V3Zero(), raXn);
-		rbXn = V3Sel(V3IsGrtr(solverOffsetSlop, V3Abs(rbXn)), V3Zero(), rbXn);
-
-		const Vec3V raXnSqrtInertia = M33MulV3(invSqrtInertia0, raXn);
-		const Vec3V rbXnSqrtInertia = M33MulV3(invSqrtInertia1, rbXn);				
-
-		const FloatV resp0 = FAdd(invMassNorLenSq0, FMul(V3Dot(raXnSqrtInertia, raXnSqrtInertia), angD0));
-		const FloatV resp1 = FSub(FMul(V3Dot(rbXnSqrtInertia, rbXnSqrtInertia), angD1), invMassNorLenSq1);
-
-		const FloatV unitResponse = FAdd(resp0, resp1);
-
-		const FloatV vrel1 = FAdd(norVel, V3Dot(raXn, angVel0));
-		const FloatV vrel2 = V3Dot(rbXn, angVel1);
-		const FloatV vrel = FSub(vrel1, vrel2);
-
-		const FloatV velMultiplier = FSel(FIsGrtr(unitResponse, zero), FRecip(unitResponse), zero);
-
-		const FloatV penetration = FSub(separation, restDistance);
-
-		const FloatV penetrationInvDt = FMul(penetration, invDt);
-
-		const FloatV penetrationInvDtPt8 = FMax(maxPenBias, FMul(penetration, invDtp8));
-
-		FloatV scaledBias = FMul(velMultiplier, penetrationInvDtPt8);
-
-		const BoolV isGreater2 = BAnd(BAnd(FIsGrtr(restitution, zero), FIsGrtr(bounceThreshold, vrel)), FIsGrtr(FNeg(vrel), penetrationInvDt));
+		FloatV scaledBias = FMul(velMultiplier, FMax(maxPenBias, penetrationInvDtScaled));
 
 		const BoolV ccdSeparationCondition = FIsGrtrOrEq(ccdMaxSeparation, penetration);
 
 		scaledBias = FSel(BAnd(ccdSeparationCondition, isGreater2), zero, scaledBias);
 
-		const FloatV sumVRel(vrel);
+		impulseMultiplier = FLoad(1.0f);
 
-		FloatV targetVelocity = FAdd(cTargetVel, FSel(isGreater2, FMul(FNeg(sumVRel), restitution), zero));
-
-		//Note - we add on the initial target velocity
-		targetVelocity = FSub(targetVelocity, vrel);
-
-		const FloatV biasedErr = FScaleAdd(targetVelocity, velMultiplier, FNeg(scaledBias));
-		const FloatV unbiasedErr = FScaleAdd(targetVelocity, velMultiplier, FSel(isGreater2, zero, FNeg(FMax(scaledBias, zero))));
-		//const FloatV unbiasedErr = FScaleAdd(targetVelocity, velMultiplier, FNeg(FMax(scaledBias, zero)));
-
-		FStore(velMultiplier, &solverContact.velMultiplier);
-		FStore(biasedErr, &solverContact.biasedErr);
-		FStore(unbiasedErr, &solverContact.unbiasedErr);
-		solverContact.maxImpulse = contact.maxImpulse;
-
-		solverContact.raXn = raXnSqrtInertia;
-		solverContact.rbXn = rbXnSqrtInertia;
+		biasedErr = FScaleAdd(targetVelocity, velMultiplier, FNeg(scaledBias));
+		unbiasedErr = FScaleAdd(targetVelocity, velMultiplier, FSel(isGreater2, zero, FNeg(FMax(scaledBias, zero))));
 	}
+
+	//const FloatV unbiasedErr = FScaleAdd(targetVelocity, velMultiplier, FNeg(FMax(scaledBias, zero)));
+
+	FStore(biasedErr, &solverContact.biasedErr);
+	FStore(unbiasedErr, &solverContact.unbiasedErr);
+	FStore(impulseMultiplier, &solverContact.impulseMultiplier);
+
+	solverContact.raXn_velMultiplierW = V4SetW(Vec4V_From_Vec3V(raXnSqrtInertia), velMultiplier);
+	solverContact.rbXn_maxImpulseW = V4SetW(Vec4V_From_Vec3V(rbXnSqrtInertia), FLoad(contact.maxImpulse));
+}
+
 }
 }
 
-#endif //DY_CONTACT_PREP_SHARED_H
+#endif

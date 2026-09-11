@@ -1,0 +1,47 @@
+From: Jonas Karlsson <jonas.karlsson@qt.io>
+Subject: [PATCH] PhysX: Check the indexed contact manager size where it can
+ hold
+
+PxsIndexedContactManager is asserted to be a multiple of 16 bytes on
+everything that is not x86-64, and on 32-bit x86 it is 24, so the Android
+x86 build stops in every translation unit that reaches PxsIslandSim.h.
+The i386 ABI aligns a PxU64 to 4 rather than to 8, which packs the base
+class into 20 bytes instead of 24 and leaves room for the derived class
+to put its 4 byte pointer in the base's tail padding. The other 32-bit
+ABIs align it to 8 and land on 32 as they should, so armv7 and
+WebAssembly satisfy the assertion and only x86 does not:
+
+               PxsIndexedInteraction  PxsIndexedContactManager
+  i686                  20                     24
+  armv7, arm64, x86-64  24                     32
+
+PhysX 4.1 met the assertion everywhere because PxsNodeType was an
+articulation handle, one pointer wide, so the whole thing came to 16
+bytes on a 32-bit platform. PhysX 5 made it a PxU64 and kept the
+assertion, which nothing but x86-64 had been built with.
+
+Nothing depends on the size: these live in a PxArray and are read through
+their members, sorted by pointer, and never loaded a vector at a time or
+walked with a stride of their own. The comment above the class says the
+padding is waste that should go. So leave the assertion for the
+architectures whose alignment can satisfy it, rather than pad the class
+out on the one platform where a physics array would notice 8 more bytes
+an element. PhysX counts emscripten as x86, so the check stops there as
+well, on an ABI that does satisfy it.
+---
+ .../PhysX/source/lowlevel/software/include/PxsIslandManagerTypes.h     | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/3rdparty/PhysX/source/lowlevel/software/include/PxsIslandManagerTypes.h b/src/3rdparty/PhysX/source/lowlevel/software/include/PxsIslandManagerTypes.h
+--- a/src/3rdparty/PhysX/source/lowlevel/software/include/PxsIslandManagerTypes.h
++++ b/src/3rdparty/PhysX/source/lowlevel/software/include/PxsIslandManagerTypes.h
+@@ -133,7 +133,8 @@ struct PxsIndexedContactManager : public PxsIndexedInteraction	// 32
+ 	
+ 	PxsIndexedContactManager(PxsContactManager* cm) : contactManager(cm) {}
+ };
+-#if !PX_X64
++// 32-bit x86 aligns a PxU64 to 4, which packs the base class into 20 bytes and this one into 24
++#if !PX_X64 && !PX_X86
+ PX_COMPILE_TIME_ASSERT(0==(sizeof(PxsIndexedContactManager) & 0x0f));
+ #endif
+ 

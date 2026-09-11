@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,25 +22,17 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
-#include "geometry/PxMeshScale.h"
-#include "PxVisualizationParameter.h"
-
 #include "GuMidphaseInterface.h"
-#include "GuSerialize.h"
 #include "GuMeshFactory.h"
-#include "GuBox.h"
-#include "PsIntrinsics.h"
-#include "CmRenderOutput.h"
-#include "CmUtils.h"
+#include "GuConvexEdgeFlags.h"
+#include "GuEdgeList.h"
 
 using namespace physx;
-
-namespace physx
-{
+using namespace Gu;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -49,75 +40,89 @@ static PxConcreteType::Enum gTable[] = {	PxConcreteType::eTRIANGLE_MESH_BVH33,
 											PxConcreteType::eTRIANGLE_MESH_BVH34
 										};
 
-Gu::TriangleMesh::TriangleMesh(GuMeshFactory& factory, TriangleMeshData& d)
-:	PxTriangleMesh(PxType(gTable[d.mType]), PxBaseFlag::eOWNS_MEMORY | PxBaseFlag::eIS_RELEASABLE)
-,	mNbVertices				(d.mNbVertices)
-,	mNbTriangles			(d.mNbTriangles)
-,	mVertices				(d.mVertices)
-,	mTriangles				(d.mTriangles)
-,	mAABB					(d.mAABB)
-,	mExtraTrigData			(d.mExtraTrigData)
-,	mGeomEpsilon			(d.mGeomEpsilon)
-,	mFlags					(d.mFlags)
-,	mMaterialIndices		(d.mMaterialIndices)
-,	mFaceRemap				(d.mFaceRemap)
-,	mAdjacencies			(d.mAdjacencies)
-
-,	mMeshFactory			(&factory)
-
-,	mGRB_triIndices					(d.mGRB_primIndices)
-
-,	mGRB_triAdjacencies				(d.mGRB_primAdjacencies)
-
-,	mGRB_faceRemap					(d.mGRB_faceRemap)
-,	mGRB_BV32Tree					(d.mGRB_BV32Tree)
+TriangleMesh::TriangleMesh(MeshFactory* factory, TriangleMeshData& d) :
+	PxTriangleMesh				(PxType(gTable[d.mType]), PxBaseFlag::eOWNS_MEMORY | PxBaseFlag::eIS_RELEASABLE),
+	mNbVertices					(d.mNbVertices),
+	mNbTriangles				(d.mNbTriangles),
+	mVertices					(d.mVertices),
+	mTriangles					(d.mTriangles),
+	mAABB						(d.mAABB),
+	mExtraTrigData				(d.mExtraTrigData),
+	mGeomEpsilon				(d.mGeomEpsilon),
+	mFlags						(d.mFlags),
+	mMaterialIndices			(d.mMaterialIndices),
+	mFaceRemap					(d.mFaceRemap),
+	mAdjacencies				(d.mAdjacencies),
+	mMeshFactory				(factory),
+	mEdgeList					(NULL),
+	mMass						(d.mMass),
+	mInertia					(d.mInertia),
+	mLocalCenterOfMass			(d.mLocalCenterOfMass),
+	mGRB_triIndices				(d.mGRB_primIndices),
+	mGRB_triAdjacencies			(d.mGRB_primAdjacencies),
+	mGRB_faceRemap				(d.mGRB_faceRemap),
+	mGRB_faceRemapInverse		(d.mGRB_faceRemapInverse),
+	mGRB_BV32Tree				(d.mGRB_BV32Tree),
+	mSdfData					(d.mSdfData),
+	mAccumulatedTrianglesRef	(d.mAccumulatedTrianglesRef),
+    mTrianglesReferences		(d.mTrianglesReferences),
+    mNbTrianglesReferences		(d.mNbTrianglesReferences)
 {
 	// this constructor takes ownership of memory from the data object
-	d.mVertices = 0;
-	d.mTriangles = 0;
-	d.mExtraTrigData = 0;
-	d.mFaceRemap = 0;
-	d.mAdjacencies = 0;
-	d.mMaterialIndices = 0;
+	d.mVertices = NULL;
+	d.mTriangles = NULL;
+	d.mExtraTrigData = NULL;
+	d.mFaceRemap = NULL;
+	d.mAdjacencies = NULL;
+	d.mMaterialIndices = NULL;
 
-	d.mGRB_primIndices = 0;
+	d.mGRB_primIndices = NULL;
 
-	d.mGRB_primAdjacencies = 0;
-	d.mGRB_faceRemap = 0;
-	d.mGRB_BV32Tree = 0;
+	d.mGRB_primAdjacencies = NULL;
+	d.mGRB_faceRemap = NULL;
+	d.mGRB_faceRemapInverse = NULL;
+	d.mGRB_BV32Tree = NULL;
 
-	// PT: 'getPaddedBounds()' is only safe if we make sure the bounds member is followed by at least 32bits of data
-	PX_COMPILE_TIME_ASSERT(PX_OFFSET_OF(Gu::TriangleMesh, mExtraTrigData)>=PX_OFFSET_OF(Gu::TriangleMesh, mAABB)+4);
+	d.mSdfData.mSdf = NULL;
+	d.mSdfData.mSubgridStartSlots = NULL;
+	d.mSdfData.mSubgridSdf = NULL;
+
+	d.mAccumulatedTrianglesRef = NULL;
+	d.mTrianglesReferences = NULL;
 	
+	// PT: 'getPaddedBounds()' is only safe if we make sure the bounds member is followed by at least 32bits of data
+	PX_COMPILE_TIME_ASSERT(PX_OFFSET_OF(TriangleMesh, mExtraTrigData)>=PX_OFFSET_OF(TriangleMesh, mAABB)+4);	
 }
 
-Gu::TriangleMesh::~TriangleMesh() 
+TriangleMesh::~TriangleMesh() 
 { 	
 	if(getBaseFlags() & PxBaseFlag::eOWNS_MEMORY)
 	{
-		PX_FREE_AND_RESET(mExtraTrigData);
-		PX_FREE_AND_RESET(mFaceRemap);
-		PX_FREE_AND_RESET(mAdjacencies);
-		PX_FREE_AND_RESET(mMaterialIndices);
-		PX_FREE_AND_RESET(mTriangles);
-		PX_FREE_AND_RESET(mVertices);
+		PX_FREE(mExtraTrigData);
+		PX_FREE(mFaceRemap);
+		PX_FREE(mAdjacencies);
+		PX_FREE(mMaterialIndices);
+		PX_FREE(mTriangles);
+		PX_FREE(mVertices);
 
-		PX_FREE_AND_RESET(mGRB_triIndices); 
+		PX_FREE(mGRB_triIndices); 
+		PX_FREE(mGRB_triAdjacencies);
+		PX_FREE(mGRB_faceRemap);
+		PX_FREE(mGRB_faceRemapInverse);
+		PX_DELETE(mGRB_BV32Tree);
 
-		PX_FREE_AND_RESET(mGRB_triAdjacencies);
-		PX_FREE_AND_RESET(mGRB_faceRemap);
-
-		BV32Tree* bv32Tree = reinterpret_cast<BV32Tree*>(mGRB_BV32Tree);
-		PX_DELETE_AND_RESET(bv32Tree);
-
+		PX_FREE(mAccumulatedTrianglesRef);
+		PX_FREE(mTrianglesReferences);
 	}
+
+	PX_DELETE(mEdgeList);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // PT: used to be automatic but making it manual saves bytes in the internal mesh
 
-void Gu::TriangleMesh::exportExtraData(PxSerializationContext& stream)
+void TriangleMesh::exportExtraData(PxSerializationContext& stream)
 {
 	//PX_DEFINE_DYNAMIC_ARRAY(TriangleMesh, mVertices, PxField::eVEC3, mNbVertices, Ps::PxFieldFlag::eSERIALIZE),
 	if(mVertices)
@@ -158,9 +163,43 @@ void Gu::TriangleMesh::exportExtraData(PxSerializationContext& stream)
 		stream.alignData(PX_SERIAL_ALIGN);
 		stream.writeData(mAdjacencies, mNbTriangles * sizeof(PxU32) * 3);
 	}
+
+	if(mGRB_triIndices)
+	{
+		const PxU32 triangleSize = mFlags & PxTriangleMeshFlag::e16_BIT_INDICES ? sizeof(PxU16) : sizeof(PxU32);
+		stream.alignData(PX_SERIAL_ALIGN);
+		stream.writeData(mGRB_triIndices, mNbTriangles * 3 * triangleSize);
+	}
+
+	if(mGRB_triAdjacencies)
+	{
+		stream.alignData(PX_SERIAL_ALIGN);
+		stream.writeData(mGRB_triAdjacencies, mNbTriangles * sizeof(PxU32) * 4);
+	}
+
+	if(mGRB_faceRemap)
+	{
+		stream.alignData(PX_SERIAL_ALIGN);
+		stream.writeData(mGRB_faceRemap, mNbTriangles * sizeof(PxU32));
+	}
+
+	if(mGRB_faceRemapInverse)
+	{
+		stream.alignData(PX_SERIAL_ALIGN);
+		stream.writeData(mGRB_faceRemapInverse, mNbTriangles * sizeof(PxU32));
+	}
+
+	if(mGRB_BV32Tree)
+	{
+		stream.alignData(PX_SERIAL_ALIGN);
+		stream.writeData(mGRB_BV32Tree, sizeof(BV32Tree));
+		mGRB_BV32Tree->exportExtraData(stream);
+	}
+
+	mSdfData.exportExtraData(stream);
 }
 
-void Gu::TriangleMesh::importExtraData(PxDeserializationContext& context)
+void TriangleMesh::importExtraData(PxDeserializationContext& context)
 {
 	// PT: vertices are followed by indices, so it will be safe to V4Load vertices from a deserialized binary file
 	if(mVertices)
@@ -186,48 +225,87 @@ void Gu::TriangleMesh::importExtraData(PxDeserializationContext& context)
 	if(mAdjacencies)
 		mAdjacencies = context.readExtraData<PxU32, PX_SERIAL_ALIGN>(3*mNbTriangles);
 
-	mGRB_triIndices = NULL;
-	mGRB_triAdjacencies = NULL;
-	mGRB_faceRemap = NULL;
-	mGRB_BV32Tree = NULL;
-}
-
-void Gu::TriangleMesh::onRefCountZero()
-{
-	if(mMeshFactory->removeTriangleMesh(*this))
+	if(mGRB_triIndices)
 	{
-		const PxType type = getConcreteType();
-		GuMeshFactory* mf = mMeshFactory;
-		Cm::deletePxBase(this);
-		mf->notifyFactoryListener(this, type);
-		return;
+		if(mFlags & PxTriangleMeshFlag::e16_BIT_INDICES)
+			mGRB_triIndices = context.readExtraData<PxU16, PX_SERIAL_ALIGN>(3 * mNbTriangles);
+		else
+			mGRB_triIndices = context.readExtraData<PxU32, PX_SERIAL_ALIGN>(3 * mNbTriangles);
 	}
 
-	// PT: if we reach this point, we didn't find the mesh in the Physics object => don't delete!
-	// This prevents deleting the object twice.
-	Ps::getFoundation().error(PxErrorCode::eINVALID_OPERATION, __FILE__, __LINE__, "Gu::TriangleMesh::release: double deletion detected!");
-}
-//~PX_SERIALIZATION
+	if(mGRB_triAdjacencies)
+	{
+		mGRB_triAdjacencies = context.readExtraData<PxU32, PX_SERIAL_ALIGN>(4 * mNbTriangles);
+	}
 
-void Gu::TriangleMesh::release()
-{
-	decRefCount();
+	if(mGRB_faceRemap)
+	{
+		mGRB_faceRemap = context.readExtraData<PxU32, PX_SERIAL_ALIGN>(mNbTriangles);
+	}
+
+	if(mGRB_faceRemapInverse)
+	{
+		mGRB_faceRemapInverse = context.readExtraData<PxU32, PX_SERIAL_ALIGN>(mNbTriangles);
+	}
+
+	if(mGRB_BV32Tree)
+	{
+		mGRB_BV32Tree = context.readExtraData<BV32Tree, PX_SERIAL_ALIGN>();
+		PX_PLACEMENT_NEW(mGRB_BV32Tree, BV32Tree(PxEmpty));
+		mGRB_BV32Tree->importExtraData(context);
+	}
+
+	mSdfData.importExtraData(context);
 }
 
-#if PX_ENABLE_DYNAMIC_MESH_RTREE
-PxVec3* Gu::TriangleMesh::getVerticesForModification()
+void TriangleMesh::onRefCountZero()
 {
-	Ps::getFoundation().error(PxErrorCode::eINVALID_OPERATION, __FILE__, __LINE__, "PxTriangleMesh::getVerticesForModification() is only supported for meshes with PxMeshMidPhase::eBVH33.");
+	::onRefCountZero(this, mMeshFactory, false, "PxTriangleMesh::release: double deletion detected!");
+}
+
+void TriangleMesh::release()
+{
+	Cm::RefCountable_decRefCount(*this);
+}
+
+PxVec3* TriangleMesh::getVerticesForModification()
+{
+	PxGetFoundation().error(PxErrorCode::eINVALID_OPERATION, PX_FL, "PxTriangleMesh::getVerticesForModification() is not supported for this type of meshes.");
 
 	return NULL;
 }
 
-PxBounds3 Gu::TriangleMesh::refitBVH()
+PxBounds3 TriangleMesh::refitBVH()
 {
-	Ps::getFoundation().error(PxErrorCode::eINVALID_OPERATION, __FILE__, __LINE__, "PxTriangleMesh::refitBVH() is only supported for meshes with PxMeshMidPhase::eBVH33.");
+	PxGetFoundation().error(PxErrorCode::eINVALID_OPERATION, PX_FL, "PxTriangleMesh::refitBVH() is not supported for this type of meshes.");
 
 	return PxBounds3(mAABB.getMin(), mAABB.getMax());
 }
-#endif
 
-} // namespace physx
+void TriangleMesh::setAllEdgesActive()
+{
+	if(mExtraTrigData)
+	{
+		const PxU32 nbTris = mNbTriangles;
+		for(PxU32 i=0; i<nbTris; i++)
+			mExtraTrigData[i] |= ETD_CONVEX_EDGE_ALL;
+	}
+}
+
+const EdgeList* TriangleMesh::requestEdgeList() const
+{
+	if(!mEdgeList)
+	{
+		EDGELISTCREATE create;
+		create.NbFaces	= mNbTriangles;
+		create.Verts	= mVertices;
+		if(has16BitIndices())
+			create.WFaces	= reinterpret_cast<const PxU16*>(mTriangles);
+		else
+			create.DFaces	= reinterpret_cast<const PxU32*>(mTriangles);
+
+		mEdgeList = PX_NEW(EdgeList);
+		mEdgeList->init(create);
+	}
+	return mEdgeList;
+}

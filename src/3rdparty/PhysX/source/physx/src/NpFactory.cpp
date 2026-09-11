@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,16 +22,14 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
-#include "NpCast.h"
+#include "geometry/PxGeometryQuery.h"
 #include "NpFactory.h"
 #include "NpPhysics.h"
 #include "ScPhysics.h"
-#include "ScbScene.h"
-#include "ScbActor.h"
 #include "GuHeightField.h"
 #include "GuTriangleMesh.h"
 #include "GuConvexMesh.h"
@@ -42,40 +39,61 @@
 #include "CmCollection.h"
 #include "NpArticulationReducedCoordinate.h"
 #include "NpArticulationJointReducedCoordinate.h"
+#include "NpRigidStatic.h"
+#include "NpRigidDynamic.h"
+#include "NpArticulationTendon.h"
+#include "NpAggregate.h"
+
+#if PX_SUPPORT_GPU_PHYSX
+#include "NpPBDParticleSystem.h"
+#include "NpParticleBuffer.h"
+#include "NpDeformableSurface.h"
+#include "NpDeformableVolume.h"
+#include "NpDeformableAttachment.h"
+#include "NpDeformableElementFilter.h"
+#include "PxPhysXGpu.h"
+#endif
+
+#if PX_SUPPORT_OMNI_PVD
+#	define OMNI_PVD_NOTIFY_ADD(OBJECT) notifyListenersAdd(OBJECT)
+#	define OMNI_PVD_NOTIFY_REMOVE(OBJECT) notifyListenersRemove(OBJECT)
+#else
+#	define OMNI_PVD_NOTIFY_ADD(OBJECT)
+#	define OMNI_PVD_NOTIFY_REMOVE(OBJECT)
+#endif
 
 using namespace physx;
+using namespace Cm;
 
-NpFactory::NpFactory()
-: GuMeshFactory()
-, mConnectorArrayPool(PX_DEBUG_EXP("connectorArrayPool"))
-, mPtrTableStorageManager(PX_NEW(NpPtrTableStorageManager))
-, mMaterialPool(PX_DEBUG_EXP("MaterialPool"))
+NpFactory::NpFactory() :
+	Gu::MeshFactory()
+	, mConnectorArrayPool("connectorArrayPool")
+	, mPtrTableStorageManager(PX_NEW(NpPtrTableStorageManager))
+	, mMaterialPool("MaterialPool")
 #if PX_SUPPORT_PVD
 	, mNpFactoryListener(NULL)
 #endif	
 {
 }
 
-namespace
+template <typename T>
+static void releaseAll(PxHashSet<T*>& container)
 {
-	template <typename T> void releaseAll(Ps::HashSet<T*>& container)
-	{
-		// a bit tricky: release will call the factory back to remove the object from
-		// the tracking array, immediately invalidating the iterator. Reconstructing the
-		// iterator per delete can be expensive. So, we use a temporary object.
-		//
-		// a coalesced hash would be efficient too, but we only ever iterate over it
-		// here so it's not worth the 2x remove penalty over the normal hash.
+	// a bit tricky: release will call the factory back to remove the object from
+	// the tracking array, immediately invalidating the iterator. Reconstructing the
+	// iterator per delete can be expensive. So, we use a temporary object.
+	//
+	// a coalesced hash would be efficient too, but we only ever iterate over it
+	// here so it's not worth the 2x remove penalty over the normal hash.
 
-		Ps::Array<T*, Ps::ReflectionAllocator<T*> > tmp;
-		tmp.reserve(container.size());
-		for(typename Ps::HashSet<T*>::Iterator iter = container.getIterator(); !iter.done(); ++iter)
-			tmp.pushBack(*iter);
+	PxArray<T*, PxReflectionAllocator<T*> > tmp;
+	tmp.reserve(container.size());
+	for(typename PxHashSet<T*>::Iterator iter = container.getIterator(); !iter.done(); ++iter)
+		tmp.pushBack(*iter);
 
-		PX_ASSERT(tmp.size() == container.size());
-		for(PxU32 i=0;i<tmp.size();i++)
-			tmp[i]->release();
-	}
+	PX_ASSERT(tmp.size() == container.size());
+	for(PxU32 i=0;i<tmp.size();i++)
+		tmp[i]->release();
 }
 
 NpFactory::~NpFactory()
@@ -92,7 +110,13 @@ void NpFactory::release()
 	while(mShapeTracking.size())
 		static_cast<NpShape*>(mShapeTracking.getEntries()[0])->releaseInternal();
 
-	GuMeshFactory::release();  // deletes the class
+#if PX_SUPPORT_GPU_PHYSX
+	releaseAll(mAttachmentTracking);
+	releaseAll(mElementFilterTracking);
+	releaseAll(mParticleBufferTracking);
+#endif
+
+	Gu::MeshFactory::release();  // deletes the class
 }
 
 void NpFactory::createInstance()
@@ -113,7 +137,7 @@ NpFactory* NpFactory::mInstance = NULL;
 ///////////////////////////////////////////////////////////////////////////////
 
 template <class T0, class T1>
-static void addToTracking(T1& set, T0* element, Ps::Mutex& mutex, bool lock)
+static void addToTracking(T1& set, T0* element, PxMutex& mutex, bool lock)
 {
 	if(!element)
 		return;
@@ -132,238 +156,364 @@ static void addToTracking(T1& set, T0* element, Ps::Mutex& mutex, bool lock)
 void NpFactory::addRigidStatic(PxRigidStatic* npActor, bool lock)
 {
 	addToTracking(mActorTracking, npActor, mTrackingMutex, lock);
+	OMNI_PVD_NOTIFY_ADD(npActor);
 }
 
 void NpFactory::addRigidDynamic(PxRigidDynamic* npBody, bool lock)
 {
 	addToTracking(mActorTracking, npBody, mTrackingMutex, lock);
+	OMNI_PVD_NOTIFY_ADD(npBody);
 }
 
 void NpFactory::addShape(PxShape* shape, bool lock)
 {
 	addToTracking(mShapeTracking, shape, mTrackingMutex, lock);
+	OMNI_PVD_NOTIFY_ADD(shape);
 }
 
 void NpFactory::onActorRelease(PxActor* a)
 {
-	Ps::Mutex::ScopedLock lock(mTrackingMutex);
+	OMNI_PVD_NOTIFY_REMOVE(a);
+	PxMutex::ScopedLock lock(mTrackingMutex);
 	mActorTracking.erase(a);
 }
 
 void NpFactory::onShapeRelease(PxShape* a)
 {
-	Ps::Mutex::ScopedLock lock(mTrackingMutex);
+	OMNI_PVD_NOTIFY_REMOVE(a);
+	PxMutex::ScopedLock lock(mTrackingMutex);
 	mShapeTracking.erase(a);
 }
 
-void NpFactory::addArticulation(PxArticulationBase* npArticulation, bool lock)
+PxU32 NpFactory::getNbArticulations() const
+{
+	return mArticulationTracking.size();
+}
+
+void NpFactory::addArticulation(PxArticulationReducedCoordinate* npArticulation, bool lock)
 {
 	addToTracking(mArticulationTracking, npArticulation, mTrackingMutex, lock);
+	OMNI_PVD_NOTIFY_ADD(npArticulation);
 }
 
-namespace
+void NpFactory::releaseArticulationToPool(PxArticulationReducedCoordinate& articulation)
 {
-	PxArticulationBase* createArticulation()
-	{
-		NpArticulation* npArticulation = NpFactory::getInstance().createNpArticulation();
-		if (!npArticulation)
-			Ps::getFoundation().error(PxErrorCode::eINTERNAL_ERROR, __FILE__, __LINE__, "Articulation initialization failed: returned NULL.");
-
-		return npArticulation;
-	}
-
-	PxArticulationBase* createArticulationRC()
-	{
-		NpArticulationReducedCoordinate* npArticulation = NpFactory::getInstance().createNpArticulationRC();
-		if (!npArticulation)
-			Ps::getFoundation().error(PxErrorCode::eINTERNAL_ERROR, __FILE__, __LINE__, "Articulation initialization failed: returned NULL.");
-
-		return npArticulation;
-	}
-
-	NpArticulationLink* createArticulationLink(PxArticulationBase&root, NpArticulationLink* parent, const PxTransform& pose)
-	{
-		PX_CHECK_AND_RETURN_NULL(pose.isValid(),"Supplied PxArticulation pose is not valid. Articulation link creation method returns NULL.");
-		PX_CHECK_AND_RETURN_NULL((!parent || (&parent->getRoot() == &root)), "specified parent link is not part of the destination articulation. Articulation link creation method returns NULL.");
-	
-		NpArticulationLink* npArticulationLink = NpFactory::getInstance().createNpArticulationLink(root, parent, pose);
-		if (!npArticulationLink)
-		{
-			Ps::getFoundation().error(PxErrorCode::eINTERNAL_ERROR, __FILE__, __LINE__, 
-				"Articulation link initialization failed: returned NULL.");
-			return NULL;
-		}
-
-		if (parent)
-		{
-			PxTransform parentPose = parent->getCMassLocalPose().transformInv(pose);
-			PxTransform childPose = PxTransform(PxIdentity);
-						
-			PxArticulationJointBase* npArticulationJoint = root.createArticulationJoint(*parent, parentPose, *npArticulationLink, childPose);
-			if (!npArticulationJoint)
-			{
-				PX_DELETE(npArticulationLink);
-	
-				Ps::getFoundation().error(PxErrorCode::eINTERNAL_ERROR, __FILE__, __LINE__, 
-				"Articulation link initialization failed due to joint creation failure: returned NULL.");
-				return NULL;
-			}
-
-			npArticulationLink->setInboundJoint(*npArticulationJoint);
-		}
-
-		return npArticulationLink;
-	}
-
-	// pointers to functions above, initialized during subsystem registration
-	static PxArticulationBase* (*sCreateArticulationFn)() = 0;
-	static PxArticulationBase* (*sCreateArticulationRCFn)() = 0;
-	static NpArticulationLink* (*sCreateArticulationLinkFn)(PxArticulationBase&, NpArticulationLink* parent, const PxTransform& pose) = 0;
-}
-
-void NpFactory::registerArticulations()
-{
-	sCreateArticulationFn = &::createArticulation;
-	sCreateArticulationLinkFn = &::createArticulationLink;
-}
-
-void NpFactory::registerArticulationRCs()
-{
-	sCreateArticulationRCFn = &::createArticulationRC;
-	sCreateArticulationLinkFn = &::createArticulationLink;
-}
-
-void NpFactory::releaseArticulationToPool(PxArticulationBase& articulation)
-{
-	
 	PX_ASSERT(articulation.getBaseFlags() & PxBaseFlag::eOWNS_MEMORY);
-	if (articulation.getConcreteType() == PxConcreteType::eARTICULATION)
-	{
-		Ps::Mutex::ScopedLock lock(mArticulationPoolLock);
-		mArticulationPool.destroy(static_cast<NpArticulation*>(&articulation));
-	}
-	else
-	{
-		PX_ASSERT(articulation.getConcreteType() == PxConcreteType::eARTICULATION_REDUCED_COORDINATE);
-		Ps::Mutex::ScopedLock lock(mArticulationRCPoolLock);
-		mArticulationRCPool.destroy(static_cast<NpArticulationReducedCoordinate*>(&articulation));
-	}
-}
-
-NpArticulation* NpFactory::createNpArticulation()
-{
-	Ps::Mutex::ScopedLock lock(mArticulationPoolLock);
-	return mArticulationPool.construct();
-}
-
-PxArticulation* NpFactory::createArticulation()
-{
-	if(!sCreateArticulationFn)
-	{
-		Ps::getFoundation().error(PxErrorCode::eINVALID_OPERATION, __FILE__, __LINE__, 
-			"Articulations not registered: returned NULL.");
-		return NULL;
-	}
-
-	PxArticulationBase* npArticulation = (*sCreateArticulationFn)();
-	if(npArticulation)
-		addArticulation(npArticulation);
-
-	return static_cast<PxArticulation*>(npArticulation);
+	
+	PX_ASSERT(articulation.getConcreteType() == PxConcreteType::eARTICULATION_REDUCED_COORDINATE);
+	PxMutex::ScopedLock lock(mArticulationRCPoolLock);
+	mArticulationRCPool.destroy(static_cast<NpArticulationReducedCoordinate*>(&articulation));
 }
 
 PxArticulationReducedCoordinate* NpFactory::createArticulationRC()
 {
-	if (!sCreateArticulationRCFn)
+	NpArticulationReducedCoordinate* npArticulation;
 	{
-		Ps::getFoundation().error(PxErrorCode::eINVALID_OPERATION, __FILE__, __LINE__,
-			"Articulations not registered: returned NULL.");
-		return NULL;
+		PxMutex::ScopedLock lock(mArticulationRCPoolLock);
+		npArticulation = mArticulationRCPool.construct();
 	}
 
-	PxArticulationBase* npArticulation = (*sCreateArticulationRCFn)();
-	if (npArticulation)
+	if(npArticulation)
 		addArticulation(npArticulation);
+	else
+		PxGetFoundation().error(PxErrorCode::eINTERNAL_ERROR, PX_FL, "Articulation initialization failed: returned NULL.");
 
-	return static_cast<PxArticulationReducedCoordinate*>(npArticulation);
+	// OMNI_PVD_CREATE()
+	return npArticulation;
 }
 
-NpArticulationReducedCoordinate* NpFactory::createNpArticulationRC()
+void NpFactory::onArticulationRelease(PxArticulationReducedCoordinate* a)
 {
-	Ps::Mutex::ScopedLock lock(mArticulationRCPoolLock);
-	return mArticulationRCPool.construct();
-}
-
-void NpFactory::onArticulationRelease(PxArticulationBase* a)
-{
-	Ps::Mutex::ScopedLock lock(mTrackingMutex);
+	OMNI_PVD_NOTIFY_REMOVE(a);
+	PxMutex::ScopedLock lock(mTrackingMutex);
 	mArticulationTracking.erase(a);
 }
 
-NpArticulationLink* NpFactory::createNpArticulationLink(PxArticulationBase&root, NpArticulationLink* parent, const PxTransform& pose)
+NpArticulationLink* NpFactory::createNpArticulationLink(NpArticulationReducedCoordinate& root, NpArticulationLink* parent, const PxTransform& pose)
 {
-	 NpArticulationLink* npArticulationLink;
+	NpArticulationLink* npArticulationLink;
 	{
-		Ps::Mutex::ScopedLock lock(mArticulationLinkPoolLock);		
+		PxMutex::ScopedLock lock(mArticulationLinkPoolLock);		
 		npArticulationLink = mArticulationLinkPool.construct(pose, root, parent);
 	}
-	return npArticulationLink;	
+	return npArticulationLink;
 }
 
 void NpFactory::releaseArticulationLinkToPool(NpArticulationLink& articulationLink)
 {
 	PX_ASSERT(articulationLink.getBaseFlags() & PxBaseFlag::eOWNS_MEMORY);
-	Ps::Mutex::ScopedLock lock(mArticulationLinkPoolLock);
+	OMNI_PVD_NOTIFY_REMOVE(&articulationLink);
+	PxMutex::ScopedLock lock(mArticulationLinkPoolLock);
 	mArticulationLinkPool.destroy(&articulationLink);
 }
 
-PxArticulationLink* NpFactory::createArticulationLink(PxArticulationBase& root, NpArticulationLink* parent, const PxTransform& pose)
+PxArticulationLink* NpFactory::createArticulationLink(NpArticulationReducedCoordinate& root, NpArticulationLink* parent, const PxTransform& pose)
 {
-	if(!sCreateArticulationLinkFn)
+	PX_CHECK_AND_RETURN_NULL(pose.isValid(),"Supplied articulation link pose is not valid. Articulation link creation method returns NULL.");
+	PX_CHECK_AND_RETURN_NULL((!parent || (&parent->getRoot() == &root)), "specified parent link is not part of the destination articulation. Articulation link creation method returns NULL.");
+	
+	NpArticulationLink* npArticulationLink = NpFactory::getInstance().createNpArticulationLink(root, parent, pose);
+	if (!npArticulationLink)
 	{
-		Ps::getFoundation().error(PxErrorCode::eINVALID_OPERATION, __FILE__, __LINE__, 
-			"Articulations not registered: returned NULL.");
+		PxGetFoundation().error(PxErrorCode::eINTERNAL_ERROR, PX_FL, "Articulation link initialization failed: returned NULL.");
 		return NULL;
 	}
-
-	return (*sCreateArticulationLinkFn)(root, parent, pose);
-}
-
-NpArticulationJoint* NpFactory::createNpArticulationJoint(NpArticulationLink& parent, const PxTransform& parentFrame, NpArticulationLink& child, const PxTransform& childFrame)
-{
-	NpArticulationJoint* npArticulationJoint;
+	OMNI_PVD_NOTIFY_ADD(npArticulationLink);
+	PxArticulationJointReducedCoordinate* npArticulationJoint = 0;
+	if (parent)
 	{
-		Ps::Mutex::ScopedLock lock(mArticulationJointPoolLock);		
-		npArticulationJoint = mArticulationJointPool.construct(parent, parentFrame, child, childFrame);
-	}
-	return npArticulationJoint;	
-}
+		const PxTransform parentPose = parent->getCMassLocalPose().transformInv(pose);
+		const PxTransform childPose(PxIdentity);
+						
+		npArticulationJoint = root.createArticulationJoint(*parent, parentPose, *npArticulationLink, childPose);
+		if (!npArticulationJoint)
+		{
+			PX_DELETE(npArticulationLink);
+	
+			PxGetFoundation().error(PxErrorCode::eINTERNAL_ERROR, PX_FL, "Articulation link initialization failed due to joint creation failure: returned NULL.");
+			return NULL;
+		}
 
-void NpFactory::releaseArticulationJointToPool(NpArticulationJoint& articulationJoint)
-{
-	PX_ASSERT(articulationJoint.getBaseFlags() & PxBaseFlag::eOWNS_MEMORY);
-	Ps::Mutex::ScopedLock lock(mArticulationJointPoolLock);
-	mArticulationJointPool.destroy(&articulationJoint);
+		npArticulationLink->setInboundJoint(*npArticulationJoint);
+	}
+	return npArticulationLink;
 }
 
 NpArticulationJointReducedCoordinate* NpFactory::createNpArticulationJointRC(NpArticulationLink& parent, const PxTransform& parentFrame, NpArticulationLink& child, const PxTransform& childFrame)
 {
 	NpArticulationJointReducedCoordinate* npArticulationJoint;
 	{
-		Ps::Mutex::ScopedLock lock(mArticulationJointRCPoolLock);
+		PxMutex::ScopedLock lock(mArticulationJointRCPoolLock);
 		npArticulationJoint = mArticulationRCJointPool.construct(parent, parentFrame, child, childFrame);
 	}
+	OMNI_PVD_NOTIFY_ADD(npArticulationJoint);
 	return npArticulationJoint;
 }
 
 void NpFactory::releaseArticulationJointRCToPool(NpArticulationJointReducedCoordinate& articulationJoint)
 {
 	PX_ASSERT(articulationJoint.getBaseFlags() & PxBaseFlag::eOWNS_MEMORY);
-	Ps::Mutex::ScopedLock lock(mArticulationJointRCPoolLock);
+	OMNI_PVD_NOTIFY_REMOVE(&articulationJoint);
+	PxMutex::ScopedLock lock(mArticulationJointRCPoolLock);
 	mArticulationRCJointPool.destroy(&articulationJoint);
 }
 
+NpArticulationMimicJoint* NpFactory::createNpArticulationMimicJoint
+(const PxArticulationJointReducedCoordinate& jointA, const PxArticulationAxis::Enum axisA, 
+ const PxArticulationJointReducedCoordinate& jointB, const PxArticulationAxis::Enum axisB, 
+ const PxReal gearRatio, const PxReal offset,
+ const PxReal naturalFrequency, const PxReal dampingRatio)
+{
+	NpArticulationMimicJoint* npArticulationMimicJoint;
+	{
+		PxMutex::ScopedLock lock(mArticulationMimicJointPoolLock);
+		npArticulationMimicJoint = mArticulationMimicJointPool.construct(jointA, axisA, jointB, axisB, gearRatio, offset, naturalFrequency, dampingRatio);
+	}
+	OMNI_PVD_NOTIFY_ADD(npArticulationMimicJoint);
+	return npArticulationMimicJoint;
+}
+
+void NpFactory::releaseArticulationMimicJointToPool(NpArticulationMimicJoint& articulationMimicJoint)
+{
+	PX_ASSERT(articulationMimicJoint.getBaseFlags() & PxBaseFlag::eOWNS_MEMORY);
+	OMNI_PVD_NOTIFY_REMOVE(&articulationMimicJoint);
+	PxMutex::ScopedLock lock(mArticulationMimicJointPoolLock);
+	mArticulationMimicJointPool.destroy(&articulationMimicJoint);
+}
+
+#if PX_SUPPORT_GPU_PHYSX
+
+/////////////////////////////////////////////////////////////////////////////// deformable surface
+
+PxDeformableSurface* NpFactory::createDeformableSurface(PxCudaContextManager& cudaContextManager)
+{
+	NpDeformableSurface* ds;
+	{	PxMutex::ScopedLock lock(mDeformableSurfacePoolLock);
+	ds = mDeformableSurfacePool.construct(cudaContextManager);	}
+	OMNI_PVD_NOTIFY_ADD(ds);
+	return ds;
+}
+
+void NpFactory::releaseDeformableSurfaceToPool(PxDeformableSurface& deformableSurface)
+{
+	PX_ASSERT(deformableSurface.getBaseFlags() & PxBaseFlag::eOWNS_MEMORY);
+	OMNI_PVD_NOTIFY_REMOVE(&deformableSurface);
+	PxMutex::ScopedLock lock(mDeformableSurfacePoolLock);
+	mDeformableSurfacePool.destroy(static_cast<NpDeformableSurface*>(&deformableSurface));
+}
+
+/////////////////////////////////////////////////////////////////////////////// deformable volume
+
+PxDeformableVolume* NpFactory::createDeformableVolume(PxCudaContextManager& cudaContextManager)
+{
+	NpDeformableVolume* dv;
+	{	PxMutex::ScopedLock lock(mDeformableVolumePoolLock);
+	dv = mDeformableVolumePool.construct(cudaContextManager);	}
+	OMNI_PVD_NOTIFY_ADD(dv);
+	return dv;
+}
+
+void NpFactory::releaseDeformableVolumeToPool(PxDeformableVolume& deformableVolume)
+{
+	PX_ASSERT(deformableVolume.getBaseFlags() & PxBaseFlag::eOWNS_MEMORY);
+	OMNI_PVD_NOTIFY_REMOVE(&deformableVolume);
+	PxMutex::ScopedLock lock(mDeformableVolumePoolLock);
+	mDeformableVolumePool.destroy(static_cast<NpDeformableVolume*>(&deformableVolume));
+}
+
+/////////////////////////////////////////////////////////////////////////////// attachment
+
+void NpFactory::addAttachment(PxDeformableAttachment* npAttachment, bool lock)
+{
+	addToTracking(mAttachmentTracking, npAttachment, mTrackingMutex, lock);
+	OMNI_PVD_NOTIFY_ADD(npAttachment);
+}
+
+PxDeformableAttachment* NpFactory::createDeformableAttachment(const PxDeformableAttachmentData& data)
+{
+	AttachmentInfo info;
+
+	if (NpDeformableAttachment::parseAttachment(data, info))
+	{
+		NpDeformableAttachment* npAttachment;
+		{
+			PxMutex::ScopedLock lock(mAttachmentPoolLock);
+			npAttachment = mAttachmentPool.construct(data, info);
+		}
+
+		addAttachment(npAttachment);
+		return npAttachment;
+	}
+
+	return NULL;
+}
+
+void NpFactory::releaseAttachmentToPool(PxDeformableAttachment& attachment)
+{
+	PX_ASSERT(attachment.getBaseFlags() & PxBaseFlag::eOWNS_MEMORY);
+	PxMutex::ScopedLock lock(mAttachmentPoolLock);
+	mAttachmentPool.destroy(static_cast<NpDeformableAttachment*>(&attachment));
+}
+
+void NpFactory::onAttachmentRelease(PxDeformableAttachment* a)
+{
+	OMNI_PVD_NOTIFY_REMOVE(a);
+	PxMutex::ScopedLock lock(mTrackingMutex);
+	mAttachmentTracking.erase(a);
+}
+
+/////////////////////////////////////////////////////////////////////////////// element filter
+
+void NpFactory::addElementFilter(PxDeformableElementFilter* npElementFilter, bool lock)
+{
+	addToTracking(mElementFilterTracking, npElementFilter, mTrackingMutex, lock);
+	OMNI_PVD_NOTIFY_ADD(npElementFilter);
+}
+
+PxDeformableElementFilter* NpFactory::createDeformableElementFilter(const PxDeformableElementFilterData& data)
+{
+	ElementFilterInfo info;
+
+	if (NpDeformableElementFilter::parseElementFilter(data, info))
+	{
+		NpDeformableElementFilter* npElementFilter;
+		{
+			PxMutex::ScopedLock lock(mElementFilterPoolLock);
+			npElementFilter = mElementFilterPool.construct(data, info);
+		}
+
+		addElementFilter(npElementFilter);
+		return npElementFilter;
+	}
+
+	return NULL;
+}
+
+void NpFactory::releaseElementFilterToPool(PxDeformableElementFilter& elementFilter)
+{
+	PX_ASSERT(elementFilter.getBaseFlags() & PxBaseFlag::eOWNS_MEMORY);
+	PxMutex::ScopedLock lock(mElementFilterPoolLock);
+	mElementFilterPool.destroy(static_cast<NpDeformableElementFilter*>(&elementFilter));
+}
+
+void NpFactory::onElementFilterRelease(PxDeformableElementFilter* e)
+{
+	OMNI_PVD_NOTIFY_REMOVE(e);
+	PxMutex::ScopedLock lock(mTrackingMutex);
+	mElementFilterTracking.erase(e);
+}
+
+//////////////////////////////////////////////////////////////////////////////// particle system
+
+PxPBDParticleSystem* NpFactory::createPBDParticleSystem(PxU32 maxNeighborhood, PxReal neighborhoodScale, PxCudaContextManager& cudaContextManager)
+{
+	PxMutex::ScopedLock lock(mPBDParticleSystemPoolLock);
+	PxPBDParticleSystem* ps = mPBDParticleSystemPool.construct(maxNeighborhood, neighborhoodScale, cudaContextManager);
+	OMNI_PVD_NOTIFY_ADD(ps);
+	return ps;
+}
+
+void NpFactory::releasePBDParticleSystemToPool(PxPBDParticleSystem& particleSystem)
+{
+	PX_ASSERT(particleSystem.getBaseFlags() & PxBaseFlag::eOWNS_MEMORY);
+	OMNI_PVD_NOTIFY_REMOVE(&particleSystem);
+	PxMutex::ScopedLock lock(mPBDParticleSystemPoolLock);
+	mPBDParticleSystemPool.destroy(static_cast<NpPBDParticleSystem*>(&particleSystem));
+}
+
+/////////////////////////////////////////////////////////////////////////////// Particle Buffers
+
+PxParticleBuffer* NpFactory::createParticleBuffer(PxU32 maxParticles, PxCudaContextManager& cudaContextManager)
+{
+	PxMutex::ScopedLock lock(mParticleBufferPoolLock);
+	PxParticleBuffer* buffer = mParticleBufferPool.construct(maxParticles, cudaContextManager);
+	addParticleBuffer(buffer);
+	return buffer;
+}
+
+PxParticleAndDiffuseBuffer* NpFactory::createParticleAndDiffuseBuffer(PxU32 maxParticles, PxU32 maxDiffuseParticles, PxCudaContextManager& cudaContextManager)
+{
+	PxMutex::ScopedLock lock(mParticleAndDiffuseBufferPoolLock);
+	PxParticleAndDiffuseBuffer* buffer = mParticleAndDiffuseBufferPool.construct(maxParticles, maxDiffuseParticles, cudaContextManager);
+	addParticleBuffer(buffer);
+	return buffer;
+}
+
+void NpFactory::addParticleBuffer(PxParticleBuffer* buffer, bool lock)
+{
+	addToTracking(mParticleBufferTracking, buffer, mTrackingMutex, lock);
+	OMNI_PVD_NOTIFY_ADD(buffer);
+}
+
+void NpFactory::releaseParticleBufferToPool(PxParticleBuffer& particleBuffer)
+{
+	PX_ASSERT(particleBuffer.getBaseFlags() & PxBaseFlag::eOWNS_MEMORY);
+	PxMutex::ScopedLock lock(mParticleBufferPoolLock);
+	mParticleBufferPool.destroy(static_cast<NpParticleBuffer*>(&particleBuffer));
+}
+
+void NpFactory::releaseParticleAndDiffuseBufferToPool(PxParticleAndDiffuseBuffer& particleBuffer)
+{
+	PX_ASSERT(particleBuffer.getBaseFlags() & PxBaseFlag::eOWNS_MEMORY);
+	PxMutex::ScopedLock lock(mParticleAndDiffuseBufferPoolLock);
+	mParticleAndDiffuseBufferPool.destroy(static_cast<NpParticleAndDiffuseBuffer*>(&particleBuffer));
+}
+
+void NpFactory::onParticleBufferRelease(PxParticleBuffer* buffer)
+{
+	OMNI_PVD_NOTIFY_REMOVE(buffer);
+	PxMutex::ScopedLock lock(mTrackingMutex);
+	mParticleBufferTracking.erase(buffer);
+}
+
+#endif
+
 /////////////////////////////////////////////////////////////////////////////// constraint
+
+PxU32 NpFactory::getNbConstraints() const
+{
+	return mConstraintTracking.size();
+}
 
 void NpFactory::addConstraint(PxConstraint* npConstraint, bool lock)
 {
@@ -372,43 +522,50 @@ void NpFactory::addConstraint(PxConstraint* npConstraint, bool lock)
 
 PxConstraint* NpFactory::createConstraint(PxRigidActor* actor0, PxRigidActor* actor1, PxConstraintConnector& connector, const PxConstraintShaderTable& shaders, PxU32 dataSize)
 {
-	PX_CHECK_AND_RETURN_NULL((actor0 && !actor0->is<PxRigidStatic>()) || (actor1 && !actor1->is<PxRigidStatic>()), "createConstraint: At least one actor must be dynamic or an articulation link");
+	PX_CHECK_AND_RETURN_NULL((actor0 && actor0->getConcreteType()!=PxConcreteType::eRIGID_STATIC) || (actor1 && actor1->getConcreteType()!=PxConcreteType::eRIGID_STATIC), "createConstraint: At least one actor must be dynamic or an articulation link");
 
 	NpConstraint* npConstraint;
 	{
-		Ps::Mutex::ScopedLock lock(mConstraintPoolLock);
+		PxMutex::ScopedLock lock(mConstraintPoolLock);
 		npConstraint = mConstraintPool.construct(actor0, actor1, connector, shaders, dataSize);
 	}
 	addConstraint(npConstraint);
+	connector.connectToConstraint(npConstraint);
 	return npConstraint;
 }
 
 void NpFactory::releaseConstraintToPool(NpConstraint& constraint)
 {
 	PX_ASSERT(constraint.getBaseFlags() & PxBaseFlag::eOWNS_MEMORY);
-	Ps::Mutex::ScopedLock lock(mConstraintPoolLock);
+	PxMutex::ScopedLock lock(mConstraintPoolLock);
 	mConstraintPool.destroy(&constraint);
 }
 
 void NpFactory::onConstraintRelease(PxConstraint* c)
 {
-	Ps::Mutex::ScopedLock lock(mTrackingMutex);
+	PxMutex::ScopedLock lock(mTrackingMutex);
 	mConstraintTracking.erase(c);
 }
 
 /////////////////////////////////////////////////////////////////////////////// aggregate
 
+PxU32 NpFactory::getNbAggregates() const
+{
+	return mAggregateTracking.size();
+}
+
 void NpFactory::addAggregate(PxAggregate* npAggregate, bool lock)
 {
 	addToTracking(mAggregateTracking, npAggregate, mTrackingMutex, lock);
+	OMNI_PVD_NOTIFY_ADD(npAggregate);
 }
 
-PxAggregate* NpFactory::createAggregate(PxU32 maxActors, bool selfCollisions)
+PxAggregate* NpFactory::createAggregate(PxU32 maxActors, PxU32 maxShapes, PxAggregateFilterHint filterHint)
 {
 	NpAggregate* npAggregate;
 	{
-		Ps::Mutex::ScopedLock lock(mAggregatePoolLock);
-		npAggregate = mAggregatePool.construct(maxActors, selfCollisions);
+		PxMutex::ScopedLock lock(mAggregatePoolLock);
+		npAggregate = mAggregatePool.construct(maxActors, maxShapes, filterHint);
 	}
 
 	addAggregate(npAggregate);
@@ -418,13 +575,14 @@ PxAggregate* NpFactory::createAggregate(PxU32 maxActors, bool selfCollisions)
 void NpFactory::releaseAggregateToPool(NpAggregate& aggregate)
 {
 	PX_ASSERT(aggregate.getBaseFlags() & PxBaseFlag::eOWNS_MEMORY);
-	Ps::Mutex::ScopedLock lock(mAggregatePoolLock);
+	PxMutex::ScopedLock lock(mAggregatePoolLock);
 	mAggregatePool.destroy(&aggregate);
 }
 
 void NpFactory::onAggregateRelease(PxAggregate* a)
 {
-	Ps::Mutex::ScopedLock lock(mTrackingMutex);
+	OMNI_PVD_NOTIFY_REMOVE(a);
+	PxMutex::ScopedLock lock(mTrackingMutex);
 	mAggregateTracking.erase(a);
 }
 
@@ -434,16 +592,16 @@ PxMaterial* NpFactory::createMaterial(PxReal staticFriction, PxReal dynamicFrict
 {
 	PX_CHECK_AND_RETURN_NULL(dynamicFriction >= 0.0f, "createMaterial: dynamicFriction must be >= 0.");
 	PX_CHECK_AND_RETURN_NULL(staticFriction >= 0.0f, "createMaterial: staticFriction must be >= 0.");
-	PX_CHECK_AND_RETURN_NULL(restitution >= 0.0f || restitution <= 1.0f, "createMaterial: restitution must be between 0 and 1.");
+	PX_CHECK_AND_RETURN_NULL(restitution <= 1.0f, "createMaterial: restitution must be <= 1.");
 
-	Sc::MaterialData materialData;
+	PxsMaterialData materialData;
 	materialData.staticFriction = staticFriction;
 	materialData.dynamicFriction = dynamicFriction;
 	materialData.restitution = restitution;
 
 	NpMaterial* npMaterial;
 	{
-		Ps::Mutex::ScopedLock lock(mMaterialPoolLock);		
+		PxMutex::ScopedLock lock(mMaterialPoolLock);		
 		npMaterial = mMaterialPool.construct(materialData);
 	}
 	return npMaterial;	
@@ -452,98 +610,300 @@ PxMaterial* NpFactory::createMaterial(PxReal staticFriction, PxReal dynamicFrict
 void NpFactory::releaseMaterialToPool(NpMaterial& material)
 {
 	PX_ASSERT(material.getBaseFlags() & PxBaseFlag::eOWNS_MEMORY);
-	Ps::Mutex::ScopedLock lock(mMaterialPoolLock);
+	PxMutex::ScopedLock lock(mMaterialPoolLock);
 	mMaterialPool.destroy(&material);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 
+#if PX_SUPPORT_GPU_PHYSX
+
+///////////////////////////////////////////////////////////////////////////////
+
+PxDeformableSurfaceMaterial* NpFactory::createDeformableSurfaceMaterial(PxReal youngs, PxReal poissons, PxReal dynamicFriction, PxReal thickness, 
+	PxReal bendingStiffness, PxReal elasticityDamping, PxReal bendingDamping)
+{
+	PX_CHECK_AND_RETURN_NULL(youngs >= 0.0f, "createDeformableSurfaceMaterial: youngs must be >= 0.");
+	PX_CHECK_AND_RETURN_NULL(poissons >= 0.0f && poissons < 0.5f, "createDeformableSurfaceMaterial: poissons must be in range[0.f, 0.5f).");
+	PX_CHECK_AND_RETURN_NULL(dynamicFriction >= 0.0f, "createDeformableSurfaceMaterial: dynamicFriction must be >= 0.");
+	PX_CHECK_AND_RETURN_NULL(thickness >= 0.0f, "createDeformableSurfaceMaterial: thickness must be > 0.");
+	PX_CHECK_AND_RETURN_NULL(bendingStiffness >= 0.0f, "createDeformableSurfaceMaterial: bendingStiffness must be >= 0.");
+	PX_CHECK_AND_RETURN_NULL(elasticityDamping >= 0.0f, "createDeformableSurfaceMaterial: damping must be >= 0.");
+	PX_CHECK_AND_RETURN_NULL(bendingDamping >= 0.0f, "createDeformableSurfaceMaterial: bendingDamping must be >= 0.");
+
+	PxsDeformableSurfaceMaterialData materialData;
+	materialData.youngs = youngs;
+	materialData.poissons = poissons;
+	materialData.dynamicFriction = dynamicFriction;
+	materialData.thickness = thickness;
+	materialData.bendingStiffness = bendingStiffness;
+	materialData.elasticityDamping = elasticityDamping;
+	materialData.bendingDamping = bendingDamping;
+
+	NpDeformableSurfaceMaterial* npMaterial = NULL;
+	{
+		PxMutex::ScopedLock lock(mDeformableSurfaceMaterialPoolLock);
+		npMaterial = mDeformableSurfaceMaterialPool.construct(materialData);
+	}
+	return npMaterial;
+}
+#endif
+
+#if PX_SUPPORT_GPU_PHYSX
+void NpFactory::releaseDeformableSurfaceMaterialToPool(PxDeformableSurfaceMaterial& material_)
+{
+    NpDeformableSurfaceMaterial& material = static_cast<NpDeformableSurfaceMaterial&>(material_);
+    PX_ASSERT(material.getBaseFlags() & PxBaseFlag::eOWNS_MEMORY);
+    PxMutex::ScopedLock lock(mDeformableSurfaceMaterialPoolLock);
+    mDeformableSurfaceMaterialPool.destroy(&material);
+}
+#endif
+///////////////////////////////////////////////////////////////////////////////
+
+#if PX_SUPPORT_GPU_PHYSX
+PxDeformableVolumeMaterial* NpFactory::createDeformableVolumeMaterial(PxReal youngs, PxReal poissons, PxReal dynamicFriction, PxReal elasticityDamping)
+{
+#if PX_SUPPORT_GPU_PHYSX
+	PX_CHECK_AND_RETURN_NULL(youngs >= 0.0f, "createDeformableVolumeMaterial: youngs must be >= 0.");
+	PX_CHECK_AND_RETURN_NULL(poissons >= 0.0f && poissons < 0.5f, "createDeformableVolumeMaterial: poissons must be in range[0.f, 0.5f).");
+	PX_CHECK_AND_RETURN_NULL(dynamicFriction >= 0.0f, "createDeformableVolumeMaterial: dynamicFriction must be >= 0.");
+
+	PxsDeformableVolumeMaterialData materialData;
+	materialData.youngs = youngs;
+	materialData.poissons = poissons;
+	materialData.dynamicFriction = dynamicFriction;
+	materialData.elasticityDamping = elasticityDamping;
+	materialData.materialModel = PxDeformableVolumeMaterialModel::eCO_ROTATIONAL;
+	materialData.deformThreshold = PX_MAX_F32;
+	materialData.deformLowLimitRatio = 1.f;
+	materialData.deformHighLimitRatio = 1.f;
+
+	NpDeformableVolumeMaterial* npMaterial;
+	{
+		PxMutex::ScopedLock lock(mDeformableVolumeMaterialPoolLock);
+		npMaterial = mDeformableVolumeMaterialPool.construct(materialData);
+	}
+	return npMaterial;
+
+#else
+	PX_UNUSED(youngs);
+	PX_UNUSED(poissons);
+	PX_UNUSED(dynamicFriction);
+	PX_UNUSED(thickness);
+	PX_UNUSED(bendingStiffness);
+	PX_UNUSED(damping);
+	PxGetFoundation().error(PxErrorCode::eINVALID_OPERATION, PX_FL, "PxDeformableVolumeMaterial is not supported on this platform.");
+	return NULL;
+#endif
+}
+
+void NpFactory::releaseDeformableVolumeMaterialToPool(PxDeformableVolumeMaterial& material_)
+{
+#if PX_SUPPORT_GPU_PHYSX
+	NpDeformableVolumeMaterial& material = static_cast<NpDeformableVolumeMaterial&>(material_);
+	PX_ASSERT(material.getBaseFlags() & PxBaseFlag::eOWNS_MEMORY);
+	PxMutex::ScopedLock lock(mDeformableVolumePoolLock);
+	mDeformableVolumeMaterialPool.destroy(&material);
+#else
+	PX_UNUSED(material_);
+#endif
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+PxPBDMaterial* NpFactory::createPBDMaterial(PxReal friction, PxReal damping, PxReal adhesion, PxReal viscosity, PxReal vorticityConfinement, 
+	PxReal surfaceTension, PxReal cohesion, PxReal lift, PxReal drag, PxReal cflCoefficient, PxReal gravityScale)
+{
+#if PX_SUPPORT_GPU_PHYSX
+
+	PxsPBDMaterialData materialData;
+	materialData.friction = friction;
+	materialData.damping = damping;
+	materialData.viscosity = viscosity;
+	materialData.vorticityConfinement = vorticityConfinement;
+	materialData.surfaceTension = surfaceTension;
+	materialData.cohesion = cohesion;
+	materialData.adhesion = adhesion;
+	materialData.lift = lift;
+	materialData.drag = drag;
+	materialData.cflCoefficient = cflCoefficient;
+	materialData.gravityScale = gravityScale;
+	materialData.particleFrictionScale = 1.f;
+	materialData.adhesionRadiusScale = 0.f;
+	materialData.particleAdhesionScale = 1.f;
+
+	NpPBDMaterial* npMaterial;
+	{
+		PxMutex::ScopedLock lock(mPBDMaterialPoolLock);
+		npMaterial = mPBDMaterialPool.construct(materialData);
+	}
+	return npMaterial;
+#else
+	PX_UNUSED(friction);
+	PX_UNUSED(damping);
+	PX_UNUSED(adhesion);
+	PX_UNUSED(viscosity);
+	PX_UNUSED(vorticityConfinement);
+	PX_UNUSED(surfaceTension);
+	PX_UNUSED(cohesion);
+	PX_UNUSED(lift);
+	PX_UNUSED(drag);
+	PX_UNUSED(cflCoefficient);
+	PX_UNUSED(gravityScale);
+	PxGetFoundation().error(PxErrorCode::eINVALID_OPERATION, PX_FL, "PxPBDMaterial is not supported on this platform.");
+	return NULL;
+#endif
+}
+
+void NpFactory::releasePBDMaterialToPool(PxPBDMaterial& material_)
+{
+#if PX_SUPPORT_GPU_PHYSX
+	NpPBDMaterial& material = static_cast<NpPBDMaterial&>(material_);
+	PX_ASSERT(material.getBaseFlags() & PxBaseFlag::eOWNS_MEMORY);
+	PxMutex::ScopedLock lock(mPBDMaterialPoolLock);
+	mPBDMaterialPool.destroy(&material);
+#else
+	PX_UNUSED(material_);
+#endif
+}
+
+#endif // PX_SUPPORT_GPU_PHYSX
+
+///////////////////////////////////////////////////////////////////////////////
+
 NpConnectorArray* NpFactory::acquireConnectorArray()
 {
-	Ps::MutexT<>::ScopedLock l(mConnectorArrayPoolLock);
+	PxMutexT<>::ScopedLock l(mConnectorArrayPoolLock);
 	return mConnectorArrayPool.construct();
 }
 
 void NpFactory::releaseConnectorArray(NpConnectorArray* array)
 {
-	Ps::MutexT<>::ScopedLock l(mConnectorArrayPoolLock);
+	PxMutexT<>::ScopedLock l(mConnectorArrayPoolLock);
 	mConnectorArrayPool.destroy(array);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+
+#if PX_CHECKED
+bool checkShape(const PxGeometry& g, const char* errorMsg)
+{
+	const bool isValid = PxGeometryQuery::isValid(g);
+	if(!isValid)
+		PxGetFoundation().error(PxErrorCode::eINVALID_PARAMETER, PX_FL, errorMsg);
+	return isValid;
+}
+#endif
+
+template <typename PxMaterialType, typename NpMaterialType>
+NpShape* NpFactory::createShapeInternal(const PxGeometry& geometry,
+	PxShapeFlags shapeFlags,
+	PxMaterialType*const* materials,
+	PxU16 materialCount,
+	bool isExclusive,
+	PxShapeCoreFlag::Enum flag)
+{
+#if PX_CHECKED
+	if(!checkShape(geometry, "Supplied PxGeometry is not valid. Shape creation method returns NULL."))
+		return NULL;
+
+	// Check for invalid material table setups
+	if(!NpShape::checkMaterialSetup(geometry, "Shape creation", materials, materialCount))
+		return NULL;
+#endif
+
+	PxInlineArray<PxU16, 4> materialIndices("NpFactory::TmpMaterialIndexBuffer");
+	materialIndices.resize(materialCount);
+	if (materialCount == 1)
+		materialIndices[0] = static_cast<NpMaterialType*>(materials[0])->mMaterial.mMaterialIndex;
+	else
+		NpMaterialType::getMaterialIndices(materials, materialIndices.begin(), materialCount);
+
+	NpShape* npShape;
+	{
+		PxMutex::ScopedLock lock(mShapePoolLock);
+		PxU16* mi = materialIndices.begin(); // required to placate pool constructor arg passing
+		npShape = mShapePool.construct(geometry, shapeFlags, mi, materialCount, isExclusive, flag);
+	}
+
+	if (!npShape)
+		return NULL;
+
+	// PT: TODO: add material base class, move this to NpShape, drop getMaterial<>
+	for (PxU32 i = 0; i < materialCount; i++)
+	{
+		PxMaterialType* mat = npShape->getMaterial<PxMaterialType, NpMaterialType>(i);
+		RefCountable_incRefCount(*mat);
+	}
+	addShape(npShape);
+
+	return npShape;
+}
 
 NpShape* NpFactory::createShape(const PxGeometry& geometry,
 								PxShapeFlags shapeFlags,
 								PxMaterial*const* materials,
 								PxU16 materialCount,
 								bool isExclusive)
-{	
-	switch(geometry.getType())
-	{
-		case PxGeometryType::eBOX:
-			PX_CHECK_AND_RETURN_NULL(static_cast<const PxBoxGeometry&>(geometry).isValid(), "Supplied PxGeometry is not valid. Shape creation method returns NULL.");
-			break;
-		case PxGeometryType::eSPHERE:
-			PX_CHECK_AND_RETURN_NULL(static_cast<const PxSphereGeometry&>(geometry).isValid(), "Supplied PxGeometry is not valid. Shape creation method returns NULL.");
-			break;
-		case PxGeometryType::eCAPSULE:
-			PX_CHECK_AND_RETURN_NULL(static_cast<const PxCapsuleGeometry&>(geometry).isValid(), "Supplied PxGeometry is not valid. Shape creation method returns NULL.");
-			break;
-		case PxGeometryType::eCONVEXMESH:
-			PX_CHECK_AND_RETURN_NULL(static_cast<const PxConvexMeshGeometry&>(geometry).isValid(), "Supplied PxGeometry is not valid. Shape creation method returns NULL.");
-			break;
-		case PxGeometryType::ePLANE:
-			PX_CHECK_AND_RETURN_NULL(static_cast<const PxPlaneGeometry&>(geometry).isValid(), "Supplied PxGeometry is not valid. Shape creation method returns NULL.");
-			break;
-		case PxGeometryType::eHEIGHTFIELD:
-			PX_CHECK_AND_RETURN_NULL(static_cast<const PxHeightFieldGeometry&>(geometry).isValid(), "Supplied PxGeometry is not valid. Shape creation method returns NULL.");
-			break;
-		case PxGeometryType::eTRIANGLEMESH:
-			PX_CHECK_AND_RETURN_NULL(static_cast<const PxTriangleMeshGeometry&>(geometry).isValid(), "Supplied PxGeometry is not valid. Shape creation method returns NULL.");
-			break;
-		case PxGeometryType::eGEOMETRY_COUNT:
-		case PxGeometryType::eINVALID:
-			PX_ASSERT(0);
-	}
-
-	//
-	// Check for invalid material table setups
-	//
-
-#if PX_CHECKED
-	if (!NpShape::checkMaterialSetup(geometry, "Shape creation", materials, materialCount))
-		return NULL;
-#endif
-
-	Ps::InlineArray<PxU16, 4> materialIndices("NpFactory::TmpMaterialIndexBuffer");
-	materialIndices.resize(materialCount);
-	if(materialCount == 1)
-		materialIndices[0] = static_cast<NpMaterial*>(materials[0])->getHandle();
-	else
-		NpMaterial::getMaterialIndices(materials, materialIndices.begin(), materialCount);
-
-	NpShape* npShape;
-	{
-		Ps::Mutex::ScopedLock lock(mShapePoolLock);
-		PxU16* mi = materialIndices.begin(); // required to placate pool constructor arg passing
-		npShape = mShapePool.construct(geometry, shapeFlags, mi, materialCount, isExclusive);
-	}
-
-	if(!npShape)
-		return NULL;
-
-	for(PxU32 i=0; i < materialCount; i++)
-		static_cast<NpMaterial*>(npShape->getMaterial(i))->incRefCount();
-
-	addShape(npShape);
-
-	return npShape;
+{
+	return createShapeInternal<PxMaterial, NpMaterial>(geometry, shapeFlags, materials, materialCount, isExclusive, PxShapeCoreFlag::Enum(0));
 }
+
+#if PX_SUPPORT_GPU_PHYSX
+NpShape* NpFactory::createShape(const PxGeometry& geometry,
+    PxShapeFlags shapeFlags,
+    PxDeformableSurfaceMaterial* const* materials,
+    PxU16 materialCount,
+    bool isExclusive)
+{
+    return createShapeInternal<PxDeformableSurfaceMaterial, NpDeformableSurfaceMaterial>(geometry, shapeFlags, materials, materialCount, isExclusive, PxShapeCoreFlag::eDEFORMABLE_SURFACE_SHAPE);
+}
+
+NpShape* NpFactory::createShape(const PxGeometry& geometry,
+    PxShapeFlags shapeFlags,
+    PxDeformableVolumeMaterial* const* materials,
+    PxU16 materialCount,
+    bool isExclusive)
+{
+    return createShapeInternal<PxDeformableVolumeMaterial, NpDeformableVolumeMaterial>(geometry, shapeFlags, materials, materialCount, isExclusive, PxShapeCoreFlag::eDEFORMABLE_VOLUME_SHAPE);
+}
+
+#else
+
+NpShape* NpFactory::createShape(const PxGeometry& geometry,
+    PxShapeFlags shapeFlags,
+    PxDeformableSurfaceMaterial* const* materials,
+    PxU16 materialCount,
+    bool isExclusive)
+{
+    PX_UNUSED(geometry);
+    PX_UNUSED(shapeFlags);
+    PX_UNUSED(materials);
+    PX_UNUSED(materialCount);
+    PX_UNUSED(isExclusive);
+    return NULL;
+}
+
+NpShape* NpFactory::createShape(const PxGeometry& geometry,
+    PxShapeFlags shapeFlags,
+    PxDeformableVolumeMaterial* const* materials,
+    PxU16 materialCount,
+    bool isExclusive)
+{
+    PX_UNUSED(geometry);
+    PX_UNUSED(shapeFlags);
+    PX_UNUSED(materials);
+    PX_UNUSED(materialCount);
+    PX_UNUSED(isExclusive);
+    return NULL;
+}
+
+#endif
 
 void NpFactory::releaseShapeToPool(NpShape& shape)
 {
 	PX_ASSERT(shape.getBaseFlags() & PxBaseFlag::eOWNS_MEMORY);
-	Ps::Mutex::ScopedLock lock(mShapePoolLock);
+	PxMutex::ScopedLock lock(mShapePoolLock);
 	mShapePool.destroy(&shape);
 }
 
@@ -556,7 +916,7 @@ PxU32 NpFactory::getNbShapes() const
 PxU32 NpFactory::getShapes(PxShape** userBuffer, PxU32 bufferSize, PxU32 startIndex)	const
 {
 	// PT: TODO: isn't there a lock missing here? See usage in MeshFactory
-	return Cm::getArrayOfPointers(userBuffer, bufferSize, startIndex, mShapeTracking.getEntries(), mShapeTracking.size());
+	return getArrayOfPointers(userBuffer, bufferSize, startIndex, mShapeTracking.getEntries(), mShapeTracking.size());
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -566,12 +926,10 @@ PxRigidStatic* NpFactory::createRigidStatic(const PxTransform& pose)
 	PX_CHECK_AND_RETURN_NULL(pose.isValid(), "pose is not valid. createRigidStatic returns NULL.");
 
 	NpRigidStatic* npActor;
-
 	{
-		Ps::Mutex::ScopedLock lock(mRigidStaticPoolLock);
+		PxMutex::ScopedLock lock(mRigidStaticPoolLock);
 		npActor = mRigidStaticPool.construct(pose);
 	}
-
 	addRigidStatic(npActor);
 	return npActor;
 }
@@ -579,7 +937,7 @@ PxRigidStatic* NpFactory::createRigidStatic(const PxTransform& pose)
 void NpFactory::releaseRigidStaticToPool(NpRigidStatic& rigidStatic)
 {
 	PX_ASSERT(rigidStatic.getBaseFlags() & PxBaseFlag::eOWNS_MEMORY);
-	Ps::Mutex::ScopedLock lock(mRigidStaticPoolLock);
+	PxMutex::ScopedLock lock(mRigidStaticPoolLock);
 	mRigidStaticPool.destroy(&rigidStatic);
 }
 
@@ -591,7 +949,7 @@ PxRigidDynamic* NpFactory::createRigidDynamic(const PxTransform& pose)
 
 	NpRigidDynamic* npBody;
 	{
-		Ps::Mutex::ScopedLock lock(mRigidDynamicPoolLock);
+		PxMutex::ScopedLock lock(mRigidDynamicPoolLock);
 		npBody = mRigidDynamicPool.construct(pose);
 	}
 	addRigidDynamic(npBody);
@@ -601,20 +959,19 @@ PxRigidDynamic* NpFactory::createRigidDynamic(const PxTransform& pose)
 void NpFactory::releaseRigidDynamicToPool(NpRigidDynamic& rigidDynamic)
 {
 	PX_ASSERT(rigidDynamic.getBaseFlags() & PxBaseFlag::eOWNS_MEMORY);
-	Ps::Mutex::ScopedLock lock(mRigidDynamicPoolLock);
+	PxMutex::ScopedLock lock(mRigidDynamicPoolLock);
 	mRigidDynamicPool.destroy(&rigidDynamic);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 
 // PT: this function is here to minimize the amount of locks when deserializing a collection
-void NpFactory::addCollection(const Cm::Collection& collection)
+void NpFactory::addCollection(const Collection& collection)
 {
-	
 	PxU32 nb = collection.getNbObjects();
-	const Ps::Pair<PxBase* const, PxSerialObjectId>* entries = collection.internalGetObjects();
+	const PxPair<PxBase* const, PxSerialObjectId>* entries = collection.internalGetObjects();
 	// PT: we take the lock only once, here
-	Ps::Mutex::ScopedLock lock(mTrackingMutex);
+	PxMutex::ScopedLock lock(mTrackingMutex);
 
 	for(PxU32 i=0;i<nb;i++)
 	{
@@ -666,7 +1023,6 @@ void NpFactory::addCollection(const Cm::Collection& collection)
 		{
 			NpAggregate* np = static_cast<NpAggregate*>(s);
 			addAggregate(np, false);
-
 			// PT: TODO: double-check this.... is it correct?			
 			for(PxU32 j=0;j<np->getCurrentSizeFast();j++)
 			{
@@ -674,18 +1030,19 @@ void NpFactory::addCollection(const Cm::Collection& collection)
 				const PxType serialType1 = actor->getConcreteType();
 
 				if(serialType1==PxConcreteType::eRIGID_STATIC)
+				{
 					addRigidStatic(static_cast<NpRigidStatic*>(actor), false);
+				}
 				else if(serialType1==PxConcreteType::eRIGID_DYNAMIC)
+				{
 					addRigidDynamic(static_cast<NpRigidDynamic*>(actor), false);
+				}
 				else if(serialType1==PxConcreteType::eARTICULATION_LINK)
-				{}
+				{
+					// This is not needed as the articulation links get handled separately
+				}
 				else PX_ASSERT(0);
 			}
-		}
-		else if(serialType==PxConcreteType::eARTICULATION)
-		{
-			NpArticulation* np = static_cast<NpArticulation*>(s);
-			addArticulation(np, false);
 		}
 		else if (serialType == PxConcreteType::eARTICULATION_REDUCED_COORDINATE)
 		{
@@ -694,11 +1051,11 @@ void NpFactory::addCollection(const Cm::Collection& collection)
 		}
 		else if(serialType==PxConcreteType::eARTICULATION_LINK)
 		{
-//			NpArticulationLink* np = static_cast<NpArticulationLink*>(s);
+			OMNI_PVD_NOTIFY_ADD(static_cast<NpArticulationLink*>(s));
 		}
-		else if(serialType==PxConcreteType::eARTICULATION_JOINT)
+		else if(serialType==PxConcreteType::eARTICULATION_JOINT_REDUCED_COORDINATE)
 		{
-//			NpArticulationJoint* np = static_cast<NpArticulationJoint*>(s);
+			OMNI_PVD_NOTIFY_ADD(static_cast<PxArticulationJointReducedCoordinate*>(s));
 		}
 		else
 		{
@@ -719,137 +1076,120 @@ void NpFactory::setNpFactoryListener( NpFactoryListener& inListener)
 
 ///////////////////////////////////////////////////////////////////////////////
 
-// these calls are issued from the Scb layer when buffered deletes are issued. 
-// TODO: we should really push these down as a virtual interface that is part of Scb's reqs
-// to eliminate this link-time dep.
-
-static void NpDestroyRigidActor(Scb::RigidStatic& scb)
+static PX_FORCE_INLINE void releaseToPool(NpRigidStatic* np)
 {
-	NpRigidStatic* np = const_cast<NpRigidStatic*>(getNpRigidStatic(&scb));
+	NpFactory::getInstance().releaseRigidStaticToPool(*np);
+}
 
+static PX_FORCE_INLINE void releaseToPool(NpRigidDynamic* np)
+{
+	NpFactory::getInstance().releaseRigidDynamicToPool(*np);
+}
+
+static PX_FORCE_INLINE void releaseToPool(NpArticulationLink* np)
+{
+	NpFactory::getInstance().releaseArticulationLinkToPool(*np);
+}
+
+static PX_FORCE_INLINE void releaseToPool(PxArticulationJointReducedCoordinate* np)
+{
+	PX_ASSERT(np->getConcreteType() == PxConcreteType::eARTICULATION_JOINT_REDUCED_COORDINATE);
+	NpFactory::getInstance().releaseArticulationJointRCToPool(*static_cast<NpArticulationJointReducedCoordinate*>(np));
+}
+
+static PX_FORCE_INLINE void releaseToPool(PxArticulationMimicJoint* np)
+{
+	PX_ASSERT(np->getConcreteType() == PxConcreteType::eARTICULATION_MIMIC_JOINT);
+	NpFactory::getInstance().releaseArticulationMimicJointToPool(*static_cast<NpArticulationMimicJoint*>(np));
+}
+
+
+static PX_FORCE_INLINE void releaseToPool(PxArticulationReducedCoordinate* np)
+{
+	NpFactory::getInstance().releaseArticulationToPool(*np);
+}
+
+static PX_FORCE_INLINE void releaseToPool(NpAggregate* np)
+{
+	NpFactory::getInstance().releaseAggregateToPool(*np);
+}
+
+static PX_FORCE_INLINE void releaseToPool(NpShape* np)
+{
+	NpFactory::getInstance().releaseShapeToPool(*np);
+}
+
+static PX_FORCE_INLINE void releaseToPool(NpConstraint* np)
+{
+	NpFactory::getInstance().releaseConstraintToPool(*np);
+}
+
+#if PX_SUPPORT_GPU_PHYSX
+static PX_FORCE_INLINE void releaseToPool(NpDeformableSurface* np)
+{
+	NpFactory::getInstance().releaseDeformableSurfaceToPool(*np);
+}
+
+static PX_FORCE_INLINE void releaseToPool(NpDeformableVolume* np)
+{
+	NpFactory::getInstance().releaseDeformableVolumeToPool(*np);
+}
+
+static PX_FORCE_INLINE void releaseToPool(NpDeformableAttachment* np)
+{
+	NpFactory::getInstance().releaseAttachmentToPool(*np);
+}
+
+static PX_FORCE_INLINE void releaseToPool(NpDeformableElementFilter* np)
+{
+	NpFactory::getInstance().releaseElementFilterToPool(*np);
+}
+
+static PX_FORCE_INLINE void releaseToPool(NpPBDParticleSystem* np)
+{
+	NpFactory::getInstance().releasePBDParticleSystemToPool(*np);
+}
+
+static PX_FORCE_INLINE void releaseToPool(NpParticleBuffer* np)
+{
+	NpFactory::getInstance().releaseParticleBufferToPool(*np);
+}
+
+static PX_FORCE_INLINE void releaseToPool(NpParticleAndDiffuseBuffer* np)
+{
+	NpFactory::getInstance().releaseParticleAndDiffuseBufferToPool(*np);
+}
+
+#endif
+
+template<class T>
+static PX_FORCE_INLINE void NpDestroy(T* np)
+{
 	void* ud = np->userData;
 
 	if(np->getBaseFlags() & PxBaseFlag::eOWNS_MEMORY)
-		NpFactory::getInstance().releaseRigidStaticToPool(*np);
+		releaseToPool(np);
 	else
-		np->~NpRigidStatic();
+		np->~T();
 
 	NpPhysics::getInstance().notifyDeletionListenersMemRelease(np, ud);
 }
 
-static void NpDestroyRigidDynamic(Scb::Body& scb)
-{
-	NpRigidDynamic* np = const_cast<NpRigidDynamic*>(getNpRigidDynamic(&scb));
-
-	void* ud = np->userData;
-	if(np->getBaseFlags() & PxBaseFlag::eOWNS_MEMORY)
-		NpFactory::getInstance().releaseRigidDynamicToPool(*np);
-	else
-		np->~NpRigidDynamic();
-	NpPhysics::getInstance().notifyDeletionListenersMemRelease(np, ud);
-}
-
-static void NpDestroyArticulationLink(Scb::Body& scb)
-{
-	NpArticulationLink* np = const_cast<NpArticulationLink*>(getNpArticulationLink(&scb));
-
-	void* ud = np->userData;
-	if(np->getBaseFlags() & PxBaseFlag::eOWNS_MEMORY)
-		NpFactory::getInstance().releaseArticulationLinkToPool(*np);
-	else
-		np->~NpArticulationLink();	
-	NpPhysics::getInstance().notifyDeletionListenersMemRelease(np, ud);
-}
-
-static void NpDestroyArticulationJoint(Scb::ArticulationJoint& scb)
-{
-	PxArticulationJointBase* np = scb.getScArticulationJoint().getRoot();
-
-	if (np->getBaseFlags() & PxBaseFlag::eOWNS_MEMORY)
-	{
-		if (np->getConcreteType() == PxConcreteType::eARTICULATION_JOINT)
-		{
-			NpFactory::getInstance().releaseArticulationJointToPool(*static_cast<NpArticulationJoint*>(np));
-		}
-		else
-		{
-			PX_ASSERT(np->getConcreteType() == PxConcreteType::eARTICULATION_JOINT_REDUCED_COORDINATE);
-			NpFactory::getInstance().releaseArticulationJointRCToPool(*static_cast<NpArticulationJointReducedCoordinate*>(np));
-		}
-	}
-	else
-		np->~PxArticulationJointBase();	
-	NpPhysics::getInstance().notifyDeletionListenersMemRelease(np, NULL);
-}
-
-static void NpDestroyArticulation(Scb::Articulation& scb)
-{
-	PxArticulationBase* artic = const_cast<PxArticulationBase*>(static_cast<const PxArticulationBase*>(getNpArticulation(&scb)));
-	
-	void* ud = artic->PxArticulationBase::userData;
-	if (artic->getBaseFlags() & PxBaseFlag::eOWNS_MEMORY)
-		NpFactory::getInstance().releaseArticulationToPool(*artic);
-	else
-		artic->~PxArticulationBase();
-	NpPhysics::getInstance().notifyDeletionListenersMemRelease(artic, ud);
-}
-
-static void NpDestroyAggregate(Scb::Aggregate& scb)
-{
-	NpAggregate* np = const_cast<NpAggregate*>(getNpAggregate(&scb));
-
-	if(np->getBaseFlags() & PxBaseFlag::eOWNS_MEMORY)
-		NpFactory::getInstance().releaseAggregateToPool(*np);
-	else
-		np->~NpAggregate();
-
-	NpPhysics::getInstance().notifyDeletionListenersMemRelease(np, NULL);
-}
-
-static void NpDestroyShape(Scb::Shape& scb)
-{
-	NpShape* np = const_cast<NpShape*>(getNpShape(&scb));
-
-	void* ud = np->userData;
-
-	if(np->getBaseFlags() & PxBaseFlag::eOWNS_MEMORY)
-		NpFactory::getInstance().releaseShapeToPool(*np);
-	else
-		np->~NpShape();
-
-	NpPhysics::getInstance().notifyDeletionListenersMemRelease(np, ud);
-}
-
-static void NpDestroyConstraint(Scb::Constraint& scb)
-{
-	NpConstraint* np = reinterpret_cast<NpConstraint*>(reinterpret_cast<char*>(&scb)-NpConstraint::getScbConstraintOffset());
-	if(np->getBaseFlags() & PxBaseFlag::eOWNS_MEMORY)
-		NpFactory::getInstance().releaseConstraintToPool(*np);
-	else
-		np->~NpConstraint();
-	NpPhysics::getInstance().notifyDeletionListenersMemRelease(np, NULL);
-}
-
-namespace physx
-{
-	void NpDestroy(Scb::Base& base)
-	{
-		switch(base.getScbType())
-		{
-			case ScbType::eSHAPE_EXCLUSIVE:
-			case ScbType::eSHAPE_SHARED:				{ NpDestroyShape(static_cast<Scb::Shape&>(base));							}break;
-			case ScbType::eBODY:						{ NpDestroyRigidDynamic(static_cast<Scb::Body&>(base));						}break;
-			case ScbType::eBODY_FROM_ARTICULATION_LINK:	{ NpDestroyArticulationLink(static_cast<Scb::Body&>(base));					}break;
-			case ScbType::eRIGID_STATIC:				{ NpDestroyRigidActor(static_cast<Scb::RigidStatic&>(base));				}break;
-			case ScbType::eCONSTRAINT:					{ NpDestroyConstraint(static_cast<Scb::Constraint&>(base));					}break;
-			case ScbType::eARTICULATION:				{ NpDestroyArticulation(static_cast<Scb::Articulation&>(base));				}break;
-			case ScbType::eARTICULATION_JOINT:			{ NpDestroyArticulationJoint(static_cast<Scb::ArticulationJoint&>(base));	}break;
-			case ScbType::eAGGREGATE:					{ NpDestroyAggregate(static_cast<Scb::Aggregate&>(base));					}break;
-			case ScbType::eUNDEFINED:
-			case ScbType::eTYPE_COUNT:
-				PX_ALWAYS_ASSERT_MESSAGE("NpDestroy: missing type!");
-				break;
-		}
-	}
-}
-
+void physx::NpDestroyRigidActor(NpRigidStatic* np)									{ NpDestroy(np);	}
+void physx::NpDestroyRigidDynamic(NpRigidDynamic* np)								{ NpDestroy(np);	}
+void physx::NpDestroyAggregate(NpAggregate* np)										{ NpDestroy(np);	}
+void physx::NpDestroyShape(NpShape* np)												{ NpDestroy(np);	}
+void physx::NpDestroyConstraint(NpConstraint* np)									{ NpDestroy(np);	}
+void physx::NpDestroyArticulationLink(NpArticulationLink* np)						{ NpDestroy(np);	}
+void physx::NpDestroyArticulationJoint(PxArticulationJointReducedCoordinate* np)	{ NpDestroy(np);	}
+void physx::NpDestroyArticulationMimicJoint(PxArticulationMimicJoint* np)			{ NpDestroy(np);	}
+void physx::NpDestroyArticulation(PxArticulationReducedCoordinate* np)				{ NpDestroy(np);	}
+#if PX_SUPPORT_GPU_PHYSX
+void physx::NpDestroyDeformableSurface(NpDeformableSurface* np)						{ NpDestroy(np);	}
+void physx::NpDestroyDeformableVolume(NpDeformableVolume* np)						{ NpDestroy(np);	}
+void physx::NpDestroyAttachment(NpDeformableAttachment* np)							{ NpDestroy(np);	}
+void physx::NpDestroyElementFilter(NpDeformableElementFilter* np)					{ NpDestroy(np);	}
+void physx::NpDestroyParticleSystem(NpPBDParticleSystem* np)						{ NpDestroy(np);	}
+void physx::NpDestroyParticleBuffer(NpParticleBuffer* np)							{ NpDestroy(np);	}
+void physx::NpDestroyParticleBuffer(NpParticleAndDiffuseBuffer* np)					{ NpDestroy(np);	}
+#endif

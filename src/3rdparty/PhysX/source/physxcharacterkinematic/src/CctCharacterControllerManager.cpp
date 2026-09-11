@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -33,13 +32,12 @@
 #include "CctObstacleContext.h"
 #include "GuDistanceSegmentSegment.h"
 #include "GuDistanceSegmentBox.h"
-#include "PsUtilities.h"
-#include "PsMathUtils.h"
+#include "foundation/PxUtilities.h"
 #include "PxRigidDynamic.h"
 #include "PxScene.h"
 #include "PxPhysics.h"
-#include "PsFoundation.h"
-#include "CmRadixSortBuffered.h"
+#include "CmRenderBuffer.h"
+#include "CmRadixSort.h"
 
 using namespace physx;
 using namespace Cct;
@@ -66,11 +64,25 @@ CharacterControllerManager::CharacterControllerManager(PxScene& scene, bool lock
 
 CharacterControllerManager::~CharacterControllerManager()
 {
-	PX_DELETE_AND_RESET(mRenderBuffer);
+	PX_DELETE(mRenderBuffer);
 }
+
+static PxArray<CharacterControllerManager*>* gControllerManagers = NULL;
 
 void CharacterControllerManager::release() 
 {
+	if(gControllerManagers)
+	{
+		const bool found = gControllerManagers->findAndReplaceWithLast(this);
+		PX_ASSERT(found);
+		PX_UNUSED(found);
+
+		if(!gControllerManagers->size())
+		{
+			PX_DELETE(gControllerManagers);
+		}
+	}
+
 	// PT: TODO: use non virtual calls & move to dtor
 	while(getNbControllers()!= 0)
 		releaseController(*getController(0));
@@ -81,9 +93,32 @@ void CharacterControllerManager::release()
 	PxPhysics& physics = mScene.getPhysics();
 	physics.unregisterDeletionListener(*this);
 
-	delete this;
+	PX_DELETE_THIS;
 
-	Ps::Foundation::decRefCount();
+	PxDecFoundationRefCount();
+}
+
+PX_C_EXPORT PxControllerManager* PX_CALL_CONV PxCreateControllerManager(PxScene& scene, bool lockingEnabled)
+{
+	if(gControllerManagers)
+	{
+		// PT: make sure we cannot create two controller managers for the same scene
+		const PxU32 nbManagers = gControllerManagers->size();
+		for(PxU32 i=0;i<nbManagers;i++)
+		{
+			if(&scene==&(*gControllerManagers)[i]->getScene())
+				return NULL;
+		}
+	}
+
+	PxIncFoundationRefCount();
+	CharacterControllerManager* controllerManager = PX_NEW(CharacterControllerManager)(scene, lockingEnabled);
+
+	if(!gControllerManagers)
+		gControllerManagers = new PxArray<CharacterControllerManager*>;
+	gControllerManagers->pushBack(controllerManager);
+
+	return controllerManager;
 }
 
 PxScene& CharacterControllerManager::getScene() const
@@ -105,7 +140,7 @@ void CharacterControllerManager::setDebugRenderingFlags(PxControllerDebugRenderF
 
 	if(!flags)
 	{
-		PX_DELETE_AND_RESET(mRenderBuffer);
+		PX_DELETE(mRenderBuffer);
 	}
 }
 
@@ -123,7 +158,7 @@ PxController* CharacterControllerManager::getController(PxU32 index)
 {
 	if(index>=mControllers.size())
 	{
-		Ps::getFoundation().error(PxErrorCode::eINVALID_PARAMETER, __FILE__, __LINE__, "PxControllerManager::getController(): out-of-range index");
+		PxGetFoundation().error(PxErrorCode::eINVALID_PARAMETER, PX_FL, "PxControllerManager::getController(): out-of-range index");
 		return NULL;
 	}
 
@@ -135,7 +170,7 @@ PxController* CharacterControllerManager::createController(const PxControllerDes
 {
 	if(!desc.isValid())
 	{
-		Ps::getFoundation().error(PxErrorCode::eINVALID_PARAMETER, __FILE__, __LINE__, "PxControllerManager::createController(): desc.isValid() fails.");
+		PxGetFoundation().error(PxErrorCode::eINVALID_PARAMETER, PX_FL, "PxControllerManager::createController(): desc.isValid() fails.");
 		return NULL;
 	}
 
@@ -212,8 +247,9 @@ void CharacterControllerManager::onRelease(const PxBase* observed, void* , PxDel
 	PX_ASSERT(deletionEvent == PxDeletionEventFlag::eUSER_RELEASE);  // the only type we registered for
 	PX_UNUSED(deletionEvent);
 
-	if(!(observed->getConcreteType()==PxConcreteType:: eRIGID_DYNAMIC || observed->getConcreteType()==PxConcreteType:: eRIGID_STATIC ||
-		observed->getConcreteType()==PxConcreteType::eSHAPE))
+	const PxType type = observed->getConcreteType();
+
+	if(type!=PxConcreteType:: eRIGID_DYNAMIC && type!=PxConcreteType:: eRIGID_STATIC && type!=PxConcreteType::eSHAPE && type!=PxConcreteType::eARTICULATION_LINK)
 		return;
 
 	// check if object was registered
@@ -221,12 +257,14 @@ void CharacterControllerManager::onRelease(const PxBase* observed, void* , PxDel
 		mWriteLock.lock();
 
 	const ObservedRefCountMap::Entry* releaseEntry = mObservedRefCountMap.find(observed);
+
 	if(mLockingEnabled)
 		mWriteLock.unlock();
 
 	if(releaseEntry)
 	{
-		for(PxU32 i = 0; i < mControllers.size(); i++)
+		const PxU32 size = mControllers.size();
+		for(PxU32 i=0; i<size; i++)
 		{
 			Controller* controller = mControllers[i];
 			if(mLockingEnabled)
@@ -241,7 +279,7 @@ void CharacterControllerManager::onRelease(const PxBase* observed, void* , PxDel
 }
 
 void CharacterControllerManager::registerObservedObject(const PxBase* obj)
-{	
+{
 	if(mLockingEnabled)
 		mWriteLock.lock();
 
@@ -275,7 +313,7 @@ PxObstacleContext* CharacterControllerManager::getObstacleContext(PxU32 index)
 {
 	if(index>=mObstacleContexts.size())
 	{
-		Ps::getFoundation().error(PxErrorCode::eINVALID_PARAMETER, __FILE__, __LINE__, "PxControllerManager::getObstacleContext(): out-of-range index");
+		PxGetFoundation().error(PxErrorCode::eINVALID_PARAMETER, PX_FL, "PxControllerManager::getObstacleContext(): out-of-range index");
 		return NULL;
 	}
 
@@ -297,10 +335,11 @@ void CharacterControllerManager::releaseObstacleContext(ObstacleContext& oc)
 	PX_ASSERT(mObstacleContexts.find(&oc) != mObstacleContexts.end());
 	mObstacleContexts.findAndReplaceWithLast(&oc);
 
-	PX_DELETE(&oc);
+	ObstacleContext* ptr = &oc;
+	PX_DELETE(ptr);
 }
 
-void CharacterControllerManager::onObstacleRemoved(ObstacleHandle index) const
+void CharacterControllerManager::onObstacleRemoved(PxObstacleHandle index) const
 {
 	for(PxU32 i = 0; i<mControllers.size(); i++)
 	{
@@ -308,7 +347,7 @@ void CharacterControllerManager::onObstacleRemoved(ObstacleHandle index) const
 	}
 }
 
-void CharacterControllerManager::onObstacleUpdated(ObstacleHandle index, const PxObstacleContext* context) const
+void CharacterControllerManager::onObstacleUpdated(PxObstacleHandle index, const PxObstacleContext* context) const
 {
 	for(PxU32 i = 0; i<mControllers.size(); i++)
 	{
@@ -316,7 +355,7 @@ void CharacterControllerManager::onObstacleUpdated(ObstacleHandle index, const P
 	}
 }
 
-void CharacterControllerManager::onObstacleAdded(ObstacleHandle index, const PxObstacleContext* context) const
+void CharacterControllerManager::onObstacleAdded(PxObstacleHandle index, const PxObstacleContext* context) const
 {
 	for(PxU32 i = 0; i<mControllers.size(); i++)
 	{
@@ -324,26 +363,12 @@ void CharacterControllerManager::onObstacleAdded(ObstacleHandle index, const PxO
 	}
 }
 
-// PT: TODO: move to array class?
-template <class T> 
-void resetOrClear(T& a)
-{
-	const PxU32 c = a.capacity();
-	if(!c)
-		return;
-	const PxU32 s = a.size();
-	if(s>c/2)
-		a.clear();
-	else
-		a.reset();
-}
-
 void CharacterControllerManager::resetObstaclesBuffers()
 {
-	resetOrClear(mBoxUserData);
-	resetOrClear(mBoxes);
-	resetOrClear(mCapsuleUserData);
-	resetOrClear(mCapsules);
+	mBoxUserData.resetOrClear();
+	mBoxes.resetOrClear();
+	mCapsuleUserData.resetOrClear();
+	mCapsules.resetOrClear();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -482,7 +507,7 @@ static bool computeMTD(PxVec3& mtd, PxF32& depth, const PxVec3& e0, const PxVec3
 static PxVec3 fixDir(const PxVec3& dir, const PxVec3& up)
 {
 	PxVec3 normalCompo, tangentCompo;
-	Ps::decomposeVector(normalCompo, tangentCompo, dir, up);
+	decomposeVector(normalCompo, tangentCompo, dir, up);
 	return tangentCompo.getNormalized();
 }
 
@@ -495,7 +520,7 @@ static void InteractionCharacterCharacter(Controller* entity0, Controller* entit
 	PxVec3 dir(0.0f);
 
 	if(entity0->mType>entity1->mType)
-		Ps::swap(entity0, entity1);
+		PxSwap(entity0, entity1);
 
 	if(entity0->mType==PxControllerShapeType::eCAPSULE && entity1->mType==PxControllerShapeType::eCAPSULE)
 	{
@@ -601,14 +626,14 @@ static void InteractionCharacterCharacter(Controller* entity0, Controller* entit
 }
 
 // PT: TODO: this is the very old version, revisit with newer one
-static void completeBoxPruning(const PxBounds3* bounds, PxU32 nb, Ps::Array<PxU32>& pairs)
+static void completeBoxPruning(const PxBounds3* bounds, PxU32 nb, PxArray<PxU32>& pairs)
 {
 	if(!nb)
 		return;
 
 	pairs.clear();
 
-	float* PosList = reinterpret_cast<float*>(PX_ALLOC_TEMP(sizeof(float)*nb, "completeBoxPruning"));
+	float* PosList = PX_ALLOCATE(float, nb, "completeBoxPruning");
 
 	for(PxU32 i=0;i<nb;i++)
 		PosList[i] = bounds[i].minimum.x;
@@ -648,7 +673,7 @@ void CharacterControllerManager::computeInteractions(PxF32 elapsedTime, PxContro
 	PxU32 nbControllers = mControllers.size();
 	Controller** controllers = mControllers.begin();
 
-	PxBounds3* boxes = reinterpret_cast<PxBounds3*>(PX_ALLOC_TEMP(sizeof(PxBounds3)*nbControllers, "CharacterControllerManager::computeInteractions"));	// PT: TODO: get rid of alloc
+	PxBounds3* boxes = PX_ALLOCATE(PxBounds3, nbControllers, "CharacterControllerManager::computeInteractions");	// PT: TODO: get rid of alloc
 	PxBounds3* runningBoxes = boxes;
 
 	while(nbControllers--)
@@ -665,7 +690,7 @@ void CharacterControllerManager::computeInteractions(PxF32 elapsedTime, PxContro
 
 	const PxU32 nbEntities = PxU32(runningBoxes - boxes);
 
-	Ps::Array<PxU32> pairs;	// PT: TODO: get rid of alloc
+	PxArray<PxU32> pairs;	// PT: TODO: get rid of alloc
 	completeBoxPruning(boxes, nbEntities, pairs);
 
 	PxU32 nbPairs = pairs.size()>>1;
@@ -688,11 +713,3 @@ void CharacterControllerManager::computeInteractions(PxF32 elapsedTime, PxContro
 	PX_FREE(boxes);
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//Public factory methods
-
-PX_C_EXPORT PxControllerManager* PX_CALL_CONV PxCreateControllerManager(PxScene& scene, bool lockingEnabled)
-{
-	Ps::Foundation::incRefCount();
-	return PX_NEW(CharacterControllerManager)(scene, lockingEnabled);
-}

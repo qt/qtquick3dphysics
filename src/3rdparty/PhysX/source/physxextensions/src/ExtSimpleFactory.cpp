@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -43,24 +42,19 @@
 #include "PxRigidDynamic.h"
 #include "PxShape.h"
 
-#include "CmPhysXCommon.h"
-#include "PsFoundation.h"
-#include "PsUtilities.h"
-#include "PsInlineArray.h"
+#include "foundation/PxUtilities.h"
+#include "foundation/PxInlineArray.h"
 
 using namespace physx;
-using namespace shdfnd;
 
-namespace
-{
-
-bool isDynamicGeometry(PxGeometryType::Enum type)
+static bool isDynamicGeometry(PxGeometryType::Enum type)
 {
 	return type == PxGeometryType::eBOX 
 		|| type == PxGeometryType::eSPHERE
 		|| type == PxGeometryType::eCAPSULE
+		|| type == PxGeometryType::eCONVEXCORE
+		|| type == PxGeometryType::eCUSTOM
 		|| type == PxGeometryType::eCONVEXMESH;
-}
 }
 
 namespace physx
@@ -75,8 +69,16 @@ PxRigidDynamic* PxCreateDynamic(PxPhysics& sdk,
 	PxRigidDynamic* actor = sdk.createRigidDynamic(transform);
 	if(actor)
 	{
-		actor->attachShape(shape);
-		PxRigidBodyExt::updateMassAndInertia(*actor, density);
+		if(!actor->attachShape(shape))
+		{
+			actor->release();
+			return NULL;
+		}
+		if(!PxRigidBodyExt::updateMassAndInertia(*actor, density))
+		{
+			actor->release();
+			return NULL;
+		}
 	}
 	return actor;
 }
@@ -100,12 +102,10 @@ PxRigidDynamic* PxCreateDynamic(PxPhysics& sdk,
 
 	shape->setLocalPose(shapeOffset);
 
-	PxRigidDynamic* body = shape ? PxCreateDynamic(sdk, transform, *shape, density) : NULL;
+	PxRigidDynamic* body = PxCreateDynamic(sdk, transform, *shape, density);
 	shape->release();
 	return body;
 }
-
-
 
 PxRigidDynamic* PxCreateKinematic(PxPhysics& sdk, 
 								  const PxTransform& transform, 
@@ -114,7 +114,7 @@ PxRigidDynamic* PxCreateKinematic(PxPhysics& sdk,
 {
 	PX_CHECK_AND_RETURN_NULL(transform.isValid(), "PxCreateKinematic: transform is not valid.");
 
-	bool isDynGeom = isDynamicGeometry(shape.getGeometryType());
+	bool isDynGeom = isDynamicGeometry(shape.getGeometry().getType());
 	if(isDynGeom && density <= 0.0f)
 	    return NULL;
 
@@ -138,7 +138,6 @@ PxRigidDynamic* PxCreateKinematic(PxPhysics& sdk,
 
 	return actor;
 }
-
 
 PxRigidDynamic* PxCreateKinematic(PxPhysics& sdk, 
 								  const PxTransform& transform, 
@@ -165,9 +164,6 @@ PxRigidDynamic* PxCreateKinematic(PxPhysics& sdk,
 	return body;
 }
 
-
-
-
 PxRigidStatic* PxCreateStatic(PxPhysics& sdk, 
 							  const PxTransform& transform, 
 							  PxShape& shape)
@@ -186,7 +182,6 @@ PxRigidStatic*	PxCreateStatic(PxPhysics& sdk,
 							   PxMaterial& material,
 							   const PxTransform& shapeOffset)
 {
-
 	PX_CHECK_AND_RETURN_NULL(transform.isValid(), "PxCreateStatic: transform is not valid.");
 	PX_CHECK_AND_RETURN_NULL(shapeOffset.isValid(), "PxCreateStatic: shapeOffset is not valid.");
 
@@ -201,9 +196,6 @@ PxRigidStatic*	PxCreateStatic(PxPhysics& sdk,
 	return s;
 }
 
-
-
-
 PxRigidStatic* PxCreatePlane(PxPhysics& sdk,
 							 const PxPlane& plane,
 							 PxMaterial& material)
@@ -216,52 +208,50 @@ PxRigidStatic* PxCreatePlane(PxPhysics& sdk,
 	return PxCreateStatic(sdk, PxTransformFromPlaneEquation(plane), PxPlaneGeometry(), material);
 }
 
-
-PxShape* PxCloneShape(PxPhysics &physics, const PxShape& from, bool isExclusive)
+PxShape* PxCloneShape(PxPhysics& physics, const PxShape& from, bool isExclusive)
 {
-	Ps::InlineArray<PxMaterial*, 64> materials;
+	PxInlineArray<PxMaterial*, 64> materials;
 	PxU16 materialCount = from.getNbMaterials();
 	materials.resize(materialCount);
 	from.getMaterials(materials.begin(), materialCount);
 
-	PxShape* to = physics.createShape(from.getGeometry().any(), materials.begin(), materialCount, isExclusive, from.getFlags());
+	PxShape* to = physics.createShape(from.getGeometry(), materials.begin(), materialCount, isExclusive, from.getFlags());
 
 	to->setLocalPose(from.getLocalPose());
 	to->setContactOffset(from.getContactOffset());
 	to->setRestOffset(from.getRestOffset());
 	to->setSimulationFilterData(from.getSimulationFilterData());
 	to->setQueryFilterData(from.getQueryFilterData());
+	to->setTorsionalPatchRadius(from.getTorsionalPatchRadius());
+	to->setMinTorsionalPatchRadius(from.getMinTorsionalPatchRadius());
 	return to;
 }
 
-
-namespace
+static void copyStaticProperties(PxPhysics& physics, PxRigidActor& to, const PxRigidActor& from)
 {
-	void copyStaticProperties(PxPhysics& physics, PxRigidActor& to, const PxRigidActor& from)
+	PxInlineArray<PxShape*, 64> shapes;
+	shapes.resize(from.getNbShapes());
+
+	PxU32 shapeCount = from.getNbShapes();
+	from.getShapes(shapes.begin(), shapeCount);
+
+	for(PxU32 i = 0; i < shapeCount; i++)
 	{
-		Ps::InlineArray<PxShape*, 64> shapes;
-		shapes.resize(from.getNbShapes());
-
-		PxU32 shapeCount = from.getNbShapes();
-		from.getShapes(shapes.begin(), shapeCount);
-
-		for(PxU32 i = 0; i < shapeCount; i++)
+		PxShape* s = shapes[i];
+		if(!s->isExclusive())
+			to.attachShape(*s);
+		else
 		{
-			PxShape* s = shapes[i];
-			if(!s->isExclusive())
-				to.attachShape(*s);
-			else
-			{
-				PxShape* newShape = physx::PxCloneShape(physics, *s, true);
-				to.attachShape(*newShape);
-				newShape->release();		
-			}
+			PxShape* newShape = physx::PxCloneShape(physics, *s, true);
+			to.attachShape(*newShape);
+			newShape->release();		
 		}
-
-		to.setActorFlags(from.getActorFlags());
-		to.setOwnerClient(from.getOwnerClient());
-		to.setDominanceGroup(from.getDominanceGroup());
 	}
+
+	to.setActorFlags(from.getActorFlags());
+	to.setOwnerClient(from.getOwnerClient());
+	to.setDominanceGroup(from.getDominanceGroup());
+	to.setEnvironmentID(from.getEnvironmentID());
 }
 
 PxRigidStatic* PxCloneStatic(PxPhysics& physicsSDK, 
@@ -287,7 +277,6 @@ PxRigidDynamic* PxCloneDynamic(PxPhysics& physicsSDK,
 
 	copyStaticProperties(physicsSDK, *to, from);
 
-
 	to->setRigidBodyFlags(from.getRigidBodyFlags());
 
 	to->setMass(from.getMass());
@@ -297,13 +286,14 @@ PxRigidDynamic* PxCloneDynamic(PxPhysics& physicsSDK,
 	to->setLinearVelocity(from.getLinearVelocity());
 	to->setAngularVelocity(from.getAngularVelocity());
 
-	to->setLinearDamping(from.getAngularDamping());
+	to->setLinearDamping(from.getLinearDamping());
 	to->setAngularDamping(from.getAngularDamping());
 
 	PxU32 posIters, velIters;
 	from.getSolverIterationCounts(posIters, velIters);
 	to->setSolverIterationCounts(posIters, velIters);
 
+	to->setMaxLinearVelocity(from.getMaxLinearVelocity());
 	to->setMaxAngularVelocity(from.getMaxAngularVelocity());
 	to->setMaxDepenetrationVelocity(from.getMaxDepenetrationVelocity());
 	to->setSleepThreshold(from.getSleepThreshold());
@@ -312,15 +302,18 @@ PxRigidDynamic* PxCloneDynamic(PxPhysics& physicsSDK,
 	to->setContactReportThreshold(from.getContactReportThreshold());
 	to->setMaxContactImpulse(from.getMaxContactImpulse());
 
+	PxTransform target;
+	if (from.getKinematicTarget(target))
+		to->setKinematicTarget(target);
+
+	to->setRigidDynamicLockFlags(from.getRigidDynamicLockFlags());
+
 	return to;
 }
 
-namespace
+static PxTransform scalePosition(const PxTransform& t, PxReal scale)
 {
-	PxTransform scalePosition(const PxTransform& t, PxReal scale)
-	{
-		return PxTransform(t.p*scale, t.q);
-	}
+	return PxTransform(t.p*scale, t.q);
 }
 
 void PxScaleRigidActor(PxRigidActor& actor, PxReal scale, bool scaleMassProps)
@@ -328,14 +321,14 @@ void PxScaleRigidActor(PxRigidActor& actor, PxReal scale, bool scaleMassProps)
 	PX_CHECK_AND_RETURN(scale > 0,
 		"PxScaleRigidActor requires that the scale parameter is greater than zero");
 
-	Ps::InlineArray<PxShape*, 64> shapes;
+	PxInlineArray<PxShape*, 64> shapes;
 	shapes.resize(actor.getNbShapes());
 	actor.getShapes(shapes.begin(), shapes.size());
 
 	for(PxU32 i=0;i<shapes.size();i++)
 	{
 		shapes[i]->setLocalPose(scalePosition(shapes[i]->getLocalPose(), scale));		
-		PxGeometryHolder h = shapes[i]->getGeometry();
+		PxGeometryHolder h(shapes[i]->getGeometry());
 
 		switch(h.getType())
 		{
@@ -362,8 +355,7 @@ void PxScaleRigidActor(PxRigidActor& actor, PxReal scale, bool scaleMassProps)
 			h.heightField().rowScale *= scale;
 			h.heightField().columnScale *= scale;
 			break;
-		case PxGeometryType::eINVALID:
-		case PxGeometryType::eGEOMETRY_COUNT:
+		default:
 			PX_ASSERT(0);
 		}
 		shapes[i]->setGeometry(h.any());

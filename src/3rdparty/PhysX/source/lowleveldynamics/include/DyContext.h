@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,205 +22,132 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
-#ifndef PXV_DYNAMICS_CONTEXT_H
-#define PXV_DYNAMICS_CONTEXT_H
+#ifndef DY_CONTEXT_H
+#define DY_CONTEXT_H
 
-#include "CmPhysXCommon.h"
 #include "PxSceneDesc.h"
 #include "DyThresholdTable.h"
 #include "PxcNpThreadContext.h"
 #include "PxsSimulationController.h"
+#include "PxsHeapStats.h"
 #include "DyConstraintWriteBack.h"
-#include "PsAllocator.h"
-
-#define DY_MAX_VELOCITY_COUNT 4
+#include "foundation/PxAllocator.h"
+#include "foundation/PxUserAllocated.h"
+#include "CmPinnableArray.h"
+#include "CmPinnableBitMap.h"
+#include "PxsRigidBody.h"
 
 namespace physx
 {
-
-class PxsIslandManager;
 class PxcNpMemBlockPool;
 
 namespace Cm
 {
-	class EventProfiler;
 	class FlushPool;
 }
 
 namespace IG
 {
 	class SimpleIslandManager;
-	class IslandSim;
 }
 
-template<typename T, typename P> class PxcThreadCoherentCache;
-class PxcScratchAllocator;
 struct PxvSimStats;
-class PxTaskManager;
-class PxcNpMemBlockPool;
-struct PxgDynamicsMemoryConfig;
-class PxsContactManagerOutputIterator;
-struct PxsContactManagerOutput;
-class PxsKernelWranglerManager;
-class PxsHeapMemoryAllocator;
-class PxsMemoryManager;
 class PxsContactManager;
-
+struct PxsContactManagerOutputCounts;
+class PxvNphaseImplementationContext;
 
 namespace Dy
 {
 
+/**
+Defining class, so it can be forward declared without pulling in DyThreasholdTable.h.
+*/
+class ThresholdStream : public PxArray<ThresholdStreamElement>{};
 
-class Context
+/**
+Threshold stream that may be backed by device mapped host memory for the GPU pipeline,
+hence the pageable fallback is disabled.
+For the CPU pipeline, the stream is backed by pageable memory anyways, so no fallback 
+required either.
+*/
+class ThresholdStreamMapped : public Cm::PinnableArray<ThresholdStreamElement>
+{
+public:
+	ThresholdStreamMapped(Cm::VirtualAllocatorCallback& allocator) :
+		Cm::PinnableArray<ThresholdStreamElement>(allocator, PxsHeapStats::eSOLVER, Cm::PinnableAllocatorFallback::eDISABLED)
+	{}
+};
+
+class Context : public PxUserAllocated
 {
 	PX_NOCOPY(Context)
 public:
-	/**
-	\brief Returns the bounce threshold
-	\return The bounce threshold.
-	*/
-	PX_FORCE_INLINE PxReal				getBounceThreshold()			const	{ return mBounceThreshold;	}
-	/**
-	\brief Returns the friction offset threshold
-	\return The friction offset threshold.
-	*/
-	PX_FORCE_INLINE PxReal				getFrictionOffsetThreshold()	const	{ return mFrictionOffsetThreshold;	}
-	/**
-	\brief Returns the friction offset threshold
-	\return The friction offset threshold.
-	*/
-	PX_FORCE_INLINE PxReal				getSolverOffsetSlop()	const	{ return mSolverOffsetSlop; }
-	/**
-	\brief Returns the correlation distance
-	\return The correlation distance.
-	*/
-	PX_FORCE_INLINE PxReal				getCorrelationDistance()		const	{ return mCorrelationDistance;	}
+
+	// PT: TODO: consider making all of these public at this point
+	// PT: please avoid useless comments like "returns Blah" for a function called "getBlah".
+
+	PX_FORCE_INLINE PxReal					getMaxBiasCoefficient()				const	{ return mMaxBiasCoefficient;	}
+	PX_FORCE_INLINE void					setMaxBiasCoefficient(PxReal coeff)			{ mMaxBiasCoefficient = coeff;	}
+
+	PX_FORCE_INLINE PxReal					getCorrelationDistance()			const	{ return mCorrelationDistance;	}
+	PX_FORCE_INLINE void					setCorrelationDistance(PxReal f)			{ mCorrelationDistance = f;		}
+
+	PX_FORCE_INLINE PxReal					getBounceThreshold()				const	{ return mBounceThreshold;		}
+	PX_FORCE_INLINE void					setBounceThreshold(PxReal f)				{ mBounceThreshold = f;			}
+
+	PX_FORCE_INLINE PxReal					getFrictionOffsetThreshold()		const	{ return mFrictionOffsetThreshold;		}
+	PX_FORCE_INLINE void					setFrictionOffsetThreshold(PxReal offset)	{ mFrictionOffsetThreshold = offset;	}
+
+	PX_FORCE_INLINE PxReal					getCCDSeparationThreshold()			const	{ return mCCDSeparationThreshold;	}
+	PX_FORCE_INLINE void					setCCDSeparationThreshold(PxReal offset)	{ mCCDSeparationThreshold = offset;	}
+
+	PX_FORCE_INLINE PxU32					getSolverBatchSize()				const	{ return mSolverBatchSize;	}
+ 	PX_FORCE_INLINE void					setSolverBatchSize(PxU32 f)					{ mSolverBatchSize = f;		}
+
+	PX_FORCE_INLINE PxU32					getSolverArticBatchSize()			const	{ return mSolverArticBatchSize; }
+	PX_FORCE_INLINE void					setSolverArticBatchSize(PxU32 f)			{ mSolverArticBatchSize = f;	}
+
+	PX_FORCE_INLINE PxReal					getDt()								const	{ return mDt;		}
+	PX_FORCE_INLINE void					setDt(const PxReal dt)						{ mDt = dt;			}
+	// PT: TODO: we have a setDt function but it doesn't set the inverse dt, what's the story here?
+	PX_FORCE_INLINE PxReal					getInvDt()							const	{ return mInvDt;	}
+
+	//Forces any cached body state to be updated!
+	PX_FORCE_INLINE	void					setStateDirty(bool dirty)					{ mBodyStateDirty = dirty;	}
+	PX_FORCE_INLINE bool					isStateDirty()						const	{ return mBodyStateDirty;	}
+
+	// Returns the maximum solver constraint size in this island in bytes.
+	PX_FORCE_INLINE PxU32					getMaxSolverConstraintSize()		const	{ return mMaxSolverConstraintSize; }
+
+	PX_FORCE_INLINE PxReal					getLengthScale()					const	{ return mLengthScale;	}
+	PX_FORCE_INLINE const PxVec3&			getGravity()						const	{ return mGravity;		}
+	PX_FORCE_INLINE	PxU64					getContextId()						const	{ return mContextID;	}
+
+	PX_FORCE_INLINE ThresholdStream&		getThresholdStream()						{ return mThresholdStream;				}
+	PX_FORCE_INLINE ThresholdStreamMapped&	getForceChangedThresholdStream()			{ return mForceChangedThresholdStream;	}
+	PX_FORCE_INLINE ThresholdTable&			getThresholdTable()							{ return mThresholdTable;				}
+
+	PX_FORCE_INLINE PxcDataStreamPool&							getContactStreamPool()			{ return mContactStreamPool;		}
+	PX_FORCE_INLINE PxcDataStreamPool&							getPatchStreamPool()			{ return mPatchStreamPool;			}
+	PX_FORCE_INLINE PxcDataStreamPool&							getForceStreamPool()			{ return mForceStreamPool;			}
+	PX_FORCE_INLINE Cm::PinnableArray<Dy::ConstraintWriteback>&	getConstraintWriteBackPool()	{ return mConstraintWriteBackPool; }
+	PX_FORCE_INLINE PxcDataStreamPool&							getFrictionPatchStreamPool()	{ return mFrictionPatchStreamPool;	}
 
 	/**
-	\brief Returns the CCD separation threshold
-	\return The CCD separation threshold.
+	\brief Returns whether sleeping is disabled in the scene
+	\return True if sleeping is disabled (PxSceneFlag::eDISABLE_SLEEPING is set)
 	*/
-	PX_FORCE_INLINE PxReal				getCCDSeparationThreshold()		const	{ return mCCDSeparationThreshold; }
-
-	/**
-	\brief Sets the bounce threshold
-	\param[in] f The bounce threshold
-	*/
-	PX_FORCE_INLINE void				setBounceThreshold(PxReal f)			{ mBounceThreshold = f;		}
-	/**
-	\brief Sets the correlation distance
-	\param[in] f The correlation distance
-	*/
-	PX_FORCE_INLINE void				setCorrelationDistance(PxReal f)			{ mCorrelationDistance = f;		}
-	/**
-	\brief Sets the friction offset threshold
-	\param[in] offset The friction offset threshold
-	*/
-	PX_FORCE_INLINE void				setFrictionOffsetThreshold(PxReal offset)		{ mFrictionOffsetThreshold = offset;				}
-	/**
-	\brief Sets the solver offset slop
-	\param[in] offset The solver offset slop
-	*/
-	PX_FORCE_INLINE void				setSolverOffsetSlop(PxReal offset)		{ mSolverOffsetSlop = offset; }
-	/**
-	\brief Sets the friction offset threshold
-	\param[in] offset The friction offset threshold
-	*/
-	PX_FORCE_INLINE void				setCCDSeparationThreshold(PxReal offset)		{ mCCDSeparationThreshold = offset; }
-
-
-	/**
-	\brief Returns the solver batch size
-	\return The solver batch size.
-	*/
-	PX_FORCE_INLINE PxU32				getSolverBatchSize()				const	{ return mSolverBatchSize;	}
-	/**
-	\brief Sets the solver batch size
-	\param[in] f The solver batch size
-	*/
- 	PX_FORCE_INLINE void				setSolverBatchSize(PxU32 f)				{ mSolverBatchSize = f;		}
-
-	/**
-	\brief Returns the solver batch size
-	\return The solver batch size.
-	*/
-	PX_FORCE_INLINE PxU32				getSolverArticBatchSize()				const { return mSolverArticBatchSize; }
-	/**
-	\brief Sets the solver batch size
-	\param[in] f The solver batch size
-	*/
-	PX_FORCE_INLINE void				setSolverArticBatchSize(PxU32 f) { mSolverArticBatchSize = f; }
-
-
-
-	/**
-	\brief Returns the maximum solver constraint size
-	\return The maximum solver constraint size in this island in bytes.
-	*/
-	PX_FORCE_INLINE PxU32				getMaxSolverConstraintSize()	const	{ return mMaxSolverConstraintSize; }
-
-	/**
-	\brief Returns the friction model being used.
-	\return The friction model being used.
-	*/
-	PX_FORCE_INLINE PxFrictionType::Enum getFrictionType() const				{ return mFrictionType; }
-
-	/**
-	\brief Returns the threshold stream
-	\return The threshold stream
-	*/
-	PX_FORCE_INLINE ThresholdStream&	getThresholdStream()					{ return *mThresholdStream; }
-
-	PX_FORCE_INLINE ThresholdStream&	getForceChangedThresholdStream()		{ return *mForceChangedThresholdStream; }
-
-	/**
-	\brief Returns the threshold table
-	\return The threshold table
-	*/
-	PX_FORCE_INLINE ThresholdTable&		getThresholdTable()						{ return mThresholdTable; }
-
-	/**
-	\brief Sets the friction model to be used.
-	\param[in] f The friction model to be used.
-	*/
-	PX_FORCE_INLINE void				setFrictionType(PxFrictionType::Enum f) 	{ mFrictionType = f; }
-
+	PX_FORCE_INLINE bool										isSleepingDisabled()			const	{ return mIsSleepingDisabled;			}
+	PX_FORCE_INLINE bool										isEnhancedDeterminismEnabled()	const	{ return mUseEnhancedDeterminism;		}
+	
 	/**
 	\brief Destroys this dynamics context
 	*/
 	virtual void						destroy() = 0;
-
-
-
-	PX_FORCE_INLINE PxcDataStreamPool&				getContactStreamPool()						{ return mContactStreamPool;	}
-
-	PX_FORCE_INLINE PxcDataStreamPool&				getPatchStreamPool()						{ return mPatchStreamPool;	}
-
-	PX_FORCE_INLINE PxcDataStreamPool&				getForceStreamPool()						{ return mForceStreamPool;	}
-
-	PX_FORCE_INLINE Ps::Array<Dy::ConstraintWriteback, Ps::VirtualAllocator>&		getConstraintWriteBackPool()			{ return mConstraintWriteBackPool;  }
-
-	
-	/**
-	\brief Returns the current frame's timestep
-	\return The current frame's timestep.
-	*/
-	PX_FORCE_INLINE PxReal					getDt()							const	{ return mDt;				}
-	/**
-	\brief Returns 1/(current frame's timestep)
-	\return 1/(current frame's timestep).
-	*/
-	PX_FORCE_INLINE PxReal					getInvDt()						const	{ return mInvDt;			}
-
-	PX_FORCE_INLINE PxReal					getMaxBiasCoefficient()			const { return mMaxBiasCoefficient; }
-
-	PX_FORCE_INLINE PxVec3					getGravity()					const	{ return mGravity;			}
-
-
 
 	/**
 	\brief The entry point for the constraint solver. 
@@ -236,78 +162,70 @@ public:
 
 	Each island is solved as an independent solver task chain. In addition, large islands may be solved using multiple parallel tasks.
 	Island solving is asynchronous. Once all islands have been solved, the continuation task will be called.
-
 	*/
-	virtual void						update(IG::SimpleIslandManager& simpleIslandManager, PxBaseTask* continuation, PxBaseTask* processLostTouchTask,
-		PxsContactManager** foundPatchManagers, PxU32 nbFoundPatchManagers, PxsContactManager** lostPatchManagers, PxU32 nbLostPatchManagers, PxU32 maxPatchesPerCM, 
-		PxsContactManagerOutputIterator& iterator, PxsContactManagerOutput* gpuOutputs, const PxReal dt, const PxVec3& gravity, const PxU32 bitMapWordCounts) = 0;
+	virtual void						update(	Cm::FlushPool& flushPool, PxBaseTask* continuation, PxBaseTask* postPartitioningTask, PxBaseTask* processLostTouchTask,
+												PxvNphaseImplementationContext* nPhaseContext, PxU32 maxPatchesPerCM, PxU32 maxArticulationLinks,
+												PxReal dt, const PxVec3& gravity, Cm::PinnableBitMap& changedHandleMap) = 0;
+	virtual void						updatePostPartitioning(PxBaseTask* /*processLostTouchTask*/,
+												PxvNphaseImplementationContext* /*nPhaseContext*/, PxU32 /*maxPatchesPerCM*/, PxU32 /*maxArticulationLinks*/,
+												PxReal /*dt*/, const PxVec3& /*gravity*/, Cm::PinnableBitMap& /*changedHandleMap*/)	{}
 
-	virtual void						processLostPatches(IG::SimpleIslandManager& simpleIslandManager, PxsContactManager** lostPatchManagers, PxU32 nbLostPatchManagers, PxsContactManagerOutputIterator& iterator) = 0;
-
+	virtual void						processPatches(	Cm::FlushPool& /*flushPool*/, PxBaseTask* /*continuation*/,
+														PxsContactManager** /*lostFoundPatchManagers*/, PxU32 /*nbLostFoundPatchManagers*/, PxsContactManagerOutputCounts* /*outCounts*/)	{}
 
 	/**
 	\brief This method copy gpu solver body data to cpu body core
 	*/
-	virtual void						updateBodyCore(PxBaseTask* continuation) = 0;
+	virtual void						updateBodyCore(PxBaseTask* /*continuation*/)	{}
 
 	/**
-	\brief Called after update's task chain has completed. This collects the results of the solver together
+	\brief Called after update's task chain has completed. This collects the results of the solver together.
+	This method combines the results of several islands, e.g. constructing scene-level simulation statistics and merging together threshold streams for contact notification.
 	*/
 	virtual void						mergeResults() = 0;
 
 	virtual void						setSimulationController(PxsSimulationController* simulationController) = 0;
 
-	virtual void						getDataStreamBase(void*& contactStreamBase, void*& patchStreamBase, void*& forceAndIndiceStreamBase) = 0;
+	virtual void						getDataStreamBase(void*& /*contactStreamBase*/, void*& /*patchStreamBase*/, void*& /*forceAndIndicesStreamBase*/)	{}
 
-	void createThresholdStream(Ps::VirtualAllocatorCallback& callback) { PX_ASSERT(mThresholdStream == NULL); mThresholdStream = PX_PLACEMENT_NEW(PX_ALLOC(sizeof(ThresholdStream), PX_DEBUG_EXP("ThresholdStream")), ThresholdStream(callback));}
+	virtual PxSolverType::Enum			getSolverType()	const	= 0;
 
-	void createForceChangeThresholdStream(Ps::VirtualAllocatorCallback& callback) { PX_ASSERT(mForceChangedThresholdStream == NULL); mForceChangedThresholdStream = PX_PLACEMENT_NEW(PX_ALLOC(sizeof(ThresholdStream), PX_DEBUG_EXP("ThresholdStream")), ThresholdStream(callback));}
+	virtual PxsExternalAccelerationProvider& getExternalRigidAccelerations() { return mRigidExternalAccelerations; }
 
-
+	// Only used for Direct GPU API pipeline at the moment.
+	virtual void setActiveBreakableConstraintCount(PxU32 activeBreakableConstraintCount) { PX_UNUSED(activeBreakableConstraintCount); }
 
 protected:
 
-	Context(IG::IslandSim*	accurateIslandSim, Ps::VirtualAllocatorCallback* allocatorCallback,
-		PxvSimStats& simStats, bool enableStabilization, bool useEnhancedDeterminism, bool useAdaptiveForce,
-		const PxReal maxBiasCoefficient) :
-		mThresholdStream(NULL),
-		mForceChangedThresholdStream(NULL),		
-		mAccurateIslandSim(accurateIslandSim), 		
+	Context(IG::SimpleIslandManager& islandManager, Cm::VirtualAllocatorCallback& allocator, Cm::VirtualAllocatorCallback& mappedAllocator,
+			PxvSimStats& simStats, PxReal maxBiasCoefficient, PxReal lengthScale, PxU64 contextID, PxSceneFlags sceneFlags) :
+		mForceChangedThresholdStream(mappedAllocator),
+		mIslandManager				(islandManager),
 		mDt							(1.0f), 
 		mInvDt						(1.0f),
 		mMaxBiasCoefficient			(maxBiasCoefficient),
-		mEnableStabilization		(enableStabilization),
-		mUseEnhancedDeterminism		(useEnhancedDeterminism),
-		mUseAdaptiveForce			(useAdaptiveForce),
-		mBounceThreshold(-2.0f),
-		mSolverBatchSize(32),
-		mConstraintWriteBackPool(Ps::VirtualAllocator(allocatorCallback)),
-		mSimStats(simStats)
-		 {
-		 }
-
-	virtual ~Context() 
-	{ 
-		if(mThresholdStream)
-		{
-			mThresholdStream->~ThresholdStream();
-			PX_FREE(mThresholdStream);
-		} 
-		mThresholdStream = NULL;
-		if(mForceChangedThresholdStream)
-		{
-			mForceChangedThresholdStream->~ThresholdStream();
-			PX_FREE(mForceChangedThresholdStream);
-		}
-		mForceChangedThresholdStream = NULL; 
+		mEnableStabilization		(sceneFlags & PxSceneFlag::eENABLE_STABILIZATION),
+		mUseEnhancedDeterminism		(sceneFlags & PxSceneFlag::eENABLE_ENHANCED_DETERMINISM),
+		mSolveArticulationContactLast(sceneFlags & PxSceneFlag::eSOLVE_ARTICULATION_CONTACT_LAST),
+		mIsSleepingDisabled			(sceneFlags & PxSceneFlag::eDISABLE_SLEEPING),
+		mBounceThreshold			(-2.0f),
+		mLengthScale				(lengthScale),
+		mSolverBatchSize			(32),
+		mConstraintWriteBackPool	(allocator),
+		mSimStats					(simStats),
+		mContextID					(contextID),
+		mBodyStateDirty				(false)
+	{
 	}
 
-	ThresholdStream*						mThresholdStream;
-	ThresholdStream*						mForceChangedThresholdStream;
-	ThresholdTable							mThresholdTable;
+	virtual ~Context() {}
 
-	IG::IslandSim*							mAccurateIslandSim;
-	PxsSimulationController*				mSimulationController;
+	ThresholdStream					mThresholdStream;
+	ThresholdStreamMapped			mForceChangedThresholdStream;
+	ThresholdTable					mThresholdTable;
+
+	IG::SimpleIslandManager&	mIslandManager;
+	PxsSimulationController*	mSimulationController;
 	/**
 	\brief Time-step.
 	*/
@@ -320,10 +238,9 @@ protected:
 	PxReal						mMaxBiasCoefficient;
 
 	const bool					mEnableStabilization;
-
 	const bool					mUseEnhancedDeterminism;
-
-	const bool					mUseAdaptiveForce;
+	const bool					mSolveArticulationContactLast;
+	const bool					mIsSleepingDisabled;
 
 	PxVec3						mGravity;
 	/**
@@ -341,11 +258,6 @@ protected:
 	PxReal						mFrictionOffsetThreshold;
 
 	/**
-	\brief Tolerance used to zero offsets along an axis if it is below this threshold. Used to compensate for small numerical divergence inside contact gen.
-	*/
-	PxReal						mSolverOffsetSlop;
-
-	/**
 	\brief Threshold controlling whether distant contacts are processed using bias, restitution or a combination of the two. This only has effect on pairs involving bodies that have enabled speculative CCD simulation mode.
 	*/
 	PxReal						mCCDSeparationThreshold;
@@ -354,6 +266,12 @@ protected:
 	\brief Threshold for controlling friction correlation
 	*/
 	PxReal						mCorrelationDistance;
+
+	/**
+	\brief The length scale from PxTolerancesScale::length.
+	*/
+	PxReal						mLengthScale;
+
 	/**
 	\brief The minimum size of an island to generate a solver task chain.
 	*/
@@ -363,11 +281,6 @@ protected:
 	\brief The minimum number of articulations required to generate a solver task chain.
 	*/
 	PxU32						mSolverArticBatchSize;
-
-	/**
-	\brief The current friction model being used
-	*/
-	PxFrictionType::Enum		mFrictionType;
 
 	/**
 	\brief Structure to encapsulate contact stream allocations. Used by GPU solver to reference pre-allocated pinned host memory
@@ -386,31 +299,33 @@ protected:
 	PxcDataStreamPool		mForceStreamPool;
 
 	/**
+	\brief	Struct to encapsulate the friction patch stream allocations. Used by GPU solver to reference pre-allocated pinned host memory
+	*/
+	PxcDataStreamPool		mFrictionPatchStreamPool;
+	
+	/**
 	\brief Structure to encapsulate constraint write back allocations. Used by GPU/CPU solver to reference pre-allocated pinned host memory for breakable joint reports.
 	*/
-	Ps::Array<Dy::ConstraintWriteback, Ps::VirtualAllocator>	mConstraintWriteBackPool;
+	Cm::PinnableArray<Dy::ConstraintWriteback> mConstraintWriteBackPool;
 
 	PxvSimStats& mSimStats;
 
+	const PxU64	mContextID;
 
+	PxsExternalAccelerationProvider mRigidExternalAccelerations;
+
+	bool mBodyStateDirty;
 };
 
-Context* createDynamicsContext(	PxcNpMemBlockPool* memBlockPool,
-								PxcScratchAllocator& scratchAllocator, Cm::FlushPool& taskPool,
-								PxvSimStats& simStats, PxTaskManager* taskManager, Ps::VirtualAllocatorCallback* allocatorCallback, PxsMaterialManager* materialManager,
-								IG::IslandSim* accurateIslandSim, PxU64 contextID,
-								const bool enableStabilization, const bool useEnhancedDeterminism, const bool useAdaptiveForce, const PxReal maxBiasCoefficient,
-								const bool frictionEveryIteration
-								);
+Context* createDynamicsContext(	PxcNpMemBlockPool* memBlockPool, Cm::FlushPool& taskPool, PxvSimStats& simStats,
+								Cm::VirtualAllocatorCallback& allocator, PxsMaterialManager* materialManager,
+								IG::SimpleIslandManager& islandManager, PxU64 contextID, PxReal maxBiasCoefficient,
+								PxReal lengthScale, PxSceneFlags sceneFlags);
 
-Context* createTGSDynamicsContext(PxcNpMemBlockPool* memBlockPool,
-	PxcScratchAllocator& scratchAllocator, Cm::FlushPool& taskPool,
-	PxvSimStats& simStats, PxTaskManager* taskManager, Ps::VirtualAllocatorCallback* allocatorCallback, PxsMaterialManager* materialManager,
-	IG::IslandSim* accurateIslandSim, PxU64 contextID,
-	const bool enableStabilization, const bool useEnhancedDeterminism, const bool useAdaptiveForce, const PxReal lengthScale
-);
-
-
+Context* createTGSDynamicsContext(	PxcNpMemBlockPool* memBlockPool, Cm::FlushPool& taskPool, PxvSimStats& simStats,
+									Cm::VirtualAllocatorCallback& allocator, PxsMaterialManager* materialManager,
+									IG::SimpleIslandManager& islandManager, PxU64 contextID,
+									PxReal lengthScale, PxSceneFlags sceneFlags);
 }
 
 }

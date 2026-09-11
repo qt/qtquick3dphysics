@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,31 +22,20 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
-
 
 #ifndef PXV_SIM_STATS_H
 #define PXV_SIM_STATS_H
 
 #include "foundation/PxAssert.h"
 #include "foundation/PxMemory.h"
+#include "foundation/PxSimpleTypes.h"
 #include "geometry/PxGeometry.h"
-#include "CmPhysXCommon.h"
 
 namespace physx
 {
-
-/*!
-\file
-Context handling
-*/
-
-/************************************************************************/
-/* Context handling, types                                              */
-/************************************************************************/
-
 /*!
 Description: contains statistics for the simulation.
 */
@@ -107,6 +95,17 @@ struct PxvSimStats
 	PxU32	mNbLostTouches;
 
 	PxU32	mNbPartitions;
+
+	PxU64 	mGpuDynamicsTempBufferCapacity;
+	PxU32	mGpuDynamicsRigidContactCount;
+	PxU32	mGpuDynamicsRigidPatchCount;
+	PxU32	mGpuDynamicsFoundLostPairs;
+	PxU32	mGpuDynamicsFoundLostAggregatePairs;
+	PxU32	mGpuDynamicsTotalAggregatePairs;
+	PxU32	mGpuDynamicsDeformableSurfaceContacts;
+	PxU32	mGpuDynamicsDeformableVolumeContacts;
+	PxU32	mGpuDynamicsParticleContacts; // not implemented
+	PxU32	mGpuDynamicsCollisionStackSize;
 };
 
 }

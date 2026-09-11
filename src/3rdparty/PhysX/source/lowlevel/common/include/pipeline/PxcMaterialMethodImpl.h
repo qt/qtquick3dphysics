@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,42 +22,39 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
-#ifndef PXC_MATERIALMETHOD_H
-#define PXC_MATERIALMETHOD_H
+#ifndef PXC_MATERIAL_METHOD_H
+#define PXC_MATERIAL_METHOD_H
 
 #include "geometry/PxGeometry.h"
-#include "CmPhysXCommon.h"
 
 namespace physx
 {
-
 struct PxsShapeCore;
 struct PxsMaterialInfo;
-class PxcNpThreadContext;
+class PxContactBuffer;
 
-#define MATERIAL_METHOD_ARGS			\
-	const PxsShapeCore* shape0,			\
-	const PxsShapeCore* shape1,			\
-	PxcNpThreadContext& pairContext,	\
+#define MATERIAL_METHOD_ARGS				\
+	const PxsShapeCore* shape0,				\
+	const PxsShapeCore* shape1,				\
+	const PxContactBuffer& contactBuffer,	\
 	PxsMaterialInfo* materialInfo
-
 
 #define SINGLE_MATERIAL_METHOD_ARGS			\
 	const PxsShapeCore* shape,				\
-	const PxU32	index,						\
-	PxcNpThreadContext& pairContext,		\
-	PxsMaterialInfo* materialInfo			
+	PxU32 index,							\
+	const PxContactBuffer& contactBuffer,	\
+	PxsMaterialInfo* materialInfo
 
 /*!
 Method prototype for fetch material routines
 */
-typedef bool (*PxcGetMaterialMethod) (MATERIAL_METHOD_ARGS);
+typedef void (*PxcGetMaterialMethod) (MATERIAL_METHOD_ARGS);
 
-typedef bool (*PxcGetSingleMaterialMethod) (SINGLE_MATERIAL_METHOD_ARGS);
+typedef void (*PxcGetSingleMaterialMethod) (SINGLE_MATERIAL_METHOD_ARGS);
 
 extern PxcGetMaterialMethod g_GetMaterialMethodTable[][PxGeometryType::eGEOMETRY_COUNT];
 

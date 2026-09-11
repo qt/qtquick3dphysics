@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,17 +22,17 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
 #ifndef BP_BROADPHASE_SHARED_H
 #define BP_BROADPHASE_SHARED_H
 
-#include "BpBroadPhaseUpdate.h"
-#include "PsUserAllocated.h"
-#include "PsHash.h"
-#include "PsVecMath.h"
+#include "BpBroadPhaseIntegerAABB.h"
+#include "foundation/PxUserAllocated.h"
+#include "foundation/PxHash.h"
+#include "foundation/PxVecMath.h"
 
 namespace physx
 {
@@ -42,7 +41,7 @@ namespace Bp
 	#define	INVALID_ID		0xffffffff
 	#define INVALID_USER_ID	0xffffffff
 
-	struct InternalPair : public Ps::UserAllocated
+	struct InternalPair : public PxUserAllocated
 	{
 		PX_FORCE_INLINE	PxU32	getId0()	const	{ return id0_isNew & ~PX_SIGN_BITMASK;		}
 		PX_FORCE_INLINE	PxU32	getId1()	const	{ return id1_isUpdated & ~PX_SIGN_BITMASK;	}
@@ -57,6 +56,15 @@ namespace Bp
 			id0_isNew = id0 | PX_SIGN_BITMASK;
 			id1_isUpdated = id1;
 		}
+
+		PX_FORCE_INLINE	void	setNewPair2(PxU32 id0, PxU32 id1)
+		{
+			PX_ASSERT(!(id0 & PX_SIGN_BITMASK));
+			PX_ASSERT(!(id1 & PX_SIGN_BITMASK));
+			id0_isNew = id0;
+			id1_isUpdated = id1;
+		}
+
 		PX_FORCE_INLINE	void	setUpdated()		{ id1_isUpdated |= PX_SIGN_BITMASK;		}
 		PX_FORCE_INLINE	void	clearUpdated()		{ id1_isUpdated &= ~PX_SIGN_BITMASK;	}
 		PX_FORCE_INLINE	void	clearNew()			{ id0_isNew &= ~PX_SIGN_BITMASK;		}
@@ -67,8 +75,15 @@ namespace Bp
 	};
 
 	PX_FORCE_INLINE bool	differentPair(const InternalPair& p, PxU32 id0, PxU32 id1)	{ return (id0!=p.getId0()) || (id1!=p.getId1());	}
-	PX_FORCE_INLINE PxU32	hash(PxU32 id0, PxU32 id1)									{ return PxU32(Ps::hash( (id0&0xffff)|(id1<<16)) );	}
-	PX_FORCE_INLINE void	sort(PxU32& id0, PxU32& id1)								{ if(id0>id1)	Ps::swap(id0, id1);					}
+	PX_FORCE_INLINE void	sort(PxU32& id0, PxU32& id1)								{ if(id0>id1)	PxSwap(id0, id1);					}
+
+	PX_FORCE_INLINE PxU32	hash(PxU32 id0, PxU32 id1)
+	{
+		if(id0<=0xffff && id1<=0xffff)
+			return PxComputeHash((id0)|(id1<<16));
+		else
+			return PxComputeHash(PxU64(id0)|(PxU64(id1)<<32));
+	}
 
 	class PairManagerData
 	{
@@ -151,7 +166,7 @@ namespace Bp
 						void			removePair(PxU32 id0, PxU32 id1, PxU32 hashValue, PxU32 pairIndex);
 	};
 
-	struct AABB_Xi
+	struct AABB_Xi	// PT: i for integer
 	{
 		PX_FORCE_INLINE	AABB_Xi()	{}
 		PX_FORCE_INLINE	~AABB_Xi()	{}
@@ -187,7 +202,7 @@ namespace Bp
 		PxU32 mMaxX;
 	};
 
-	struct AABB_YZn
+	struct AABB_YZn	// PT: n for negated min layout
 	{
 		PX_FORCE_INLINE	AABB_YZn()	{}
 		PX_FORCE_INLINE	~AABB_YZn()	{}
@@ -202,7 +217,7 @@ namespace Bp
 
 		PX_FORCE_INLINE	void	operator = (const AABB_YZn& box)
 		{
-			using namespace physx::shdfnd::aos;
+			using namespace physx::aos;
 			V4StoreA(V4LoadA(&box.mMinY), &mMinY);
 		}
 
@@ -212,7 +227,7 @@ namespace Bp
 		float mMaxZ;
 	};
 
-	struct AABB_YZr
+	struct AABB_YZr	// PT: r for regular layout
 	{
 		PX_FORCE_INLINE	AABB_YZr()	{}
 		PX_FORCE_INLINE	~AABB_YZr()	{}
@@ -227,7 +242,7 @@ namespace Bp
 
 		PX_FORCE_INLINE	void	operator = (const AABB_YZr& box)
 		{
-			using namespace physx::shdfnd::aos;
+			using namespace physx::aos;
 			V4StoreA(V4LoadA(&box.mMinY), &mMinY);
 		}
 

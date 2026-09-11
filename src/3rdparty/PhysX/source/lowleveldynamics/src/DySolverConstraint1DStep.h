@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,25 +22,26 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
-
 
 #ifndef DY_SOLVER_CONSTRAINT_1D_STEP_H
 #define DY_SOLVER_CONSTRAINT_1D_STEP_H
 
+#include "CmSpatialVector.h"
 #include "foundation/PxVec3.h"
-#include "PxvConfig.h"
-#include "DyArticulationUtils.h"
 #include "DySolverConstraintTypes.h"
-#include "DySolverBody.h"
 #include "PxConstraintDesc.h"
-#include "DySolverConstraintDesc.h"
+#include "DyCpuGpu1dConstraint.h"
 
 
 namespace physx
 {
+	namespace Sc
+	{
+		class ShapeInteraction;
+	}
 	namespace Dy
 	{
 		struct SolverContactHeaderStep
@@ -60,7 +60,7 @@ namespace physx
 			PxReal	angDom1;							//12
 			PxReal	invMass0;							//16
 
-			Vec4V   staticFrictionX_dynamicFrictionY_dominance0Z_dominance1W;		//32
+			aos::Vec4V   staticFrictionX_dynamicFrictionY_dominance0Z_dominance1W;		//32
 			PxVec3	normal;															//48
 			
 			PxReal	maxPenBias;														//52
@@ -73,10 +73,10 @@ namespace physx
 			PxU32 pad[2];															//80
 #endif		
 
-			PX_FORCE_INLINE FloatV getStaticFriction() const { return V4GetX(staticFrictionX_dynamicFrictionY_dominance0Z_dominance1W); }
-			PX_FORCE_INLINE FloatV getDynamicFriction() const { return V4GetY(staticFrictionX_dynamicFrictionY_dominance0Z_dominance1W); }
-			PX_FORCE_INLINE FloatV getDominance0() const { return V4GetZ(staticFrictionX_dynamicFrictionY_dominance0Z_dominance1W); }
-			PX_FORCE_INLINE FloatV getDominance1() const { return V4GetW(staticFrictionX_dynamicFrictionY_dominance0Z_dominance1W); }
+			PX_FORCE_INLINE aos::FloatV getStaticFriction() const { return aos::V4GetX(staticFrictionX_dynamicFrictionY_dominance0Z_dominance1W); }
+			PX_FORCE_INLINE aos::FloatV getDynamicFriction() const { return aos::V4GetY(staticFrictionX_dynamicFrictionY_dominance0Z_dominance1W); }
+			PX_FORCE_INLINE aos::FloatV getDominance0() const { return aos::V4GetZ(staticFrictionX_dynamicFrictionY_dominance0Z_dominance1W); }
+			PX_FORCE_INLINE aos::FloatV getDominance1() const { return aos::V4GetW(staticFrictionX_dynamicFrictionY_dominance0Z_dominance1W); }
 		};
 
 		struct SolverContactPointStep
@@ -87,37 +87,41 @@ namespace physx
 			PxF32 velMultiplier;
 			PxF32 targetVelocity;
 			PxF32 biasCoefficient;
-			//2 more slots here for extra data
-			PxU32 pad[2];
+			PxF32 recipResponse;
+			PxF32 maxImpulse;
 		};
 
 		struct SolverContactPointStepExt : public SolverContactPointStep
 		{
-			Vec3V linDeltaVA;
-			Vec3V linDeltaVB;
-			Vec3V angDeltaVA;
-			Vec3V angDeltaVB;
+			aos::Vec3V linDeltaVA;
+			aos::Vec3V linDeltaVB;
+			aos::Vec3V angDeltaVA;
+			aos::Vec3V angDeltaVB;
 		};
 
 		struct SolverContactFrictionStep
 		{
-			Vec4V normalXYZ_ErrorW;		//16
-			Vec4V raXnI_targetVelW;
-			Vec4V rbXnI_velMultiplierW;
+			aos::Vec4V normalXYZ_ErrorW;
+			aos::Vec4V raXnI_targetVelW;
+			aos::Vec4V rbXnI_velMultiplierW;
 			PxReal biasScale;
 			PxReal appliedForce;
 			PxReal frictionScale;
 			PxU32 pad[1];
 
-			PX_FORCE_INLINE void setAppliedForce(const FloatV f) { FStore(f, &appliedForce); }
+			PX_FORCE_INLINE void setAppliedForce(const aos::FloatV f) { aos::FStore(f, &appliedForce); }
+
+			PX_FORCE_INLINE aos::Vec3V getNormal() const { return aos::Vec3V_From_Vec4V(normalXYZ_ErrorW); }
+			PX_FORCE_INLINE aos::FloatV getAppliedForce() const { return aos::FLoad(appliedForce); }
 		};
+		PX_COMPILE_TIME_ASSERT(sizeof(SolverContactFrictionStep) % 16 == 0);
 
 		struct SolverContactFrictionStepExt : public SolverContactFrictionStep
 		{
-			Vec3V linDeltaVA;
-			Vec3V linDeltaVB;
-			Vec3V angDeltaVA;
-			Vec3V angDeltaVB;
+			aos::Vec3V linDeltaVA;
+			aos::Vec3V linDeltaVB;
+			aos::Vec3V angDeltaVA;
+			aos::Vec3V angDeltaVB;
 		};
 
 		struct SolverConstraint1DHeaderStep
@@ -148,6 +152,7 @@ namespace physx
 			//Ortho axes for body 1, error of body in W component
 			PxVec4    angOrthoAxis1_Error[3];
 		};
+		PX_COMPILE_TIME_ASSERT(PX_OFFSET_OF(SolverConstraint1DHeaderStep, angOrthoAxis0_recipResponseW) % 16 == 0);
 
 
 		PX_FORCE_INLINE void init(SolverConstraint1DHeaderStep& h,
@@ -179,25 +184,32 @@ namespace physx
 			PxReal		velMultiplier;			//!< constraint velocity multiplier
 
 			PxVec3		ang1;					//!< angular velocity projection (body 1)
-			PxReal		impulseMultiplier;		//!< constraint impulse multiplier
-
 			PxReal		velTarget;				//!< Scaled target velocity of the constraint drive
 
 			PxReal		minImpulse;				//!< Lower bound on impulse magnitude	 
 			PxReal		maxImpulse;				//!< Upper bound on impulse magnitude
 			PxReal		appliedForce;			//!< applied force to correct velocity+bias
-
 			PxReal		maxBias;
+
 			PxU32		flags;
 			PxReal		recipResponse;			//Constant. Only used for articulations;
 			PxReal		angularErrorScale;		//Constant
+			PxU32		pad;
+
+			void setSolverConstants(const Constraint1dSolverConstantsTGS& desc)
+			{
+				biasScale = desc.biasScale;
+				error = desc.error;
+				velTarget = desc.targetVel;
+				velMultiplier = desc.velMultiplier;
+			}
 		} PX_ALIGN_SUFFIX(16);
 
 		struct SolverConstraint1DExtStep : public SolverConstraint1DStep
 		{
 		public:
-			Cm::SpatialVectorV deltaVA;
-			Cm::SpatialVectorV deltaVB;
+			Cm::SpatialVector deltaVA_;
+			Cm::SpatialVector deltaVB_;
 		};
 
 		PX_FORCE_INLINE void init(SolverConstraint1DStep& c,

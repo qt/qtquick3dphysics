@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,12 +22,12 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
-#ifndef PX_COLLISION_ELEMENT_INTERACTION_MARKER
-#define PX_COLLISION_ELEMENT_INTERACTION_MARKER
+#ifndef SC_ELEMENT_INTERACTION_MARKER_H
+#define SC_ELEMENT_INTERACTION_MARKER_H
 
 #include "ScElementSimInteraction.h"
 #include "ScNPhaseCore.h"
@@ -42,9 +41,6 @@ namespace Sc
 	public:
 		PX_INLINE		ElementInteractionMarker(ElementSim& element0, ElementSim& element1, bool createParallel/* = false*/);
 						~ElementInteractionMarker();
-
-				bool	onActivate_(void*)	{ return false;	}
-				bool	onDeactivate_()		{ return true;	}
 	};
 
 } // namespace Sc
@@ -55,14 +51,14 @@ PX_INLINE Sc::ElementInteractionMarker::ElementInteractionMarker(ElementSim& ele
 {
 	if(!createParallel)
 	{
-		bool active = registerInActors();
-		PX_UNUSED(active);
-		PX_ASSERT(!active);
-		getScene().registerInteraction(this, false);
-		getScene().getNPhaseCore()->registerInteraction(this);
+		// PT: no call to onActivate() here, interaction markers are always inactive
+		registerInActors();
+		Scene& scene = getScene();
+		scene.registerInteraction(this, false);
 	}
 }
 
 }
 
-#endif //PX_COLLISION_SHAPEINTERACTIONMARKER
+#endif
+

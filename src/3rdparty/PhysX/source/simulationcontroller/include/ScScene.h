@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,54 +22,54 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
+#ifndef SC_SCENE_H
+#define SC_SCENE_H
 
-#ifndef PX_PHYSICS_SCP_SCENE
-#define PX_PHYSICS_SCP_SCENE
-
-#include "CmPhysXCommon.h"
 #include "PxPhysXConfig.h"
 #include "PxScene.h"
-#include "PxSceneDesc.h"
 #include "PxSimulationEventCallback.h"
-#include "PsPool.h"
-#include "PsHashSet.h"
-#include "CmRenderOutput.h"
+#include "foundation/PxPool.h"
+#include "foundation/PxHashSet.h"
+#include "foundation/PxHashMap.h"
 #include "CmTask.h"
 #include "CmFlushPool.h"
 #include "CmPreallocatingPool.h"
-#include "CmBitMap.h"
+#include "foundation/PxBitMap.h"
 #include "ScIterators.h"
 #include "PxsMaterialManager.h"
 #include "PxvManager.h"
+#include "ScStaticCore.h"
 #include "ScBodyCore.h"
-#include "PxArticulationBase.h"
+#include "PxAggregate.h"
+#include "PxsContext.h"
+#include "GuPrunerTypedef.h"
+#include "DyContext.h"
+#include "ScFiltering.h"
+#include "ScBroadphase.h"
+#include "ScInteraction.h"
+#include "ScArticulationJointSim.h"
+#include "ScConstraintInteraction.h"
+#include "ScConstraintSim.h"
 
 #define PX_MAX_DOMINANCE_GROUP 32
 
+namespace
+{
 class OverlapFilterTask;
+class OnOverlapCreatedTask;
+class IslandInsertionTask;
+}
 
 namespace physx
 {
-
-// PT: TODO: move INVALID_FILTER_PAIR_INDEX out of public API
-struct PxFilterInfo
-{
-	PX_FORCE_INLINE	PxFilterInfo()								:	filterFlags(0), pairFlags(0), filterPairIndex(INVALID_FILTER_PAIR_INDEX)			{}
-	PX_FORCE_INLINE	PxFilterInfo(PxFilterFlags filterFlags_)	:	filterFlags(filterFlags_), pairFlags(0), filterPairIndex(INVALID_FILTER_PAIR_INDEX)	{}
-
-	PxFilterFlags	filterFlags;
-	PxPairFlags		pairFlags;
-	PxU32			filterPairIndex;
-};
+	class NpShape;
 
 struct PxTriggerPair;
 
-class PxsContext;
-class PxsIslandManager;
 class PxsSimulationController;
 class PxsSimulationControllerCallback;
 class PxsMemoryManager;
@@ -83,7 +82,19 @@ class PxsHeapMemoryAllocatorManager;
 namespace IG
 {
 	class SimpleIslandManager;
+	typedef PxU32 EdgeIndex;
 }
+
+struct DelayedGPUTypes
+{
+	struct Data
+	{
+		IG::EdgeIndex		mEdgeIndex;
+		IG::Edge::EdgeType	mType;
+	};
+	PxArray<Data>	mDelayed;
+	PxMutex			mLock;
+};
 
 class PxsCCDContext;
 
@@ -94,50 +105,50 @@ namespace Cm
 
 namespace Bp
 {
-	class AABBManager;
+	class AABBManagerBase;
 	class BroadPhase;
 	class BoundsArray;
 }
 
-namespace Sq
-{
-	typedef PxU32 PrunerHandle;	// PT: we should get this from SqPruner.h but it cannot be included from here
-}
-
 namespace Dy
 {
-	class ArticulationV;
 	class Context;
+#if PX_SUPPORT_GPU_PHYSX
+	class DeformableSurface;
+	class DeformableVolume;
+	class ParticleSystem;
+#endif
 }
 
 namespace Sc
 {
 	class ActorSim;
 	class ElementSim;
-	class Interaction;
 
 	class ShapeCore;
 	class RigidCore;
-	class StaticCore;
 	class ConstraintCore;
-	class MaterialCore;
 	class ArticulationCore;
 	class ArticulationJointCore;
-	class LLArticulationPool;
-	class LLArticulationRCPool;
+	class ArticulationSpatialTendonCore;
+	class ArticulationFixedTendonCore;
+	class ArticulationMimicJointCore;
+	class LLDeformableSurfacePool;
+	class LLDeformableVolumePool;
+	class LLParticleSystemPool;
+
 	class BodyCore;
+	class DeformableSurfaceCore;
+	class DeformableVolumeCore;
+	class ParticleSystemCore;
 
 	class NPhaseCore;
-	class Client;
-	class ConstraintInteraction;
-
+	class ElementSimInteraction;
 	class BodySim;
 	class ShapeSim;
 	class RigidSim;
 	class StaticSim;
 	class ConstraintSim;
-	struct ConstraintGroupNode;
-	class ConstraintProjectionManager;
 	struct TriggerPairExtraData;
 	class ObjectIDTracker;
 	class ActorPairReport;
@@ -146,9 +157,10 @@ namespace Sc
 	class ShapeInteraction;
 	class ElementInteractionMarker;
 	class ArticulationSim;
-
+	class DeformableSurfaceSim;
+	class DeformableVolumeSim;
+	class ParticleSystemSim;
 	class SimStats;
-
 	struct SimStateData;
 
 	struct BatchInsertionState
@@ -165,23 +177,8 @@ namespace Sc
 
 	struct BatchRemoveState
 	{
-		Ps::InlineArray<Sc::ShapeSim*, 64>				bufferedShapes;
-		Ps::InlineArray<const Sc::ShapeCore*, 64>		removedShapes;
-	};
-
-	struct InteractionType
-	{
-		enum Enum
-		{
-			eOVERLAP		= 0,		// corresponds to ShapeInteraction
-			eTRIGGER,					// corresponds to TriggerInteraction
-			eMARKER,					// corresponds to ElementInteractionMarker
-			eTRACKED_IN_SCENE_COUNT,	// not a real type, interactions above this limit are tracked in the scene
-			eCONSTRAINTSHADER,			// corresponds to ConstraintInteraction
-			eARTICULATION,				// corresponds to ArticulationJointSim
-
-			eINVALID
-		};
+		PxInlineArray<ShapeSim*, 64>			bufferedShapes;
+		PxInlineArray<const ShapeCore*, 64>		removedShapes;
 	};
 
 	struct SceneInternalFlag
@@ -206,61 +203,148 @@ namespace Sc
 		};
 	};
 
-	// PT: TODO: revisit the need for a virtual interface
-	struct SqBoundsSync
-	{
-		virtual void sync(const Sq::PrunerHandle* handles, const PxU32* indices, const PxBounds3* bounds, PxU32 count, const Cm::BitMap& dirtyShapeSimMap) = 0;
+	struct SqBoundsSync;
+	struct SqRefFinder;
 
-		virtual ~SqBoundsSync() {}
+	struct DeformableRigidInteraction
+	{
+		IG::EdgeIndex mIndex;
+		PxU32 mCount;
+
+		DeformableRigidInteraction() : mCount(0) {}
 	};
 
-	// PT: TODO: revisit the need for a virtual interface
-	struct SqRefFinder
-	{
-		virtual Sq::PrunerHandle find(const PxRigidBody* body, const PxShape* shape) = 0;
-
-		virtual ~SqRefFinder() {}
-	};
-
-	class Scene : public Ps::UserAllocated
+	class Scene : public PxUserAllocated
 	{
 		struct SimpleBodyPair
 		{
-			BodySim* body1;
-			BodySim* body2;
+			ActorSim* body1;
+			ActorSim* body2;
 			PxU32 body1ID;
 			PxU32 body2ID;
 		};
 
 		PX_NOCOPY(Scene)
 
-		//---------------------------------------------------------------------------------
-		// External interface
-		//---------------------------------------------------------------------------------
-	public:    
-   
+	public:
+												Scene(const PxSceneDesc& desc, PxU64 contextID);
+												~Scene() {}	//use release() plz.
+
+					void						preAllocate(PxU32 nbStatics, PxU32 nbBodies, PxU32 nbStaticShapes, PxU32 nbDynamicShapes);
 					void						release();
 
-	PX_FORCE_INLINE	void						setGravity(const PxVec3& g)			{ mGravity = g;	mBodyGravityDirty = true;			}
-	PX_FORCE_INLINE	PxVec3						getGravity()				const	{ return mGravity;									}
-	PX_FORCE_INLINE void						setElapsedTime(const PxReal t)		{ mDt = t; mOneOverDt = t > 0.0f ? 1.0f/t : 0.0f;	}
+	PX_FORCE_INLINE	PxsSimulationController*	getSimulationController()						{ return mSimulationController;	}
+	PX_FORCE_INLINE	const PxsSimulationController*	getSimulationController()			const	{ return mSimulationController;	}
 
-					void						setBounceThresholdVelocity(const PxReal t);
-					PxReal						getBounceThresholdVelocity() const;
+	PX_FORCE_INLINE	Bp::AABBManagerBase*		getAABBManager()								{ return mAABBManager;	}
+	PX_FORCE_INLINE const Bp::AABBManagerBase*	getAABBManager()						const	{ return mAABBManager;	}
+	PX_FORCE_INLINE PxArray<BodySim*>&			getCcdBodies()									{ return mCcdBodies;	}
 
-	PX_FORCE_INLINE	void						setPublicFlags(PxSceneFlags flags)	{ mPublicFlags = flags;						}
-	PX_FORCE_INLINE	PxSceneFlags				getPublicFlags()			const	{ return mPublicFlags;						}
+	PX_FORCE_INLINE	IG::SimpleIslandManager*	getSimpleIslandManager()						{ return mSimpleIslandManager; }
+	PX_FORCE_INLINE	const IG::SimpleIslandManager*	getSimpleIslandManager()			const	{ return mSimpleIslandManager; }
 
-					void						setFrictionType(PxFrictionType::Enum model);
-					PxFrictionType::Enum 		getFrictionType() const;
-					void						setPCM(bool enabled);
-					void						setContactCache(bool enabled);
+	PX_FORCE_INLINE SimulationStage::Enum		getSimulationStage()					const	{ return mSimulationStage; }
+	PX_FORCE_INLINE void						setSimulationStage(SimulationStage::Enum stage)	{ mSimulationStage = stage; }
 
-					void						addStatic(StaticCore&, void*const *shapes, PxU32 nbShapes, size_t shapePtrOffset, PxBounds3* uninflatedBounds);
-					void						removeStatic(StaticCore&, Ps::InlineArray<const Sc::ShapeCore*,64>& removedShapes, bool wakeOnLostTouch);
+	PX_FORCE_INLINE	PxPool<SimStateData>*		getSimStateDataPool()							{ return mSimStateDataPool; }
+	PX_FORCE_INLINE PxBitMap&					getDirtyShapeSimMap()							{ return mDirtyShapeSimMap; }
 
-					void						addBody(BodyCore&, void*const *shapes, PxU32 nbShapes, size_t shapePtrOffset, PxBounds3* uninflatedBounds, bool compound);
-					void						removeBody(BodyCore&, Ps::InlineArray<const Sc::ShapeCore*,64>& removedShapes, bool wakeOnLostTouch);
+	PX_FORCE_INLINE	void						setGravity(const PxVec3& g)						{ mGravity = g;		}
+	PX_FORCE_INLINE	const PxVec3&				getGravity()							const	{ return mGravity;	}
+
+	PX_FORCE_INLINE void						setElapsedTime(PxReal t)						{ mDt = t; mOneOverDt = t > 0.0f ? 1.0f/t : 0.0f;	}
+	PX_FORCE_INLINE	PxReal						getOneOverDt()							const	{ return mOneOverDt;								}
+//	PX_FORCE_INLINE	PxReal						getDt()									const	{ return mDt;										}
+
+	PX_FORCE_INLINE	void						setLimits(const PxSceneLimits& limits)			{ mLimits = limits;	}
+	PX_FORCE_INLINE	const PxSceneLimits&		getLimits()								const	{ return mLimits;	}
+
+	PX_FORCE_INLINE	void						setBatchRemove(BatchRemoveState* bs)			{ mBatchRemoveState = bs;	}
+	PX_FORCE_INLINE	BatchRemoveState*			getBatchRemove()						const	{ return mBatchRemoveState;	}
+
+	PX_FORCE_INLINE	void						setMaxArticulationLinks(const PxU32 maxLinks)	{ mMaxNbArticulationLinks = maxLinks;	}
+	PX_FORCE_INLINE	PxU32						getMaxArticulationLinks()				const	{ return mMaxNbArticulationLinks;		}
+
+	// mDynamicsContext wrappers
+	PX_FORCE_INLINE	Dy::Context*				getDynamicsContext()							{ return mDynamicsContext; }
+	PX_FORCE_INLINE const Dy::Context*			getDynamicsContext()					const	{ return mDynamicsContext; }
+
+	PX_FORCE_INLINE	void						setBounceThresholdVelocity(PxReal t)			{ mDynamicsContext->setBounceThreshold(-t);			}
+	PX_FORCE_INLINE	PxReal						getBounceThresholdVelocity()			const	{ return -mDynamicsContext->getBounceThreshold();	}
+
+	PX_FORCE_INLINE	PxSolverType::Enum 			getSolverType()							const	{ return mDynamicsContext->getSolverType();		}
+
+	PX_FORCE_INLINE	void						setSolverBatchSize(PxU32 solverBatchSize)		{ mDynamicsContext->setSolverBatchSize(solverBatchSize);	}
+	PX_FORCE_INLINE	PxU32						getSolverBatchSize()					const	{ return mDynamicsContext->getSolverBatchSize();			}
+
+	PX_FORCE_INLINE	void						setSolverArticBatchSize(PxU32 solverBatchSize)	{ mDynamicsContext->setSolverArticBatchSize(solverBatchSize);	}
+	PX_FORCE_INLINE	PxU32						getSolverArticBatchSize()				const	{ return mDynamicsContext->getSolverArticBatchSize();			}
+
+	PX_FORCE_INLINE	void						setCCDMaxSeparation(PxReal separation)			{ mDynamicsContext->setCCDSeparationThreshold(separation);		}
+	PX_FORCE_INLINE	PxReal						getCCDMaxSeparation()					const	{ return mDynamicsContext->getCCDSeparationThreshold();			}
+
+	PX_FORCE_INLINE	void						setMaxBiasCoefficient(PxReal coeff)				{ mDynamicsContext->setMaxBiasCoefficient(coeff);				}
+	PX_FORCE_INLINE	PxReal						getMaxBiasCoefficient()					const	{ return mDynamicsContext->getMaxBiasCoefficient();				}
+
+	PX_FORCE_INLINE	void						setFrictionOffsetThreshold(PxReal t)			{ mDynamicsContext->setFrictionOffsetThreshold(t);				}
+	PX_FORCE_INLINE	PxReal						getFrictionOffsetThreshold()			const	{ return mDynamicsContext->getFrictionOffsetThreshold();		}
+
+	PX_FORCE_INLINE	void						setFrictionCorrelationDistance(PxReal t)		{ mDynamicsContext->setCorrelationDistance(t);					}
+	PX_FORCE_INLINE	PxReal						getFrictionCorrelationDistance()		const	{ return mDynamicsContext->getCorrelationDistance();			}
+
+	PX_FORCE_INLINE	PxReal						getLengthScale()						const	{ return mDynamicsContext->getLengthScale();	}
+
+	PX_FORCE_INLINE	void						setDynamicsDirty()								{ mDynamicsContext->setStateDirty(true);		}
+	//~mDynamicsContext wrappers
+
+	// mLLContext wrappers
+	PX_FORCE_INLINE	PxsContext*					getLowLevelContext()							{ return mLLContext; }
+	PX_FORCE_INLINE const PxsContext*			getLowLevelContext()					const	{ return mLLContext; }
+
+	PX_FORCE_INLINE Cm::FlushPool*				getFlushPool()									{ return &mLLContext->getTaskPool();	}
+
+					void						setBodyAccelerationTask(PxLightCpuTask* task)	{ mBodyAccelerationTask = task;		}
+
+	PX_FORCE_INLINE	void						setPCM(bool enabled)							{ mLLContext->setPCM(enabled);			}
+	PX_FORCE_INLINE	void						setContactCache(bool enabled)					{ mLLContext->setContactCache(enabled);	}
+
+	PX_FORCE_INLINE	void						setContactModifyCallback(PxContactModifyCallback* callback)	{ mLLContext->setContactModifyCallback(callback);	}
+	PX_FORCE_INLINE	PxContactModifyCallback*	getContactModifyCallback()							const	{ return mLLContext->getContactModifyCallback();	}
+
+	PX_FORCE_INLINE	void						setDeformableSurfaceGpuPostSolveCallback(PxPostSolveCallback* callback) { mSimulationController->setDeformableSurfaceGpuPostSolveCallback(callback); }
+	PX_FORCE_INLINE	void						setDeformableVolumeGpuPostSolveCallback(PxPostSolveCallback* callback) { mSimulationController->setDeformableVolumeGpuPostSolveCallback(callback); }
+
+	PX_FORCE_INLINE	void						setVisualizationParameter(PxVisualizationParameter::Enum param, PxReal value)
+												{
+													mVisualizationParameterChanged = true;
+													mLLContext->setVisualizationParameter(param, value);
+												}
+
+	PX_FORCE_INLINE	PxReal						getVisualizationParameter(PxVisualizationParameter::Enum param) const	{ return mLLContext->getVisualizationParameter(param);	}
+	PX_FORCE_INLINE	void						setVisualizationCullingBox(const PxBounds3& box)						{ mLLContext->setVisualizationCullingBox(box);			}
+	PX_FORCE_INLINE	const PxBounds3&			getVisualizationCullingBox()									const	{ return mLLContext->getVisualizationCullingBox();		}
+	PX_FORCE_INLINE	PxReal						getVisualizationScale()											const	{ return mLLContext->getRenderScale();					}
+	PX_FORCE_INLINE	PxRenderBuffer&				getRenderBuffer()														{ return mLLContext->getRenderBuffer();	}
+
+	PX_FORCE_INLINE	void						setNbContactDataBlocks(PxU32 blockCount)								{ mLLContext->getNpMemBlockPool().setBlockCount(blockCount);			}
+	PX_FORCE_INLINE	PxU32						getNbContactDataBlocksUsed()									const	{ return mLLContext->getNpMemBlockPool().getUsedBlockCount();			}
+	PX_FORCE_INLINE	PxU32						getMaxNbContactDataBlocksUsed()									const	{ return mLLContext->getNpMemBlockPool().getMaxUsedBlockCount();		}
+	PX_FORCE_INLINE	PxU32						getMaxNbConstraintDataBlocksUsed()								const	{ return mLLContext->getNpMemBlockPool().getPeakConstraintBlockCount();	}
+	PX_FORCE_INLINE	void						setScratchBlock(void* addr, PxU32 size)									{ mLLContext->setScratchBlock(addr, size);								}
+	//~mLLContext wrappers
+
+	PX_FORCE_INLINE	void						setFlags(PxSceneFlags flags)
+												{
+													mPublicFlags = flags;
+												}
+	PX_FORCE_INLINE	PxSceneFlags				getFlags()										const	{ return mPublicFlags;	}
+	PX_FORCE_INLINE	bool						readInternalFlag(SceneInternalFlag::Enum flag)	const	{ return (mInternalFlags & flag) != 0;	}
+
+					void						addStatic(StaticCore&, NpShape*const *shapes, PxU32 nbShapes, size_t shapePtrOffset, PxBounds3* uninflatedBounds);
+					void						removeStatic(StaticCore&, PxInlineArray<const ShapeCore*,64>& removedShapes, bool wakeOnLostTouch);
+
+					void						addBody(BodyCore&, NpShape*const *shapes, PxU32 nbShapes, size_t shapePtrOffset, PxBounds3* uninflatedBounds, bool compound);
+					void						removeBody(BodyCore&, PxInlineArray<const ShapeCore*,64>& removedShapes, bool wakeOnLostTouch);
 
 					// Batch insertion API.
 					// the bounds generated here are the uninflated bounds for the shapes, *if* they are trigger or sim shapes. 
@@ -272,14 +356,11 @@ namespace Sc
 					void						addBody(PxActor* actor, BatchInsertionState&, PxBounds3* outBounds, bool compound);
 					void						finishBatchInsertion(BatchInsertionState&);
 
-					// Batch remove helpers
-	PX_FORCE_INLINE	void						setBatchRemove(BatchRemoveState* bs)	{ mBatchRemoveState = bs;	}
-	PX_FORCE_INLINE	BatchRemoveState*			getBatchRemove()		const			{ return mBatchRemoveState;	}
-					void						prefetchForRemove(const BodyCore& ) const;
-					void						prefetchForRemove(const StaticCore& ) const;
-
 					void						addConstraint(ConstraintCore&, RigidCore*, RigidCore*);
 					void						removeConstraint(ConstraintCore&);
+
+					void						addConstraintToMap(ConstraintCore& constraint, RigidCore*, RigidCore*);
+					void						removeConstraintFromMap(const ConstraintInteraction&);
 
 					void						addArticulation(ArticulationCore&, BodyCore& root);
 					void						removeArticulation(ArticulationCore&);
@@ -287,37 +368,48 @@ namespace Sc
 					void						addArticulationJoint(ArticulationJointCore&, BodyCore& parent, BodyCore& child);
 					void						removeArticulationJoint(ArticulationJointCore&);
 
-					void						addArticulationSimControl(Sc::ArticulationCore& core);
-					void						removeArticulationSimControl(Sc::ArticulationCore& core);
+					void						addArticulationTendon(ArticulationSpatialTendonCore&);
+	static			void						removeArticulationTendon(ArticulationSpatialTendonCore&);
 
-					PxU32						getNbArticulations() const;
-					Sc::ArticulationCore* const* getArticulations();
+					void						addArticulationTendon(ArticulationFixedTendonCore&);
+	static			void						removeArticulationTendon(ArticulationFixedTendonCore&);
+
+					void						addArticulationMimicJoint(ArticulationMimicJointCore&);
+	static			void						removeArticulationMimicJoint(ArticulationMimicJointCore&);
+
+					void						addArticulationSimControl(ArticulationCore& core);
+					void						removeArticulationSimControl(ArticulationCore& core);
+
+#if PX_SUPPORT_GPU_PHYSX
+					void						gpu_updateBodySim(BodySim& sim);
+#else
+	PX_FORCE_INLINE	void						gpu_updateBodySim(BodySim&)	{}
+#endif
+
+	PX_FORCE_INLINE	PxU32						getNbArticulations() const	{ return mArticulations.size();			}
+	PX_FORCE_INLINE	ArticulationCore* const*	getArticulations()			{ return mArticulations.getEntries();	}
 	
-					PxU32						getNbConstraints() const;
-					Sc::ConstraintCore*const *	getConstraints();
+	PX_FORCE_INLINE	PxU32						getNbConstraints()	const	{ return mConstraints.size();		}
+	PX_FORCE_INLINE	ConstraintCore*const*		getConstraints()	const	{ return mConstraints.getEntries();	}
+	PX_FORCE_INLINE	ConstraintCore*const*		getConstraints()			{ return mConstraints.getEntries();	}
 
 					void						initContactsIterator(ContactIterator&, PxsContactManagerOutputIterator&);
 
-		// Simulation events
 					void						setSimulationEventCallback(PxSimulationEventCallback* callback);
 					PxSimulationEventCallback*	getSimulationEventCallback() const;
 
-		// Contact modification
-					void						setContactModifyCallback(PxContactModifyCallback* callback);
-					PxContactModifyCallback*	getContactModifyCallback() const;
 					void						setCCDContactModifyCallback(PxCCDContactModifyCallback* callback);
 					PxCCDContactModifyCallback*	getCCDContactModifyCallback() const;
 
 					void						setCCDMaxPasses(PxU32 ccdMaxPasses);
 					PxU32						getCCDMaxPasses() const;
 
-		// Broad-phase callback
-	PX_FORCE_INLINE	void						setBroadPhaseCallback(PxBroadPhaseCallback* callback)	{ mBroadPhaseCallback = callback;	}
-	PX_FORCE_INLINE	PxBroadPhaseCallback*		getBroadPhaseCallback()	const							{ return mBroadPhaseCallback;		}
+					void						setCCDThreshold(PxReal t);
+					PxReal						getCCDThreshold() const;
 
 		// Broad-phase management
 					void						finishBroadPhase(PxBaseTask* continuation);
-					void						finishBroadPhaseStage2(const PxU32 ccdPass);
+					void						finishBroadPhaseStage2(PxU32 ccdPass);
 					void						preallocateContactManagers(PxBaseTask* continuation);
 
 					void						islandInsertion(PxBaseTask* continuation);
@@ -327,21 +419,8 @@ namespace Sc
 
 					void						secondPassNarrowPhase(PxBaseTask* continuation);
 
-		// Groups
 					void						setDominanceGroupPair(PxDominanceGroup group1, PxDominanceGroup group2, const PxDominanceGroupPair& dominance);
 					PxDominanceGroupPair		getDominanceGroupPair(PxDominanceGroup group1, PxDominanceGroup group2) const;
-
-					void						setSolverBatchSize(PxU32 solverBatchSize);
-					PxU32						getSolverBatchSize() const;
-
-					void						setSolverArticBatchSize(PxU32 solverBatchSize);
-					PxU32						getSolverArticBatchSize() const;
-
-					void						setVisualizationParameter(PxVisualizationParameter::Enum param, PxReal value);
-					PxReal						getVisualizationParameter(PxVisualizationParameter::Enum param) const;
-
-					void						setVisualizationCullingBox(const PxBounds3& box);
-					const PxBounds3&			getVisualizationCullingBox() const;
 
 		// Run
 					void						simulate(PxReal timeStep, PxBaseTask* continuation);
@@ -351,36 +430,22 @@ namespace Sc
 					void						flush(bool sendPendingReports);
 					void						fireBrokenConstraintCallbacks();
 					void						fireTriggerCallbacks();
-					void						fireQueuedContactCallbacks(bool asPartOfFlush);
+					void						fireQueuedContactCallbacks();
 					void						fireOnAdvanceCallback();
 
-					const Ps::Array<PxContactPairHeader>&
+					const PxArray<PxContactPairHeader>&
 												getQueuedContactPairHeaders();
 
-					bool						fireOutOfBoundsCallbacks();
-					void						prepareOutOfBoundsCallbacks();
 					void						postCallbacksPreSync();
+					void						postCallbacksPreSyncKinematics();
 					void						postReportsCleanup();
 					void						fireCallbacksPostSync();
 					void						syncSceneQueryBounds(SqBoundsSync& sync, SqRefFinder& finder);					
 
 					PxU32						getDefaultContactReportStreamBufferSize() const;
 
-					PxReal						getFrictionOffsetThreshold() const;
-
-	PX_FORCE_INLINE	void						setLimits(const PxSceneLimits& limits)	{ mLimits = limits;	}
-	PX_FORCE_INLINE	const PxSceneLimits&		getLimits()						const	{ return mLimits;	}
-
 					void						visualizeStartStep();
-					void						visualizeEndStep();
-					Cm::RenderBuffer&			getRenderBuffer();
-
-					void						setNbContactDataBlocks(PxU32 blockCount);
-					PxU32						getNbContactDataBlocksUsed() const;
-					PxU32						getMaxNbContactDataBlocksUsed() const;
-					PxU32						getMaxNbConstraintDataBlocksUsed() const;
-
-					void						setScratchBlock(void* addr, PxU32 size);
+					void						visualizeContacts();
 
 // PX_ENABLE_SIM_STATS
 					void						getStats(PxSimulationStatistics& stats) const;
@@ -398,71 +463,38 @@ namespace Sc
 						const ActorPairReport& aPair, 
 						ContactStreamManager& cs, PxU32 removedShapeTestMask);
 
-					PxClientID					createClient();
-	PX_FORCE_INLINE	PxU32						getNbClients()	const	{ return mClients.size();	}
-
 					PxTaskManager*				getTaskManagerPtr() const { return mTaskManager; }
 					PxCudaContextManager*		getCudaContextManager() const { return mCudaContextManager; }
 
 					void						shiftOrigin(const PxVec3& shift);
 
-	PX_FORCE_INLINE	Ps::Pool<SimStateData>*		getSimStateDataPool() { return mSimStateDataPool; }
-
-		//---------------------------------------------------------------------------------
-		// Miscellaneous
-		//---------------------------------------------------------------------------------							
-		//internal public methods:
-	public:
-												Scene(const PxSceneDesc& desc, PxU64 contextID);
-												~Scene() {}	//use release() plz.
-
-					void						preAllocate(PxU32 nbStatics, PxU32 nbBodies, PxU32 nbStaticShapes, PxU32 nbDynamicShapes);
-
-	PX_FORCE_INLINE	PxsContext*					getLowLevelContext() { return mLLContext; }
-	PX_FORCE_INLINE const PxsContext*			getLowLevelContext() const { return mLLContext; }
-
-	PX_FORCE_INLINE	Dy::Context*				getDynamicsContext() { return mDynamicsContext; }
-	PX_FORCE_INLINE const Dy::Context*			getDynamicsContext() const { return mDynamicsContext; }
-
-	PX_FORCE_INLINE	PxsSimulationController*	getSimulationController() { return mSimulationController; }
-	PX_FORCE_INLINE	const PxsSimulationController*	getSimulationController() const { return mSimulationController; }
-
-	PX_FORCE_INLINE	Bp::AABBManager*			getAABBManager()			{ return mAABBManager;	}
-	PX_FORCE_INLINE const Bp::AABBManager*		getAABBManager()	const	{ return mAABBManager;	}
-	PX_FORCE_INLINE Ps::Array<BodySim*>&		getCcdBodies()				{ return mCcdBodies;	}
-
-	/*PX_FORCE_INLINE	PxsIslandManager*			getIslandManager()	{ return mIslandManager; }
-	PX_FORCE_INLINE	const PxsIslandManager*		getIslandManager() const { return mIslandManager; }*/
-
-	PX_FORCE_INLINE	IG::SimpleIslandManager*	getSimpleIslandManager()	{ return mSimpleIslandManager; }
-	PX_FORCE_INLINE	const IG::SimpleIslandManager*		getSimpleIslandManager() const { return mSimpleIslandManager; }
-
-	PX_FORCE_INLINE Sc::SimulationStage::Enum	getSimulationStage() const { return mSimulationStage; }
-	PX_FORCE_INLINE void						setSimulationStage(Sc::SimulationStage::Enum stage) { mSimulationStage = stage; }
+	PX_FORCE_INLINE bool						isCollisionPhaseActive() const	{ return mIsCollisionPhaseActive; }
+	PX_FORCE_INLINE void						setCollisionPhaseToActive()		{ PX_ASSERT(!mIsCollisionPhaseActive); mIsCollisionPhaseActive = true; }
+	PX_FORCE_INLINE void						setCollisionPhaseToInactive()	{ PX_ASSERT(mIsCollisionPhaseActive); mIsCollisionPhaseActive = false; }
 
 					void						addShape_(RigidSim&, ShapeCore&);
 					void						removeShape_(ShapeSim&, bool wakeOnLostTouch);
 
-					void						registerShapeInNphase(const ShapeCore& shapeCore);
-					void						unregisterShapeFromNphase(const ShapeCore& shapeCore);
+					void						registerShapeInNphase(RigidCore* rigidCore, const ShapeCore& shapeCore, const PxU32 transformCacheID);
+					void						unregisterShapeFromNphase(const ShapeCore& shapeCore, const PxU32 transformCacheID);
 
 					void						notifyNphaseOnUpdateShapeMaterial(const ShapeCore& shapeCore);
 
 	// Get an array of the active actors.
-	PX_FORCE_INLINE	BodyCore*const*				getActiveBodiesArray() const { return mActiveBodies.begin(); }
-	PX_FORCE_INLINE	PxU32						getNumActiveBodies() const { return mActiveBodies.size(); }
+	PX_FORCE_INLINE	BodyCore*const*				getActiveBodiesArray()			const	{ return mActiveBodies.begin();			}
+	PX_FORCE_INLINE	PxU32						getNumActiveBodies()			const	{ return mActiveBodies.size();			}
 
-	PX_FORCE_INLINE	BodyCore*const*				getActiveCompoundBodiesArray() const { return mActiveCompoundBodies.begin(); }
-	PX_FORCE_INLINE	PxU32						getNumActiveCompoundBodies() const { return mActiveCompoundBodies.size(); }
+	PX_FORCE_INLINE	BodyCore*const*				getActiveCompoundBodiesArray()	const	{ return mActiveCompoundBodies.begin();	}
+	PX_FORCE_INLINE	PxU32						getNumActiveCompoundBodies()	const	{ return mActiveCompoundBodies.size();	}
 
 	PX_FORCE_INLINE	PxU32						getNbInteractions(InteractionType::Enum type)		const	{ return mInteractions[type].size();	}
 	PX_FORCE_INLINE	PxU32						getNbActiveInteractions(InteractionType::Enum type)	const	{ return mActiveInteractionCount[type];	}
 	// Get all interactions of a certain type
-	PX_FORCE_INLINE	Interaction**				getInteractions(InteractionType::Enum type)					{ return mInteractions[type].begin();	}
-	PX_FORCE_INLINE	Interaction**				getActiveInteractions(InteractionType::Enum type)			{ return mInteractions[type].begin();	}
+	PX_FORCE_INLINE	ElementSimInteraction**		getInteractions(InteractionType::Enum type)					{ return mInteractions[type].begin();	}
+	PX_FORCE_INLINE	ElementSimInteraction**		getActiveInteractions(InteractionType::Enum type)			{ return mInteractions[type].begin();	}
 
-					void						registerInteraction(Interaction* interaction, bool active);
-					void						unregisterInteraction(Interaction* interaction);
+					void						registerInteraction(ElementSimInteraction* interaction, bool active);
+					void						unregisterInteraction(ElementSimInteraction* interaction);
 
 					void						notifyInteractionActivated(Interaction* interaction);
 					void						notifyInteractionDeactivated(Interaction* interaction);
@@ -485,65 +517,42 @@ namespace Sc
 
 					void						swapInteractionArrayIndices(PxU32 id1, PxU32 id2, InteractionType::Enum type);
 	public:
-
-		PX_FORCE_INLINE Cm::BitMap&				getDirtyShapeSimMap() { return mDirtyShapeSimMap; }
-
-					void						addToActiveBodyList(BodySim& actor);
-					void						addToActiveCompoundBodyList(BodySim& actor);
-					void						removeFromActiveBodyList(BodySim& actor);
+					void						addDirtyArticulationSim(ArticulationSim* artiSim);
+					void						removeDirtyArticulationSim(ArticulationSim* artiSim);
+		
+					void						addToActiveList(ActorSim& actor);
+					void						removeFromActiveList(ActorSim& actor);
 					void						removeFromActiveCompoundBodyList(BodySim& actor);
 					void						swapInActiveBodyList(BodySim& body); // call when an active body gets switched from dynamic to kinematic or vice versa
 
-					void						addToFrozenBodyList(BodySim& actor);
-					void						removeFromFrozenBodyList(BodySim& actor);
-					void						addBrokenConstraint(Sc::ConstraintCore*);
-					void						addActiveBreakableConstraint(Sc::ConstraintSim*, ConstraintInteraction*);
-					void						removeActiveBreakableConstraint(Sc::ConstraintSim*);
+					void						addActiveBreakableConstraint(ConstraintSim*, ConstraintInteraction*);
+					void						removeActiveBreakableConstraint(ConstraintSim*);
 		//the Actor should register its top level shapes with these.
 					void						removeBody(BodySim&);
 
-					void						raiseSceneFlag(SceneInternalFlag::Enum flag) { mInternalFlags |= flag; }
-
 					//lists of actors woken up or put to sleep last simulate
-					void                        onBodyWakeUp(BodySim* body);
-					void                        onBodySleep(BodySim* body);
+					void						onBodyWakeUp(BodySim* body);
+					void						onBodySleep(BodySim* body);
 
 	PX_FORCE_INLINE	bool						isValid() const	{ return (mLLContext != NULL);	}
 
-					void						addToLostTouchList(BodySim* body1, BodySim* body2);
+					void						addToLostTouchList(ActorSim& body1, ActorSim& body2);
 
-					void						initDominanceMatrix();
-					
-					void						setCreateContactReports(bool s);
+					PxU32						createAggregate(void* userData, PxU32 maxNumShapes, PxAggregateFilterHint filterHint, PxU32 envID);
 
-					PxU32						createAggregate(void* userData, bool selfCollisions);
 					void						deleteAggregate(PxU32 id);
 
-					Dy::ArticulationV*			createLLArticulation(Sc::ArticulationSim* sim);
-					void						destroyLLArticulation(Dy::ArticulationV&);
-
-
-					Ps::Pool<ConstraintInteraction>*
-													getConstraintInteractionPool()			const	{ return mConstraintInteractionPool;	}
+		PX_FORCE_INLINE	PxPool2<ConstraintInteraction, 4096>&	getConstraintInteractionPool()			{ return mConstraintInteractionPool;	}
 	public:
-						PxBroadPhaseType::Enum		getBroadPhaseType()																				const;
-						bool						getBroadPhaseCaps(PxBroadPhaseCaps& caps)														const;
-						PxU32						getNbBroadPhaseRegions()																		const;
-						PxU32						getBroadPhaseRegions(PxBroadPhaseRegionInfo* userBuffer, PxU32 bufferSize, PxU32 startIndex)	const;
-						PxU32						addBroadPhaseRegion(const PxBroadPhaseRegion& region, bool populateRegion);
-						bool						removeBroadPhaseRegion(PxU32 handle);
-						void**						getOutOfBoundsAggregates();
-						PxU32						getNbOutOfBoundsAggregates();
-						void						clearOutOfBoundsAggregates();
+		PX_FORCE_INLINE	const PxsMaterialManager&	getMaterialManager()				const	{ return mMaterialManager;			}
+		PX_FORCE_INLINE	PxsMaterialManager&			getMaterialManager()						{ return mMaterialManager;			}
 
-		PX_FORCE_INLINE	const PxsMaterialManager&	getMaterialManager()					const	{ return mMaterialManager;				}
-		PX_FORCE_INLINE	PxsMaterialManager&			getMaterialManager()							{ return mMaterialManager;				}
-
-		//material management functions to be called from Scb::Scene
-						void						registerMaterialInNP(const PxsMaterialCore& materialCore);
-						void						updateMaterialInNP(const PxsMaterialCore& materialCore);
-						void						unregisterMaterialInNP(const PxsMaterialCore& materialCore);
-
+		PX_FORCE_INLINE	const BroadphaseManager&	getBroadphaseManager()				const	{ return mBroadphaseManager;			}
+		PX_FORCE_INLINE	BroadphaseManager&			getBroadphaseManager()						{ return mBroadphaseManager;			}
+		PX_FORCE_INLINE	bool						fireOutOfBoundsCallbacks()
+													{
+														return mBroadphaseManager.fireOutOfBoundsCallbacks(mAABBManager, *mElementIDPool, mContextId);
+													}
 		// Collision filtering
 						void						setFilterShaderData(const void* data, PxU32 dataSize);
 		PX_FORCE_INLINE	const void*					getFilterShaderDataFast()				const	{ return mFilterShaderData;				}
@@ -556,73 +565,60 @@ namespace Sc
 		PX_FORCE_INLINE	PxU32						getTimeStamp()							const	{ return mTimeStamp;					}
 		PX_FORCE_INLINE	PxU32						getReportShapePairTimeStamp()			const	{ return mReportShapePairTimeStamp;		}
 
-		PX_FORCE_INLINE	PxReal						getOneOverDt()							const	{ return mOneOverDt;					}
-		PX_FORCE_INLINE	PxReal						getDt()									const	{ return mDt;							}
-
-		PX_FORCE_INLINE	const PxVec3&				getGravityFast()						const	{ return mGravity;						}
-		PX_FORCE_INLINE	bool						readFlag(SceneInternalFlag::Enum flag)	const	{ return (mInternalFlags & flag) != 0;	}
-		PX_FORCE_INLINE	bool						readPublicFlag(PxSceneFlag::Enum flag)	const	{ return (mPublicFlags & flag);			}
-
 		PX_FORCE_INLINE	NPhaseCore*					getNPhaseCore()							const	{ return mNPhaseCore;					}
 
 						void						checkConstraintBreakage();
 
-		PX_FORCE_INLINE	Ps::Array<TriggerPairExtraData>&		
+		PX_FORCE_INLINE	PxArray<TriggerPairExtraData>&		
 													getTriggerBufferExtraData()						{ return *mTriggerBufferExtraData;		}
-		PX_FORCE_INLINE	Ps::Array<PxTriggerPair>&	getTriggerBufferAPI()							{ return mTriggerBufferAPI;				}
+		PX_FORCE_INLINE	PxArray<PxTriggerPair>&	getTriggerBufferAPI()							{ return mTriggerBufferAPI;				}
 						void						reserveTriggerReportBufferSpace(const PxU32 pairCount, PxTriggerPair*& triggerPairBuffer, TriggerPairExtraData*& triggerPairExtraBuffer);
 
-		PX_FORCE_INLINE	ObjectIDTracker&			getRigidIDTracker()								{ return *mRigidIDTracker;				}
-		PX_FORCE_INLINE	ObjectIDTracker&			getShapeIDTracker()								{ return *mShapeIDTracker;				}
+		PX_FORCE_INLINE	ObjectIDTracker&			getActorIDTracker()								{ return *mActorIDTracker;				}
 
 		PX_FORCE_INLINE	void						markReleasedBodyIDForLostTouch(PxU32 id)		{ mLostTouchPairsDeletedBodyIDs.growAndSet(id); }
 						void						resizeReleasedBodyIDMaps(PxU32 maxActors, PxU32 numActors);
 
 		PX_FORCE_INLINE	StaticSim&					getStaticAnchor()								{ return *mStaticAnchor;				}
 
-		PX_FORCE_INLINE	ConstraintProjectionManager& getProjectionManager()							{ return *mProjectionManager;			}
-
 		PX_FORCE_INLINE Bp::BoundsArray&			getBoundsArray()						const	{ return *mBoundsArray; }
 		PX_FORCE_INLINE void						updateContactDistance(PxU32 idx, PxReal distance)	{ (*mContactDistance)[idx] = distance; mHasContactDistanceChanged = true; }
 		PX_FORCE_INLINE SqBoundsManager&			getSqBoundsManager()					const	{ return *mSqBoundsManager; }
-
-		PX_FORCE_INLINE	PxReal						getVisualizationScale()					const	{ return mVisualizationScale;			}  // This is actually redundant but makes checks whether debug visualization is enabled faster
 
 		PX_FORCE_INLINE BodyCore* const*			getSleepBodiesArray(PxU32& count)				{ count = mSleepBodies.size(); return mSleepBodies.getEntries(); }
 
 		PX_FORCE_INLINE PxTaskManager&				getTaskManager()						const	{ PX_ASSERT(mTaskManager); return *mTaskManager; }
 
-		Cm::FlushPool*								getFlushPool();
-	
-		PX_FORCE_INLINE bool						getStabilizationEnabled()				const	{ return mEnableStabilization; }
-
 		PX_FORCE_INLINE void						setPostSolverVelocityNeeded()					{ mContactReportsNeedPostSolverVelocity = true; }
 
-									ObjectIDTracker&	getConstraintIDTracker() { return *mConstraintIDTracker; }
+		PX_FORCE_INLINE	ObjectIDTracker&			getConstraintIDTracker()						{ return *mConstraintIDTracker; }
+		PX_FORCE_INLINE	ObjectIDTracker&			getElementIDPool()								{ return *mElementIDPool; }
+		PX_FORCE_INLINE PxBitMap&					getVelocityModifyMap()							{ return mVelocityModifyMap; }
 
+						void*						allocateConstraintBlock(PxU32 size);
+						void						deallocateConstraintBlock(void* addr, PxU32 size);
 
-									void*			allocateConstraintBlock(PxU32 size);
-									void			deallocateConstraintBlock(void* addr, PxU32 size);
-
-		PX_INLINE					 ObjectIDTracker&	getElementIDPool() { return *mElementIDPool; }
-
-		PX_FORCE_INLINE Cm::BitMap&					getVelocityModifyMap() { return mVelocityModifyMap; }
-
-					void							stepSetupCollide(PxBaseTask* continuation);//This is very important to guarantee thread safty in the collide
+						void						stepSetupCollide(PxBaseTask* continuation);//This is very important to guarantee thread safety in the collide
 		PX_FORCE_INLINE void						addToPosePreviewList(BodySim& b)				{ PX_ASSERT(!mPosePreviewBodies.contains(&b)); mPosePreviewBodies.insert(&b); }
 		PX_FORCE_INLINE void						removeFromPosePreviewList(BodySim& b)			{ PX_ASSERT(mPosePreviewBodies.contains(&b)); mPosePreviewBodies.erase(&b); }
 #if PX_DEBUG
 		PX_FORCE_INLINE bool						isInPosePreviewList(BodySim& b)			const	{ return mPosePreviewBodies.contains(&b); }
 #endif
 
-		PX_FORCE_INLINE	void						setSpeculativeCCDRigidBody(const PxU32 index) { mSpeculativeCCDRigidBodyBitMap.growAndSet(index); }
-		PX_FORCE_INLINE void						resetSpeculativeCCDRigidBody(const PxU32 index) { if(index < mSpeculativeCCDRigidBodyBitMap.size()) mSpeculativeCCDRigidBodyBitMap.reset(index); }
+		PX_FORCE_INLINE	void						setSpeculativeCCDRigidBody(PxU32 index)				{ mSpeculativeCCDRigidBodyBitMap.growAndSet(index); }
+		PX_FORCE_INLINE void						resetSpeculativeCCDRigidBody(PxU32 index)			{ mSpeculativeCCDRigidBodyBitMap.boundedReset(index); }
 
-		PX_FORCE_INLINE	void						setSpeculativeCCDArticulationLink(const PxU32 index) { mSpeculativeCDDArticulationBitMap.growAndSet(index); }
-		PX_FORCE_INLINE void						resetSpeculativeCCDArticulationLink(const PxU32 index) { if(index < mSpeculativeCDDArticulationBitMap.size()) mSpeculativeCDDArticulationBitMap.reset(index); }
+		PX_FORCE_INLINE	void						setSpeculativeCCDArticulationLink(PxU32 index)		{ mSpeculativeCDDArticulationBitMap.growAndSet(index); }
+		PX_FORCE_INLINE void						resetSpeculativeCCDArticulationLink(PxU32 index)	{ mSpeculativeCDDArticulationBitMap.boundedReset(index); }
 
 		PX_FORCE_INLINE	PxU64						getContextId() const { return mContextId; }
-		PX_FORCE_INLINE bool						isUsingGpuRigidBodies() const { return mUseGpuRigidBodies; }
+		PX_FORCE_INLINE bool						isUsingGpuDynamicsOrBp() const { return mUseGpuBp || mUseGpuDynamics; }
+		PX_FORCE_INLINE bool						isUsingGpuDynamicsAndBp() const { return mUseGpuBp && mUseGpuDynamics; }
+		PX_FORCE_INLINE bool						isUsingGpuDynamics() const { return mUseGpuDynamics; }
+		PX_FORCE_INLINE bool						isUsingGpuBp() const { return mUseGpuBp; }
+
+		PX_FORCE_INLINE void						setDirectGPUAPIInitialized() { mIsDirectGPUAPIInitialized = true; }
+		PX_FORCE_INLINE bool						isDirectGPUAPIInitialized() const { return mIsDirectGPUAPIInitialized; }
 
 		// statistics counters increase/decrease
 		PX_FORCE_INLINE	void						increaseNumKinematicsCounter() { mNbRigidKinematic++; }
@@ -630,14 +626,15 @@ namespace Sc
 		PX_FORCE_INLINE	void						increaseNumDynamicsCounter() { mNbRigidDynamics++; }
 		PX_FORCE_INLINE	void						decreaseNumDynamicsCounter() { mNbRigidDynamics--; }
 
+						ConstraintCore*				findConstraintCore(const ActorSim* sim0, const ActorSim* sim1);
+
 		//internal private methods:
 	private:
+					void						activateEdgesInternal(IG::Edge::EdgeType type);
 					void						releaseConstraints(bool endOfScene);
-		PX_INLINE	void						clearBrokenConstraintBuffer();
+		PX_INLINE	void						clearBrokenConstraintBuffer()	{ mBrokenConstraints.clear();	}
 
 		/////////////////////////////////////////////////////////////
-
-					void						prepareCollide();
 
 					void						collideStep(PxBaseTask* continuation);
 					void						advanceStep(PxBaseTask* continuation);
@@ -645,47 +642,50 @@ namespace Sc
 		// subroutines of collideStep/solveStep:
 					void						kinematicsSetup(PxBaseTask* continuation);
 					void						stepSetupSolve(PxBaseTask* continuation);
-					//void						stepSetupSimulate();
 
-					void						fetchPatchEvents(PxBaseTask*);
-					void						processNarrowPhaseTouchEvents();
-					void						processNarrowPhaseTouchEventsStage2(PxBaseTask*);
-					void						setEdgesConnected(PxBaseTask*);
-					void						processNarrowPhaseLostTouchEvents(PxBaseTask*);
-					void						processNarrowPhaseLostTouchEventsIslands(PxBaseTask*);
+					void						processNarrowPhaseTouchEvents(PxBaseTask* continuation);
+					void						setEdgesConnected(PxBaseTask* continuation);
+					void						processNarrowPhaseLostTouchEvents(PxBaseTask* continuation);
+					void						processNarrowPhaseLostTouchEventsIslands(PxBaseTask* continuation);
 					void						processLostTouchPairs();
 					void						integrateKinematicPose();
-					void						updateKinematicCached(PxBaseTask* task);
+					void						updateKinematicCached(PxBaseTask* continuation);
 
 					void						beforeSolver(PxBaseTask* continuation);
-					void						checkForceThresholdContactEvents(const PxU32 ccdPass);
-					void						processCallbacks(bool pendingReportsOnly = false);
-					void						endStep();
+					void						checkForceThresholdContactEvents(PxU32 ccdPass);
 	private:
-		PX_FORCE_INLINE void					putObjectsToSleep(PxU32 infoFlag);
-		PX_FORCE_INLINE void					putInteractionsToSleep();
-		PX_FORCE_INLINE void					wakeObjectsUp(PxU32 infoFlag);
+					void						putObjectsToSleep();
+					void						wakeObjectsUp();
 
 					void						collectPostSolverVelocitiesBeforeCCD();
 
-					void						clearSleepWakeBodies(void);
+					void						clearSleepWakeBodies();
 		PX_INLINE	void						cleanUpSleepBodies();
 		PX_INLINE	void						cleanUpWokenBodies();
-		PX_INLINE	void						cleanUpSleepOrWokenBodies(Ps::CoalescedHashSet<BodyCore*>& bodyList, PxU32 removeFlag, bool& validMarker);
+		PX_INLINE	void						cleanUpSleepOrWokenBodies(PxCoalescedHashSet<BodyCore*>& bodyList, PxU32 removeFlag, bool& validMarker);
 
-		//internal variables:
 	private:
-		// Material manager
-					PX_ALIGN(16, PxsMaterialManager			mMaterialManager);
 
+		// Material manager
+					PX_ALIGN(16, PxsMaterialManager	mMaterialManager);
+
+					BroadphaseManager			mBroadphaseManager;
 					PxU64						mContextId;
 
-					Ps::Array<BodyCore*>		mActiveBodies;  // Sorted: kinematic before dynamic
+					PxArray<BodyCore*>			mActiveBodies;  // Sorted: kinematic before dynamic
 					PxU32						mActiveKinematicBodyCount;  // Number of active kinematics. This is also the index in mActiveBodies where the active dynamic bodies start.
-					Ps::Array<BodyCore*>		mActiveCompoundBodies;  
+					PxU32						mActiveDynamicBodyCount;  // Number of active dynamics. This is also the index in mActiveBodies where the active soft bodies start.
+					PxArray<BodyCore*>			mActiveCompoundBodies;
 
-					Ps::Array<Interaction*>		mInteractions[InteractionType::eTRACKED_IN_SCENE_COUNT];
-					PxU32						mActiveInteractionCount[InteractionType::eTRACKED_IN_SCENE_COUNT]; // Interactions with id < activeInteractionCount are active
+					BodyCore**					mActiveKinematicsCopy;
+					PxU32						mActiveKinematicsCopyCapacity;
+
+					// PT: this array used for:
+					// - debug visualization
+					// - processing trigger interactions
+					// - updating dirty interactions
+					PxArray<ElementSimInteraction*>	mInteractions[InteractionType::eTRACKED_IN_SCENE_COUNT];
+					PxU32							mActiveInteractionCount[InteractionType::eTRACKED_IN_SCENE_COUNT]; // Interactions with id < activeInteractionCount are active
 
 					template <typename T, PxU32 size>
 					struct Block
@@ -698,30 +698,26 @@ namespace Sc
 					typedef Block<void*, 16> PointerBlock16;
 					typedef Block<void*, 32> PointerBlock32;
 
-					Ps::Pool<PointerBlock8>		mPointerBlock8Pool;
-					Ps::Pool<PointerBlock16>	mPointerBlock16Pool;
-					Ps::Pool<PointerBlock32>	mPointerBlock32Pool;
+					PxPool<PointerBlock8>	mPointerBlock8Pool;
+					PxPool<PointerBlock16>	mPointerBlock16Pool;
+					PxPool<PointerBlock32>	mPointerBlock32Pool;
 
 					PxsContext*					mLLContext;
 
-					Bp::AABBManager*			mAABBManager;
-					Bp::BroadPhase*				mBP;
+					Bp::AABBManagerBase*		mAABBManager;
 					PxsCCDContext*				mCCDContext;
 					PxI32						mNumFastMovingShapes;
 					PxU32						mCCDPass;
-
-					//PxsIslandManager*			mIslandManager;
 
 					IG::SimpleIslandManager*	mSimpleIslandManager;
 
 					Dy::Context*				mDynamicsContext;
 
-
 					PxsMemoryManager*			mMemoryManager;
 
 #if PX_SUPPORT_GPU_PHYSX
-					PxsKernelWranglerManager*				mGpuWranglerManagers;
-					PxsHeapMemoryAllocatorManager*			mHeapMemoryAllocationManager;
+					PxsKernelWranglerManager*		mGpuWranglerManagers;
+					PxsHeapMemoryAllocatorManager*	mHeapMemoryAllocationManager;
 #endif
 
 					PxsSimulationController*	mSimulationController;
@@ -731,9 +727,8 @@ namespace Sc
 					PxSceneLimits				mLimits;
 
 					PxVec3						mGravity;			//!< Gravity vector
-					PxU32						mBodyGravityDirty; // Set to true before body->updateForces() when the mGravity has changed					
 
-					Ps::Array<PxContactPairHeader>
+					PxArray<PxContactPairHeader>
 												mQueuedContactPairHeaders;
 		//time:
 		//constants set with setTiming():
@@ -745,38 +740,34 @@ namespace Sc
 		//containers:
 		// Those ones contain shape ptrs from Actor, i.e. compound level, not subparts
 
-					Ps::CoalescedHashSet<Sc::ConstraintCore*> 
-												mConstraints;
+					PxCoalescedHashSet<ConstraintCore*>	mConstraints;
 												
-					Sc::ConstraintProjectionManager*				mProjectionManager;
-					Bp::BoundsArray*								mBoundsArray;
-					Ps::Array<PxReal, Ps::VirtualAllocator>*		mContactDistance;
-					bool											mHasContactDistanceChanged;
-					SqBoundsManager*								mSqBoundsManager;
+					Bp::BoundsArray*					mBoundsArray;
+					Cm::PinnableArray<PxReal>*			mContactDistance;
+					bool								mHasContactDistanceChanged;
+					SqBoundsManager*					mSqBoundsManager;
 
-					Ps::Array<BodySim*>			mCcdBodies;
-					Ps::Array<BodySim*>			mProjectedBodies;
-					Ps::Array<PxTriggerPair>	mTriggerBufferAPI;
-					Ps::Array<TriggerPairExtraData>*		
-												mTriggerBufferExtraData;
+					PxArray<BodySim*>					mCcdBodies;
+					PxArray<PxTriggerPair>				mTriggerBufferAPI;
+					PxArray<TriggerPairExtraData>*		mTriggerBufferExtraData;
 
-					PxU32						mRemovedShapeCountAtSimStart;  // counter used to detect whether there have been buffered shape removals
+					PxCoalescedHashSet<ArticulationCore*>	mArticulations;
+					PxCoalescedHashSet<ArticulationSim*>	mDirtyArticulationSims;
 
-					Ps::CoalescedHashSet<ArticulationCore*> mArticulations;
-
-					Ps::Array<Sc::ConstraintCore*>	mBrokenConstraints;
-					Ps::CoalescedHashSet<Sc::ConstraintSim*> mActiveBreakableConstraints;
+					PxArray<ConstraintCore*>			mBrokenConstraints;
+					PxCoalescedHashSet<ConstraintSim*>	mActiveBreakableConstraints;
 
 					// pools for joint buffers
-					// Fixed joint is 92 bytes, D6 is 364 bytes right now. So these three pools cover all the internal cases
+					// The pools below currently cover all the internal cases
 					typedef Block<PxU8, 128> MemBlock128;
 					typedef Block<PxU8, 256> MemBlock256;
 					typedef Block<PxU8, 384> MemBlock384;
+					typedef Block<PxU8, 512> MemBlock512;
 
-					Ps::Pool2<MemBlock128, 8192>	mMemBlock128Pool;
-					Ps::Pool2<MemBlock256, 8192>	mMemBlock256Pool;
-					Ps::Pool2<MemBlock384, 8192>	mMemBlock384Pool;
-
+					PxPool2<MemBlock128, 8192>	mMemBlock128Pool;
+					PxPool2<MemBlock256, 8192>	mMemBlock256Pool;
+					PxPool2<MemBlock384, 8192>	mMemBlock384Pool;
+					PxPool2<MemBlock512, 8192>	mMemBlock512Pool;
 
 					// broad phase data:
 					NPhaseCore*					mNPhaseCore;
@@ -791,72 +782,66 @@ namespace Sc
 			const	PxPairFilteringMode::Enum	mKineKineFilteringMode;
 			const	PxPairFilteringMode::Enum	mStaticKineFilteringMode;
 
-					Ps::CoalescedHashSet<BodyCore*> mSleepBodies;
-					Ps::CoalescedHashSet<BodyCore*> mWokeBodies;
+					PxCoalescedHashSet<BodyCore*> mSleepBodies;
+					PxCoalescedHashSet<BodyCore*> mWokeBodies;
+
 					bool						mWokeBodyListValid;
 					bool						mSleepBodyListValid;
 			const	bool						mEnableStabilization;
-					Ps::Array<Client*>			mClients;	//an array of transform arrays, one for each client.
 
-						Ps::Array<PxActor*>				mActiveActors;
-						Ps::Array<PxActor*>				mFrozenActors;
+						PxArray<PxActor*>				mActiveActors;
+						PxArray<PxActor*>				mFrozenActors;
 
-						Ps::Array<const PxRigidBody*>	mClientPosePreviewBodies;	// buffer for bodies that requested early report of the integrated pose (eENABLE_POSE_INTEGRATION_PREVIEW).
+						PxArray<const PxRigidBody*>	mClientPosePreviewBodies;	// buffer for bodies that requested early report of the integrated pose (eENABLE_POSE_INTEGRATION_PREVIEW).
 																			// This buffer gets exposed to users. Is officially accessible from PxSimulationEventCallback::onAdvance()
 																			// until the next simulate()/advance().
-						Ps::Array<PxTransform>			mClientPosePreviewBuffer;	// buffer of newly integrated poses for the bodies that requested a preview. This buffer gets exposed
+						PxArray<PxTransform>			mClientPosePreviewBuffer;	// buffer of newly integrated poses for the bodies that requested a preview. This buffer gets exposed
 																			// to users.
 
 						PxSimulationEventCallback*	mSimulationEventCallback;
-						PxBroadPhaseCallback*		mBroadPhaseCallback;
 
 					SimStats*					mStats;
-					PxU32						mInternalFlags;	//!< Combination of ::SceneFlag
-					PxSceneFlags				mPublicFlags;	//copy of PxSceneDesc::flags, of type PxSceneFlag
+					PxU32						mInternalFlags;	// PT: combination of ::SceneInternalFlag, looks like only 2 bits are needed
+					PxSceneFlags				mPublicFlags;	// Copy of PxSceneDesc::flags, of type PxSceneFlag
 
-					ObjectIDTracker*			mConstraintIDTracker;
-					ObjectIDTracker*			mShapeIDTracker;
-					ObjectIDTracker*			mRigidIDTracker;
-					ObjectIDTracker*			mElementIDPool;
+					// PT: TODO: unify names, "tracker" or "pool"?
+					ObjectIDTracker*			mConstraintIDTracker;	// PT: provides Sc::ContraintSim::mLowLevelConstraint::index
+					ObjectIDTracker*			mActorIDTracker;		// PT: provides Sc::ActorSim::mId
+					ObjectIDTracker*			mElementIDPool;			// PT: provides Sc::ElementSim::mElementID
 
+					StaticCore					mAnchorCore;
 					StaticSim*					mStaticAnchor;
 
 					Cm::PreallocatingPool<ShapeSim>*	mShapeSimPool;
 					Cm::PreallocatingPool<StaticSim>*	mStaticSimPool;
 					Cm::PreallocatingPool<BodySim>*		mBodySimPool;
-					Ps::Pool<ConstraintSim>*			mConstraintSimPool;
-					LLArticulationPool*					mLLArticulationPool;
-					LLArticulationRCPool*				mLLArticulationRCPool;
-														
-					Ps::Pool<ConstraintInteraction>*
-												mConstraintInteractionPool;
+					PxPool2<ConstraintSim, 4096>		mConstraintSimPool;
+					PxPool2<ArticulationJointSim, 4096>	mArticulationJointSimPool;
 
-					Ps::Pool<SimStateData>*		mSimStateDataPool;
+					PxHashMap<PxPair<const ActorSim*, const ActorSim*>, ConstraintCore*> mConstraintMap;
+														
+					PxPool2<ConstraintInteraction, 4096>	mConstraintInteractionPool;
+
+					PxPool<SimStateData>*		mSimStateDataPool;
 
 					BatchRemoveState*			mBatchRemoveState;
 
-					Ps::Array<SimpleBodyPair>	mLostTouchPairs;
-					Cm::BitMap					mLostTouchPairsDeletedBodyIDs;	// Need to know which bodies have been deleted when processing the lost touch pair list.
+					PxArray<SimpleBodyPair>		mLostTouchPairs;
+					PxBitMap					mLostTouchPairsDeletedBodyIDs;	// Need to know which bodies have been deleted when processing the lost touch pair list.
 																				// Can't use the existing rigid object ID tracker class since this map needs to be cleared at
 																				// another point in time.
+					PxBitMap					mVelocityModifyMap;
 
-					Cm::BitMap					mVelocityModifyMap;
+					PxArray<PxvContactManagerTouchEvent> mTouchFoundEvents;
+					PxArray<PxvContactManagerTouchEvent> mTouchLostEvents;
 
-					Ps::Array<PxvContactManagerTouchEvent> mTouchFoundEvents;
-					Ps::Array<PxvContactManagerTouchEvent> mTouchLostEvents;
-
-					Ps::Array<PxsContactManager*> mFoundPatchManagers;
-					Ps::Array<PxsContactManager*> mLostPatchManagers;
-
-					Ps::Array<PxU32>			mOutOfBoundsIDs;
-
-					Cm::BitMap					mDirtyShapeSimMap;
+					PxBitMap								mDirtyShapeSimMap;
 
 					PxU32						mDominanceBitMatrix[PX_MAX_DOMINANCE_GROUP];
 
-					PxReal						mVisualizationScale;  // Redundant but makes checks whether debug visualization is enabled faster
-
 					bool						mVisualizationParameterChanged;
+
+					PxU32						mMaxNbArticulationLinks;
 
 					// statics:
 					PxU32						mNbRigidStatics;
@@ -864,26 +849,32 @@ namespace Sc
 					PxU32						mNbRigidKinematic;
 					PxU32						mNbGeometries[PxGeometryType::eGEOMETRY_COUNT];
 
-					PxU32						mNumDeactivatingNodes[2];
+					//IG::Node::eTYPE_COUNT
+					PxU32						mNumDeactivatingNodes[IG::Node::eTYPE_COUNT];
 
 					// task decomposition
-					void						preBroadPhase(PxBaseTask* continuation);
+					void						setupBroadPhaseFirstAndSecondPassTasks(PxBaseTask* continuation);
 					void						broadPhase(PxBaseTask* continuation);
+					void						broadPhaseFirstPass(PxBaseTask* continuation);
+					void						broadPhaseSecondPass(PxBaseTask* continuation);
+					void						updateBroadPhase(PxBaseTask* continuation);
+					void						preIntegrate(PxBaseTask* continuation);
 					void						postBroadPhase(PxBaseTask* continuation);
 					void						postBroadPhaseContinuation(PxBaseTask* continuation);
 					void						preRigidBodyNarrowPhase(PxBaseTask* continuation);
 					void						postBroadPhaseStage2(PxBaseTask* continuation);
 					void						postBroadPhaseStage3(PxBaseTask* continuation);
+					void						updateBoundsAndShapes(PxBaseTask* continuation);
 					void						rigidBodyNarrowPhase(PxBaseTask* continuation);
 					void						unblockNarrowPhase(PxBaseTask* continuation);
 					void						islandGen(PxBaseTask* continuation);
-					void						processLostSolverPatches(PxBaseTask* continuation);
 					void						postIslandGen(PxBaseTask* continuation);
-					void						processTriggerInteractions(PxBaseTask* continuation);
 					void						solver(PxBaseTask* continuation);
-					void						updateBodiesAndShapes(PxBaseTask* continuation);
+					void						updateBodies(PxBaseTask* continuation);
+					void						updateShapes(PxBaseTask* continuation);
 					void						updateSimulationController(PxBaseTask* continuation);
 					void						updateDynamics(PxBaseTask* continuation);
+					void						updateDynamicsPostPartitioning(PxBaseTask* continuation);
 					void						processLostContacts(PxBaseTask*);
 					void						processLostContacts2(PxBaseTask*);
 					void						processLostContacts3(PxBaseTask*);
@@ -892,7 +883,6 @@ namespace Sc
 					void						unregisterInteractions(PxBaseTask*);
 					void						postThirdPassIslandGen(PxBaseTask*);
 					void						postSolver(PxBaseTask* continuation);
-					void						constraintProjection(PxBaseTask* continuation);
 					void						afterIntegration(PxBaseTask* continuation);  // performs sleep check, for instance
 					void						postCCDPass(PxBaseTask* continuation);
 					void						ccdBroadPhaseAABB(PxBaseTask* continuation);
@@ -905,91 +895,262 @@ namespace Sc
 
 					void						postNarrowPhase(PxBaseTask* continuation);
 
-					void						addShapes(void *const* shapes, PxU32 nbShapes, size_t ptrOffset, RigidSim& sim, PxBounds3* outBounds);
-					void						removeShapes(RigidSim& , Ps::InlineArray<Sc::ShapeSim*, 64>& , Ps::InlineArray<const Sc::ShapeCore*, 64>&, bool wakeOnLostTouch);
-
+					void						addShapes(NpShape*const* shapes, PxU32 nbShapes, size_t ptrOffset, RigidSim& sim, PxBounds3* outBounds);
+					void						removeShapes(RigidSim& , PxInlineArray<ShapeSim*, 64>& , PxInlineArray<const ShapeCore*, 64>&, bool wakeOnLostTouch);
 
 	private:
+					void						addShapes(NpShape*const* shapes, PxU32 nbShapes, size_t ptrOffset, RigidSim& sim, ShapeSim*& prefetchedShapeSim, PxBounds3* outBounds);
+					void						updateContactDistances(PxBaseTask* continuation);
+					void						updateDirtyShapes(PxBaseTask* continuation);
 
-					void						addShapes(void *const* shapes, PxU32 nbShapes, size_t ptrOffset, RigidSim& sim, ShapeSim*& prefetchedShapeSim, PxBounds3* outBounds);
-
-					Cm::DelegateTask<Sc::Scene, &Sc::Scene::secondPassNarrowPhase>			mSecondPassNarrowPhase;
-					Cm::DelegateFanoutTask<Sc::Scene, &Sc::Scene::postNarrowPhase>			mPostNarrowPhase;
-					Cm::DelegateFanoutTask<Sc::Scene, &Sc::Scene::finalizationPhase>	mFinalizationPhase;
-					Cm::DelegateTask<Sc::Scene, &Sc::Scene::updateCCDMultiPass>			mUpdateCCDMultiPass;
+					Cm::DelegateTask<Scene, &Scene::secondPassNarrowPhase>		mSecondPassNarrowPhase;
+					Cm::DelegateTask<Scene, &Scene::postNarrowPhase>			mPostNarrowPhase;
+					Cm::DelegateTask<Scene, &Scene::finalizationPhase>			mFinalizationPhase;
+					Cm::DelegateTask<Scene, &Scene::updateCCDMultiPass>			mUpdateCCDMultiPass;
 
 					//multi-pass ccd stuff
-					Ps::Array<Cm::DelegateTask<Sc::Scene, &Sc::Scene::updateCCDSinglePass> >	mUpdateCCDSinglePass;
-					Ps::Array<Cm::DelegateTask<Sc::Scene, &Sc::Scene::updateCCDSinglePassStage2> >	mUpdateCCDSinglePass2;
-					Ps::Array<Cm::DelegateTask<Sc::Scene, &Sc::Scene::updateCCDSinglePassStage3> >	mUpdateCCDSinglePass3;
-					Ps::Array<Cm::DelegateTask<Sc::Scene, &Sc::Scene::ccdBroadPhaseAABB> >			mCCDBroadPhaseAABB;
-					Ps::Array<Cm::DelegateTask<Sc::Scene, &Sc::Scene::ccdBroadPhase> >			mCCDBroadPhase;
-					Ps::Array<Cm::DelegateTask<Sc::Scene, &Sc::Scene::postCCDPass> >			mPostCCDPass;
+					PxArray<Cm::DelegateTask<Scene, &Scene::updateCCDSinglePass> >			mUpdateCCDSinglePass;
+					PxArray<Cm::DelegateTask<Scene, &Scene::updateCCDSinglePassStage2> >	mUpdateCCDSinglePass2;
+					PxArray<Cm::DelegateTask<Scene, &Scene::updateCCDSinglePassStage3> >	mUpdateCCDSinglePass3;
+					PxArray<Cm::DelegateTask<Scene, &Scene::ccdBroadPhaseAABB> >			mCCDBroadPhaseAABB;
+					PxArray<Cm::DelegateTask<Scene, &Scene::ccdBroadPhase> >				mCCDBroadPhase;
+					PxArray<Cm::DelegateTask<Scene, &Scene::postCCDPass> >					mPostCCDPass;
 
-					Cm::DelegateTask<Sc::Scene, &Sc::Scene::afterIntegration>				mAfterIntegration;
-					Cm::DelegateTask<Sc::Scene, &Sc::Scene::constraintProjection>			mConstraintProjection;
-					Cm::DelegateTask<Sc::Scene, &Sc::Scene::postSolver>						mPostSolver;
-					Cm::DelegateTask<Sc::Scene, &Sc::Scene::solver>							mSolver;
-					Cm::DelegateTask<Sc::Scene, &Sc::Scene::updateBodiesAndShapes>			mUpdateBodiesAndShapes;
-					Cm::DelegateTask<Sc::Scene, &Sc::Scene::updateSimulationController>		mUpdateSimulationController;
-					Cm::DelegateTask<Sc::Scene, &Sc::Scene::updateDynamics>					mUpdateDynamics;
-					Cm::DelegateTask<Sc::Scene, &Sc::Scene::processLostContacts>			mProcessLostContactsTask;
-					Cm::DelegateTask<Sc::Scene, &Sc::Scene::processLostContacts2>			mProcessLostContactsTask2;
-					Cm::DelegateTask<Sc::Scene, &Sc::Scene::processLostContacts3>			mProcessLostContactsTask3;
-					Cm::DelegateTask<Sc::Scene, &Sc::Scene::destroyManagers>				mDestroyManagersTask;
-					Cm::DelegateTask<Sc::Scene, &Sc::Scene::lostTouchReports>				mLostTouchReportsTask;
-					Cm::DelegateTask<Sc::Scene, &Sc::Scene::unregisterInteractions>			mUnregisterInteractionsTask;
-					Cm::DelegateTask<Sc::Scene,
-						&Sc::Scene::processNarrowPhaseLostTouchEventsIslands>				mProcessNarrowPhaseLostTouchTasks;
-					Cm::DelegateTask<Sc::Scene,
-						&Sc::Scene::processNarrowPhaseLostTouchEvents>						mProcessNPLostTouchEvents;
-					Cm::DelegateTask<Sc::Scene, &Sc::Scene::postThirdPassIslandGen>			mPostThirdPassIslandGenTask;
-					Cm::DelegateTask<Sc::Scene, &Sc::Scene::postIslandGen>					mPostIslandGen;
-					Cm::DelegateTask<Sc::Scene, &Sc::Scene::islandGen>						mIslandGen;
-					Cm::DelegateTask<Sc::Scene, &Sc::Scene::preRigidBodyNarrowPhase>		mPreRigidBodyNarrowPhase;
-					Cm::DelegateTask<Sc::Scene, &Sc::Scene::setEdgesConnected>				mSetEdgesConnectedTask;
-					Cm::DelegateTask<Sc::Scene, &Sc::Scene::fetchPatchEvents>				mFetchPatchEventsTask;
-					Cm::DelegateTask<Sc::Scene, &Sc::Scene::processLostSolverPatches>		mProcessLostPatchesTask;
-					Cm::DelegateTask<Sc::Scene, &Sc::Scene::rigidBodyNarrowPhase>			mRigidBodyNarrowPhase;
-					Cm::DelegateTask<Sc::Scene, &Sc::Scene::unblockNarrowPhase>				mRigidBodyNPhaseUnlock;
-					Cm::DelegateTask<Sc::Scene, &Sc::Scene::postBroadPhase>					mPostBroadPhase;
-					Cm::DelegateTask<Sc::Scene, &Sc::Scene::postBroadPhaseContinuation>		mPostBroadPhaseCont;
-					Cm::DelegateTask<Sc::Scene, &Sc::Scene::postBroadPhaseStage2>			mPostBroadPhase2;
-					Cm::DelegateFanoutTask<Sc::Scene, &Sc::Scene::postBroadPhaseStage3>		mPostBroadPhase3;
-					Cm::DelegateTask<Sc::Scene, &Sc::Scene::preallocateContactManagers>		mPreallocateContactManagers;
-					Cm::DelegateTask<Sc::Scene, &Sc::Scene::islandInsertion>				mIslandInsertion;
-					Cm::DelegateTask<Sc::Scene, &Sc::Scene::registerContactManagers>		mRegisterContactManagers;
-					Cm::DelegateTask<Sc::Scene, &Sc::Scene::registerInteractions>			mRegisterInteractions;
-					Cm::DelegateTask<Sc::Scene, &Sc::Scene::registerSceneInteractions>		mRegisterSceneInteractions;
-					Cm::DelegateTask<Sc::Scene, &Sc::Scene::broadPhase>						mBroadPhase;
-					Cm::DelegateTask<Sc::Scene, &Sc::Scene::advanceStep>					mAdvanceStep;
-					Cm::DelegateTask<Sc::Scene, &Sc::Scene::collideStep>					mCollideStep;
+					Cm::DelegateTask<Scene, &Scene::afterIntegration>					mAfterIntegration;
+					Cm::DelegateTask<Scene, &Scene::postSolver>							mPostSolver;
+					Cm::DelegateTask<Scene, &Scene::solver>								mSolver;
+					Cm::DelegateTask<Scene, &Scene::updateBodies>						mUpdateBodies;
+					Cm::DelegateTask<Scene, &Scene::updateShapes>						mUpdateShapes;
+					Cm::DelegateTask<Scene, &Scene::updateSimulationController>			mUpdateSimulationController;
+					Cm::DelegateTask<Scene, &Scene::updateDynamics>						mUpdateDynamics;
+					Cm::DelegateTask<Scene, &Scene::updateDynamicsPostPartitioning>		mUpdateDynamicsPostPartitioning;
+					Cm::DelegateTask<Scene, &Scene::processLostContacts>				mProcessLostContactsTask;
+					Cm::DelegateTask<Scene, &Scene::processLostContacts2>				mProcessLostContactsTask2;
+					Cm::DelegateTask<Scene, &Scene::processLostContacts3>				mProcessLostContactsTask3;
+					Cm::DelegateTask<Scene, &Scene::destroyManagers>					mDestroyManagersTask;
+					Cm::DelegateTask<Scene, &Scene::lostTouchReports>					mLostTouchReportsTask;
+					Cm::DelegateTask<Scene, &Scene::unregisterInteractions>				mUnregisterInteractionsTask;
+					Cm::DelegateTask<Scene,
+						&Scene::processNarrowPhaseLostTouchEventsIslands>				mProcessNarrowPhaseLostTouchTasks;
+					Cm::DelegateTask<Scene,
+						&Scene::processNarrowPhaseLostTouchEvents>						mProcessNPLostTouchEvents;
+					Cm::DelegateTask<Scene, &Scene::postThirdPassIslandGen>				mPostThirdPassIslandGenTask;
+#if !USE_SPLIT_SECOND_PASS_ISLAND_GEN
+					Cm::DelegateTask<Scene, &Scene::postIslandGen>						mPostIslandGen;
+#endif
+					Cm::DelegateTask<Scene, &Scene::islandGen>							mIslandGen;
+					Cm::DelegateTask<Scene, &Scene::preRigidBodyNarrowPhase>			mPreRigidBodyNarrowPhase;
+					Cm::DelegateTask<Scene, &Scene::setEdgesConnected>					mSetEdgesConnectedTask;
+					Cm::DelegateFanoutTask<Scene, &Scene::updateBoundsAndShapes>		mUpdateBoundAndShapeTask;
+					Cm::DelegateTask<Scene, &Scene::rigidBodyNarrowPhase>				mRigidBodyNarrowPhase;
+					Cm::DelegateTask<Scene, &Scene::unblockNarrowPhase>					mRigidBodyNPhaseUnlock;
+					Cm::DelegateTask<Scene, &Scene::postBroadPhase>						mPostBroadPhase;
+					Cm::DelegateTask<Scene, &Scene::postBroadPhaseContinuation>			mPostBroadPhaseCont;
+					Cm::DelegateTask<Scene, &Scene::postBroadPhaseStage2>				mPostBroadPhase2;
+					Cm::DelegateFanoutTask<Scene, &Scene::postBroadPhaseStage3>			mPostBroadPhase3;
+					Cm::DelegateTask<Scene, &Scene::preallocateContactManagers>			mPreallocateContactManagers;
+					Cm::DelegateTask<Scene, &Scene::islandInsertion>					mIslandInsertion;
+					Cm::DelegateTask<Scene, &Scene::registerContactManagers>			mRegisterContactManagers;
+					Cm::DelegateTask<Scene, &Scene::registerInteractions>				mRegisterInteractions;
+					Cm::DelegateTask<Scene, &Scene::registerSceneInteractions>			mRegisterSceneInteractions;
+					Cm::DelegateTask<Scene, &Scene::broadPhase>							mBroadPhase;
+					Cm::DelegateTask<Scene, &Scene::advanceStep>						mAdvanceStep;
+					Cm::DelegateTask<Scene, &Scene::collideStep>						mCollideStep;
+					Cm::DelegateTask<Scene, &Scene::broadPhaseFirstPass>				mBpFirstPass;
+					Cm::DelegateTask<Scene, &Scene::broadPhaseSecondPass>				mBpSecondPass;
+					Cm::DelegateTask<Scene, &Scene::updateBroadPhase>					mBpUpdate;
+					Cm::DelegateTask<Scene, &Scene::preIntegrate>						mPreIntegrate;
 
-					Cm::FlushPool															mTaskPool;
-					PxTaskManager*															mTaskManager;
-					PxCudaContextManager*													mCudaContextManager;
+					Cm::FlushPool														mTaskPool;
+					PxTaskManager*														mTaskManager;
+					PxCudaContextManager*												mCudaContextManager;
+					PxLightCpuTask*														mBodyAccelerationTask;
 
-					bool																	mContactReportsNeedPostSolverVelocity;
-					bool																	mUseGpuRigidBodies;
+					bool																mContactReportsNeedPostSolverVelocity;
+					bool																mUseGpuDynamics;
+					bool																mUseGpuBp;
+					bool																mCCDBp;
 
-					SimulationStage::Enum													mSimulationStage;
+					SimulationStage::Enum												mSimulationStage;
 
-					ConstraintGroupNode**													mTmpConstraintGroupRootBuffer;  // temporary list of constraint group roots, used for constraint projection
+					PxCoalescedHashSet<const BodySim*>									mPosePreviewBodies;  // list of bodies that requested early report of the integrated pose (eENABLE_POSE_INTEGRATION_PREVIEW).
 
-					Ps::CoalescedHashSet<const BodySim*>									mPosePreviewBodies;  // list of bodies that requested early report of the integrated pose (eENABLE_POSE_INTEGRATION_PREVIEW).
+					PxArray<PxsContactManager*>											mPreallocatedContactManagers;
+					PxArray<ShapeInteraction*>											mPreallocatedShapeInteractions;
+					PxArray<ElementInteractionMarker*>									mPreallocatedInteractionMarkers;
 
-					Ps::Array<PxsContactManager*>											mPreallocatedContactManagers;
-					Ps::Array<ShapeInteraction*>											mPreallocatedShapeInteractions;
-					Ps::Array<ElementInteractionMarker*>									mPreallocatedInteractionMarkers;
+					// PT: class members that should ideally just be local parameters passed from task to task
+					OverlapFilterTask*													mOverlapFilterTaskHead;	// PT: tmp data passed from finishBroadPhase to preallocateContactManagers
+					PxArray<FilterInfo>													mFilterInfo;			// PT: tmp data passed from finishBroadPhase to preallocateContactManagers
+					OnOverlapCreatedTask*												mOverlapCreatedTaskHead;
+					IslandInsertionTask*												mIslandInsertionTaskHead;
+					PxArray<IG::EdgeIndex>												mPreallocatedHandles;
+					DelayedGPUTypes														mGPUTypes;				// PT: GPU types found in last part of Sc::Scene::islandInsertion(), delayed for later processing
+					//~class members that should ideally just be local parameters passed from task to task
 
-					OverlapFilterTask*														mOverlapFilterTaskHead;
-					Ps::Array<PxFilterInfo>													mFilterInfo;
-					Cm::BitMap																mSpeculativeCCDRigidBodyBitMap;
-					Cm::BitMap																mSpeculativeCDDArticulationBitMap;
+					PxBitMap															mSpeculativeCCDRigidBodyBitMap;
+					PxBitMap															mSpeculativeCDDArticulationBitMap;
+
+					bool																mIsCollisionPhaseActive;
+					// Set to true as long as collision phase is active (used as an indicator that it is OK to read object pose, 
+					// velocity etc. compared to the solver phase where these properties might get written to).
+					bool																mIsDirectGPUAPIInitialized;
+
+
+				public:
+					// For OmniPVD. To notify NpScene that actor's sleeping state has changed.
+					typedef void(*SleepingStateChangedCallback)(PxRigidDynamic&, bool);
+					SleepingStateChangedCallback mOnSleepingStateChanged;
+
+// PT: moved all the GPU-related code & data here in an attempt to clearly separate the CPU/GPU bits
+#if PX_SUPPORT_GPU_PHYSX
+	public:
+					void								gpu_addToActiveList(ActorSim& actorSim, ActorCore* appendedActorCore);
+					void								gpu_removeFromActiveList(ActorSim& actorSim, PxU32 removedActiveIndex);
+					void								gpu_clearSleepWakeBodies();
+					void								gpu_buildActiveActors();
+					void								gpu_buildActiveAndFrozenActors();
+					void								gpu_setSimulationEventCallback(PxSimulationEventCallback* callback);
+					PxU32								gpu_cleanUpSleepAndWokenBodies();
+					void								gpu_fireOnSleepCallback(PxActor** actors);
+					void								gpu_fireOnWakeCallback(PxActor** actors);
+					void								gpu_updateBounds();
+					void								gpu_releasePools();
+					void								gpu_release();
+
+					void								addDeformableSurface(DeformableSurfaceCore&);
+					void								removeDeformableSurface(DeformableSurfaceCore&);
+					void								addDeformableVolume(DeformableVolumeCore&);
+					void								removeDeformableVolume(DeformableVolumeCore&);
+					void								addParticleSystem(ParticleSystemCore&);
+					void								removeParticleSystem(ParticleSystemCore&);
+
+	PX_FORCE_INLINE	PxU32								getNbDeformableSurfaces()	const	{ return mDeformableSurfaces.size();		}
+	PX_FORCE_INLINE	DeformableSurfaceCore* const*		getDeformableSurfaces()				{ return mDeformableSurfaces.getEntries();	}
+
+	PX_FORCE_INLINE	PxU32								getNbDeformableVolumes()	const	{ return mDeformableVolumes.size();	}
+	PX_FORCE_INLINE	DeformableVolumeCore* const*		getDeformableVolumes()				{ return mDeformableVolumes.getEntries();	}
+
+	PX_FORCE_INLINE	PxU32								getNbParticleSystems()	const	{ return mParticleSystems.size();		}
+	PX_FORCE_INLINE	ParticleSystemCore* const*			getParticleSystems()			{ return mParticleSystems.getEntries();	}
+
+	// PT: redundant?
+	// Get the active deformable surface actors
+	PX_FORCE_INLINE	DeformableSurfaceCore*const*		getActiveDeformableSurfacesArray()	const { return mActiveDeformableSurfaces.begin(); }
+	PX_FORCE_INLINE	PxU32								getNumActiveDeformableSurfaces()	const { return mActiveDeformableSurfaces.size(); }
+
+	// PT: redundant?
+	// Get the active deformable surface actors
+	PX_FORCE_INLINE	DeformableVolumeCore*const*			getActiveDeformableVolumesArray()	const { return mActiveDeformableVolumes.begin(); }
+	PX_FORCE_INLINE	PxU32								getNumActiveDeformableVolumes()		const { return mActiveDeformableVolumes.size(); }
+
+	PX_FORCE_INLINE	const PxsDeformableSurfaceMaterialManager&	getDeformableSurfaceMaterialManager()	const	{ return mDeformableSurfaceMaterialManager;	}
+	PX_FORCE_INLINE	PxsDeformableSurfaceMaterialManager&		getDeformableSurfaceMaterialManager()			{ return mDeformableSurfaceMaterialManager;	}
+
+	PX_FORCE_INLINE	const PxsDeformableVolumeMaterialManager&	getDeformableVolumeMaterialManager()	const	{ return mDeformableVolumeMaterialManager;	}
+	PX_FORCE_INLINE	PxsDeformableVolumeMaterialManager&			getDeformableVolumeMaterialManager()			{ return mDeformableVolumeMaterialManager;	}
+
+	PX_FORCE_INLINE	const PxsPBDMaterialManager&		getPBDMaterialManager()				const	{ return mPBDMaterialManager;		}
+	PX_FORCE_INLINE	PxsPBDMaterialManager&				getPBDMaterialManager()						{ return mPBDMaterialManager;		}
+
+					Dy::DeformableSurface*				createLLDeformableSurface(DeformableSurfaceSim* sim);
+					void								destroyLLDeformableSurface(Dy::DeformableSurface& femCloth);
+
+					Dy::DeformableVolume*				createLLDeformableVolume(DeformableVolumeSim* sim);
+					void								destroyLLDeformableVolume(Dy::DeformableVolume& deformableVolume);
+
+					Dy::ParticleSystem*					createLLParticleSystem(ParticleSystemSim* sim);
+					void								destroyLLParticleSystem(Dy::ParticleSystem& softBody);
+
+					void								cleanUpSleepDeformableVolumes();
+					void								cleanUpWokenDeformableVolumes();
+					void								cleanUpSleepOrWokenDeformableVolumes(PxCoalescedHashSet<DeformableVolumeCore*>& bodyList, PxU32 removeFlag, bool& validMarker);
+
+					void								addDeformableSurfaceSimControl(DeformableSurfaceCore& core);
+					void								removeDeformableSurfaceSimControl(DeformableSurfaceCore& core);
+					void								addDeformableVolumeSimControl(DeformableVolumeCore& core);
+					void								removeDeformableVolumeSimControl(DeformableVolumeCore& core);
+					void								addParticleSystemSimControl(ParticleSystemCore& core);
+					void								removeParticleSystemSimControl(ParticleSystemCore& core);
+
+					PxU32								addRigidAttachment(BodyCore* core, DeformableVolumeSim& sim, PxU32 vertId, const PxVec3& actorSpacePose, bool doConversion);
+					void								removeRigidAttachment(BodyCore* core, DeformableVolumeSim& sim, PxU32 handle);
+						
+					void								addTetRigidFilter(BodyCore* core, DeformableVolumeSim& sim, PxU32 tetIdx);
+					void								removeTetRigidFilter(BodyCore* core, DeformableVolumeSim& sim, PxU32 tetIdx);
+
+					PxU32								addTetRigidAttachment(BodyCore* core, DeformableVolumeSim& sim, PxU32 tetIdx, const PxVec4& barycentric, const PxVec3& actorSpacePose, bool doConversion);
+						
+					void								addSoftBodyFilter(DeformableVolumeCore& core, PxU32 tetIdx0, DeformableVolumeSim& sim, PxU32 tetIdx1);
+					void								removeSoftBodyFilter(DeformableVolumeCore& core, PxU32 tetIdx0, DeformableVolumeSim& sim, PxU32 tetIdx1);
+					void								addSoftBodyFilters(DeformableVolumeCore& core, DeformableVolumeSim& sim, PxU32* tetIndices0, PxU32* tetIndices1, PxU32 tetIndicesSize);
+					void								removeSoftBodyFilters(DeformableVolumeCore& core, DeformableVolumeSim& sim, PxU32* tetIndices0, PxU32* tetIndices1, PxU32 tetIndicesSize);
+
+					PxU32								addSoftBodyAttachment(DeformableVolumeCore& core, PxU32 tetIdx0, const PxVec4& triBarycentric0, DeformableVolumeSim& sim, PxU32 tetIdx1, const PxVec4& tetBarycentric1, bool doConversion);
+					void								removeSoftBodyAttachment(DeformableVolumeCore& core, DeformableVolumeSim& sim, PxU32 handle);
+
+					void								addClothFilter(DeformableSurfaceCore& core, PxU32 triIdx, Sc::DeformableVolumeSim& sim, PxU32 tetIdx);
+					void								removeClothFilter(DeformableSurfaceCore& core, PxU32 triIdx, Sc::DeformableVolumeSim& sim, PxU32 tetIdx);
+
+					PxU32								addClothAttachment(DeformableSurfaceCore& core, PxU32 triIdx, const PxVec4& triBarycentric, DeformableVolumeSim& sim, PxU32 tetIdx, const PxVec4& tetBarycentric, bool doConversion);
+					void								removeClothAttachment(DeformableSurfaceCore& core, DeformableVolumeSim& sim, PxU32 handle);
+
+					PxU32								addRigidAttachment(BodyCore* core, DeformableSurfaceSim& sim, PxU32 vertId, const PxVec3& actorSpacePose);
+					void								removeRigidAttachment(BodyCore* core, DeformableSurfaceSim& sim, PxU32 handle);
+
+					void								addClothFilter(DeformableSurfaceCore& core0, PxU32 triIdx0, Sc::DeformableSurfaceSim& sim1, PxU32 triIdx1);
+					void								removeClothFilter(DeformableSurfaceCore& core, PxU32 triIdx0, DeformableSurfaceSim& sim1, PxU32 triIdx1);
+
+					PxU32								addTriClothAttachment(DeformableSurfaceCore& core0, PxU32 triIdx0, const PxVec4& barycentric0, Sc::DeformableSurfaceSim& sim1, PxU32 triIdx1, const PxVec4& barycentric1);
+					void								removeTriClothAttachment(DeformableSurfaceCore& core, DeformableSurfaceSim& sim1, PxU32 handle);
+
+					void								addTriRigidFilter(BodyCore* core, DeformableSurfaceSim& sim, PxU32 triIdx);
+					void								removeTriRigidFilter(BodyCore* core, DeformableSurfaceSim& sim, PxU32 triIdx);
+
+					PxU32								addTriRigidAttachment(BodyCore* core, DeformableSurfaceSim& sim, PxU32 triIdx, const PxVec4& barycentric, const PxVec3& actorSpacePose);
+					void								removeTriRigidAttachment(BodyCore* core, DeformableSurfaceSim& sim, PxU32 handle);
+
+					PxActor**							getActiveDeformableVolumeActors(PxU32& nbActorsOut);
+					void								setActiveDeformableVolumeActors(PxActor** actors, PxU32 nbActors);
+
+					//PxActor**							getActiveDeformableSurfaceActors(PxU32& nbActorsOut);
+					//void								setActiveDeformableSurfaceActors(PxActor** actors, PxU32 nbActors);
+
+#if USE_SPLIT_SECOND_PASS_ISLAND_GEN
+					PxU64								mPadding;
+#endif
+					PX_ALIGN(16, PxsDeformableSurfaceMaterialManager	mDeformableSurfaceMaterialManager);
+					PX_ALIGN(16, PxsDeformableVolumeMaterialManager		mDeformableVolumeMaterialManager);
+					PX_ALIGN(16, PxsPBDMaterialManager		mPBDMaterialManager);
+
+					PxArray<DeformableSurfaceCore*>		mActiveDeformableSurfaces;
+					PxArray<DeformableVolumeCore*>		mActiveDeformableVolumes;
+					PxArray<ParticleSystemCore*>		mActiveParticleSystems;
+
+					PxCoalescedHashSet<DeformableSurfaceCore*>	mDeformableSurfaces;
+					PxCoalescedHashSet<DeformableVolumeCore*>	mDeformableVolumes;
+					PxCoalescedHashSet<ParticleSystemCore*>		mParticleSystems;
+
+					PxCoalescedHashSet<DeformableVolumeCore*>	mSleepDeformableVolumes;
+					PxCoalescedHashSet<DeformableVolumeCore*>	mWokeDeformableVolumes;
+
+					PxArray<PxActor*>					mActiveDeformableSurfaceActors;
+					PxArray<PxActor*>					mActiveDeformableVolumeActors;
+
+					LLDeformableSurfacePool*			mLLDeformableSurfacePool;
+					LLDeformableVolumePool*				mLLDeformableVolumePool;
+					LLParticleSystemPool*				mLLParticleSystemPool;
+
+					PxHashMap<PxPair<PxU32, PxU32>, DeformableRigidInteraction> mDeformableRigidInteractionMap;
+
+					bool								mWokeDeformableVolumeListValid;
+					bool								mSleepDeformableVolumeListValid;
+#endif
 	};
 
-	bool	activateInteraction(Sc::Interaction* interaction, void* data);
-	bool	deactivateInteraction(Sc::Interaction* interaction);
+	bool	activateInteraction(Interaction* interaction);
+	void	activateInteractions(Sc::ActorSim& actorSim);
+	void	deactivateInteractions(Sc::ActorSim& actorSim);
 
 } // namespace Sc
 

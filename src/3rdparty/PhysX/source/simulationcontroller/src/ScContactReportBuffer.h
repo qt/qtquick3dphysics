@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,15 +22,13 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
+#ifndef SC_CONTACT_REPORT_BUFFER_H
+#define SC_CONTACT_REPORT_BUFFER_H
 
-#ifndef PX_PHYSICS_SCP_CONTACTREPORTBUFFER
-#define PX_PHYSICS_SCP_CONTACTREPORTBUFFER
-
-#include "foundation/Px.h"
 #include "common/PxProfileZone.h"
 
 namespace physx
@@ -61,8 +58,8 @@ namespace physx
 			PX_FORCE_INLINE void					reset();
 			PX_FORCE_INLINE void					flush();
 
-			PX_FORCE_INLINE PxU8*					allocateNotThreadSafe(PxU32 size, PxU32& index, PxU32 alignment= 16);
-			PX_FORCE_INLINE PxU8*					reallocateNotThreadSafe(PxU32 size, PxU32& index, PxU32 alignment= 16, PxU32 lastIndex = 0xFFFFFFFF);
+			PX_FORCE_INLINE PxU8*					allocateNotThreadSafe(PxU32 size, PxU32& index, PxU32 alignment = 16);
+			PX_FORCE_INLINE PxU8*					reallocateNotThreadSafe(PxU32 size, PxU32& index, PxU32 alignment = 16, PxU32 lastIndex = 0xFFFFFFFF);
 			PX_FORCE_INLINE	PxU8*					getData(const PxU32& index) const { return mBuffer+index; }
 
 			PX_FORCE_INLINE PxU32					getDefaultBufferSize() const {return mDefaultBufferSize;}
@@ -111,7 +108,7 @@ namespace physx
 
 	PxU8* Sc::ContactReportBuffer::allocateNotThreadSafe(PxU32 size, PxU32& index ,PxU32 alignment/* =16 */)
 	{
-		PX_ASSERT(shdfnd::isPowerOfTwo(alignment));
+		PX_ASSERT(PxIsPowerOfTwo(alignment));
 		
 		// padding for alignment
 		PxU32 pad = ((mCurrentBufferIndex+alignment-1)&~(alignment-1)) - mCurrentBufferIndex;
@@ -119,7 +116,7 @@ namespace physx
 		index = mCurrentBufferIndex + pad;
 
 		if (index + size > mCurrentBufferSize)
-		{		
+		{
 			PX_PROFILE_ZONE("ContactReportBuffer::Resize", 0);
 			if(mAllocationLocked)
 				return NULL;
@@ -142,7 +139,7 @@ namespace physx
 		
 		PxU8* ptr = mBuffer + index;
 		mLastBufferIndex = index;
-		PX_ASSERT((reinterpret_cast<size_t>(ptr)&(alignment-1)) == 0);	
+		PX_ASSERT((size_t(ptr)&(alignment-1)) == 0);	
 		mCurrentBufferIndex += size + pad;
 		return ptr;
 	}
@@ -150,7 +147,7 @@ namespace physx
 	//////////////////////////////////////////////////////////////////////////
 
 	PxU8* Sc::ContactReportBuffer::reallocateNotThreadSafe(PxU32 size, PxU32& index ,PxU32 alignment/* =16 */, PxU32 lastIndex)
-	{		
+	{
 		if(lastIndex != mLastBufferIndex)
 		{
 			return allocateNotThreadSafe(size,index,alignment);
@@ -171,4 +168,5 @@ namespace physx
 
 } // namespace physx
 
-#endif // PX_PHYSICS_SCP_CONTACTREPORTBUFFER
+#endif
+

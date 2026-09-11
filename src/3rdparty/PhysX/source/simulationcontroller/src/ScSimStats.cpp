@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -37,6 +36,10 @@ Sc::SimStats::SimStats()
 {
 	numBroadPhaseAdds = numBroadPhaseRemoves = 0;
 
+	gpuMemSizeParticles = 0;
+	gpuMemSizeDeformableSurfaces = 0;
+	gpuMemSizeDeformableVolumes = 0;
+
 	clear();
 }
 
@@ -45,6 +48,8 @@ void Sc::SimStats::clear()
 #if PX_ENABLE_SIM_STATS
 	PxMemZero(const_cast<void*>(reinterpret_cast<volatile void*>(&numTriggerPairs)), sizeof(TriggerPairCounts));
 	numBroadPhaseAddsPending = numBroadPhaseRemovesPending = 0;
+#else
+	PX_CATCH_UNDEFINED_ENABLE_SIM_STATS
 #endif
 }
 
@@ -55,6 +60,8 @@ void Sc::SimStats::simStart()
 	numBroadPhaseAdds = numBroadPhaseAddsPending;
 	numBroadPhaseRemoves = numBroadPhaseRemovesPending;
 	clear();
+#else
+	PX_CATCH_UNDEFINED_ENABLE_SIM_STATS
 #endif
 }
 
@@ -125,7 +132,20 @@ void Sc::SimStats::readOut(PxSimulationStatistics& s, const PxvSimStats& simStat
 	s.nbLostTouches = simStats.mNbLostTouches;
 	s.nbPartitions = simStats.mNbPartitions;
 
+	s.gpuDynamicsMemoryConfigStatistics.tempBufferCapacity = simStats.mGpuDynamicsTempBufferCapacity;
+	s.gpuDynamicsMemoryConfigStatistics.rigidContactCount = simStats.mGpuDynamicsRigidContactCount;
+	s.gpuDynamicsMemoryConfigStatistics.rigidPatchCount = simStats.mGpuDynamicsRigidPatchCount;
+	s.gpuDynamicsMemoryConfigStatistics.foundLostPairs = simStats.mGpuDynamicsFoundLostPairs;
+	s.gpuDynamicsMemoryConfigStatistics.foundLostAggregatePairs = simStats.mGpuDynamicsFoundLostAggregatePairs;
+	s.gpuDynamicsMemoryConfigStatistics.totalAggregatePairs = simStats.mGpuDynamicsTotalAggregatePairs;
+	s.gpuDynamicsMemoryConfigStatistics.deformableSurfaceContacts = simStats.mGpuDynamicsDeformableSurfaceContacts;
+	s.gpuDynamicsMemoryConfigStatistics.deformableVolumeContacts = simStats.mGpuDynamicsDeformableVolumeContacts;
+	s.gpuDynamicsMemoryConfigStatistics.softbodyContacts = simStats.mGpuDynamicsDeformableVolumeContacts; //deprecated
+	s.gpuDynamicsMemoryConfigStatistics.particleContacts = simStats.mGpuDynamicsParticleContacts;
+	s.gpuDynamicsMemoryConfigStatistics.collisionStackSize = simStats.mGpuDynamicsCollisionStackSize;
+
 #else
+	PX_CATCH_UNDEFINED_ENABLE_SIM_STATS
 	PX_UNUSED(s);
 	PX_UNUSED(simStats);
 #endif

@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -40,10 +39,7 @@
 
 using namespace physx;
 using namespace Gu;
-using namespace Cm;
 
-namespace
-{
 // PT: TODO: get rid of this copy
 static const PxVec3 gNearPlaneNormal[] = 
 {
@@ -54,8 +50,6 @@ static const PxVec3 gNearPlaneNormal[] =
 	PxVec3(0.0f, -1.0f, 0.0f),
 	PxVec3(0.0f, 0.0f, -1.0f)
 };
-
-}
 
 bool Gu::sweepBoxSphere(const Box& box, PxReal sphereRadius, const PxVec3& spherePos, const PxVec3& dir, PxReal length, PxReal& min_dist, PxVec3& normal, PxHitFlags hitFlags)
 {
@@ -104,7 +98,7 @@ bool Gu::sweepBoxSphere(const Box& box, PxReal sphereRadius, const PxVec3& spher
 
 	PxVec3 localPt;
 	{
-		Matrix34 M2;
+		PxMat34 M2;
 		buildMatrixFromBox(M2, box);
 
 		localPt = M2.rotateTranspose(spherePos - M2.p);

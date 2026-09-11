@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,18 +22,20 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
 #include "BpBroadPhaseMBP.h"
 #include "BpBroadPhaseShared.h"
-#include "CmRadixSortBuffered.h"
-#include "PsUtilities.h"
-#include "PsFoundation.h"
-#include "PsVecMath.h"
-
-using namespace physx::shdfnd::aos;
+#include "foundation/PxUtilities.h"
+#include "foundation/PxVecMath.h"
+#include "foundation/PxMemory.h"
+#include "foundation/PxBitUtils.h"
+#include "foundation/PxHashSet.h"
+#include "common/PxProfileZone.h"
+#include "CmRadixSort.h"
+#include "CmUtils.h"
 
 //#define CHECK_NB_OVERLAPS
 #define USE_FULLY_INSIDE_FLAG
@@ -44,6 +45,7 @@ using namespace physx::shdfnd::aos;
 #define HWSCAN
 
 using namespace physx;
+using namespace aos;
 using namespace Bp;
 using namespace Cm;
 
@@ -67,10 +69,8 @@ using namespace Cm;
 	}
 
 #define MBP_ALLOC(x)		PX_ALLOC(x, "MBP")
-#define MBP_ALLOC_TMP(x)	PX_ALLOC_TEMP(x, "MBP_TMP")
-#define MBP_FREE(x)			if(x)	PX_FREE_AND_RESET(x)
-#define DELETESINGLE(x)		if (x) { delete x;		x = NULL; }
-#define DELETEARRAY(x)		if (x) { delete []x;	x = NULL; }
+#define MBP_ALLOC_TMP(x)	PX_ALLOC(x, "MBP_TMP")
+#define MBP_FREE(x)			PX_FREE(x)
 
 #define	INVALID_ID	0xffffffff
 
@@ -93,7 +93,7 @@ using namespace Cm;
 namespace internalMBP
 {
 
-struct RegionHandle : public Ps::UserAllocated
+struct RegionHandle : public PxUserAllocated
 {
 	PxU16	mHandle;			// Handle from region
 	PxU16	mInternalBPHandle;	// Index of region data within mRegions
@@ -106,7 +106,7 @@ enum MBPFlags
 };
 
 // We have one of those for each of the "200K" objects so we should optimize this size as much as possible
-struct MBP_Object : public Ps::UserAllocated
+struct MBP_Object : public PxUserAllocated
 {
 	BpHandle	mUserID;		// Handle sent to us by the AABB manager
 	PxU16		mNbHandles;		// Number of regions the object is part of
@@ -122,7 +122,7 @@ struct MBP_Object : public Ps::UserAllocated
 };
 
 // This one is used in each Region
-struct MBPEntry : public Ps::UserAllocated
+struct MBPEntry : public PxUserAllocated
 {
 	PX_FORCE_INLINE	MBPEntry()
 	{
@@ -187,25 +187,25 @@ struct MBPEntry : public Ps::UserAllocated
 		PX_FORCE_INLINE	void			setAll()								{ PxMemSet(mBits, 0xff, mSize*4);						}
 
 		// Data access
-		PX_FORCE_INLINE	Ps::IntBool		isSet(PxU32 bitNumber)			const	{ return Ps::IntBool(mBits[bitNumber>>5] & (1<<(bitNumber&31)));		}
-		PX_FORCE_INLINE	Ps::IntBool		isSetChecked(PxU32 bitNumber)	const
+		PX_FORCE_INLINE	PxIntBool		isSet(PxU32 bitNumber)			const	{ return PxIntBool(mBits[bitNumber>>5] & (1<<(bitNumber&31)));		}
+		PX_FORCE_INLINE	PxIntBool		isSetChecked(PxU32 bitNumber)	const
 										{
 											const PxU32 index = bitNumber>>5;
 											if(index>=mSize)
 												return 0;
-											return Ps::IntBool(mBits[index] & (1<<(bitNumber&31)));
+											return PxIntBool(mBits[index] & (1<<(bitNumber&31)));
 										}
 
 		PX_FORCE_INLINE	const PxU32*	getBits()						const	{ return mBits;											}
 		PX_FORCE_INLINE	PxU32			getSize()						const	{ return mSize;											}
 
-		// PT: replicate Cm::BitMap stuff for temp testing
+		// PT: replicate PxBitMap stuff for temp testing
 						PxU32			findLast()						const
 										{
 											for(PxU32 i = mSize; i-- > 0;)
 											{
 												if(mBits[i])
-													return (i<<5)+Ps::highestSetBit(mBits[i]);
+													return (i<<5)+PxHighestSetBit(mBits[i]);
 											}
 											return PxU32(0); 
 										}
@@ -349,9 +349,7 @@ static PX_FORCE_INLINE void clearBit(BitArray& bitmap, MBP_ObjectIndex objectInd
 
 						const Bp::FilterGroup::Enum*	mGroups;
 						const MBP_Object*				mObjects;
-#ifdef BP_FILTERING_USES_TYPE_IN_GROUP
 						const bool*						mLUT;
-#endif
 	};
 
 	///////////////////////////////////////////////////////////////////////////
@@ -365,9 +363,6 @@ static PX_FORCE_INLINE void clearBit(BitArray& bitmap, MBP_ObjectIndex objectInd
 		void		allocateSleeping(PxU32 nbSleeping, PxU32 nbSentinels);
 		void		allocateUpdated(PxU32 nbUpdated, PxU32 nbSentinels);
 
-		// PT: wtf, why doesn't the 128 version compile?
-//		MBP_AABB	PX_ALIGN(128, mSleepingDynamicBoxes_Stack[STACK_BUFFER_SIZE]);
-//		MBP_AABB	PX_ALIGN(128, mUpdatedDynamicBoxes_Stack[STACK_BUFFER_SIZE]);
 		MBP_AABB	PX_ALIGN(16, mSleepingDynamicBoxes_Stack[STACK_BUFFER_SIZE]);
 		MBP_AABB	PX_ALIGN(16, mUpdatedDynamicBoxes_Stack[STACK_BUFFER_SIZE]);
 		MBP_Index	mInToOut_Dynamic_Sleeping_Stack[STACK_BUFFER_SIZE];
@@ -429,7 +424,7 @@ static PX_FORCE_INLINE void clearBit(BitArray& bitmap, MBP_ObjectIndex objectInd
 		BIP_Input			mBIPInput;
 	};
 
-	class Region : public Ps::UserAllocated
+	class Region : public PxUserAllocated
 	{
 							PX_NOCOPY(Region)
 		public:
@@ -478,76 +473,72 @@ static PX_FORCE_INLINE void clearBit(BitArray& bitmap, MBP_ObjectIndex objectInd
 	///////////////////////////////////////////////////////////////////////////
 
 // We have one of those for each Region within the MBP
-struct RegionData : public Ps::UserAllocated
+struct RegionData : public PxUserAllocated
 {
 	MBP_AABB	mBox;		// Volume of space controlled by this Region
 	Region*		mBP;		// Pointer to Region itself
-	Ps::IntBool	mOverlap;	// True if overlaps other regions
+	PxIntBool	mOverlap;	// True if overlaps other regions
 	void*		mUserData;	// Region identifier, reused to contain "first free ID"
 };
 
 	#define MAX_NB_MBP	256
 //	#define MAX_NB_MBP	16
 
-	class MBP : public Ps::UserAllocated
+	class MBP : public PxUserAllocated
 	{
 		public:
-												MBP();
-												~MBP();
+											MBP();
+											~MBP();
 
-						void					preallocate(PxU32 nbRegions, PxU32 nbObjects, PxU32 maxNbOverlaps);
-						void					reset();
-						void					freeBuffers();
+						void				preallocate(PxU32 nbRegions, PxU32 nbObjects, PxU32 maxNbOverlaps);
+						void				reset();
+						void				freeBuffers();
 
-						PxU32					addRegion(const PxBroadPhaseRegion& region, bool populateRegion, const PxBounds3* boundsArray, const PxReal* contactDistance);
-						bool					removeRegion(PxU32 handle);
-						const Region*			getRegion(PxU32 i)		const;
-		PX_FORCE_INLINE	PxU32					getNbRegions()			const	{ return mNbRegions;	}
+						PxU32				addRegion(const PxBroadPhaseRegion& region, bool populateRegion, const PxBounds3* boundsArray, const PxReal* contactDistance);
+						bool				removeRegion(PxU32 handle);
+						const Region*		getRegion(PxU32 i)		const;
+		PX_FORCE_INLINE	PxU32				getNbRegions()			const	{ return mNbRegions;	}
 
-						MBP_Handle				addObject(const MBP_AABB& box, BpHandle userID, bool isStatic);
-						bool					removeObject(MBP_Handle handle);
-						bool					updateObject(MBP_Handle handle, const MBP_AABB& box);
-						bool					updateObjectAfterRegionRemoval(MBP_Handle handle, Region* removedRegion);
-						bool					updateObjectAfterNewRegionAdded(MBP_Handle handle, const MBP_AABB& box, Region* addedRegion, PxU32 regionIndex);
-						void					prepareOverlaps();
-						void					findOverlaps(const Bp::FilterGroup::Enum* PX_RESTRICT groups
-#ifdef BP_FILTERING_USES_TYPE_IN_GROUP
-	, const bool* PX_RESTRICT lut
-#endif
-							);
-						PxU32					finalize(BroadPhaseMBP* mbp);
-						void					shiftOrigin(const PxVec3& shift, const PxBounds3* boundsArray, const PxReal* contactDistances);
+						MBP_Handle			addObject(const MBP_AABB& box, BpHandle userID, bool isStatic);
+						bool				removeObject(MBP_Handle handle);
+						bool				updateObject(MBP_Handle handle, const MBP_AABB& box);
+						bool				updateObjectAfterRegionRemoval(MBP_Handle handle, Region* removedRegion);
+						bool				updateObjectAfterNewRegionAdded(MBP_Handle handle, const MBP_AABB& box, Region* addedRegion, PxU32 regionIndex);
+						void				prepareOverlaps();
+						void				findOverlaps(const Bp::FilterGroup::Enum* PX_RESTRICT groups, const bool* PX_RESTRICT lut);
+						PxU32				finalize(BroadPhaseMBP* mbp);
+						void				shiftOrigin(const PxVec3& shift, const PxBounds3* boundsArray, const PxReal* contactDistances);
 
 //		private:
-						PxU32					mNbRegions;
-						MBP_ObjectIndex			mFirstFreeIndex;	// First free recycled index for mMBP_Objects
-						PxU32					mFirstFreeIndexBP;	// First free recycled index for mRegions
-						Ps::Array<RegionData>	mRegions;
-						Ps::Array<MBP_Object>	mMBP_Objects;
-						MBP_PairManager			mPairManager;
+						PxU32				mNbRegions;
+						MBP_ObjectIndex		mFirstFreeIndex;	// First free recycled index for mMBP_Objects
+						PxU32				mFirstFreeIndexBP;	// First free recycled index for mRegions
+						PxArray<RegionData>	mRegions;
+						PxArray<MBP_Object>	mMBP_Objects;
+						MBP_PairManager		mPairManager;
 
-						BitArray				mUpdatedObjects;	// Indexed by MBP_ObjectIndex
-						BitArray				mRemoved;			// Indexed by MBP_ObjectIndex
-						Ps::Array<PxU32>   		mHandles[MAX_NB_MBP+1];
-						PxU32					mFirstFree[MAX_NB_MBP+1];
-		PX_FORCE_INLINE	RegionHandle*			getHandles(MBP_Object& currentObject, PxU32 nbHandles);
-						void					purgeHandles(MBP_Object* PX_RESTRICT object, PxU32 nbHandles);
-						void					storeHandles(MBP_Object* PX_RESTRICT object, PxU32 nbHandles, const RegionHandle* PX_RESTRICT handles);
+						BitArray			mUpdatedObjects;	// Indexed by MBP_ObjectIndex
+						BitArray			mRemoved;			// Indexed by MBP_ObjectIndex
+						PxArray<PxU32>   	mHandles[MAX_NB_MBP+1];
+						PxU32				mFirstFree[MAX_NB_MBP+1];
+		PX_FORCE_INLINE	RegionHandle*		getHandles(MBP_Object& currentObject, PxU32 nbHandles);
+						void				purgeHandles(MBP_Object* PX_RESTRICT object, PxU32 nbHandles);
+						void				storeHandles(MBP_Object* PX_RESTRICT object, PxU32 nbHandles, const RegionHandle* PX_RESTRICT handles);
 
-						Ps::Array<PxU32>		mOutOfBoundsObjects;	// These are BpHandle but the BP interface expects PxU32s
-						void					addToOutOfBoundsArray(BpHandle id);
+						PxArray<PxU32>		mOutOfBoundsObjects;	// These are BpHandle but the BP interface expects PxU32s
+						void				addToOutOfBoundsArray(BpHandle id);
 
 #ifdef USE_FULLY_INSIDE_FLAG
-						BitArray				mFullyInsideBitmap;	// Indexed by MBP_ObjectIndex
+						BitArray			mFullyInsideBitmap;	// Indexed by MBP_ObjectIndex
 #endif
-						void					populateNewRegion(const MBP_AABB& box, Region* addedRegion, PxU32 regionIndex, const PxBounds3* boundsArray, const PxReal* contactDistance);
+						void				populateNewRegion(const MBP_AABB& box, Region* addedRegion, PxU32 regionIndex, const PxBounds3* boundsArray, const PxReal* contactDistance);
 
 #ifdef MBP_REGION_BOX_PRUNING
-						void					buildRegionData();
-						MBP_AABB				mSortedRegionBoxes[MAX_NB_MBP];
-						PxU32					mSortedRegionIndices[MAX_NB_MBP];
-						PxU32					mNbActiveRegions;
-						bool					mDirtyRegions;
+						void				buildRegionData();
+						MBP_AABB			mSortedRegionBoxes[MAX_NB_MBP];
+						PxU32				mSortedRegionIndices[MAX_NB_MBP];
+						PxU32				mNbActiveRegions;
+						bool				mDirtyRegions;
 #endif
 	};
 
@@ -593,10 +584,8 @@ using namespace internalMBP;
 
 MBP_PairManager::MBP_PairManager() :
 	mGroups			(NULL),
-	mObjects		(NULL)
-#ifdef BP_FILTERING_USES_TYPE_IN_GROUP
-	,mLUT			(NULL)
-#endif
+	mObjects		(NULL),
+	mLUT			(NULL)
 {
 }
 
@@ -622,11 +611,7 @@ InternalPair* MBP_PairManager::addPair(PxU32 id0, PxU32 id1)
 		const BpHandle object0 = mObjects[index0].mUserID;
 		const BpHandle object1 = mObjects[index1].mUserID;
 
-#ifdef BP_FILTERING_USES_TYPE_IN_GROUP
 		if(!groupFiltering(mGroups[object0], mGroups[object1], mLUT))
-#else
-		if(!groupFiltering(mGroups[object0], mGroups[object1]))
-#endif
 			return NULL;
 	}
 
@@ -709,12 +694,12 @@ Region::Region() :
 
 Region::~Region()
 {
-	DELETEARRAY(mObjects);
+	PX_DELETE_ARRAY(mObjects);
 	MBP_FREE(mPosList);
 	MBP_FREE(mInToOut_Dynamic);
 	MBP_FREE(mInToOut_Static);
-	DELETEARRAY(mDynamicBoxes);
-	DELETEARRAY(mStaticBoxes);
+	PX_DELETE_ARRAY(mDynamicBoxes);
+	PX_DELETE_ARRAY(mStaticBoxes);
 }
 
 // Pre-sort static boxes
@@ -853,7 +838,7 @@ void Region::staticSort()
 	if(tempMemory!=stackBuffer)
 		MBP_FREE(tempMemory);
 
-	DELETEARRAY(mStaticBoxes);
+	PX_DELETE_ARRAY(mStaticBoxes);
 	mStaticBoxes = sortedBoxes;
 
 	MBP_FREE(mInToOut_Static);
@@ -881,7 +866,7 @@ void Region::resizeObjects()
 	for(PxU32 i=mNbObjects;i<newMaxNbOjects;i++)
 		newObjects[i].mUpdated = false;
 #endif
-	DELETEARRAY(mObjects);
+	PX_DELETE_ARRAY(mObjects);
 	mObjects = newObjects;
 	mMaxNbObjects = newMaxNbOjects;
 }
@@ -891,7 +876,7 @@ static MBP_AABB* resizeBoxes(PxU32 oldNbBoxes, PxU32 newNbBoxes, const MBP_AABB*
 	MBP_AABB* newBoxes = PX_NEW(MBP_AABB)[newNbBoxes];
 	if(oldNbBoxes)
 		PxMemCopy(newBoxes, boxes, oldNbBoxes*sizeof(MBP_AABB));
-	DELETEARRAY(boxes);
+	PX_DELETE_ARRAY(boxes);
 	return newBoxes;
 }
 
@@ -1156,7 +1141,7 @@ void Region::setBounds(MBP_Index handle, const MBP_AABB& bounds)
 }
 
 #ifndef MBP_SIMD_OVERLAP
-static PX_FORCE_INLINE Ps::IntBool intersect2D(const MBP_AABB& a, const MBP_AABB& b)
+static PX_FORCE_INLINE PxIntBool intersect2D(const MBP_AABB& a, const MBP_AABB& b)
 {
 #ifdef MBP_USE_NO_CMP_OVERLAP
 		// PT: warning, only valid with the special encoding in InitFrom2
@@ -1239,10 +1224,10 @@ MBPOS_TmpBuffers::~MBPOS_TmpBuffers()
 		MBP_FREE(mInToOut_Dynamic_Sleeping);
 
 	if(mSleepingDynamicBoxes!=mSleepingDynamicBoxes_Stack)
-		DELETEARRAY(mSleepingDynamicBoxes);
+		PX_DELETE_ARRAY(mSleepingDynamicBoxes);
 
 	if(mUpdatedDynamicBoxes!=mUpdatedDynamicBoxes_Stack)
-		DELETEARRAY(mUpdatedDynamicBoxes);
+		PX_DELETE_ARRAY(mUpdatedDynamicBoxes);
 
 	mNbSleeping = 0;
 	mNbUpdated = 0;
@@ -1255,7 +1240,7 @@ void MBPOS_TmpBuffers::allocateSleeping(PxU32 nbSleeping, PxU32 nbSentinels)
 		if(mInToOut_Dynamic_Sleeping!=mInToOut_Dynamic_Sleeping_Stack)
 			MBP_FREE(mInToOut_Dynamic_Sleeping);
 		if(mSleepingDynamicBoxes!=mSleepingDynamicBoxes_Stack)
-			DELETEARRAY(mSleepingDynamicBoxes);
+			PX_DELETE_ARRAY(mSleepingDynamicBoxes);
 
 		if(nbSleeping+nbSentinels<=STACK_BUFFER_SIZE)
 		{
@@ -1264,7 +1249,7 @@ void MBPOS_TmpBuffers::allocateSleeping(PxU32 nbSleeping, PxU32 nbSentinels)
 		}
 		else
 		{
-			mSleepingDynamicBoxes = PX_NEW_TEMP(MBP_AABB)[nbSleeping+nbSentinels];
+			mSleepingDynamicBoxes = PX_NEW(MBP_AABB)[nbSleeping+nbSentinels];
 			mInToOut_Dynamic_Sleeping = reinterpret_cast<MBP_Index*>(MBP_ALLOC(sizeof(MBP_Index)*nbSleeping));
 		}
 		mNbSleeping = nbSleeping;
@@ -1276,12 +1261,12 @@ void MBPOS_TmpBuffers::allocateUpdated(PxU32 nbUpdated, PxU32 nbSentinels)
 	if(nbUpdated>mNbUpdated)
 	{
 		if(mUpdatedDynamicBoxes!=mUpdatedDynamicBoxes_Stack)
-			DELETEARRAY(mUpdatedDynamicBoxes);
+			PX_DELETE_ARRAY(mUpdatedDynamicBoxes);
 
 		if(nbUpdated+nbSentinels<=STACK_BUFFER_SIZE)
 			mUpdatedDynamicBoxes = mUpdatedDynamicBoxes_Stack;
 		else
-			mUpdatedDynamicBoxes = PX_NEW_TEMP(MBP_AABB)[nbUpdated+nbSentinels];
+			mUpdatedDynamicBoxes = PX_NEW(MBP_AABB)[nbUpdated+nbSentinels];
 
 		mNbUpdated = nbUpdated;
 	}
@@ -1344,7 +1329,7 @@ mNbUpdatedBoxes = 0;
 				posList[j] = dynamicBoxes[j].mMinX;
 			}
 		}
-#if PX_DEBUG
+#if PX_ENABLE_ASSERTS
 		else
 		{
 			for(PxU32 i=0;i<nbNonUpdated;i++)
@@ -1937,13 +1922,14 @@ void MBP::populateNewRegion(const MBP_AABB& box, Region* addedRegion, PxU32 regi
 	PxU32 nbObjectsTested = 0;
 #endif
 
+	// PT: ### bitmap iterator pattern
 	for(PxU32 w = 0; w <= lastSetBit >> 5; ++w)
 //	for(PxU64 w = 0; w <= lastSetBit >> 6; ++w)
 	{
 		for(PxU32 b = fullyInsideFlags[w]; b; b &= b-1)
 //		for(PxU64 b = fullyInsideFlags[w]; b; b &= b-1)
 		{
-			const PxU32 index = PxU32(w<<5|Ps::lowestSetBit(b));
+			const PxU32 index = PxU32(w<<5|PxLowestSetBit(b));
 //			const PxU64 index = (PxU64)(w<<6|::lowestSetBitUnsafe64(b));
 			PX_ASSERT(index<nbObjects);
 
@@ -2026,12 +2012,12 @@ void MBP::populateNewRegion(const MBP_AABB& box, Region* addedRegion, PxU32 regi
 	PxU32 nbObjectsTested = 0;
 #endif
 
-	Cm::BitMap bm;
+	PxBitMap bm;
 	bm.importData(mFullyInsideBitmap.getSize(), (PxU32*)fullyInsideFlags);
 
-	Cm::BitMap::Iterator it(bm);
+	PxBitMap::Iterator it(bm);
 	PxU32 index = it.getNext();
-	while(index != Cm::BitMap::Iterator::DONE)
+	while(index != PxBitMap::Iterator::DONE)
 	{
 		PX_ASSERT(index<nbObjects);
 
@@ -2110,7 +2096,7 @@ PxU32 MBP::addRegion(const PxBroadPhaseRegion& region, bool populateRegion, cons
 	{
 		if(mNbRegions>=MAX_NB_MBP)
 		{
-			Ps::getFoundation().error(PxErrorCode::eOUT_OF_MEMORY, __FILE__, __LINE__, "MBP::addRegion: max number of regions reached.");
+			PxGetFoundation().error(PxErrorCode::eOUT_OF_MEMORY, PX_FL, "MBP::addRegion: max number of regions reached.");
 			return INVALID_ID;
 		}
 
@@ -2119,9 +2105,9 @@ PxU32 MBP::addRegion(const PxBroadPhaseRegion& region, bool populateRegion, cons
 	}
 
 	Region* newRegion = PX_NEW(Region);
-	buffer->mBox.initFrom2(region.bounds);
+	buffer->mBox.initFrom2(region.mBounds);
 	buffer->mBP			= newRegion;
-	buffer->mUserData	= region.userData;
+	buffer->mUserData	= region.mUserData;
 
 	setupOverlapFlags(mNbRegions, mRegions.begin());
 
@@ -2143,7 +2129,7 @@ bool MBP::removeRegion(PxU32 handle)
 {
 	if(handle>=mNbRegions)
 	{
-		Ps::getFoundation().error(PxErrorCode::eINVALID_PARAMETER, __FILE__, __LINE__, "MBP::removeRegion: invalid handle.");
+		PxGetFoundation().error(PxErrorCode::eINVALID_PARAMETER, PX_FL, "MBP::removeRegion: invalid handle.");
 		return false;
 	}
 
@@ -2153,7 +2139,7 @@ bool MBP::removeRegion(PxU32 handle)
 	Region* bp = region->mBP;
 	if(!bp)
 	{
-		Ps::getFoundation().error(PxErrorCode::eINVALID_PARAMETER, __FILE__, __LINE__, "MBP::removeRegion: invalid handle.");
+		PxGetFoundation().error(PxErrorCode::eINVALID_PARAMETER, PX_FL, "MBP::removeRegion: invalid handle.");
 		return false;
 	}
 
@@ -2245,9 +2231,11 @@ PX_FORCE_INLINE RegionHandle* MBP::getHandles(MBP_Object& currentObject, PxU32 n
 		handles = &currentObject.mHandle;
 	else
 	{
+		if(!nbHandles)
+			return NULL;
 		const PxU32 handlesIndex = currentObject.mHandlesIndex;
-		Ps::Array<PxU32>& c = mHandles[nbHandles];
-		handles = reinterpret_cast<RegionHandle*>(c.begin()+handlesIndex);
+		PxArray<PxU32>& c = mHandles[nbHandles];
+		handles = reinterpret_cast<RegionHandle*>(c.begin() + handlesIndex);
 	}
 	return handles;
 }
@@ -2257,7 +2245,7 @@ void MBP::purgeHandles(MBP_Object* PX_RESTRICT object, PxU32 nbHandles)
 	if(nbHandles>1)
 	{
 		const PxU32 handlesIndex = object->mHandlesIndex;
-		Ps::Array<PxU32>& c = mHandles[nbHandles];
+		PxArray<PxU32>& c = mHandles[nbHandles];
 		PxU32* recycled = c.begin() + handlesIndex;
 		*recycled = mFirstFree[nbHandles];
 		mFirstFree[nbHandles] = handlesIndex;
@@ -2272,7 +2260,7 @@ void MBP::storeHandles(MBP_Object* PX_RESTRICT object, PxU32 nbHandles, const Re
 	}
 	else if(nbHandles)
 	{
-		Ps::Array<PxU32>& c = mHandles[nbHandles];
+		PxArray<PxU32>& c = mHandles[nbHandles];
 		const PxU32 firstFree = mFirstFree[nbHandles];
 		PxU32* handlesMemory;
 		if(firstFree!=INVALID_ID)
@@ -2359,19 +2347,19 @@ MBP_Handle MBP::addObject(const MBP_AABB& box, BpHandle userID, bool isStatic)
 #endif
 #ifdef MBP_USE_WORDS
 			if(regions[i].mBP->mNbObjects==0xffff)
-				Ps::getFoundation().error(PxErrorCode::eINTERNAL_ERROR, __FILE__, __LINE__, "MBP::addObject: 64K objects in single region reached. Some collisions might be lost.");
+				PxGetFoundation().error(PxErrorCode::eINTERNAL_ERROR, PX_FL, "MBP::addObject: 64K objects in single region reached. Some collisions might be lost.");
 			else
 #endif
 			{
 				RegionHandle& h = tmpHandles[nbHandles++];
 				h.mHandle = regions[i].mBP->addObject(box, MBPObjectHandle, isStatic);
-				h.mInternalBPHandle = Ps::to16(i);
+				h.mInternalBPHandle = PxTo16(i);
 			}
 		}
 	}
 	storeHandles(objectMemory, nbHandles, tmpHandles);
 
-	objectMemory->mNbHandles	= Ps::to16(nbHandles);
+	objectMemory->mNbHandles	= PxTo16(nbHandles);
 	PxU16 flags = 0;
 	if(flipFlop)
 		flags |= MBP_FLIP_FLOP;
@@ -2559,8 +2547,8 @@ bool MBP::updateObject(MBP_Handle handle, const MBP_AABB& box)
 //			continue;
 		const PxU32 regionIndex = currentOverlaps[i];
 		const MBP_Index BPHandle = regions[regionIndex].mBP->addObject(box, handle, isStatic!=0);
-		newHandles[nbNewHandles].mHandle = Ps::to16(BPHandle);
-		newHandles[nbNewHandles].mInternalBPHandle = Ps::to16(regionIndex);
+		newHandles[nbNewHandles].mHandle = PxTo16(BPHandle);
+		newHandles[nbNewHandles].mInternalBPHandle = PxTo16(regionIndex);
 		nbNewHandles++;
 	}
 
@@ -2575,7 +2563,7 @@ bool MBP::updateObject(MBP_Handle handle, const MBP_AABB& box)
 		storeHandles(&currentObject, nbNewHandles, newHandles);
 	}
 
-	currentObject.mNbHandles = Ps::to16(nbNewHandles);
+	currentObject.mNbHandles = PxTo16(nbNewHandles);
 	if(!nbNewHandles && nbHandles)
 	{
 		currentObject.mHandlesIndex = handle;
@@ -2642,7 +2630,7 @@ bool MBP::updateObjectAfterRegionRemoval(MBP_Handle handle, Region* removedRegio
 	purgeHandles(&currentObject, nbHandles);
 	storeHandles(&currentObject, nbNewHandles, newHandles);
 
-	currentObject.mNbHandles = Ps::to16(nbNewHandles);
+	currentObject.mNbHandles = PxTo16(nbNewHandles);
 	if(!nbNewHandles)
 	{
 		currentObject.mHandlesIndex = handle;
@@ -2700,11 +2688,12 @@ bool MBP::updateObjectAfterNewRegionAdded(MBP_Handle handle, const MBP_AABB& box
 #if PX_DEBUG
 		const RegionData* PX_RESTRICT regions = mRegions.begin();
 		const RegionData& currentRegion = regions[regionIndex];
+		PX_UNUSED(currentRegion);
 		PX_ASSERT(currentRegion.mBox.intersects(box));
 #endif
 		const MBP_Index BPHandle = addedRegion->addObject(box, handle, isStatic!=0);
-		newHandles[nbNewHandles].mHandle = Ps::to16(BPHandle);
-		newHandles[nbNewHandles].mInternalBPHandle = Ps::to16(regionIndex);
+		newHandles[nbNewHandles].mHandle = PxTo16(BPHandle);
+		newHandles[nbNewHandles].mInternalBPHandle = PxTo16(regionIndex);
 		nbNewHandles++;
 	}
 
@@ -2712,7 +2701,7 @@ bool MBP::updateObjectAfterNewRegionAdded(MBP_Handle handle, const MBP_AABB& box
 	purgeHandles(&currentObject, nbHandles);
 	storeHandles(&currentObject, nbNewHandles, newHandles);
 
-	currentObject.mNbHandles = Ps::to16(nbNewHandles);
+	currentObject.mNbHandles = PxTo16(nbNewHandles);
 
 	// PT: we know that we have at least one handle (from the newly added region), so we can't be "out of bounds" here.
 	PX_ASSERT(nbNewHandles);
@@ -2823,11 +2812,7 @@ void MBP::prepareOverlaps()
 	}
 }
 
-void MBP::findOverlaps(const Bp::FilterGroup::Enum* PX_RESTRICT groups
-#ifdef BP_FILTERING_USES_TYPE_IN_GROUP
-	, const bool* PX_RESTRICT lut
-#endif
-	)
+void MBP::findOverlaps(const Bp::FilterGroup::Enum* PX_RESTRICT groups, const bool* PX_RESTRICT lut)
 {
 	PxU32 nb = mNbRegions;
 	const RegionData* PX_RESTRICT regions = mRegions.begin();
@@ -2835,9 +2820,7 @@ void MBP::findOverlaps(const Bp::FilterGroup::Enum* PX_RESTRICT groups
 
 	mPairManager.mObjects = objects;
 	mPairManager.mGroups = groups;
-#ifdef BP_FILTERING_USES_TYPE_IN_GROUP
 	mPairManager.mLUT = lut;
-#endif
 
 	for(PxU32 i=0;i<nb;i++)
 	{
@@ -2863,7 +2846,7 @@ void MBP::reset()
 	while(nb--)
 	{
 //		printf("%d objects in region\n", regions->mBP->mNbObjects);
-		DELETESINGLE(regions->mBP);
+		PX_DELETE(regions->mBP);
 		regions++;
 	}
 
@@ -2951,16 +2934,13 @@ BroadPhaseMBP::BroadPhaseMBP(	PxU32 maxNbRegions,
 								PxU32 maxNbStaticShapes,
 								PxU32 maxNbDynamicShapes,
 								PxU64 contextID) :
-	mMBPUpdateWorkTask		(contextID),
-	mMBPPostUpdateWorkTask	(contextID),
-	mMapping				(NULL),
-	mCapacity				(0),
-	mGroups					(NULL)
-#ifdef BP_FILTERING_USES_TYPE_IN_GROUP
-	,mLUT					(NULL)
-#endif
+	mMapping	(NULL),
+	mCapacity	(0),
+	mGroups		(NULL),
+	mFilter		(NULL),
+	mContextID	(contextID)
 {
-	mMBP = PX_NEW(MBP)();
+	mMBP = PX_NEW(MBP);
 
 	const PxU32 nbObjects = maxNbStaticShapes + maxNbDynamicShapes;
 	mMBP->preallocate(maxNbRegions, nbObjects, maxNbBroadPhaseOverlaps);
@@ -2974,7 +2954,7 @@ BroadPhaseMBP::BroadPhaseMBP(	PxU32 maxNbRegions,
 
 BroadPhaseMBP::~BroadPhaseMBP()
 {
-	DELETESINGLE(mMBP);
+	PX_DELETE(mMBP);
 	PX_FREE(mMapping);
 }
 
@@ -2991,12 +2971,9 @@ void BroadPhaseMBP::allocateMappingArray(PxU32 newCapacity)
 	mCapacity = newCapacity;
 }
 
-bool BroadPhaseMBP::getCaps(PxBroadPhaseCaps& caps) const
+void BroadPhaseMBP::getCaps(PxBroadPhaseCaps& caps) const
 {
-	caps.maxNbRegions			= 256;
-	caps.maxNbObjects			= 0;
-	caps.needsPredefinedBounds	= true;
-	return true;
+	caps.mMaxNbRegions	= 256;
 }
 
 PxU32 BroadPhaseMBP::getNbRegions() const
@@ -3025,24 +3002,24 @@ PxU32 BroadPhaseMBP::getRegions(PxBroadPhaseRegionInfo* userBuffer, PxU32 buffer
 	for(PxU32 i=0;i<writeCount;i++)
 	{
 		const MBP_AABB& box = regions[i].mBox;
-		box.decode(userBuffer[i].region.bounds);
+		box.decode(userBuffer[i].mRegion.mBounds);
 		if(regions[i].mBP)
 		{
-			PX_ASSERT(userBuffer[i].region.bounds.isValid());
-			userBuffer[i].region.userData	= regions[i].mUserData;
-			userBuffer[i].active			= true;
-			userBuffer[i].overlap			= regions[i].mOverlap!=0;
-			userBuffer[i].nbStaticObjects	= regions[i].mBP->mNbStaticBoxes;
-			userBuffer[i].nbDynamicObjects	= regions[i].mBP->mNbDynamicBoxes;
+			PX_ASSERT(userBuffer[i].mRegion.mBounds.isValid());
+			userBuffer[i].mRegion.mUserData	= regions[i].mUserData;
+			userBuffer[i].mActive			= true;
+			userBuffer[i].mOverlap			= regions[i].mOverlap!=0;
+			userBuffer[i].mNbStaticObjects	= regions[i].mBP->mNbStaticBoxes;
+			userBuffer[i].mNbDynamicObjects	= regions[i].mBP->mNbDynamicBoxes;
 		}
 		else
 		{
-			userBuffer[i].region.bounds.setEmpty();
-			userBuffer[i].region.userData	= NULL;
-			userBuffer[i].active			= false;
-			userBuffer[i].overlap			= false;
-			userBuffer[i].nbStaticObjects	= 0;
-			userBuffer[i].nbDynamicObjects	= 0;
+			userBuffer[i].mRegion.mBounds.setEmpty();
+			userBuffer[i].mRegion.mUserData	= NULL;
+			userBuffer[i].mActive			= false;
+			userBuffer[i].mOverlap			= false;
+			userBuffer[i].mNbStaticObjects	= 0;
+			userBuffer[i].mNbDynamicObjects	= 0;
 		}
 	}
 	return writeCount;
@@ -3058,40 +3035,10 @@ bool BroadPhaseMBP::removeRegion(PxU32 handle)
 	return mMBP->removeRegion(handle);
 }
 
-void BroadPhaseMBP::update(const PxU32 numCpuTasks, PxcScratchAllocator* scratchAllocator, const BroadPhaseUpdateData& updateData, physx::PxBaseTask* continuation, physx::PxBaseTask* narrowPhaseUnblockTask)
+void BroadPhaseMBP::update(PxcScratchAllocator* /*scratchAllocator*/, const BroadPhaseUpdateData& updateData, physx::PxBaseTask* /*continuation*/)
 {
-#if PX_CHECKED
-	PX_CHECK_AND_RETURN(scratchAllocator, "BroadPhaseMBP::update - scratchAllocator must be non-NULL \n");
-#endif
-
-	// PT: TODO: move this out of update function
-	if(narrowPhaseUnblockTask)
-		narrowPhaseUnblockTask->removeReference();
-
 	setUpdateData(updateData);
 
-	if(1)
-	{
-		update();
-		postUpdate();
-	}
-	else
-	{
-		mMBPPostUpdateWorkTask.set(this, scratchAllocator, numCpuTasks);
-		mMBPUpdateWorkTask.set(this, scratchAllocator, numCpuTasks);
-
-		mMBPPostUpdateWorkTask.setContinuation(continuation);
-		mMBPUpdateWorkTask.setContinuation(&mMBPPostUpdateWorkTask);
-
-		mMBPPostUpdateWorkTask.removeReference();
-		mMBPUpdateWorkTask.removeReference();
-	}
-}
-
-void BroadPhaseMBP::singleThreadedUpdate(PxcScratchAllocator* /*scratchAllocator*/, const BroadPhaseUpdateData& updateData)
-{
-	// PT: TODO: the scratchAllocator isn't actually needed, is it?
-	setUpdateData(updateData);
 	update();
 	postUpdate();
 }
@@ -3155,16 +3102,6 @@ static PX_FORCE_INLINE void computeMBPBounds(MBP_AABB& aabb, const PxBounds3* PX
 	PX_ASSERT(PrunerBox.mMaxY==aabb.mMaxY);
 	PX_ASSERT(PrunerBox.mMaxZ==aabb.mMaxZ);
 #endif*/
-}
-
-void MBPUpdateWorkTask::runInternal()
-{
-	mMBP->update();
-}
-
-void MBPPostUpdateWorkTask::runInternal()
-{
-	mMBP->postUpdate();
 }
 
 void BroadPhaseMBP::removeObjects(const BroadPhaseUpdateData& updateData)
@@ -3236,6 +3173,8 @@ void BroadPhaseMBP::addObjects(const BroadPhaseUpdateData& updateData)
 
 void BroadPhaseMBP::setUpdateData(const BroadPhaseUpdateData& updateData)
 {
+	PX_PROFILE_ZONE("BroadPhaseMBP::setUpdateData", mContextID);
+
 //	mMBP->setTransientBounds(updateData.getAABBs(), updateData.getContactDistance());
 
 	const PxU32 newCapacity = updateData.getCapacity();
@@ -3244,17 +3183,12 @@ void BroadPhaseMBP::setUpdateData(const BroadPhaseUpdateData& updateData)
 
 #if PX_CHECKED
 	// PT: WARNING: this must be done after the allocateMappingArray call
-	if(!BroadPhaseUpdateData::isValid(updateData, *this))
-	{
-		PX_CHECK_MSG(false, "Illegal BroadPhaseUpdateData \n");
+	if(updateData.isValid(mContextID, this) != BroadPhaseUpdateError::eNO_ERROR)
 		return;
-	}
 #endif
 
 	mGroups = updateData.getGroups();
-#ifdef BP_FILTERING_USES_TYPE_IN_GROUP
-	mLUT = updateData.getLUT();
-#endif
+	mFilter = &updateData.getFilter();
 
 	// ### TODO: handle groups inside MBP
 	// ### TODO: get rid of AABB conversions
@@ -3274,11 +3208,7 @@ void BroadPhaseMBP::update()
 #ifdef CHECK_NB_OVERLAPS
 	gNbOverlaps = 0;
 #endif
-	mMBP->findOverlaps(mGroups
-#ifdef BP_FILTERING_USES_TYPE_IN_GROUP
-	, mLUT
-#endif
-		);
+	mMBP->findOverlaps(mGroups, mFilter->getLUT());
 #ifdef CHECK_NB_OVERLAPS
 	printf("PPU: %d overlaps\n", gNbOverlaps);
 #endif
@@ -3299,23 +3229,15 @@ void BroadPhaseMBP::postUpdate()
 	mMBP->finalize(this);
 }
 
-PxU32 BroadPhaseMBP::getNbCreatedPairs() const
+const BroadPhasePair* BroadPhaseMBP::getCreatedPairs(PxU32& nbCreatedPairs) const
 {
-	return mCreated.size();
-}
-
-BroadPhasePair* BroadPhaseMBP::getCreatedPairs()
-{
+	nbCreatedPairs = mCreated.size();
 	return mCreated.begin();
 }
 
-PxU32 BroadPhaseMBP::getNbDeletedPairs() const
+const BroadPhasePair* BroadPhaseMBP::getDeletedPairs(PxU32& nbDeletedPairs) const
 {
-	return mDeleted.size();
-}
-
-BroadPhasePair* BroadPhaseMBP::getDeletedPairs()
-{
+	nbDeletedPairs = mDeleted.size();
 	return mDeleted.begin();
 }
 
@@ -3329,7 +3251,7 @@ const PxU32* BroadPhaseMBP::getOutOfBoundsObjects() const
 	return mMBP->mOutOfBoundsObjects.begin();
 }
 
-static void freeBuffer(Ps::Array<BroadPhasePair>& buffer)
+static void freeBuffer(PxArray<BroadPhasePair>& buffer)
 {
 	const PxU32 size = buffer.size();
 	if(size>DEFAULT_CREATED_DELETED_PAIRS_CAPACITY)
@@ -3351,12 +3273,12 @@ void BroadPhaseMBP::freeBuffers()
 }
 
 #if PX_CHECKED
-bool BroadPhaseMBP::isValid(const BroadPhaseUpdateData& updateData) const
+BroadPhaseUpdateError::Enum BroadPhaseMBP::isValid(const BroadPhaseUpdateData& updateData) const
 {
 	const BpHandle* created = updateData.getCreatedHandles();
 	if(created)
 	{
-		Ps::HashSet<BpHandle> set;
+		PxHashSet<BpHandle> set;
 		PxU32 nbObjects = mMBP->mMBP_Objects.size();
 		const MBP_Object* PX_RESTRICT objects = mMBP->mMBP_Objects.begin();
 		while(nbObjects--)
@@ -3373,7 +3295,7 @@ bool BroadPhaseMBP::isValid(const BroadPhaseUpdateData& updateData) const
 			PX_ASSERT(index<mCapacity);
 
 			if(set.contains(index))
-				return false;	// This object has been added already
+				return BroadPhaseUpdateError::eALREADY_ADDED;	// This object has been added already
 		}
 	}
 
@@ -3387,7 +3309,7 @@ bool BroadPhaseMBP::isValid(const BroadPhaseUpdateData& updateData) const
 			PX_ASSERT(index<mCapacity);
 
 			if(mMapping[index]==PX_INVALID_U32)
-				return false;	// This object has been removed already, or never been added
+				return BroadPhaseUpdateError::eNOT_IN_DATABASE;	// This object has been removed already, or never been added
 		}
 	}
 
@@ -3401,10 +3323,10 @@ bool BroadPhaseMBP::isValid(const BroadPhaseUpdateData& updateData) const
 			PX_ASSERT(index<mCapacity);
 
 			if(mMapping[index]==PX_INVALID_U32)
-				return false;	// This object has been removed already, or never been added
+				return BroadPhaseUpdateError::eALREADY_REMOVED;	// This object has been removed already, or never been added
 		}
 	}
-	return true;
+	return BroadPhaseUpdateError::eNO_ERROR;
 }
 #endif
 

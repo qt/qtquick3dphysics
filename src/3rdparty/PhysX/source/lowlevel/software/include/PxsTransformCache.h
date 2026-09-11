@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,80 +22,68 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
 #ifndef PXS_TRANSFORM_CACHE_H
 #define PXS_TRANSFORM_CACHE_H
 
-#include "CmPhysXCommon.h"
 #include "CmIDPool.h"
-#include "CmBitMap.h"
-#include "PsUserAllocated.h"
-#include "PsAllocator.h"
+#include "PxsHeapStats.h"
+#include "PxsCachedTransform.h"
+#include "foundation/PxBitMap.h"
+#include "foundation/PxUserAllocated.h"
+#include "CmPinnableArray.h"
 
-#define PX_DEFAULT_CACHE_SIZE 512
+#define PX_DEFAULT_CACHE_SIZE 512 // this is currently not in use
 
 namespace physx
 {
-	struct PxsTransformFlag
-	{
-		enum Flags
-		{
-			eFROZEN = (1 << 0)
-		};
-	};
 
-	struct PX_ALIGN_PREFIX(16) PxsCachedTransform
-	{
-		PxTransform transform;
-		PxU32 flags;
-
-		PX_FORCE_INLINE PxU32 isFrozen() const { return flags & PxsTransformFlag::eFROZEN; }
-	}
-	PX_ALIGN_SUFFIX(16);
-
-
-	class PxsTransformCache : public Ps::UserAllocated
+	class PxsTransformCache : public PxUserAllocated
 	{
 		typedef PxU32 RefCountType;
 
 	public:
-		PxsTransformCache(Ps::VirtualAllocatorCallback& allocatorCallback) : mTransformCache(Ps::VirtualAllocator(&allocatorCallback)), mHasAnythingChanged(true)
+		PxsTransformCache(Cm::VirtualAllocatorCallback& alloc, Cm::PinnableAllocatorFallback::Enum fallback) :
+			mTransformCache(alloc, PxsHeapStats::eNARROWPHASE, fallback), mHasAnythingChanged(true), mAllocFailed(false)
 		{
 			/*mTransformCache.reserve(PX_DEFAULT_CACHE_SIZE);
 			mTransformCache.forceSize_Unsafe(PX_DEFAULT_CACHE_SIZE);*/
 			mUsedSize = 0;
 		}
 
-		void initEntry(PxU32 index)
+		bool initEntry(PxU32 index)
 		{
 			PxU32 oldCapacity = mTransformCache.capacity();
 			if (index >= oldCapacity)
 			{
-				PxU32 newCapacity = Ps::nextPowerOfTwo(index);
-				mTransformCache.reserve(newCapacity);
+				PxU32 newCapacity = PxNextPowerOfTwo(index);
+				if(!mTransformCache.reserve(newCapacity))
+				{
+					mAllocFailed = true;
+					return false;
+				}
 				mTransformCache.forceSize_Unsafe(newCapacity);
 			}
 			mUsedSize = PxMax(mUsedSize, index + 1u);
+			return true;
 		}
 
-
-		PX_FORCE_INLINE void setTransformCache(const PxTransform& transform, const PxU32 flags, const PxU32 index)
+		PX_FORCE_INLINE void setTransformCache(const PxTransform& transform, PxU32 flags, PxU32 index)
 		{
 			mTransformCache[index].transform = transform;
 			mTransformCache[index].flags = flags;
 			mHasAnythingChanged = true;
 		}
 
-		PX_FORCE_INLINE const PxsCachedTransform& getTransformCache(const PxU32 index) const
+		PX_FORCE_INLINE const PxsCachedTransform& getTransformCache(PxU32 index) const
 		{
 			return mTransformCache[index];
 		}
 
-
-		PX_FORCE_INLINE PxsCachedTransform& getTransformCache(const PxU32 index)
+		PX_FORCE_INLINE PxsCachedTransform& getTransformCache(PxU32 index)
 		{
 			return mTransformCache[index];
 		}
@@ -125,19 +112,19 @@ namespace physx
 			return mTransformCache.begin();
 		}
 
-		PX_FORCE_INLINE Ps::Array<PxsCachedTransform, Ps::VirtualAllocator>* getCachedTransformArray()
-		{
-			return &mTransformCache;
-		}
-
 		PX_FORCE_INLINE	void resetChangedState()	{ mHasAnythingChanged = false;	}
 		PX_FORCE_INLINE	void setChangedState()		{ mHasAnythingChanged = true;	}
 		PX_FORCE_INLINE	bool hasChanged()	const	{ return mHasAnythingChanged;	}
 
+		PX_FORCE_INLINE bool hadAllocationFailure()	const	{ return mAllocFailed;	}
+
+	protected:
+		Cm::PinnableArray<PxsCachedTransform>	mTransformCache;
+
 	private:
-		Ps::Array<PxsCachedTransform, Ps::VirtualAllocator>	mTransformCache;
-		PxU32												mUsedSize;
-		bool												mHasAnythingChanged;
+		PxU32									mUsedSize;
+		bool									mHasAnythingChanged;
+		bool									mAllocFailed;
 	};
 }
 

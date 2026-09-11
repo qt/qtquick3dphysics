@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,26 +22,29 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
-
 
 #include "NpMaterial.h"
 #include "NpPhysics.h"
 #include "CmUtils.h"
+#include "omnipvd/NpOmniPvdSetData.h"
 
 using namespace physx;
+using namespace Cm;
 
-NpMaterial::NpMaterial(const Sc::MaterialCore& desc)
-: PxMaterial(PxConcreteType::eMATERIAL, PxBaseFlag::eOWNS_MEMORY | PxBaseFlag::eIS_RELEASABLE)
-, mMaterial(desc)
+NpMaterial::NpMaterial(const PxsMaterialCore& desc) :
+	PxMaterial(PxConcreteType::eMATERIAL, PxBaseFlag::eOWNS_MEMORY | PxBaseFlag::eIS_RELEASABLE),
+	mMaterial(desc)
 {
-	mMaterial.setNxMaterial(this);  // back-reference	
+	mMaterial.mMaterial = this;  // back-reference	
 }
 
 NpMaterial::~NpMaterial()
 {
+	OMNI_PVD_DESTROY(OMNI_PVD_CONTEXT_HANDLE, PxMaterial, static_cast<PxMaterial &>(*this))
+
 	NpPhysics::getInstance().removeMaterialFromTable(*this);
 }
 
@@ -51,7 +53,7 @@ void NpMaterial::resolveReferences(PxDeserializationContext&)
 {
 	// ### this one could be automated if NpMaterial would inherit from MaterialCore
 	// ### well actually in that case the pointer would not even be needed....
-	mMaterial.setNxMaterial(this);	// Resolve MaterialCore::mNxMaterial
+	mMaterial.mMaterial = this;	// Resolve MaterialCore::mMaterial
 
 	// Maybe not the best place to do it but it has to be done before the shapes resolve material indices
 	// since the material index translation table is needed there. This requires that the materials have
@@ -73,7 +75,7 @@ void NpMaterial::onRefCountZero()
 
 NpMaterial* NpMaterial::createObject(PxU8*& address, PxDeserializationContext& context)
 {
-	NpMaterial* obj = new (address) NpMaterial(PxBaseFlag::eIS_RELEASABLE);
+	NpMaterial* obj = PX_PLACEMENT_NEW(address, NpMaterial(PxBaseFlag::eIS_RELEASABLE));
 	address += sizeof(NpMaterial);	
 	obj->importExtraData(context);
 	obj->resolveReferences(context);
@@ -83,17 +85,17 @@ NpMaterial* NpMaterial::createObject(PxU8*& address, PxDeserializationContext& c
 
 void NpMaterial::release()
 {
-	decRefCount();
+	RefCountable_decRefCount(*this);
 }
 
 void NpMaterial::acquireReference()
 {
-	incRefCount();
+	RefCountable_incRefCount(*this);
 }
 
 PxU32 NpMaterial::getReferenceCount() const
 {
-	return getRefCount();
+	return RefCountable_getRefCount(*this);
 }
 
 PX_INLINE void NpMaterial::updateMaterial()
@@ -107,8 +109,8 @@ void NpMaterial::setDynamicFriction(PxReal x)
 {
 	PX_CHECK_AND_RETURN(PxIsFinite(x), "PxMaterial::setDynamicFriction: invalid float");
 	mMaterial.dynamicFriction = x;
-
 	updateMaterial();
+	OMNI_PVD_SET(OMNI_PVD_CONTEXT_HANDLE, PxMaterial, dynamicFriction, static_cast<PxMaterial &>(*this), x)
 }
 
 PxReal NpMaterial::getDynamicFriction() const
@@ -122,8 +124,8 @@ void NpMaterial::setStaticFriction(PxReal x)
 {
 	PX_CHECK_AND_RETURN(PxIsFinite(x), "PxMaterial::setStaticFriction: invalid float");
 	mMaterial.staticFriction = x;
-
 	updateMaterial();
+	OMNI_PVD_SET(OMNI_PVD_CONTEXT_HANDLE, PxMaterial, staticFriction, static_cast<PxMaterial &>(*this), x)
 }
 
 PxReal NpMaterial::getStaticFriction() const
@@ -136,20 +138,36 @@ PxReal NpMaterial::getStaticFriction() const
 void NpMaterial::setRestitution(PxReal x)
 {
 	PX_CHECK_AND_RETURN(PxIsFinite(x), "PxMaterial::setRestitution: invalid float");
-	PX_CHECK_MSG(((x >= 0.0f) && (x <= 1.0f)), "PxMaterial::setRestitution: Restitution value has to be in [0,1]!");
-	if ((x < 0.0f) || (x > 1.0f))
+	PX_CHECK_AND_RETURN(x <= 1.0f, "PxMaterial::setRestitution: Restitution value has to be smaller or equal 1.0!");
+	if (x > 1.0f)
 	{
-		PxClamp(x, 0.0f, 1.0f);
-		Ps::getFoundation().error(PxErrorCode::eINVALID_PARAMETER, __FILE__, __LINE__, "PxMaterial::setRestitution: Invalid value %f was clamped to [0,1]!", PxF64(x));
+		x = PxMin(1.0f, x);
+		PxGetFoundation().error(PxErrorCode::eINVALID_PARAMETER, PX_FL, "PxMaterial::setRestitution: Invalid value %f was clamped to 1.0!", PxF64(x));
 	}
 	mMaterial.restitution = x;
-
 	updateMaterial();
+	OMNI_PVD_SET(OMNI_PVD_CONTEXT_HANDLE, PxMaterial, restitution, static_cast<PxMaterial &>(*this), x)
 }
 
 PxReal NpMaterial::getRestitution() const
 {
 	return mMaterial.restitution;
+}
+
+/////////////////////////////////////////////////////////////////////////////////
+
+void NpMaterial::setDamping(PxReal x)
+{
+	PX_CHECK_AND_RETURN(PxIsFinite(x) && x >= 0.f, "PxMaterial::setDamping: invalid float. Must be >= 0");
+
+	mMaterial.damping = x;
+	updateMaterial();
+	OMNI_PVD_SET(OMNI_PVD_CONTEXT_HANDLE, PxMaterial, damping, static_cast<PxMaterial &>(*this), x)
+}
+
+PxReal NpMaterial::getDamping() const
+{
+	return mMaterial.damping;
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -160,14 +178,15 @@ void NpMaterial::setFlag(PxMaterialFlag::Enum flag, bool value)
 		mMaterial.flags |= flag;
 	else
 		mMaterial.flags &= ~PxMaterialFlags(flag);
-
 	updateMaterial();
+	OMNI_PVD_SET(OMNI_PVD_CONTEXT_HANDLE, PxMaterial, flags, static_cast<PxMaterial &>(*this), mMaterial.flags)
 }
 
 void NpMaterial::setFlags(PxMaterialFlags inFlags)
 {
 	mMaterial.flags = inFlags;
 	updateMaterial();
+	OMNI_PVD_SET(OMNI_PVD_CONTEXT_HANDLE, PxMaterial, flags, static_cast<PxMaterial &>(*this), mMaterial.flags)
 }
 
 PxMaterialFlags NpMaterial::getFlags() const
@@ -180,8 +199,8 @@ PxMaterialFlags NpMaterial::getFlags() const
 void NpMaterial::setFrictionCombineMode(PxCombineMode::Enum x)
 {
 	mMaterial.setFrictionCombineMode(x);
-
 	updateMaterial();
+	OMNI_PVD_SET(OMNI_PVD_CONTEXT_HANDLE, PxMaterial, frictionCombineMode, static_cast<PxMaterial &>(*this), x)
 }
 
 PxCombineMode::Enum NpMaterial::getFrictionCombineMode() const
@@ -195,6 +214,7 @@ void NpMaterial::setRestitutionCombineMode(PxCombineMode::Enum x)
 {
 	mMaterial.setRestitutionCombineMode(x);
 	updateMaterial();
+	OMNI_PVD_SET(OMNI_PVD_CONTEXT_HANDLE, PxMaterial, restitutionCombineMode, static_cast<PxMaterial &>(*this), x)
 }
 
 PxCombineMode::Enum NpMaterial::getRestitutionCombineMode() const
@@ -203,3 +223,15 @@ PxCombineMode::Enum NpMaterial::getRestitutionCombineMode() const
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+void NpMaterial::setDampingCombineMode(PxCombineMode::Enum combMode)
+{
+	mMaterial.setDampingCombineMode(combMode);
+	updateMaterial();
+	OMNI_PVD_SET(OMNI_PVD_CONTEXT_HANDLE, PxMaterial, dampingCombineMode, static_cast<PxMaterial &>(*this), combMode)
+}
+
+PxCombineMode::Enum NpMaterial::getDampingCombineMode() const
+{
+	return mMaterial.getDampingCombineMode();
+}
+

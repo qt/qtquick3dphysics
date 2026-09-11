@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,15 +22,13 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
 #include "GuDistanceSegmentSegment.h"
-#include "GuDistanceSegmentSegmentSIMD.h"
 
 using namespace physx;
-using namespace Ps;
 using namespace aos;
 
 static const float ZERO_TOLERANCE = 1e-06f;
@@ -40,7 +37,7 @@ static const float ZERO_TOLERANCE = 1e-06f;
 // S1 = origin - extent * dir;
 PxReal Gu::distanceSegmentSegmentSquared(	const PxVec3& origin0, const PxVec3& dir0, PxReal extent0,
 											const PxVec3& origin1, const PxVec3& dir1, PxReal extent1,
-											PxReal* param0,  PxReal* param1)
+											PxReal* param0, PxReal* param1)
 {
     const PxVec3 kDiff	= origin0 - origin1;
     const PxReal fA01	= -dir0.dot(dir1);

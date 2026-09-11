@@ -36,7 +36,7 @@ class PxShape;
 class PxRigidDynamic;
 class PxRigidActor;
 class PxRigidStatic;
-class PxCooking;
+struct PxCookingParams;
 class PxControllerManager;
 class PxConvexMesh;
 class PxTriangleMesh;
@@ -296,7 +296,7 @@ private:
     friend class SimulationEventCallback;
     friend class ControllerCallback;
     static physx::PxPhysics *getPhysics();
-    static physx::PxCooking *getCooking();
+    static const physx::PxCookingParams *getCookingParams();
     FrameAnimator *m_frameAnimator = nullptr;
     QQuick3DNode *m_scene = nullptr;
     bool m_inDesignStudio = false;

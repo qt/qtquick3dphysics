@@ -1,0 +1,63 @@
+From: Jonas Karlsson <jonas.karlsson@qt.io>
+Subject: [PATCH] PhysX: Ask for the mutex attributes the libc has
+
+PhysX 5 has no Android platform of its own any more, so every Linux,
+bionic and the OHOS musl included, takes the PX_LINUX paths of
+FdUnixMutex.cpp, and those ask pthreads for more than either libc has:
+
+- bionic defines no PTHREAD_PRIO_PROTECT and declares no
+  pthread_mutexattr_setprioceiling(), so neither the protocol helpers nor
+  the mutex constructor compiles for Android. It has no priority
+  protected mutexes to configure at all, so leave the whole protocol out
+  there, which puts Android back on the plain recursive mutex it got from
+  PhysX 4.1, where it was a platform apart and none of this code was
+  compiled for it. That also keeps the build off
+  pthread_mutexattr_setprotocol(), which bionic only declares from API
+  level 28 on.
+
+- the OHOS SDK does define PTHREAD_PRIO_PROTECT and does declare
+  pthread_mutexattr_setprotocol(), but not
+  pthread_mutexattr_setprioceiling(), so only that one call needs to go.
+  The ceiling it sets is 0, which is no priority ceiling any pthreads
+  implementation accepts, and it only means anything for the protocol the
+  OHOS mutexes cannot have anyway.
+
+Plain musl and glibc keep every call they had.
+---
+ src/3rdparty/PhysX/source/foundation/unix/FdUnixMutex.cpp | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/3rdparty/PhysX/source/foundation/unix/FdUnixMutex.cpp b/src/3rdparty/PhysX/source/foundation/unix/FdUnixMutex.cpp
+--- a/src/3rdparty/PhysX/source/foundation/unix/FdUnixMutex.cpp
++++ b/src/3rdparty/PhysX/source/foundation/unix/FdUnixMutex.cpp
+@@ -38,7 +38,7 @@
+ namespace physx
+ {
+ 
+-#if PX_LINUX
++#if PX_LINUX && !defined(__BIONIC__)
+ 
+ #include <sched.h>
+ 
+@@ -69,7 +69,7 @@ int PxGetMutexProtocol()
+ 	return gMutexProtocol;
+ }
+ 
+-#endif //PX_LINUX
++#endif //PX_LINUX && !defined(__BIONIC__)
+ 
+ 
+ namespace
+@@ -91,8 +91,11 @@ PxMutexImpl::PxMutexImpl()
+ 	pthread_mutexattr_t attr;
+ 	pthread_mutexattr_init(&attr);
+ 	pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+-#if PX_LINUX
++#if PX_LINUX && !defined(__BIONIC__)
+ 	pthread_mutexattr_setprotocol(&attr, gMutexProtocol);
++#endif
++// the OHOS SDK declares no pthread_mutexattr_setprioceiling()
++#if PX_LINUX && !defined(__BIONIC__) && !defined(__OHOS__)
+ 	pthread_mutexattr_setprioceiling(&attr, 0);
+ #endif
+ 	pthread_mutex_init(&getMutex(this)->lock, &attr);

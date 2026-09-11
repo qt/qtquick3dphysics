@@ -1,0 +1,86 @@
+From: Jonas Karlsson <jonas.karlsson@qt.io>
+Subject: [PATCH] PhysX: Do not take Windows for the Microsoft compiler
+
+Two of the things PhysX reaches for on Windows are extensions that only
+the Microsoft compilers have, and it asks for them behind a test for the
+platform rather than for the compiler, so the MinGW builds get them too.
+
+- PxThreadImpl::setName() tells the debugger the thread name by raising a
+  Microsoft specific exception and catching it with __try/__except, which
+  MinGW does not implement, so the build fails to compile. MSVC and
+  clang-cl do support it, and the thread names are useful in a debugger,
+  so keep it for them.
+
+- PX_ALIGN and friends spell the alignment __declspec(align()), which
+  clang and gcc silently do nothing with, and define PX_ALIGN_SUFFIX,
+  which is the form that would work there, empty. The alignment is lost:
+
+                            PxSListEntry   SharedQueueEntry
+    llvm-mingw, before      8 (align 8)    24 (align 8)
+    llvm-mingw, after       16 (align 16)  32 (align 16)
+    Linux, MSVC             16 (align 16)  32 (align 16)
+
+  PxSListEntry is what PxSList puts in the Windows interlocked singly
+  linked lists, and those pack the pointer on x86-64 in a way that needs
+  those 16 bytes: with the entries of a pool 8 bytes apart,
+  InterlockedPopEntrySList hands back an address that was never pushed.
+  The default CPU dispatcher keeps its task queue in one of these, so a
+  worker thread writes the object reference of a task through a pointer
+  like 0xffffffffffffff00, and the process dies with an access violation
+  in the task queue, or carries on with a task that is not a task.
+
+Reproduced against this copy with llvm-mingw 20260908 and wine: 40 scenes
+of 24 bodies with 4 worker threads crashed on two runs in three before
+the alignment half, and on none after it. That non-determinism is the
+shape of the failures in the Windows MinGW configurations, where a
+different set of the tests dies each run.
+
+The thread naming half is the corresponding half of the PhysX 4.1 patch
+"fix PhysX windows build", forward ported to 5.9.0 and narrowed: the 4.1
+version compiled the block out with #if 0 for every compiler. The other
+half of that patch commented out four struct size assertions, three of
+which are gone with the articulation implementation they belonged to, and
+the remaining one holds in all the builds available here.
+---
+ src/3rdparty/PhysX/include/foundation/PxPreprocessor.h           | 5 ++++-
+ src/3rdparty/PhysX/source/foundation/windows/FdWindowsThread.cpp | 6 ++++++
+ 2 files changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/3rdparty/PhysX/include/foundation/PxPreprocessor.h b/src/3rdparty/PhysX/include/foundation/PxPreprocessor.h
+--- a/src/3rdparty/PhysX/include/foundation/PxPreprocessor.h
++++ b/src/3rdparty/PhysX/include/foundation/PxPreprocessor.h
+@@ -382,7 +382,10 @@ struct A {
+ This declaration style is parsed correctly by Visual Assist.
+ */
+ #ifndef PX_ALIGN
+-	#if PX_WINDOWS_FAMILY
++	// the question is which compiler this is, not which platform: __declspec(align()) is
++	// the Microsoft compilers' spelling, and the ones on Windows that are not Microsoft
++	// silently do nothing with it
++	#if PX_VC
+ 		#define PX_ALIGN(alignment, decl) __declspec(align(alignment)) decl
+ 		#define PX_ALIGN_PREFIX(alignment) __declspec(align(alignment))
+ 		#define PX_ALIGN_SUFFIX(alignment)
+diff --git a/src/3rdparty/PhysX/source/foundation/windows/FdWindowsThread.cpp b/src/3rdparty/PhysX/source/foundation/windows/FdWindowsThread.cpp
+--- a/src/3rdparty/PhysX/source/foundation/windows/FdWindowsThread.cpp
++++ b/src/3rdparty/PhysX/source/foundation/windows/FdWindowsThread.cpp
+@@ -325,6 +325,9 @@ void PxThreadImpl::setName(const char* name)
+ 
+ 		// C++ Exceptions are disabled for this project, but SEH is not (and cannot be)
+ 		// http://stackoverflow.com/questions/943087/what-exactly-will-happen-if-i-disable-c-exceptions-in-a-project
++		// PT: __try/__except is structured exception handling, which only the Microsoft
++		// compilers, including clang-cl, implement. MinGW just cannot name the thread.
++#if PX_VC
+ 		__try
+ 		{
+ 			RaiseException(NS_MS_VC_EXCEPTION, 0, sizeof(info) / sizeof(ULONG_PTR), (ULONG_PTR*)&info);
+@@ -333,6 +336,9 @@ void PxThreadImpl::setName(const char* name)
+ 		{
+ 			// this runs if not attached to a debugger (thus not really naming the thread)
+ 		}
++#else
++		PX_UNUSED(info);
++#endif
+ 	}
+ }
+ 

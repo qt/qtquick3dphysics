@@ -21,32 +21,53 @@ qt_internal_extend_target(BundledPhysX
         # BEGIN GENERATED SOURCES
         include/PxActor.h
         include/PxAggregate.h
-        include/PxArticulation.h
-        include/PxArticulationBase.h
-        include/PxArticulationJoint.h
+        include/PxAnisotropy.h
+        include/PxArrayConverter.h
+        include/PxArticulationFlag.h
         include/PxArticulationJointReducedCoordinate.h
         include/PxArticulationLink.h
+        include/PxArticulationMimicJoint.h
         include/PxArticulationReducedCoordinate.h
-        include/PxBatchQuery.h
-        include/PxBatchQueryDesc.h
+        include/PxArticulationTendon.h
+        include/PxArticulationTendonData.h
+        include/PxBaseMaterial.h
         include/PxBroadPhase.h
         include/PxClient.h
         include/PxConstraint.h
         include/PxConstraintDesc.h
         include/PxContact.h
         include/PxContactModifyCallback.h
+        include/PxDeformableAttachment.h
+        include/PxDeformableBody.h
+        include/PxDeformableBodyFlag.h
+        include/PxDeformableElementFilter.h
+        include/PxDeformableMaterial.h
+        include/PxDeformableSkinning.h
+        include/PxDeformableSurface.h
+        include/PxDeformableSurfaceFlag.h
+        include/PxDeformableSurfaceMaterial.h
+        include/PxDeformableVolume.h
+        include/PxDeformableVolumeFlag.h
+        include/PxDeformableVolumeMaterial.h
         include/PxDeletionListener.h
+        include/PxDirectGPUAPI.h
         include/PxFiltering.h
-        include/PxForceMode.h
-        include/PxFoundation.h
         include/PxImmediateMode.h
-        include/PxLockedData.h
+        include/PxIsosurfaceExtraction.h
         include/PxMaterial.h
+        include/PxNodeIndex.h
+        include/PxPBDMaterial.h
+        include/PxPBDParticleSystem.h
+        include/PxParticleBuffer.h
+        include/PxParticleGpu.h
+        include/PxParticleMaterial.h
+        include/PxParticleNeighborhoodProvider.h
+        include/PxParticleSystem.h
+        include/PxParticleSystemFlag.h
         include/PxPhysXConfig.h
         include/PxPhysics.h
         include/PxPhysicsAPI.h
         include/PxPhysicsSerialization.h
-        include/PxPhysicsVersion.h
         include/PxPruningStructure.h
         include/PxQueryFiltering.h
         include/PxQueryReport.h
@@ -54,12 +75,17 @@ qt_internal_extend_target(BundledPhysX
         include/PxRigidBody.h
         include/PxRigidDynamic.h
         include/PxRigidStatic.h
+        include/PxSDFBuilder.h
         include/PxScene.h
         include/PxSceneDesc.h
         include/PxSceneLock.h
+        include/PxSceneQueryDesc.h
+        include/PxSceneQuerySystem.h
         include/PxShape.h
         include/PxSimulationEventCallback.h
         include/PxSimulationStatistics.h
+        include/PxSmoothing.h
+        include/PxSparseGridParams.h
         include/PxVisualizationParameter.h
         include/characterkinematic/PxBoxController.h
         include/characterkinematic/PxCapsuleController.h
@@ -72,12 +98,11 @@ qt_internal_extend_target(BundledPhysX
         include/common/PxBase.h
         include/common/PxCollection.h
         include/common/PxCoreUtilityTypes.h
-        include/common/PxMetaData.h
-        include/common/PxMetaDataFlags.h
+        include/common/PxInsertionCallback.h
         include/common/PxPhysXCommonConfig.h
-        include/common/PxPhysicsInsertionCallback.h
         include/common/PxProfileZone.h
         include/common/PxRenderBuffer.h
+        include/common/PxRenderOutput.h
         include/common/PxSerialFramework.h
         include/common/PxSerializer.h
         include/common/PxStringTable.h
@@ -85,60 +110,152 @@ qt_internal_extend_target(BundledPhysX
         include/common/PxTypeInfo.h
         include/cooking/PxBVH33MidphaseDesc.h
         include/cooking/PxBVH34MidphaseDesc.h
-        include/cooking/PxBVHStructureDesc.h
+        include/cooking/PxBVHDesc.h
         include/cooking/PxConvexMeshDesc.h
         include/cooking/PxCooking.h
         include/cooking/PxMidphaseDesc.h
+        include/cooking/PxSDFDesc.h
+        include/cooking/PxTetrahedronMeshDesc.h
         include/cooking/PxTriangleMeshDesc.h
         include/cooking/Pxc.h
+        include/cudamanager/PxCudaContext.h
         include/cudamanager/PxCudaContextManager.h
-        include/cudamanager/PxCudaMemoryManager.h
-        include/extensions/PxBinaryConverter.h
+        include/cudamanager/PxCudaTypes.h
         include/extensions/PxBroadPhaseExt.h
         include/extensions/PxCollectionExt.h
         include/extensions/PxConstraintExt.h
-        include/extensions/PxContactJoint.h
+        include/extensions/PxConvexCoreExt.h
         include/extensions/PxConvexMeshExt.h
+        include/extensions/PxCudaHelpersExt.h
+        include/extensions/PxCustomGeometryExt.h
+        include/extensions/PxCustomSceneQuerySystem.h
         include/extensions/PxD6Joint.h
         include/extensions/PxD6JointCreate.h
         include/extensions/PxDefaultAllocator.h
         include/extensions/PxDefaultCpuDispatcher.h
         include/extensions/PxDefaultErrorCallback.h
+        include/extensions/PxDefaultProfiler.h
         include/extensions/PxDefaultSimulationFilterShader.h
         include/extensions/PxDefaultStreams.h
+        include/extensions/PxDeformableSkinningExt.h
+        include/extensions/PxDeformableSurfaceExt.h
+        include/extensions/PxDeformableVolumeExt.h
         include/extensions/PxDistanceJoint.h
         include/extensions/PxExtensionsAPI.h
         include/extensions/PxFixedJoint.h
+        include/extensions/PxGearJoint.h
+        include/extensions/PxGjkQueryExt.h
         include/extensions/PxJoint.h
         include/extensions/PxJointLimit.h
         include/extensions/PxMassProperties.h
+        include/extensions/PxParticleExt.h
         include/extensions/PxPrismaticJoint.h
+        include/extensions/PxRackAndPinionJoint.h
         include/extensions/PxRaycastCCD.h
+        include/extensions/PxRemeshingExt.h
         include/extensions/PxRepXSerializer.h
         include/extensions/PxRepXSimpleType.h
         include/extensions/PxRevoluteJoint.h
         include/extensions/PxRigidActorExt.h
         include/extensions/PxRigidBodyExt.h
+        include/extensions/PxSamplingExt.h
         include/extensions/PxSceneQueryExt.h
+        include/extensions/PxSceneQuerySystemExt.h
         include/extensions/PxSerialization.h
         include/extensions/PxShapeExt.h
         include/extensions/PxSimpleFactory.h
         include/extensions/PxSmoothNormals.h
         include/extensions/PxSphericalJoint.h
         include/extensions/PxStringTableExt.h
+        include/extensions/PxTetMakerExt.h
+        include/extensions/PxTetrahedronMeshAnalysisResult.h
+        include/extensions/PxTetrahedronMeshExt.h
+        include/extensions/PxTriangleMeshAnalysisResult.h
         include/extensions/PxTriangleMeshExt.h
-        include/filebuf/PxFileBuf.h
+        include/foundation/PxAlignedMalloc.h
+        include/foundation/PxAlloca.h
+        include/foundation/PxAllocator.h
+        include/foundation/PxAllocatorCallback.h
+        include/foundation/PxAoS.h
+        include/foundation/PxArray.h
         include/foundation/PxAssert.h
+        include/foundation/PxAtomic.h
+        include/foundation/PxBasicTemplates.h
+        include/foundation/PxBitAndData.h
+        include/foundation/PxBitMap.h
+        include/foundation/PxBitUtils.h
+        include/foundation/PxBounds3.h
+        include/foundation/PxBroadcast.h
+        include/foundation/PxConstructor.h
+        include/foundation/PxErrorCallback.h
+        include/foundation/PxErrors.h
+        include/foundation/PxFPU.h
+        include/foundation/PxFlags.h
+        include/foundation/PxFoundation.h
         include/foundation/PxFoundationConfig.h
+        include/foundation/PxHash.h
+        include/foundation/PxHashInternals.h
+        include/foundation/PxHashMap.h
+        include/foundation/PxHashSet.h
+        include/foundation/PxIO.h
+        include/foundation/PxInlineAllocator.h
+        include/foundation/PxInlineAoS.h
+        include/foundation/PxInlineArray.h
+        include/foundation/PxIntrinsics.h
+        include/foundation/PxMat33.h
+        include/foundation/PxMat34.h
+        include/foundation/PxMat44.h
+        include/foundation/PxMath.h
+        include/foundation/PxMathIntrinsics.h
         include/foundation/PxMathUtils.h
-        include/geometry/PxBVHStructure.h
+        include/foundation/PxMemory.h
+        include/foundation/PxMutex.h
+        include/foundation/PxPhysicsVersion.h
+        include/foundation/PxPlane.h
+        include/foundation/PxPool.h
+        include/foundation/PxPreprocessor.h
+        include/foundation/PxProfiler.h
+        include/foundation/PxQuat.h
+        include/foundation/PxSIMDHelpers.h
+        include/foundation/PxSList.h
+        include/foundation/PxSimpleTypes.h
+        include/foundation/PxSocket.h
+        include/foundation/PxSort.h
+        include/foundation/PxSortInternals.h
+        include/foundation/PxStrideIterator.h
+        include/foundation/PxString.h
+        include/foundation/PxSync.h
+        include/foundation/PxTempAllocator.h
+        include/foundation/PxThread.h
+        include/foundation/PxTime.h
+        include/foundation/PxTransform.h
+        include/foundation/PxUnionCast.h
+        include/foundation/PxUserAllocated.h
+        include/foundation/PxUtilities.h
+        include/foundation/PxVec2.h
+        include/foundation/PxVec3.h
+        include/foundation/PxVec4.h
+        include/foundation/PxVecMath.h
+        include/foundation/PxVecMathAoSScalar.h
+        include/foundation/PxVecMathAoSScalarInline.h
+        include/foundation/PxVecMathSSE.h
+        include/foundation/PxVecQuat.h
+        include/foundation/PxVecTransform.h
+        include/geometry/PxBVH.h
+        include/geometry/PxBVHBuildStrategy.h
         include/geometry/PxBoxGeometry.h
         include/geometry/PxCapsuleGeometry.h
+        include/geometry/PxConvexCoreGeometry.h
         include/geometry/PxConvexMesh.h
         include/geometry/PxConvexMeshGeometry.h
+        include/geometry/PxCustomGeometry.h
         include/geometry/PxGeometry.h
         include/geometry/PxGeometryHelpers.h
+        include/geometry/PxGeometryHit.h
         include/geometry/PxGeometryQuery.h
+        include/geometry/PxGeometryQueryContext.h
+        include/geometry/PxGeometryQueryFlags.h
+        include/geometry/PxGjkQuery.h
         include/geometry/PxHeightField.h
         include/geometry/PxHeightFieldDesc.h
         include/geometry/PxHeightFieldFlag.h
@@ -146,220 +263,213 @@ qt_internal_extend_target(BundledPhysX
         include/geometry/PxHeightFieldSample.h
         include/geometry/PxMeshQuery.h
         include/geometry/PxMeshScale.h
+        include/geometry/PxParticleSystemGeometry.h
         include/geometry/PxPlaneGeometry.h
+        include/geometry/PxReportCallback.h
         include/geometry/PxSimpleTriangleMesh.h
         include/geometry/PxSphereGeometry.h
+        include/geometry/PxTetrahedron.h
+        include/geometry/PxTetrahedronMesh.h
+        include/geometry/PxTetrahedronMeshGeometry.h
         include/geometry/PxTriangle.h
         include/geometry/PxTriangleMesh.h
         include/geometry/PxTriangleMeshGeometry.h
-        include/geomutils/GuContactBuffer.h
-        include/geomutils/GuContactPoint.h
+        include/geomutils/PxContactBuffer.h
+        include/geomutils/PxContactPoint.h
         include/gpu/PxGpu.h
+        include/gpu/PxPhysicsGpu.h
+        include/omnipvd/PxOmniPvd.h
         include/pvd/PxPvd.h
         include/pvd/PxPvdSceneClient.h
         include/pvd/PxPvdTransport.h
         include/solver/PxSolverDefs.h
         include/task/PxCpuDispatcher.h
         include/task/PxTask.h
-        include/task/PxTaskDefine.h
         include/task/PxTaskManager.h
-        include/vehicle/PxVehicleComponents.h
-        include/vehicle/PxVehicleDrive.h
-        include/vehicle/PxVehicleDrive4W.h
-        include/vehicle/PxVehicleDriveNW.h
-        include/vehicle/PxVehicleDriveTank.h
-        include/vehicle/PxVehicleNoDrive.h
-        include/vehicle/PxVehicleSDK.h
-        include/vehicle/PxVehicleShaders.h
-        include/vehicle/PxVehicleTireFriction.h
-        include/vehicle/PxVehicleUpdate.h
-        include/vehicle/PxVehicleUtil.h
-        include/vehicle/PxVehicleUtilControl.h
-        include/vehicle/PxVehicleUtilSetup.h
-        include/vehicle/PxVehicleUtilTelemetry.h
-        include/vehicle/PxVehicleWheels.h
-        pxshared/include/empty.h
-        pxshared/include/foundation/Px.h
-        pxshared/include/foundation/PxAllocatorCallback.h
-        pxshared/include/foundation/PxBitAndData.h
-        pxshared/include/foundation/PxBounds3.h
-        pxshared/include/foundation/PxErrorCallback.h
-        pxshared/include/foundation/PxErrors.h
-        pxshared/include/foundation/PxFlags.h
-        pxshared/include/foundation/PxIO.h
-        pxshared/include/foundation/PxIntrinsics.h
-        pxshared/include/foundation/PxMat33.h
-        pxshared/include/foundation/PxMat44.h
-        pxshared/include/foundation/PxMath.h
-        pxshared/include/foundation/PxMemory.h
-        pxshared/include/foundation/PxPlane.h
-        pxshared/include/foundation/PxPreprocessor.h
-        pxshared/include/foundation/PxProfiler.h
-        pxshared/include/foundation/PxQuat.h
-        pxshared/include/foundation/PxSharedAssert.h
-        pxshared/include/foundation/PxSimpleTypes.h
-        pxshared/include/foundation/PxStrideIterator.h
-        pxshared/include/foundation/PxTransform.h
-        pxshared/include/foundation/PxUnionCast.h
-        pxshared/include/foundation/PxVec2.h
-        pxshared/include/foundation/PxVec3.h
-        pxshared/include/foundation/PxVec4.h
-        source/common/include/empty.h
-        source/common/src/CmBitMap.h
+        source/common/include/omnipvd/CmOmniPvdAutoGenClearDefines.h
+        source/common/include/omnipvd/CmOmniPvdAutoGenCreateRegistrationStruct.h
+        source/common/include/omnipvd/CmOmniPvdAutoGenRegisterData.h
+        source/common/include/omnipvd/CmOmniPvdAutoGenSetData.h
         source/common/src/CmBlockArray.h
         source/common/src/CmCollection.cpp
         source/common/src/CmCollection.h
         source/common/src/CmConeLimitHelper.h
         source/common/src/CmFlushPool.h
         source/common/src/CmIDPool.h
-        source/common/src/CmIO.h
         source/common/src/CmMatrix34.h
-        source/common/src/CmPhysXCommon.h
+        source/common/src/CmPinnableAllocator.h
+        source/common/src/CmPinnableArray.h
+        source/common/src/CmPinnableBitMap.h
+        source/common/src/CmPinnableObject.h
         source/common/src/CmPool.h
         source/common/src/CmPreallocatingPool.h
         source/common/src/CmPriorityQueue.h
         source/common/src/CmPtrTable.cpp
         source/common/src/CmPtrTable.h
-        source/common/src/CmQueue.h
         source/common/src/CmRadixSort.cpp
         source/common/src/CmRadixSort.h
-        source/common/src/CmRadixSortBuffered.cpp
-        source/common/src/CmRadixSortBuffered.h
+        source/common/src/CmRandom.h
         source/common/src/CmRefCountable.h
         source/common/src/CmRenderBuffer.h
-        source/common/src/CmRenderOutput.cpp
-        source/common/src/CmRenderOutput.h
         source/common/src/CmScaling.h
+        source/common/src/CmSerialize.cpp
+        source/common/src/CmSerialize.h
         source/common/src/CmSpatialVector.h
         source/common/src/CmTask.h
-        source/common/src/CmTaskPool.h
-        source/common/src/CmTmpMem.h
         source/common/src/CmTransformUtils.h
         source/common/src/CmUtils.h
+        source/common/src/CmVirtualAllocatorCallback.h
         source/common/src/CmVisualization.cpp
         source/common/src/CmVisualization.h
-        source/fastxml/include/PsFastXml.h
-        source/fastxml/src/PsFastXml.cpp
-        source/filebuf/include/PsAsciiConversion.h
-        source/filebuf/include/PsFileBuffer.h
-        source/filebuf/include/PsIOStream.h
-        source/filebuf/include/PsMemoryBuffer.h
-        source/foundation/include/Ps.h
-        source/foundation/include/PsAlignedMalloc.h
-        source/foundation/include/PsAlloca.h
-        source/foundation/include/PsAllocator.h
-        source/foundation/include/PsAoS.h
-        source/foundation/include/PsArray.h
-        source/foundation/include/PsAtomic.h
-        source/foundation/include/PsBasicTemplates.h
-        source/foundation/include/PsBitUtils.h
-        source/foundation/include/PsBroadcast.h
-        source/foundation/include/PsCpu.h
-        source/foundation/include/PsFPU.h
-        source/foundation/include/PsFoundation.h
-        source/foundation/include/PsHash.h
-        source/foundation/include/PsHashInternals.h
-        source/foundation/include/PsHashMap.h
-        source/foundation/include/PsHashSet.h
-        source/foundation/include/PsInlineAllocator.h
-        source/foundation/include/PsInlineAoS.h
-        source/foundation/include/PsInlineArray.h
-        source/foundation/include/PsIntrinsics.h
-        source/foundation/include/PsMathUtils.h
-        source/foundation/include/PsMutex.h
-        source/foundation/include/PsPool.h
-        source/foundation/include/PsSList.h
-        source/foundation/include/PsSocket.h
-        source/foundation/include/PsSort.h
-        source/foundation/include/PsSortInternals.h
-        source/foundation/include/PsString.h
-        source/foundation/include/PsSync.h
-        source/foundation/include/PsTempAllocator.h
-        source/foundation/include/PsThread.h
-        source/foundation/include/PsTime.h
-        source/foundation/include/PsUserAllocated.h
-        source/foundation/include/PsUtilities.h
-        source/foundation/include/PsVecMath.h
-        source/foundation/include/PsVecMathAoSScalar.h
-        source/foundation/include/PsVecMathAoSScalarInline.h
-        source/foundation/include/PsVecMathSSE.h
-        source/foundation/include/PsVecMathUtilities.h
-        source/foundation/include/PsVecQuat.h
-        source/foundation/include/PsVecTransform.h
-        source/foundation/src/PsAllocator.cpp
-        source/foundation/src/PsAssert.cpp
-        source/foundation/src/PsFoundation.cpp
-        source/foundation/src/PsMathUtils.cpp
-        source/foundation/src/PsString.cpp
-        source/foundation/src/PsTempAllocator.cpp
-        source/foundation/src/PsUtilities.cpp
+        source/foundation/FdAllocator.cpp
+        source/foundation/FdAssert.cpp
+        source/foundation/FdFoundation.cpp
+        source/foundation/FdFoundation.h
+        source/foundation/FdMathUtils.cpp
+        source/foundation/FdString.cpp
+        source/foundation/FdTempAllocator.cpp
+        source/geomutils/include/GuActorShapeMap.h
+        source/geomutils/include/GuBounds.h
         source/geomutils/include/GuBox.h
+        source/geomutils/include/GuCachedFuncs.h
+        source/geomutils/include/GuCapsule.h
+        source/geomutils/include/GuCenterExtents.h
+        source/geomutils/include/GuConvexGeometry.h
+        source/geomutils/include/GuConvexSupport.h
+        source/geomutils/include/GuCooking.h
+        source/geomutils/include/GuDistancePointTetrahedron.h
+        source/geomutils/include/GuDistancePointTriangle.h
         source/geomutils/include/GuDistanceSegmentBox.h
         source/geomutils/include/GuDistanceSegmentSegment.h
+        source/geomutils/include/GuFactory.h
         source/geomutils/include/GuIntersectionBoxBox.h
+        source/geomutils/include/GuIntersectionTetrahedronBox.h
+        source/geomutils/include/GuIntersectionTetrahedronTetrahedron.h
         source/geomutils/include/GuIntersectionTriangleBox.h
         source/geomutils/include/GuIntersectionTriangleBoxRef.h
+        source/geomutils/include/GuIntersectionTriangleTriangle.h
+        source/geomutils/include/GuLocalCluster.h
+        source/geomutils/include/GuMeshDepenetration.h
+        source/geomutils/include/GuOverlapTests.h
+        source/geomutils/include/GuPruner.h
+        source/geomutils/include/GuPrunerMergeData.h
+        source/geomutils/include/GuPrunerPayload.h
+        source/geomutils/include/GuPrunerTypedef.h
+        source/geomutils/include/GuQuerySystem.h
         source/geomutils/include/GuRaycastTests.h
-        source/geomutils/include/GuSIMDHelpers.h
+        source/geomutils/include/GuRefGjkEpa.h
         source/geomutils/include/GuSegment.h
-        source/geomutils/src/GuAABBTreeBuild.cpp
-        source/geomutils/src/GuAABBTreeBuild.h
+        source/geomutils/include/GuSphere.h
+        source/geomutils/include/GuSqInternal.h
+        source/geomutils/include/GuSweepTests.h
+        source/geomutils/src/GuAABBPruner.cpp
+        source/geomutils/src/GuAABBPruner.h
+        source/geomutils/src/GuAABBTree.cpp
+        source/geomutils/src/GuAABBTree.h
+        source/geomutils/src/GuAABBTreeBounds.h
+        source/geomutils/src/GuAABBTreeBuildStats.h
+        source/geomutils/src/GuAABBTreeNode.h
         source/geomutils/src/GuAABBTreeQuery.h
-        source/geomutils/src/GuBVHStructure.cpp
-        source/geomutils/src/GuBVHStructure.h
+        source/geomutils/src/GuAABBTreeUpdateMap.cpp
+        source/geomutils/src/GuAABBTreeUpdateMap.h
+        source/geomutils/src/GuActorShapeMap.cpp
+        source/geomutils/src/GuBVH.cpp
+        source/geomutils/src/GuBVH.h
         source/geomutils/src/GuBVHTestsSIMD.h
         source/geomutils/src/GuBounds.cpp
-        source/geomutils/src/GuBounds.h
         source/geomutils/src/GuBox.cpp
+        source/geomutils/src/GuBucketPruner.cpp
+        source/geomutils/src/GuBucketPruner.h
         source/geomutils/src/GuCCTSweepTests.cpp
+        source/geomutils/src/GuCallbackAdapter.h
         source/geomutils/src/GuCapsule.cpp
-        source/geomutils/src/GuCapsule.h
-        source/geomutils/src/GuCenterExtents.h
+        source/geomutils/src/GuConvexGeometry.cpp
+        source/geomutils/src/GuConvexSupport.cpp
+        source/geomutils/src/GuExtendedBucketPruner.cpp
+        source/geomutils/src/GuExtendedBucketPruner.h
+        source/geomutils/src/GuFactory.cpp
+        source/geomutils/src/GuGeometryChecks.h
         source/geomutils/src/GuGeometryQuery.cpp
-        source/geomutils/src/GuGeometryUnion.cpp
-        source/geomutils/src/GuGeometryUnion.h
+        source/geomutils/src/GuGjkQuery.cpp
+        source/geomutils/src/GuIncrementalAABBPruner.cpp
+        source/geomutils/src/GuIncrementalAABBPruner.h
+        source/geomutils/src/GuIncrementalAABBPrunerCore.cpp
+        source/geomutils/src/GuIncrementalAABBPrunerCore.h
+        source/geomutils/src/GuIncrementalAABBTree.cpp
+        source/geomutils/src/GuIncrementalAABBTree.h
         source/geomutils/src/GuInternal.cpp
         source/geomutils/src/GuInternal.h
         source/geomutils/src/GuMTD.cpp
         source/geomutils/src/GuMTD.h
+        source/geomutils/src/GuMaverickNode.cpp
+        source/geomutils/src/GuMaverickNode.h
         source/geomutils/src/GuMeshFactory.cpp
         source/geomutils/src/GuMeshFactory.h
-        source/geomutils/src/GuMetaData.cpp
         source/geomutils/src/GuOverlapTests.cpp
-        source/geomutils/src/GuOverlapTests.h
+        source/geomutils/src/GuPruningPool.cpp
+        source/geomutils/src/GuPruningPool.h
+        source/geomutils/src/GuQuery.h
+        source/geomutils/src/GuQuerySystem.cpp
         source/geomutils/src/GuRaycastTests.cpp
-        source/geomutils/src/GuSerialize.cpp
-        source/geomutils/src/GuSerialize.h
-        source/geomutils/src/GuSphere.h
+        source/geomutils/src/GuSAH.cpp
+        source/geomutils/src/GuSAH.h
+        source/geomutils/src/GuSDF.cpp
+        source/geomutils/src/GuSDF.h
+        source/geomutils/src/GuSecondaryPruner.cpp
+        source/geomutils/src/GuSecondaryPruner.h
+        source/geomutils/src/GuSqInternal.cpp
         source/geomutils/src/GuSweepMTD.cpp
         source/geomutils/src/GuSweepMTD.h
         source/geomutils/src/GuSweepSharedTests.cpp
         source/geomutils/src/GuSweepSharedTests.h
         source/geomutils/src/GuSweepTests.cpp
-        source/geomutils/src/GuSweepTests.h
+        source/geomutils/src/GuWindingNumber.cpp
+        source/geomutils/src/GuWindingNumber.h
+        source/geomutils/src/GuWindingNumberCluster.h
+        source/geomutils/src/GuWindingNumberT.h
         source/geomutils/src/ccd/GuCCDSweepConvexMesh.cpp
         source/geomutils/src/ccd/GuCCDSweepConvexMesh.h
         source/geomutils/src/ccd/GuCCDSweepPrimitives.cpp
+        source/geomutils/src/common/GuAdjacencies.cpp
+        source/geomutils/src/common/GuAdjacencies.h
         source/geomutils/src/common/GuBarycentricCoordinates.cpp
         source/geomutils/src/common/GuBarycentricCoordinates.h
         source/geomutils/src/common/GuBoxConversion.h
         source/geomutils/src/common/GuEdgeCache.h
-        source/geomutils/src/common/GuEdgeListData.h
+        source/geomutils/src/common/GuEdgeList.cpp
+        source/geomutils/src/common/GuEdgeList.h
+        source/geomutils/src/common/GuMeshAnalysis.cpp
+        source/geomutils/src/common/GuMeshAnalysis.h
+        source/geomutils/src/common/GuMeshCleaner.cpp
+        source/geomutils/src/common/GuMeshCleaner.h
+        source/geomutils/src/common/GuQuantizer.cpp
+        source/geomutils/src/common/GuQuantizer.h
         source/geomutils/src/common/GuSeparatingAxes.cpp
         source/geomutils/src/common/GuSeparatingAxes.h
+        source/geomutils/src/common/GuVertexReducer.cpp
+        source/geomutils/src/common/GuVertexReducer.h
+        source/geomutils/src/contact/GuCollisionSDF.h
         source/geomutils/src/contact/GuContactBoxBox.cpp
         source/geomutils/src/contact/GuContactCapsuleBox.cpp
         source/geomutils/src/contact/GuContactCapsuleCapsule.cpp
         source/geomutils/src/contact/GuContactCapsuleConvex.cpp
         source/geomutils/src/contact/GuContactCapsuleMesh.cpp
         source/geomutils/src/contact/GuContactConvexConvex.cpp
+        source/geomutils/src/contact/GuContactConvexCoreConvex.cpp
+        source/geomutils/src/contact/GuContactConvexCoreMesh.cpp
         source/geomutils/src/contact/GuContactConvexMesh.cpp
+        source/geomutils/src/contact/GuContactCustomGeometry.cpp
+        source/geomutils/src/contact/GuContactMeshMesh.cpp
+        source/geomutils/src/contact/GuContactMeshMesh.h
         source/geomutils/src/contact/GuContactMethodImpl.h
         source/geomutils/src/contact/GuContactPlaneBox.cpp
         source/geomutils/src/contact/GuContactPlaneCapsule.cpp
         source/geomutils/src/contact/GuContactPlaneConvex.cpp
+        source/geomutils/src/contact/GuContactPlaneConvexCore.cpp
+        source/geomutils/src/contact/GuContactPlaneMesh.cpp
         source/geomutils/src/contact/GuContactPolygonPolygon.cpp
         source/geomutils/src/contact/GuContactPolygonPolygon.h
+        source/geomutils/src/contact/GuContactReduction.h
         source/geomutils/src/contact/GuContactSphereBox.cpp
         source/geomutils/src/contact/GuContactSphereCapsule.cpp
         source/geomutils/src/contact/GuContactSphereMesh.cpp
@@ -385,18 +495,45 @@ qt_internal_extend_target(BundledPhysX
         source/geomutils/src/convex/GuHillClimbing.h
         source/geomutils/src/convex/GuShapeConvex.cpp
         source/geomutils/src/convex/GuShapeConvex.h
+        source/geomutils/src/cooking/GuCookingBVH.cpp
+        source/geomutils/src/cooking/GuCookingBigConvexDataBuilder.cpp
+        source/geomutils/src/cooking/GuCookingBigConvexDataBuilder.h
+        source/geomutils/src/cooking/GuCookingConvexHullBuilder.cpp
+        source/geomutils/src/cooking/GuCookingConvexHullBuilder.h
+        source/geomutils/src/cooking/GuCookingConvexHullLib.cpp
+        source/geomutils/src/cooking/GuCookingConvexHullLib.h
+        source/geomutils/src/cooking/GuCookingConvexHullUtils.cpp
+        source/geomutils/src/cooking/GuCookingConvexHullUtils.h
+        source/geomutils/src/cooking/GuCookingConvexMesh.cpp
+        source/geomutils/src/cooking/GuCookingConvexMeshBuilder.cpp
+        source/geomutils/src/cooking/GuCookingConvexMeshBuilder.h
+        source/geomutils/src/cooking/GuCookingConvexPolygonsBuilder.cpp
+        source/geomutils/src/cooking/GuCookingConvexPolygonsBuilder.h
+        source/geomutils/src/cooking/GuCookingGrbTriangleMesh.h
+        source/geomutils/src/cooking/GuCookingHF.cpp
+        source/geomutils/src/cooking/GuCookingQuickHullConvexHullLib.cpp
+        source/geomutils/src/cooking/GuCookingQuickHullConvexHullLib.h
+        source/geomutils/src/cooking/GuCookingSDF.cpp
+        source/geomutils/src/cooking/GuCookingSDF.h
+        source/geomutils/src/cooking/GuCookingTetrahedronMesh.cpp
+        source/geomutils/src/cooking/GuCookingTetrahedronMesh.h
+        source/geomutils/src/cooking/GuCookingTriangleMesh.cpp
+        source/geomutils/src/cooking/GuCookingTriangleMesh.h
+        source/geomutils/src/cooking/GuCookingVolumeIntegration.cpp
+        source/geomutils/src/cooking/GuCookingVolumeIntegration.h
+        source/geomutils/src/cooking/GuRTreeCooking.cpp
+        source/geomutils/src/cooking/GuRTreeCooking.h
         source/geomutils/src/distance/GuDistancePointBox.cpp
         source/geomutils/src/distance/GuDistancePointBox.h
         source/geomutils/src/distance/GuDistancePointSegment.h
+        source/geomutils/src/distance/GuDistancePointTetrahedron.cpp
         source/geomutils/src/distance/GuDistancePointTriangle.cpp
-        source/geomutils/src/distance/GuDistancePointTriangle.h
-        source/geomutils/src/distance/GuDistancePointTriangleSIMD.h
         source/geomutils/src/distance/GuDistanceSegmentBox.cpp
         source/geomutils/src/distance/GuDistanceSegmentSegment.cpp
-        source/geomutils/src/distance/GuDistanceSegmentSegmentSIMD.h
         source/geomutils/src/distance/GuDistanceSegmentTriangle.cpp
         source/geomutils/src/distance/GuDistanceSegmentTriangle.h
-        source/geomutils/src/distance/GuDistanceSegmentTriangleSIMD.h
+        source/geomutils/src/distance/GuDistanceTriangleTriangle.cpp
+        source/geomutils/src/distance/GuDistanceTriangleTriangle.h
         source/geomutils/src/gjk/GuEPA.cpp
         source/geomutils/src/gjk/GuEPA.h
         source/geomutils/src/gjk/GuEPAFacet.h
@@ -416,6 +553,7 @@ qt_internal_extend_target(BundledPhysX
         source/geomutils/src/gjk/GuVecConvexHullNoScale.h
         source/geomutils/src/gjk/GuVecPlane.h
         source/geomutils/src/gjk/GuVecSphere.h
+        source/geomutils/src/gjk/GuVecTetrahedron.h
         source/geomutils/src/gjk/GuVecTriangle.h
         source/geomutils/src/hf/GuEntityReport.h
         source/geomutils/src/hf/GuHeightField.cpp
@@ -433,7 +571,6 @@ qt_internal_extend_target(BundledPhysX
         source/geomutils/src/intersection/GuIntersectionRay.h
         source/geomutils/src/intersection/GuIntersectionRayBox.cpp
         source/geomutils/src/intersection/GuIntersectionRayBox.h
-        source/geomutils/src/intersection/GuIntersectionRayBoxSIMD.h
         source/geomutils/src/intersection/GuIntersectionRayCapsule.cpp
         source/geomutils/src/intersection/GuIntersectionRayCapsule.h
         source/geomutils/src/intersection/GuIntersectionRayPlane.h
@@ -442,7 +579,9 @@ qt_internal_extend_target(BundledPhysX
         source/geomutils/src/intersection/GuIntersectionRayTriangle.h
         source/geomutils/src/intersection/GuIntersectionSphereBox.cpp
         source/geomutils/src/intersection/GuIntersectionSphereBox.h
+        source/geomutils/src/intersection/GuIntersectionTetrahedronBox.cpp
         source/geomutils/src/intersection/GuIntersectionTriangleBox.cpp
+        source/geomutils/src/intersection/GuIntersectionTriangleTriangle.cpp
         source/geomutils/src/mesh/GuBV32.cpp
         source/geomutils/src/mesh/GuBV32.h
         source/geomutils/src/mesh/GuBV32Build.cpp
@@ -464,6 +603,7 @@ qt_internal_extend_target(BundledPhysX
         source/geomutils/src/mesh/GuBV4_CapsuleSweep_Internal.h
         source/geomutils/src/mesh/GuBV4_Common.h
         source/geomutils/src/mesh/GuBV4_Internal.h
+        source/geomutils/src/mesh/GuBV4_MeshMeshOverlap.cpp
         source/geomutils/src/mesh/GuBV4_OBBSweep.cpp
         source/geomutils/src/mesh/GuBV4_ProcessStreamNoOrder_OBBOBB.h
         source/geomutils/src/mesh/GuBV4_ProcessStreamNoOrder_SegmentAABB.h
@@ -482,6 +622,7 @@ qt_internal_extend_target(BundledPhysX
         source/geomutils/src/mesh/GuBV4_SphereSweep.cpp
         source/geomutils/src/mesh/GuBVConstants.h
         source/geomutils/src/mesh/GuMeshData.h
+        source/geomutils/src/mesh/GuMeshDepenetration.cpp
         source/geomutils/src/mesh/GuMeshQuery.cpp
         source/geomutils/src/mesh/GuMidphaseBV4.cpp
         source/geomutils/src/mesh/GuMidphaseInterface.h
@@ -493,7 +634,12 @@ qt_internal_extend_target(BundledPhysX
         source/geomutils/src/mesh/GuSweepConvexTri.h
         source/geomutils/src/mesh/GuSweepMesh.h
         source/geomutils/src/mesh/GuSweepsMesh.cpp
-        source/geomutils/src/mesh/GuTriangle32.h
+        source/geomutils/src/mesh/GuTetrahedron.h
+        source/geomutils/src/mesh/GuTetrahedronMesh.cpp
+        source/geomutils/src/mesh/GuTetrahedronMesh.h
+        source/geomutils/src/mesh/GuTetrahedronMeshUtils.cpp
+        source/geomutils/src/mesh/GuTetrahedronMeshUtils.h
+        source/geomutils/src/mesh/GuTriangle.h
         source/geomutils/src/mesh/GuTriangleCache.h
         source/geomutils/src/mesh/GuTriangleMesh.cpp
         source/geomutils/src/mesh/GuTriangleMesh.h
@@ -501,7 +647,7 @@ qt_internal_extend_target(BundledPhysX
         source/geomutils/src/mesh/GuTriangleMeshBV4.h
         source/geomutils/src/mesh/GuTriangleMeshRTree.cpp
         source/geomutils/src/mesh/GuTriangleMeshRTree.h
-        source/geomutils/src/mesh/GuTriangleVertexPointers.h
+        source/geomutils/src/mesh/GuTriangleRefinement.h
         source/geomutils/src/pcm/GuPCMContactBoxBox.cpp
         source/geomutils/src/pcm/GuPCMContactBoxConvex.cpp
         source/geomutils/src/pcm/GuPCMContactCapsuleBox.cpp
@@ -514,9 +660,11 @@ qt_internal_extend_target(BundledPhysX
         source/geomutils/src/pcm/GuPCMContactConvexConvex.cpp
         source/geomutils/src/pcm/GuPCMContactConvexHeightField.cpp
         source/geomutils/src/pcm/GuPCMContactConvexMesh.cpp
+        source/geomutils/src/pcm/GuPCMContactCustomGeometry.cpp
         source/geomutils/src/pcm/GuPCMContactGen.h
         source/geomutils/src/pcm/GuPCMContactGenBoxConvex.cpp
         source/geomutils/src/pcm/GuPCMContactGenSphereCapsule.cpp
+        source/geomutils/src/pcm/GuPCMContactGenUtil.cpp
         source/geomutils/src/pcm/GuPCMContactGenUtil.h
         source/geomutils/src/pcm/GuPCMContactMeshCallback.h
         source/geomutils/src/pcm/GuPCMContactPlaneBox.cpp
@@ -558,9 +706,12 @@ qt_internal_extend_target(BundledPhysX
         source/geomutils/src/sweep/GuSweepTriangleUtils.cpp
         source/geomutils/src/sweep/GuSweepTriangleUtils.h
         source/immediatemode/src/NpImmediateMode.cpp
+        source/lowlevel/api/include/PxsDeformableSurfaceMaterialCore.h
+        source/lowlevel/api/include/PxsDeformableVolumeMaterialCore.h
         source/lowlevel/api/include/PxsMaterialCore.h
         source/lowlevel/api/include/PxsMaterialManager.h
-        source/lowlevel/api/include/PxvConfig.h
+        source/lowlevel/api/include/PxsMaterialShared.h
+        source/lowlevel/api/include/PxsPBDMaterialCore.h
         source/lowlevel/api/include/PxvDynamics.h
         source/lowlevel/api/include/PxvGeometry.h
         source/lowlevel/api/include/PxvGlobals.h
@@ -582,32 +733,29 @@ qt_internal_extend_target(BundledPhysX
         source/lowlevel/common/include/utils/PxcThreadCoherentCache.h
         source/lowlevel/common/src/pipeline/PxcContactCache.cpp
         source/lowlevel/common/src/pipeline/PxcContactMethodImpl.cpp
-        source/lowlevel/common/src/pipeline/PxcMaterialHeightField.cpp
-        source/lowlevel/common/src/pipeline/PxcMaterialMesh.cpp
         source/lowlevel/common/src/pipeline/PxcMaterialMethodImpl.cpp
-        source/lowlevel/common/src/pipeline/PxcMaterialShape.cpp
         source/lowlevel/common/src/pipeline/PxcNpBatch.cpp
         source/lowlevel/common/src/pipeline/PxcNpCacheStreamPair.cpp
         source/lowlevel/common/src/pipeline/PxcNpContactPrepShared.cpp
         source/lowlevel/common/src/pipeline/PxcNpMemBlockPool.cpp
         source/lowlevel/common/src/pipeline/PxcNpThreadContext.cpp
-        source/lowlevel/software/include/PxsBodySim.h
         source/lowlevel/software/include/PxsCCD.h
+        source/lowlevel/software/include/PxsCachedTransform.h
         source/lowlevel/software/include/PxsContactManager.h
         source/lowlevel/software/include/PxsContactManagerState.h
         source/lowlevel/software/include/PxsContext.h
-        source/lowlevel/software/include/PxsDefaultMemoryManager.h
         source/lowlevel/software/include/PxsHeapMemoryAllocator.h
-        source/lowlevel/software/include/PxsIncrementalConstraintPartitioning.h
+        source/lowlevel/software/include/PxsHeapStats.h
         source/lowlevel/software/include/PxsIslandManagerTypes.h
-        source/lowlevel/software/include/PxsIslandNodeIndex.h
         source/lowlevel/software/include/PxsIslandSim.h
         source/lowlevel/software/include/PxsKernelWrangler.h
         source/lowlevel/software/include/PxsMaterialCombiner.h
         source/lowlevel/software/include/PxsMemoryManager.h
+        source/lowlevel/software/include/PxsNphaseCommon.h
         source/lowlevel/software/include/PxsNphaseImplementationContext.h
+        source/lowlevel/software/include/PxsParticleBuffer.h
+        source/lowlevel/software/include/PxsPartitionEdge.h
         source/lowlevel/software/include/PxsRigidBody.h
-        source/lowlevel/software/include/PxsShapeSim.h
         source/lowlevel/software/include/PxsSimpleIslandManager.h
         source/lowlevel/software/include/PxsSimulationController.h
         source/lowlevel/software/include/PxsTransformCache.h
@@ -617,17 +765,22 @@ qt_internal_extend_target(BundledPhysX
         source/lowlevel/software/src/PxsContext.cpp
         source/lowlevel/software/src/PxsDefaultMemoryManager.cpp
         source/lowlevel/software/src/PxsIslandSim.cpp
-        source/lowlevel/software/src/PxsMaterialCombiner.cpp
         source/lowlevel/software/src/PxsNphaseImplementationContext.cpp
         source/lowlevel/software/src/PxsSimpleIslandManager.cpp
         source/lowlevelaabb/include/BpAABBManager.h
+        source/lowlevelaabb/include/BpAABBManagerBase.h
         source/lowlevelaabb/include/BpAABBManagerTasks.h
         source/lowlevelaabb/include/BpBroadPhase.h
         source/lowlevelaabb/include/BpBroadPhaseUpdate.h
+        source/lowlevelaabb/include/BpFiltering.h
+        source/lowlevelaabb/include/BpVolumeData.h
         source/lowlevelaabb/src/BpAABBManager.cpp
+        source/lowlevelaabb/src/BpAABBManagerBase.cpp
+        source/lowlevelaabb/src/BpBoxPruningKernels.h
         source/lowlevelaabb/src/BpBroadPhase.cpp
         source/lowlevelaabb/src/BpBroadPhaseABP.cpp
         source/lowlevelaabb/src/BpBroadPhaseABP.h
+        source/lowlevelaabb/src/BpBroadPhaseIntegerAABB.h
         source/lowlevelaabb/src/BpBroadPhaseMBP.cpp
         source/lowlevelaabb/src/BpBroadPhaseMBP.h
         source/lowlevelaabb/src/BpBroadPhaseMBPCommon.h
@@ -637,37 +790,37 @@ qt_internal_extend_target(BundledPhysX
         source/lowlevelaabb/src/BpBroadPhaseSapAux.h
         source/lowlevelaabb/src/BpBroadPhaseShared.cpp
         source/lowlevelaabb/src/BpBroadPhaseShared.h
-        source/lowlevelaabb/src/BpMBPTasks.cpp
-        source/lowlevelaabb/src/BpMBPTasks.h
-        source/lowlevelaabb/src/BpSAPTasks.cpp
-        source/lowlevelaabb/src/BpSAPTasks.h
-        source/lowleveldynamics/include/DyArticulation.h
+        source/lowlevelaabb/src/BpBroadPhaseUpdate.cpp
+        source/lowlevelaabb/src/BpFiltering.cpp
         source/lowleveldynamics/include/DyArticulationCore.h
         source/lowleveldynamics/include/DyArticulationJointCore.h
+        source/lowleveldynamics/include/DyArticulationMimicJointCore.h
+        source/lowleveldynamics/include/DyArticulationTendon.h
         source/lowleveldynamics/include/DyConstraint.h
         source/lowleveldynamics/include/DyConstraintWriteBack.h
         source/lowleveldynamics/include/DyContext.h
+        source/lowleveldynamics/include/DyDeformableBodyCore.h
+        source/lowleveldynamics/include/DyDeformableSurface.h
+        source/lowleveldynamics/include/DyDeformableSurfaceCore.h
+        source/lowleveldynamics/include/DyDeformableVolume.h
+        source/lowleveldynamics/include/DyDeformableVolumeCore.h
         source/lowleveldynamics/include/DyFeatherstoneArticulation.h
         source/lowleveldynamics/include/DyFeatherstoneArticulationJointData.h
         source/lowleveldynamics/include/DyFeatherstoneArticulationUtils.h
+        source/lowleveldynamics/include/DyIslandManager.h
+        source/lowleveldynamics/include/DyParticleSystem.h
+        source/lowleveldynamics/include/DyParticleSystemCore.h
         source/lowleveldynamics/include/DySleepingConfigulation.h
         source/lowleveldynamics/include/DyThresholdTable.h
         source/lowleveldynamics/include/DyVArticulation.h
-        source/lowleveldynamics/src/DyArticulation.cpp
+        source/lowleveldynamics/shared/DyCpuGpu1dConstraint.h
+        source/lowleveldynamics/shared/DyCpuGpuArticulation.h
+        source/lowleveldynamics/shared/DyCpuGpuBiasCoefficient.h
+        source/lowleveldynamics/src/DyAllocator.cpp
+        source/lowleveldynamics/src/DyAllocator.h
         source/lowleveldynamics/src/DyArticulationContactPrep.cpp
         source/lowleveldynamics/src/DyArticulationContactPrep.h
-        source/lowleveldynamics/src/DyArticulationContactPrepPF.cpp
-        source/lowleveldynamics/src/DyArticulationFnsDebug.h
-        source/lowleveldynamics/src/DyArticulationFnsScalar.h
-        source/lowleveldynamics/src/DyArticulationFnsSimd.h
-        source/lowleveldynamics/src/DyArticulationHelper.cpp
-        source/lowleveldynamics/src/DyArticulationHelper.h
-        source/lowleveldynamics/src/DyArticulationPImpl.h
-        source/lowleveldynamics/src/DyArticulationReference.h
-        source/lowleveldynamics/src/DyArticulationSIMD.cpp
-        source/lowleveldynamics/src/DyArticulationScalar.cpp
-        source/lowleveldynamics/src/DyArticulationScalar.h
-        source/lowleveldynamics/src/DyArticulationUtils.h
+        source/lowleveldynamics/src/DyArticulationMimicJoint.cpp
         source/lowleveldynamics/src/DyBodyCoreIntegrator.h
         source/lowleveldynamics/src/DyConstraintPartition.cpp
         source/lowleveldynamics/src/DyConstraintPartition.h
@@ -677,21 +830,23 @@ qt_internal_extend_target(BundledPhysX
         source/lowleveldynamics/src/DyContactPrep.cpp
         source/lowleveldynamics/src/DyContactPrep.h
         source/lowleveldynamics/src/DyContactPrep4.cpp
-        source/lowleveldynamics/src/DyContactPrep4PF.cpp
-        source/lowleveldynamics/src/DyContactPrepPF.cpp
         source/lowleveldynamics/src/DyContactPrepShared.h
         source/lowleveldynamics/src/DyContactReduction.h
         source/lowleveldynamics/src/DyCorrelationBuffer.h
         source/lowleveldynamics/src/DyDynamics.cpp
         source/lowleveldynamics/src/DyDynamics.h
+        source/lowleveldynamics/src/DyDynamicsBase.cpp
+        source/lowleveldynamics/src/DyDynamicsBase.h
         source/lowleveldynamics/src/DyFeatherstoneArticulation.cpp
-        source/lowleveldynamics/src/DyFeatherstoneArticulationLink.h
         source/lowleveldynamics/src/DyFeatherstoneForwardDynamic.cpp
         source/lowleveldynamics/src/DyFeatherstoneInverseDynamic.cpp
         source/lowleveldynamics/src/DyFrictionCorrelation.cpp
         source/lowleveldynamics/src/DyFrictionPatch.h
         source/lowleveldynamics/src/DyFrictionPatchStreamPair.h
+        source/lowleveldynamics/src/DyPGS.h
         source/lowleveldynamics/src/DyRigidBodyToSolverBody.cpp
+        source/lowleveldynamics/src/DySleep.cpp
+        source/lowleveldynamics/src/DySleep.h
         source/lowleveldynamics/src/DySolverBody.h
         source/lowleveldynamics/src/DySolverConstraint1D.h
         source/lowleveldynamics/src/DySolverConstraint1D4.h
@@ -704,18 +859,13 @@ qt_internal_extend_target(BundledPhysX
         source/lowleveldynamics/src/DySolverConstraintsShared.h
         source/lowleveldynamics/src/DySolverContact.h
         source/lowleveldynamics/src/DySolverContact4.h
-        source/lowleveldynamics/src/DySolverContactPF.h
-        source/lowleveldynamics/src/DySolverContactPF4.h
         source/lowleveldynamics/src/DySolverContext.h
         source/lowleveldynamics/src/DySolverControl.cpp
         source/lowleveldynamics/src/DySolverControl.h
-        source/lowleveldynamics/src/DySolverControlPF.cpp
-        source/lowleveldynamics/src/DySolverControlPF.h
+        source/lowleveldynamics/src/DySolverCore.cpp
         source/lowleveldynamics/src/DySolverCore.h
         source/lowleveldynamics/src/DySolverExt.h
-        source/lowleveldynamics/src/DySolverPFConstraints.cpp
-        source/lowleveldynamics/src/DySolverPFConstraintsBlock.cpp
-        source/lowleveldynamics/src/DySpatial.h
+        source/lowleveldynamics/src/DyTGS.h
         source/lowleveldynamics/src/DyTGSContactPrep.cpp
         source/lowleveldynamics/src/DyTGSContactPrep.h
         source/lowleveldynamics/src/DyTGSContactPrepBlock.cpp
@@ -729,38 +879,61 @@ qt_internal_extend_target(BundledPhysX
         source/physx/src/NpActorTemplate.h
         source/physx/src/NpAggregate.cpp
         source/physx/src/NpAggregate.h
-        source/physx/src/NpArticulation.cpp
-        source/physx/src/NpArticulation.h
-        source/physx/src/NpArticulationJoint.cpp
-        source/physx/src/NpArticulationJoint.h
         source/physx/src/NpArticulationJointReducedCoordinate.cpp
         source/physx/src/NpArticulationJointReducedCoordinate.h
         source/physx/src/NpArticulationLink.cpp
         source/physx/src/NpArticulationLink.h
+        source/physx/src/NpArticulationMimicJoint.cpp
+        source/physx/src/NpArticulationMimicJoint.h
         source/physx/src/NpArticulationReducedCoordinate.cpp
         source/physx/src/NpArticulationReducedCoordinate.h
-        source/physx/src/NpArticulationTemplate.h
-        source/physx/src/NpBatchQuery.cpp
-        source/physx/src/NpBatchQuery.h
-        source/physx/src/NpCast.h
+        source/physx/src/NpArticulationTendon.cpp
+        source/physx/src/NpArticulationTendon.h
+        source/physx/src/NpBase.h
+        source/physx/src/NpBounds.cpp
+        source/physx/src/NpBounds.h
+        source/physx/src/NpCheck.cpp
+        source/physx/src/NpCheck.h
         source/physx/src/NpConnector.h
         source/physx/src/NpConstraint.cpp
         source/physx/src/NpConstraint.h
+        source/physx/src/NpDebugViz.cpp
+        source/physx/src/NpDebugViz.h
+        source/physx/src/NpDeformableAttachment.cpp
+        source/physx/src/NpDeformableAttachment.h
+        source/physx/src/NpDeformableElementFilter.cpp
+        source/physx/src/NpDeformableElementFilter.h
+        source/physx/src/NpDeformableSurface.cpp
+        source/physx/src/NpDeformableSurface.h
+        source/physx/src/NpDeformableSurfaceMaterial.cpp
+        source/physx/src/NpDeformableSurfaceMaterial.h
+        source/physx/src/NpDeformableVolume.cpp
+        source/physx/src/NpDeformableVolume.h
+        source/physx/src/NpDeformableVolumeMaterial.cpp
+        source/physx/src/NpDeformableVolumeMaterial.h
+        source/physx/src/NpDirectGPUAPI.cpp
+        source/physx/src/NpDirectGPUAPI.h
         source/physx/src/NpFactory.cpp
         source/physx/src/NpFactory.h
         source/physx/src/NpMaterial.cpp
         source/physx/src/NpMaterial.h
         source/physx/src/NpMaterialManager.h
-        source/physx/src/NpMetaData.cpp
+        source/physx/src/NpPBDMaterial.cpp
+        source/physx/src/NpPBDMaterial.h
+        source/physx/src/NpPBDParticleSystem.cpp
+        source/physx/src/NpPBDParticleSystem.h
+        source/physx/src/NpParticleBuffer.cpp
+        source/physx/src/NpParticleBuffer.h
         source/physx/src/NpPhysics.cpp
         source/physx/src/NpPhysics.h
         source/physx/src/NpPhysicsInsertionCallback.h
+        source/physx/src/NpPruningStructure.cpp
+        source/physx/src/NpPruningStructure.h
         source/physx/src/NpPtrTableStorageManager.h
+        source/physx/src/NpPvdSceneClient.cpp
+        source/physx/src/NpPvdSceneClient.h
         source/physx/src/NpPvdSceneQueryCollector.cpp
         source/physx/src/NpPvdSceneQueryCollector.h
-        source/physx/src/NpQueryShared.h
-        source/physx/src/NpReadCheck.cpp
-        source/physx/src/NpReadCheck.h
         source/physx/src/NpRigidActorTemplate.h
         source/physx/src/NpRigidActorTemplateInternal.h
         source/physx/src/NpRigidBodyTemplate.h
@@ -771,6 +944,7 @@ qt_internal_extend_target(BundledPhysX
         source/physx/src/NpScene.cpp
         source/physx/src/NpScene.h
         source/physx/src/NpSceneAccessor.h
+        source/physx/src/NpSceneFetchResults.cpp
         source/physx/src/NpSceneQueries.cpp
         source/physx/src/NpSceneQueries.h
         source/physx/src/NpSerializerAdapter.cpp
@@ -778,41 +952,14 @@ qt_internal_extend_target(BundledPhysX
         source/physx/src/NpShape.h
         source/physx/src/NpShapeManager.cpp
         source/physx/src/NpShapeManager.h
-        source/physx/src/NpWriteCheck.cpp
-        source/physx/src/NpWriteCheck.h
         source/physx/src/PvdMetaDataBindingData.h
         source/physx/src/PvdMetaDataPvdBinding.cpp
         source/physx/src/PvdMetaDataPvdBinding.h
         source/physx/src/PvdPhysicsClient.cpp
         source/physx/src/PvdPhysicsClient.h
         source/physx/src/PvdTypeNames.h
-        source/physx/src/buffering/ScbActor.cpp
-        source/physx/src/buffering/ScbActor.h
-        source/physx/src/buffering/ScbAggregate.cpp
-        source/physx/src/buffering/ScbAggregate.h
-        source/physx/src/buffering/ScbArticulation.h
-        source/physx/src/buffering/ScbArticulationJoint.h
-        source/physx/src/buffering/ScbBase.cpp
-        source/physx/src/buffering/ScbBase.h
-        source/physx/src/buffering/ScbBody.h
-        source/physx/src/buffering/ScbConstraint.h
-        source/physx/src/buffering/ScbDefs.h
-        source/physx/src/buffering/ScbMetaData.cpp
-        source/physx/src/buffering/ScbNpDeps.h
-        source/physx/src/buffering/ScbRigidObject.h
-        source/physx/src/buffering/ScbRigidStatic.h
-        source/physx/src/buffering/ScbScene.cpp
-        source/physx/src/buffering/ScbScene.h
-        source/physx/src/buffering/ScbSceneBuffer.h
-        source/physx/src/buffering/ScbScenePvdClient.cpp
-        source/physx/src/buffering/ScbScenePvdClient.h
-        source/physx/src/buffering/ScbShape.cpp
-        source/physx/src/buffering/ScbShape.h
-        source/physx/src/buffering/ScbType.h
-        source/physx/src/device/PhysXIndicator.h
-        source/physx/src/device/nvPhysXtoDrv.h
-        source/physx/src/gpu/PxGpu.cpp
-        source/physx/src/gpu/PxPhysXGpuModuleLoader.cpp
+        source/physx/src/omnipvd/NpOmniPvdSetData.h
+        source/physx/src/opensource/cudamanager/include/PhysXDeviceSettings.h
         source/physxcharacterkinematic/src/CctBoxController.cpp
         source/physxcharacterkinematic/src/CctBoxController.h
         source/physxcharacterkinematic/src/CctCapsuleController.cpp
@@ -834,291 +981,138 @@ qt_internal_extend_target(BundledPhysX
         source/physxcharacterkinematic/src/CctSweptVolume.cpp
         source/physxcharacterkinematic/src/CctSweptVolume.h
         source/physxcharacterkinematic/src/CctUtils.h
-        source/physxcooking/src/Adjacencies.cpp
-        source/physxcooking/src/Adjacencies.h
-        source/physxcooking/src/BVHStructureBuilder.cpp
-        source/physxcooking/src/BVHStructureBuilder.h
         source/physxcooking/src/Cooking.cpp
-        source/physxcooking/src/Cooking.h
-        source/physxcooking/src/CookingUtils.cpp
-        source/physxcooking/src/CookingUtils.h
-        source/physxcooking/src/EdgeList.cpp
-        source/physxcooking/src/EdgeList.h
-        source/physxcooking/src/MeshCleaner.cpp
-        source/physxcooking/src/MeshCleaner.h
-        source/physxcooking/src/Quantizer.cpp
-        source/physxcooking/src/Quantizer.h
-        source/physxcooking/src/convex/BigConvexDataBuilder.cpp
-        source/physxcooking/src/convex/BigConvexDataBuilder.h
-        source/physxcooking/src/convex/ConvexHullBuilder.cpp
-        source/physxcooking/src/convex/ConvexHullBuilder.h
-        source/physxcooking/src/convex/ConvexHullLib.cpp
-        source/physxcooking/src/convex/ConvexHullLib.h
-        source/physxcooking/src/convex/ConvexHullUtils.cpp
-        source/physxcooking/src/convex/ConvexHullUtils.h
-        source/physxcooking/src/convex/ConvexMeshBuilder.cpp
-        source/physxcooking/src/convex/ConvexMeshBuilder.h
-        source/physxcooking/src/convex/ConvexPolygonsBuilder.cpp
-        source/physxcooking/src/convex/ConvexPolygonsBuilder.h
-        source/physxcooking/src/convex/QuickHullConvexHullLib.cpp
-        source/physxcooking/src/convex/QuickHullConvexHullLib.h
-        source/physxcooking/src/convex/VolumeIntegration.cpp
-        source/physxcooking/src/convex/VolumeIntegration.h
-        source/physxcooking/src/mesh/GrbTriangleMeshCooking.cpp
-        source/physxcooking/src/mesh/GrbTriangleMeshCooking.h
-        source/physxcooking/src/mesh/HeightFieldCooking.cpp
-        source/physxcooking/src/mesh/HeightFieldCooking.h
-        source/physxcooking/src/mesh/MeshBuilder.cpp
-        source/physxcooking/src/mesh/MeshBuilder.h
-        source/physxcooking/src/mesh/QuickSelect.h
-        source/physxcooking/src/mesh/RTreeCooking.cpp
-        source/physxcooking/src/mesh/RTreeCooking.h
-        source/physxcooking/src/mesh/TriangleMeshBuilder.cpp
-        source/physxcooking/src/mesh/TriangleMeshBuilder.h
         source/physxextensions/src/ExtBroadPhase.cpp
         source/physxextensions/src/ExtCollection.cpp
         source/physxextensions/src/ExtConstraintHelper.h
-        source/physxextensions/src/ExtContactJoint.cpp
-        source/physxextensions/src/ExtContactJoint.h
+        source/physxextensions/src/ExtConvexCoreExt.cpp
         source/physxextensions/src/ExtConvexMeshExt.cpp
         source/physxextensions/src/ExtCpuWorkerThread.cpp
         source/physxextensions/src/ExtCpuWorkerThread.h
+        source/physxextensions/src/ExtCustomGeometryExt.cpp
+        source/physxextensions/src/ExtCustomSceneQuerySystem.cpp
         source/physxextensions/src/ExtD6Joint.cpp
         source/physxextensions/src/ExtD6Joint.h
         source/physxextensions/src/ExtD6JointCreate.cpp
         source/physxextensions/src/ExtDefaultCpuDispatcher.cpp
         source/physxextensions/src/ExtDefaultCpuDispatcher.h
         source/physxextensions/src/ExtDefaultErrorCallback.cpp
+        source/physxextensions/src/ExtDefaultProfiler.cpp
+        source/physxextensions/src/ExtDefaultProfiler.h
         source/physxextensions/src/ExtDefaultSimulationFilterShader.cpp
         source/physxextensions/src/ExtDefaultStreams.cpp
+        source/physxextensions/src/ExtDeformableSkinning.cpp
+        source/physxextensions/src/ExtDeformableSurfaceExt.cpp
+        source/physxextensions/src/ExtDeformableVolumeExt.cpp
         source/physxextensions/src/ExtDistanceJoint.cpp
         source/physxextensions/src/ExtDistanceJoint.h
         source/physxextensions/src/ExtExtensions.cpp
         source/physxextensions/src/ExtFixedJoint.cpp
         source/physxextensions/src/ExtFixedJoint.h
+        source/physxextensions/src/ExtGearJoint.cpp
+        source/physxextensions/src/ExtGearJoint.h
+        source/physxextensions/src/ExtGjkQueryExt.cpp
         source/physxextensions/src/ExtInertiaTensor.h
         source/physxextensions/src/ExtJoint.cpp
         source/physxextensions/src/ExtJoint.h
         source/physxextensions/src/ExtJointData.h
         source/physxextensions/src/ExtJointMetaDataExtensions.h
-        source/physxextensions/src/ExtMetaData.cpp
-        source/physxextensions/src/ExtPlatform.h
+        source/physxextensions/src/ExtParticleExt.cpp
         source/physxextensions/src/ExtPrismaticJoint.cpp
         source/physxextensions/src/ExtPrismaticJoint.h
         source/physxextensions/src/ExtPvd.cpp
         source/physxextensions/src/ExtPvd.h
         source/physxextensions/src/ExtPxStringTable.cpp
+        source/physxextensions/src/ExtRackAndPinionJoint.cpp
+        source/physxextensions/src/ExtRackAndPinionJoint.h
         source/physxextensions/src/ExtRaycastCCD.cpp
+        source/physxextensions/src/ExtRemeshingExt.cpp
         source/physxextensions/src/ExtRevoluteJoint.cpp
         source/physxextensions/src/ExtRevoluteJoint.h
         source/physxextensions/src/ExtRigidActorExt.cpp
         source/physxextensions/src/ExtRigidBodyExt.cpp
+        source/physxextensions/src/ExtSampling.cpp
         source/physxextensions/src/ExtSceneQueryExt.cpp
+        source/physxextensions/src/ExtSceneQuerySystem.cpp
         source/physxextensions/src/ExtSerialization.h
         source/physxextensions/src/ExtSharedQueueEntryPool.h
         source/physxextensions/src/ExtSimpleFactory.cpp
         source/physxextensions/src/ExtSmoothNormals.cpp
         source/physxextensions/src/ExtSphericalJoint.cpp
         source/physxextensions/src/ExtSphericalJoint.h
+        source/physxextensions/src/ExtSqManager.cpp
+        source/physxextensions/src/ExtSqManager.h
+        source/physxextensions/src/ExtSqQuery.cpp
+        source/physxextensions/src/ExtSqQuery.h
         source/physxextensions/src/ExtTaskQueueHelper.h
+        source/physxextensions/src/ExtTetMakerExt.cpp
+        source/physxextensions/src/ExtTetrahedronMeshExt.cpp
         source/physxextensions/src/ExtTriangleMeshExt.cpp
-        source/physxextensions/src/serialization/Binary/SnBinaryDeserialization.cpp
-        source/physxextensions/src/serialization/Binary/SnBinarySerialization.cpp
-        source/physxextensions/src/serialization/Binary/SnConvX.cpp
-        source/physxextensions/src/serialization/Binary/SnConvX.h
-        source/physxextensions/src/serialization/Binary/SnConvX_Align.cpp
-        source/physxextensions/src/serialization/Binary/SnConvX_Align.h
-        source/physxextensions/src/serialization/Binary/SnConvX_Common.h
-        source/physxextensions/src/serialization/Binary/SnConvX_Convert.cpp
-        source/physxextensions/src/serialization/Binary/SnConvX_Error.cpp
-        source/physxextensions/src/serialization/Binary/SnConvX_MetaData.cpp
-        source/physxextensions/src/serialization/Binary/SnConvX_MetaData.h
-        source/physxextensions/src/serialization/Binary/SnConvX_Output.cpp
-        source/physxextensions/src/serialization/Binary/SnConvX_Output.h
-        source/physxextensions/src/serialization/Binary/SnConvX_Union.cpp
-        source/physxextensions/src/serialization/Binary/SnConvX_Union.h
-        source/physxextensions/src/serialization/Binary/SnSerializationContext.cpp
-        source/physxextensions/src/serialization/Binary/SnSerializationContext.h
+        source/physxextensions/src/omnipvd/ExtOmniPvdSetData.h
         source/physxextensions/src/serialization/File/SnFile.h
-        source/physxextensions/src/serialization/SnSerialUtils.cpp
-        source/physxextensions/src/serialization/SnSerialUtils.h
-        source/physxextensions/src/serialization/SnSerialization.cpp
-        source/physxextensions/src/serialization/SnSerializationRegistry.cpp
-        source/physxextensions/src/serialization/SnSerializationRegistry.h
-        source/physxextensions/src/serialization/Xml/SnJointRepXSerializer.cpp
-        source/physxextensions/src/serialization/Xml/SnJointRepXSerializer.h
-        source/physxextensions/src/serialization/Xml/SnPxStreamOperators.h
-        source/physxextensions/src/serialization/Xml/SnRepX1_0Defaults.h
-        source/physxextensions/src/serialization/Xml/SnRepX3_1Defaults.h
-        source/physxextensions/src/serialization/Xml/SnRepX3_2Defaults.h
-        source/physxextensions/src/serialization/Xml/SnRepXCollection.h
-        source/physxextensions/src/serialization/Xml/SnRepXCoreSerializer.cpp
-        source/physxextensions/src/serialization/Xml/SnRepXCoreSerializer.h
-        source/physxextensions/src/serialization/Xml/SnRepXSerializerImpl.h
-        source/physxextensions/src/serialization/Xml/SnRepXUpgrader.cpp
-        source/physxextensions/src/serialization/Xml/SnRepXUpgrader.h
-        source/physxextensions/src/serialization/Xml/SnSimpleXmlWriter.h
-        source/physxextensions/src/serialization/Xml/SnXmlDeserializer.h
-        source/physxextensions/src/serialization/Xml/SnXmlImpl.h
-        source/physxextensions/src/serialization/Xml/SnXmlMemoryAllocator.h
-        source/physxextensions/src/serialization/Xml/SnXmlMemoryPool.h
-        source/physxextensions/src/serialization/Xml/SnXmlMemoryPoolStreams.h
-        source/physxextensions/src/serialization/Xml/SnXmlReader.h
-        source/physxextensions/src/serialization/Xml/SnXmlSerialization.cpp
-        source/physxextensions/src/serialization/Xml/SnXmlSerializer.h
-        source/physxextensions/src/serialization/Xml/SnXmlSimpleXmlWriter.h
-        source/physxextensions/src/serialization/Xml/SnXmlStringToType.h
-        source/physxextensions/src/serialization/Xml/SnXmlVisitorReader.h
-        source/physxextensions/src/serialization/Xml/SnXmlVisitorWriter.h
-        source/physxextensions/src/serialization/Xml/SnXmlWriter.h
-        source/physxgpu/include/PxPhysXGpu.h
-        source/physxmetadata/core/include/PvdMetaDataDefineProperties.h
-        source/physxmetadata/core/include/PvdMetaDataExtensions.h
-        source/physxmetadata/core/include/PvdMetaDataPropertyVisitor.h
-        source/physxmetadata/core/include/PxAutoGeneratedMetaDataObjectNames.h
-        source/physxmetadata/core/include/PxAutoGeneratedMetaDataObjects.h
-        source/physxmetadata/core/include/PxMetaDataCompare.h
-        source/physxmetadata/core/include/PxMetaDataCppPrefix.h
-        source/physxmetadata/core/include/PxMetaDataObjects.h
-        source/physxmetadata/core/include/RepXMetaDataPropertyVisitor.h
-        source/physxmetadata/core/src/PxAutoGeneratedMetaDataObjects.cpp
-        source/physxmetadata/core/src/PxMetaDataObjects.cpp
-        source/physxmetadata/extensions/include/PxExtensionAutoGeneratedMetaDataObjectNames.h
-        source/physxmetadata/extensions/include/PxExtensionAutoGeneratedMetaDataObjects.h
-        source/physxmetadata/extensions/include/PxExtensionMetaDataObjects.h
-        source/physxmetadata/extensions/src/PxExtensionAutoGeneratedMetaDataObjects.cpp
-        source/physxvehicle/src/PxVehicleComponents.cpp
-        source/physxvehicle/src/PxVehicleDefaults.h
-        source/physxvehicle/src/PxVehicleDrive.cpp
-        source/physxvehicle/src/PxVehicleDrive4W.cpp
-        source/physxvehicle/src/PxVehicleDriveNW.cpp
-        source/physxvehicle/src/PxVehicleDriveTank.cpp
-        source/physxvehicle/src/PxVehicleLinearMath.h
-        source/physxvehicle/src/PxVehicleMetaData.cpp
-        source/physxvehicle/src/PxVehicleNoDrive.cpp
-        source/physxvehicle/src/PxVehicleSDK.cpp
-        source/physxvehicle/src/PxVehicleSerialization.cpp
-        source/physxvehicle/src/PxVehicleSerialization.h
-        source/physxvehicle/src/PxVehicleSuspLimitConstraintShader.h
-        source/physxvehicle/src/PxVehicleSuspWheelTire4.cpp
-        source/physxvehicle/src/PxVehicleSuspWheelTire4.h
-        source/physxvehicle/src/PxVehicleTireFriction.cpp
-        source/physxvehicle/src/PxVehicleUpdate.cpp
-        source/physxvehicle/src/PxVehicleWheels.cpp
-        source/physxvehicle/src/VehicleUtilControl.cpp
-        source/physxvehicle/src/VehicleUtilSetup.cpp
-        source/physxvehicle/src/VehicleUtilTelemetry.cpp
-        source/physxvehicle/src/physxmetadata/include/PxVehicleAutoGeneratedMetaDataObjectNames.h
-        source/physxvehicle/src/physxmetadata/include/PxVehicleAutoGeneratedMetaDataObjects.h
-        source/physxvehicle/src/physxmetadata/include/PxVehicleMetaDataObjects.h
-        source/physxvehicle/src/physxmetadata/src/PxVehicleAutoGeneratedMetaDataObjects.cpp
-        source/physxvehicle/src/physxmetadata/src/PxVehicleMetaDataObjects.cpp
+        source/physxextensions/src/tet/ExtBVH.cpp
+        source/physxextensions/src/tet/ExtBVH.h
+        source/physxextensions/src/tet/ExtDelaunayBoundaryInserter.cpp
+        source/physxextensions/src/tet/ExtDelaunayBoundaryInserter.h
+        source/physxextensions/src/tet/ExtDelaunayTetrahedralizer.cpp
+        source/physxextensions/src/tet/ExtDelaunayTetrahedralizer.h
+        source/physxextensions/src/tet/ExtFastWindingNumber.cpp
+        source/physxextensions/src/tet/ExtFastWindingNumber.h
+        source/physxextensions/src/tet/ExtInsideTester.cpp
+        source/physxextensions/src/tet/ExtInsideTester.h
+        source/physxextensions/src/tet/ExtMarchingCubesTable.h
+        source/physxextensions/src/tet/ExtMeshSimplificator.cpp
+        source/physxextensions/src/tet/ExtMeshSimplificator.h
+        source/physxextensions/src/tet/ExtMultiList.h
+        source/physxextensions/src/tet/ExtOctreeTetrahedralizer.cpp
+        source/physxextensions/src/tet/ExtOctreeTetrahedralizer.h
+        source/physxextensions/src/tet/ExtQuadric.h
+        source/physxextensions/src/tet/ExtRandomAccessHeap.h
+        source/physxextensions/src/tet/ExtRemesher.cpp
+        source/physxextensions/src/tet/ExtRemesher.h
+        source/physxextensions/src/tet/ExtTetSplitting.cpp
+        source/physxextensions/src/tet/ExtTetSplitting.h
+        source/physxextensions/src/tet/ExtTetUnionFind.cpp
+        source/physxextensions/src/tet/ExtTetUnionFind.h
+        source/physxextensions/src/tet/ExtUtilities.cpp
+        source/physxextensions/src/tet/ExtUtilities.h
+        source/physxextensions/src/tet/ExtVec3.h
+        source/physxextensions/src/tet/ExtVoxelTetrahedralizer.cpp
+        source/physxextensions/src/tet/ExtVoxelTetrahedralizer.h
         source/pvd/include/PsPvd.h
         source/pvd/include/PxProfileAllocatorWrapper.h
-        source/pvd/include/PxPvdClient.h
-        source/pvd/include/PxPvdDataStream.h
-        source/pvd/include/PxPvdDataStreamHelpers.h
-        source/pvd/include/PxPvdErrorCodes.h
-        source/pvd/include/PxPvdObjectModelBaseTypes.h
-        source/pvd/include/PxPvdRenderBuffer.h
-        source/pvd/include/PxPvdUserRenderer.h
-        source/pvd/src/PxProfileContextProvider.h
-        source/pvd/src/PxProfileContextProviderImpl.h
-        source/pvd/src/PxProfileDataBuffer.h
-        source/pvd/src/PxProfileDataParsing.h
-        source/pvd/src/PxProfileEventBuffer.h
-        source/pvd/src/PxProfileEventBufferAtomic.h
-        source/pvd/src/PxProfileEventBufferClient.h
-        source/pvd/src/PxProfileEventBufferClientManager.h
-        source/pvd/src/PxProfileEventId.h
-        source/pvd/src/PxProfileEventImpl.cpp
-        source/pvd/src/PxProfileEventMutex.h
-        source/pvd/src/PxProfileEventNames.h
-        source/pvd/src/PxProfileEventSender.h
-        source/pvd/src/PxProfileEventSerialization.h
-        source/pvd/src/PxProfileEvents.h
-        source/pvd/src/PxProfileMemory.h
-        source/pvd/src/PxProfileMemoryBuffer.h
-        source/pvd/src/PxProfileMemoryEventBuffer.h
-        source/pvd/src/PxProfileMemoryEvents.h
-        source/pvd/src/PxProfileScopedEvent.h
-        source/pvd/src/PxProfileScopedMutexLock.h
-        source/pvd/src/PxProfileZoneImpl.h
-        source/pvd/src/PxProfileZoneManager.h
-        source/pvd/src/PxProfileZoneManagerImpl.h
-        source/pvd/src/PxPvd.cpp
-        source/pvd/src/PxPvdBits.h
-        source/pvd/src/PxPvdByteStreams.h
-        source/pvd/src/PxPvdCommStreamEventSink.h
-        source/pvd/src/PxPvdCommStreamEvents.h
-        source/pvd/src/PxPvdCommStreamTypes.h
-        source/pvd/src/PxPvdDataStream.cpp
-        source/pvd/src/PxPvdDefaultFileTransport.cpp
-        source/pvd/src/PxPvdDefaultFileTransport.h
-        source/pvd/src/PxPvdDefaultSocketTransport.cpp
-        source/pvd/src/PxPvdDefaultSocketTransport.h
-        source/pvd/src/PxPvdFoundation.h
-        source/pvd/src/PxPvdImpl.cpp
-        source/pvd/src/PxPvdImpl.h
-        source/pvd/src/PxPvdInternalByteStreams.h
-        source/pvd/src/PxPvdMarshalling.h
-        source/pvd/src/PxPvdMemClient.cpp
-        source/pvd/src/PxPvdMemClient.h
-        source/pvd/src/PxPvdObjectModelInternalTypeDefs.h
-        source/pvd/src/PxPvdObjectModelInternalTypes.h
-        source/pvd/src/PxPvdObjectModelMetaData.cpp
-        source/pvd/src/PxPvdObjectModelMetaData.h
-        source/pvd/src/PxPvdObjectRegistrar.cpp
-        source/pvd/src/PxPvdObjectRegistrar.h
-        source/pvd/src/PxPvdProfileZone.h
-        source/pvd/src/PxPvdProfileZoneClient.cpp
-        source/pvd/src/PxPvdProfileZoneClient.h
-        source/pvd/src/PxPvdUserRenderImpl.h
-        source/pvd/src/PxPvdUserRenderTypes.h
-        source/pvd/src/PxPvdUserRenderer.cpp
+        source/scenequery/include/SqFactory.h
+        source/scenequery/include/SqManager.h
         source/scenequery/include/SqPruner.h
-        source/scenequery/include/SqPrunerMergeData.h
-        source/scenequery/include/SqPruningStructure.h
-        source/scenequery/include/SqSceneQueryManager.h
-        source/scenequery/src/SqAABBPruner.cpp
-        source/scenequery/src/SqAABBPruner.h
-        source/scenequery/src/SqAABBTree.cpp
-        source/scenequery/src/SqAABBTree.h
-        source/scenequery/src/SqAABBTreeUpdateMap.cpp
-        source/scenequery/src/SqAABBTreeUpdateMap.h
-        source/scenequery/src/SqBounds.cpp
-        source/scenequery/src/SqBounds.h
-        source/scenequery/src/SqBucketPruner.cpp
-        source/scenequery/src/SqBucketPruner.h
+        source/scenequery/include/SqPrunerData.h
+        source/scenequery/include/SqQuery.h
+        source/scenequery/include/SqTypedef.h
         source/scenequery/src/SqCompoundPruner.cpp
         source/scenequery/src/SqCompoundPruner.h
         source/scenequery/src/SqCompoundPruningPool.cpp
         source/scenequery/src/SqCompoundPruningPool.h
-        source/scenequery/src/SqExtendedBucketPruner.cpp
-        source/scenequery/src/SqExtendedBucketPruner.h
-        source/scenequery/src/SqIncrementalAABBPruner.cpp
-        source/scenequery/src/SqIncrementalAABBPruner.h
-        source/scenequery/src/SqIncrementalAABBPrunerCore.cpp
-        source/scenequery/src/SqIncrementalAABBPrunerCore.h
-        source/scenequery/src/SqIncrementalAABBTree.cpp
-        source/scenequery/src/SqIncrementalAABBTree.h
-        source/scenequery/src/SqMetaData.cpp
-        source/scenequery/src/SqPruningPool.cpp
-        source/scenequery/src/SqPruningPool.h
-        source/scenequery/src/SqPruningStructure.cpp
-        source/scenequery/src/SqSceneQueryManager.cpp
-        source/scenequery/src/SqTypedef.h
+        source/scenequery/src/SqFactory.cpp
+        source/scenequery/src/SqManager.cpp
+        source/scenequery/src/SqQuery.cpp
         source/simulationcontroller/include/ScActorCore.h
+        source/simulationcontroller/include/ScArticulationAttachmentCore.h
         source/simulationcontroller/include/ScArticulationCore.h
         source/simulationcontroller/include/ScArticulationJointCore.h
+        source/simulationcontroller/include/ScArticulationMimicJointCore.h
+        source/simulationcontroller/include/ScArticulationTendonCore.h
+        source/simulationcontroller/include/ScArticulationTendonJointCore.h
         source/simulationcontroller/include/ScBodyCore.h
+        source/simulationcontroller/include/ScBroadphase.h
         source/simulationcontroller/include/ScConstraintCore.h
+        source/simulationcontroller/include/ScDeformableSurfaceCore.h
+        source/simulationcontroller/include/ScDeformableVolumeCore.h
         source/simulationcontroller/include/ScIterators.h
-        source/simulationcontroller/include/ScMaterialCore.h
+        source/simulationcontroller/include/ScParticleSystemCore.h
         source/simulationcontroller/include/ScPhysics.h
         source/simulationcontroller/include/ScRigidCore.h
         source/simulationcontroller/include/ScScene.h
         source/simulationcontroller/include/ScShapeCore.h
+        source/simulationcontroller/include/ScSqBoundsSync.h
         source/simulationcontroller/include/ScStaticCore.h
         source/simulationcontroller/src/ScActorCore.cpp
         source/simulationcontroller/src/ScActorPair.h
@@ -1128,39 +1122,57 @@ qt_internal_extend_target(BundledPhysX
         source/simulationcontroller/src/ScArticulationJointCore.cpp
         source/simulationcontroller/src/ScArticulationJointSim.cpp
         source/simulationcontroller/src/ScArticulationJointSim.h
+        source/simulationcontroller/src/ScArticulationMimicJointSim.cpp
+        source/simulationcontroller/src/ScArticulationMimicJointSim.h
         source/simulationcontroller/src/ScArticulationSim.cpp
         source/simulationcontroller/src/ScArticulationSim.h
+        source/simulationcontroller/src/ScArticulationTendonCore.cpp
+        source/simulationcontroller/src/ScArticulationTendonJointCore.cpp
+        source/simulationcontroller/src/ScArticulationTendonSim.cpp
+        source/simulationcontroller/src/ScArticulationTendonSim.h
         source/simulationcontroller/src/ScBodyCore.cpp
         source/simulationcontroller/src/ScBodySim.cpp
         source/simulationcontroller/src/ScBodySim.h
-        source/simulationcontroller/src/ScClient.h
+        source/simulationcontroller/src/ScBroadphase.cpp
+        source/simulationcontroller/src/ScCCD.cpp
+        source/simulationcontroller/src/ScConstraintBreakage.cpp
         source/simulationcontroller/src/ScConstraintCore.cpp
-        source/simulationcontroller/src/ScConstraintGroupNode.cpp
-        source/simulationcontroller/src/ScConstraintGroupNode.h
         source/simulationcontroller/src/ScConstraintInteraction.cpp
         source/simulationcontroller/src/ScConstraintInteraction.h
-        source/simulationcontroller/src/ScConstraintProjectionManager.cpp
-        source/simulationcontroller/src/ScConstraintProjectionManager.h
-        source/simulationcontroller/src/ScConstraintProjectionTree.cpp
-        source/simulationcontroller/src/ScConstraintProjectionTree.h
         source/simulationcontroller/src/ScConstraintSim.cpp
         source/simulationcontroller/src/ScConstraintSim.h
         source/simulationcontroller/src/ScContactReportBuffer.h
         source/simulationcontroller/src/ScContactStream.h
+        source/simulationcontroller/src/ScDeformableSurfaceCore.cpp
+        source/simulationcontroller/src/ScDeformableSurfaceSim.cpp
+        source/simulationcontroller/src/ScDeformableSurfaceSim.h
+        source/simulationcontroller/src/ScDeformableVolumeCore.cpp
+        source/simulationcontroller/src/ScDeformableVolumeSim.cpp
+        source/simulationcontroller/src/ScDeformableVolumeSim.h
         source/simulationcontroller/src/ScElementInteractionMarker.cpp
         source/simulationcontroller/src/ScElementInteractionMarker.h
         source/simulationcontroller/src/ScElementSim.cpp
         source/simulationcontroller/src/ScElementSim.h
         source/simulationcontroller/src/ScElementSimInteraction.h
+        source/simulationcontroller/src/ScFiltering.cpp
+        source/simulationcontroller/src/ScFiltering.h
+        source/simulationcontroller/src/ScGpuActorSim.cpp
+        source/simulationcontroller/src/ScGpuActorSim.h
         source/simulationcontroller/src/ScInteraction.cpp
         source/simulationcontroller/src/ScInteraction.h
         source/simulationcontroller/src/ScInteractionFlags.h
         source/simulationcontroller/src/ScIterators.cpp
-        source/simulationcontroller/src/ScMetaData.cpp
+        source/simulationcontroller/src/ScKinematics.cpp
         source/simulationcontroller/src/ScNPhaseCore.cpp
         source/simulationcontroller/src/ScNPhaseCore.h
         source/simulationcontroller/src/ScObjectIDTracker.h
+        source/simulationcontroller/src/ScParticleSystemCore.cpp
+        source/simulationcontroller/src/ScParticleSystemShapeCore.cpp
+        source/simulationcontroller/src/ScParticleSystemShapeCore.h
+        source/simulationcontroller/src/ScParticleSystemSim.cpp
+        source/simulationcontroller/src/ScParticleSystemSim.h
         source/simulationcontroller/src/ScPhysics.cpp
+        source/simulationcontroller/src/ScPipeline.cpp
         source/simulationcontroller/src/ScRigidCore.cpp
         source/simulationcontroller/src/ScRigidSim.cpp
         source/simulationcontroller/src/ScRigidSim.h
@@ -1170,11 +1182,14 @@ qt_internal_extend_target(BundledPhysX
         source/simulationcontroller/src/ScShapeInteraction.h
         source/simulationcontroller/src/ScShapeSim.cpp
         source/simulationcontroller/src/ScShapeSim.h
+        source/simulationcontroller/src/ScShapeSimBase.cpp
+        source/simulationcontroller/src/ScShapeSimBase.h
         source/simulationcontroller/src/ScSimStateData.h
         source/simulationcontroller/src/ScSimStats.cpp
         source/simulationcontroller/src/ScSimStats.h
         source/simulationcontroller/src/ScSimulationController.cpp
         source/simulationcontroller/src/ScSimulationController.h
+        source/simulationcontroller/src/ScSleep.cpp
         source/simulationcontroller/src/ScSqBoundsManager.cpp
         source/simulationcontroller/src/ScSqBoundsManager.h
         source/simulationcontroller/src/ScStaticCore.cpp
@@ -1182,6 +1197,7 @@ qt_internal_extend_target(BundledPhysX
         source/simulationcontroller/src/ScTriggerInteraction.cpp
         source/simulationcontroller/src/ScTriggerInteraction.h
         source/simulationcontroller/src/ScTriggerPairs.h
+        source/simulationcontroller/src/ScVisualize.cpp
         source/task/src/TaskManager.cpp
         # END GENERATED SOURCES
     )
@@ -1191,29 +1207,26 @@ if(WIN32 OR MSVC)
         SOURCES
             # BEGIN GENERATED WINDOWS SOURCES
             include/common/windows/PxWindowsDelayLoadHook.h
-            pxshared/include/foundation/windows/PxWindowsIntrinsics.h
+            include/foundation/windows/PxWindowsAoS.h
+            include/foundation/windows/PxWindowsFPU.h
+            include/foundation/windows/PxWindowsInclude.h
+            include/foundation/windows/PxWindowsInlineAoS.h
+            include/foundation/windows/PxWindowsIntrinsics.h
+            include/foundation/windows/PxWindowsMathIntrinsics.h
+            include/foundation/windows/PxWindowsTrigConstants.h
             source/common/include/windows/CmWindowsLoadLibrary.h
             source/common/include/windows/CmWindowsModuleUpdateLoader.h
             source/common/src/windows/CmWindowsDelayLoadHook.cpp
             source/common/src/windows/CmWindowsModuleUpdateLoader.cpp
-            source/foundation/include/windows/PsWindowsAoS.h
-            source/foundation/include/windows/PsWindowsFPU.h
-            source/foundation/include/windows/PsWindowsInclude.h
-            source/foundation/include/windows/PsWindowsInlineAoS.h
-            source/foundation/include/windows/PsWindowsIntrinsics.h
-            source/foundation/include/windows/PsWindowsTrigConstants.h
-            source/foundation/src/windows/PsUWPThread.cpp
-            source/foundation/src/windows/PsWindowsAtomic.cpp
-            source/foundation/src/windows/PsWindowsCpu.cpp
-            source/foundation/src/windows/PsWindowsFPU.cpp
-            source/foundation/src/windows/PsWindowsMutex.cpp
-            source/foundation/src/windows/PsWindowsPrintString.cpp
-            source/foundation/src/windows/PsWindowsSList.cpp
-            source/foundation/src/windows/PsWindowsSocket.cpp
-            source/foundation/src/windows/PsWindowsSync.cpp
-            source/foundation/src/windows/PsWindowsThread.cpp
-            source/foundation/src/windows/PsWindowsTime.cpp
-            source/physx/src/device/windows/PhysXIndicatorWindows.cpp
+            source/foundation/windows/FdWindowsAtomic.cpp
+            source/foundation/windows/FdWindowsFPU.cpp
+            source/foundation/windows/FdWindowsMutex.cpp
+            source/foundation/windows/FdWindowsPrintString.cpp
+            source/foundation/windows/FdWindowsSList.cpp
+            source/foundation/windows/FdWindowsSocket.cpp
+            source/foundation/windows/FdWindowsSync.cpp
+            source/foundation/windows/FdWindowsThread.cpp
+            source/foundation/windows/FdWindowsTime.cpp
             source/physx/src/windows/NpWindowsDelayLoadHook.cpp
             source/physxcooking/src/windows/WindowsCookingDelayLoadHook.cpp
             # END GENERATED WINDOWS SOURCES
@@ -1224,27 +1237,25 @@ if(UNIX)
     qt_internal_extend_target(BundledPhysX
         SOURCES
             # BEGIN GENERATED UNIX SOURCES
-            pxshared/include/foundation/unix/PxUnixIntrinsics.h
-            source/foundation/include/unix/PsUnixAoS.h
-            source/foundation/include/unix/PsUnixFPU.h
-            source/foundation/include/unix/PsUnixInlineAoS.h
-            source/foundation/include/unix/PsUnixIntrinsics.h
-            source/foundation/include/unix/PsUnixTrigConstants.h
-            source/foundation/include/unix/neon/PsUnixNeonAoS.h
-            source/foundation/include/unix/neon/PsUnixNeonInlineAoS.h
-            source/foundation/include/unix/sse2/PsUnixSse2AoS.h
-            source/foundation/include/unix/sse2/PsUnixSse2InlineAoS.h
-            source/foundation/src/unix/PsUnixAtomic.cpp
-            source/foundation/src/unix/PsUnixCpu.cpp
-            source/foundation/src/unix/PsUnixFPU.cpp
-            source/foundation/src/unix/PsUnixMutex.cpp
-            source/foundation/src/unix/PsUnixPrintString.cpp
-            source/foundation/src/unix/PsUnixSList.cpp
-            source/foundation/src/unix/PsUnixSocket.cpp
-            source/foundation/src/unix/PsUnixSync.cpp
-            source/foundation/src/unix/PsUnixThread.cpp
-            source/foundation/src/unix/PsUnixTime.cpp
-            source/physx/src/device/linux/PhysXIndicatorLinux.cpp
+            include/foundation/unix/PxUnixAoS.h
+            include/foundation/unix/PxUnixFPU.h
+            include/foundation/unix/PxUnixInlineAoS.h
+            include/foundation/unix/PxUnixIntrinsics.h
+            include/foundation/unix/PxUnixMathIntrinsics.h
+            include/foundation/unix/PxUnixTrigConstants.h
+            include/foundation/unix/neon/PxUnixNeonAoS.h
+            include/foundation/unix/neon/PxUnixNeonInlineAoS.h
+            include/foundation/unix/sse2/PxUnixSse2AoS.h
+            include/foundation/unix/sse2/PxUnixSse2InlineAoS.h
+            source/foundation/unix/FdUnixAtomic.cpp
+            source/foundation/unix/FdUnixFPU.cpp
+            source/foundation/unix/FdUnixMutex.cpp
+            source/foundation/unix/FdUnixPrintString.cpp
+            source/foundation/unix/FdUnixSList.cpp
+            source/foundation/unix/FdUnixSocket.cpp
+            source/foundation/unix/FdUnixSync.cpp
+            source/foundation/unix/FdUnixThread.cpp
+            source/foundation/unix/FdUnixTime.cpp
             # END GENERATED UNIX SOURCES
         )
 endif(UNIX)
@@ -1268,35 +1279,30 @@ qt_internal_extend_target(BundledPhysX
         include/cooking
         include/cudamanager
         include/extensions
-        include/filebuf
         include/foundation
+        include/foundation/unix
+        include/foundation/unix/neon
+        include/foundation/unix/sse2
+        include/foundation/windows
         include/geometry
         include/geomutils
         include/gpu
+        include/omnipvd
         include/pvd
         include/solver
         include/task
-        include/vehicle
-        pxshared/include
-        pxshared/include/foundation
-        pxshared/include/foundation/unix
-        pxshared/include/foundation/windows
         source/common/include
+        source/common/include/omnipvd
         source/common/include/windows
         source/common/src
-        source/fastxml/include
-        source/filebuf/include
-        source/foundation/include
-        source/foundation/include/unix
-        source/foundation/include/unix/neon
-        source/foundation/include/unix/sse2
-        source/foundation/include/windows
+        source/foundation
         source/geomutils/include
         source/geomutils/src
         source/geomutils/src/ccd
         source/geomutils/src/common
         source/geomutils/src/contact
         source/geomutils/src/convex
+        source/geomutils/src/cooking
         source/geomutils/src/distance
         source/geomutils/src/gjk
         source/geomutils/src/hf
@@ -1312,26 +1318,17 @@ qt_internal_extend_target(BundledPhysX
         source/lowlevelaabb/include
         source/lowlevelaabb/src
         source/lowleveldynamics/include
+        source/lowleveldynamics/shared
         source/lowleveldynamics/src
         source/physx/src
-        source/physx/src/buffering
-        source/physx/src/device
+        source/physx/src/omnipvd
+        source/physx/src/opensource/cudamanager/include
         source/physxcharacterkinematic/src
-        source/physxcooking/src
-        source/physxcooking/src/convex
-        source/physxcooking/src/mesh
         source/physxextensions/src
-        source/physxextensions/src/serialization
-        source/physxextensions/src/serialization/Binary
+        source/physxextensions/src/omnipvd
         source/physxextensions/src/serialization/File
-        source/physxextensions/src/serialization/Xml
-        source/physxgpu/include
-        source/physxmetadata/core/include
-        source/physxmetadata/extensions/include
-        source/physxvehicle/src
-        source/physxvehicle/src/physxmetadata/include
+        source/physxextensions/src/tet
         source/pvd/include
-        source/pvd/src
         source/scenequery/include
         source/scenequery/src
         source/simulationcontroller/include
@@ -1349,6 +1346,17 @@ set_property(TARGET BundledPhysX PROPERTY CXX_STANDARD 17)
 ## ALL
 qt_internal_extend_target(BundledPhysX DEFINES PX_COOKING)
 
+# This is the public, open source, distribution of PhysX, so the parts that are
+# only available to NVIDIA internal builds must be compiled out.
+qt_internal_extend_target(BundledPhysX DEFINES PX_PUBLIC_RELEASE=1)
+
+# We neither build the CUDA parts of PhysX nor ship the PhysXGpu library that
+# would provide them at run time, so leave GPU support out entirely.
+qt_internal_extend_target(BundledPhysX DEFINES DISABLE_CUDA_PHYSX)
+
+# OmniPVD is not used, and its sampler is not part of the copied sources.
+qt_internal_extend_target(BundledPhysX DEFINES PX_SUPPORT_OMNI_PVD=0)
+
 qt_internal_extend_target(BundledPhysX DEFINES $<$<CONFIG:Debug>:PX_CHECKED=1>)
 
 ## MSVC/MSYS
@@ -1359,7 +1367,10 @@ endif()
 
 ## MSYS
 if (MSYS OR MINGW)
-    qt_internal_extend_target(BundledPhysX DEFINES PX_SIMD_DISABLED PX_GCC_FAMILY)
+    # PX_SIMD_DISABLED decides whether the vecmath types are SSE registers or plain structs,
+    # so it belongs to the ABI, and PhysX 5 has those types in its public headers: everything
+    # that includes them has to be compiled with the same answer as the library.
+    qt_internal_extend_target(BundledPhysX PUBLIC_DEFINES PX_SIMD_DISABLED PX_GCC_FAMILY)
 endif()
 
 if (UNIX OR MINGW)

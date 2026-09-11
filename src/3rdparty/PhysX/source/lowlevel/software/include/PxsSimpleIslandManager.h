@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,26 +22,80 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
 #ifndef PXS_SIMPLE_ISLAND_GEN_H
 #define PXS_SIMPLE_ISLAND_GEN_H
 
+#include "foundation/PxUserAllocated.h"
 #include "PxsIslandSim.h"
 #include "CmTask.h"
 
+/*
+PT: runs first part of the island gen's second pass in parallel with the Pxg-level constraint partitioning.
+
+mIslandGen task spawns Pxg constraint partitioning task(s).
+mIslandGen runs processNarrowPhaseTouchEvents() in parallel with Pxg.
+
+///////////////////////////////////////////////////////////////////////////////
+
+Previous design:
+
+mPostIslandGen runs as a continuation task after mIslandGen and Pxg.
+
+mPostIslandGen mainly runs mSetEdgesConnectedTask, which:
+- calls mSimpleIslandManager->setEdgeConnected()
+- calls mSimpleIslandManager-secondPassIslandGen()
+- calls wakeObjectsUp()
+
+///////////////////////////////////////////////////////////////////////////////
+
+New design:
+
+postIslandGen is not a task anymore (mPostIslandGen does not exist).
+postIslandGen is directly called at the end of mIslandGen.
+So it now runs in parallel with Pxg.
+mIslandGen and Pxg continue to mSolver task.
+
+postIslandGen mainly runs mSetEdgesConnectedTask, which:
+- calls mSimpleIslandManager->setEdgeConnected()
+- calls mSimpleIslandManager->secondPassIslandGenPart1()
+
+mSolver now first runs the parts that don't overlap with Pxg:
+- calls mSimpleIslandManager-secondPassIslandGenPart2()
+- calls wakeObjectsUp()
+
+///////////////////////////////////////////////////////////////////////////////
+
+Before:
+mIslandGen->processNarrowPhaseTouchEvents	|mPostIslandGen											|mSolver
+=>PxgConstraintPartition					|=>setEdgesConnected->secondPassIslandGen->wakeObjectsUp|
+
+After:
+mIslandGen->processNarrowPhaseTouchEvents->postIslandGen									|secondPassIslandGenPart2->wakeObjectsUp->mSolver
+=>PxgConstraintPartition					=>setEdgesConnected->secondPassIslandGenPart1	|
+*/
+#define USE_SPLIT_SECOND_PASS_ISLAND_GEN	1
+
 namespace physx
 {
+	class PxsContactManager;
 
+// PT: TODO: fw declaring an Sc class here is not good
 namespace Sc
 {
 	class Interaction;
 }
+
+namespace Dy
+{
+	struct Constraint;
+}
+
 namespace IG
 {
-
 	class SimpleIslandManager;
 
 class ThirdPassTask : public Cm::Task
@@ -54,9 +107,9 @@ public:
 
 	ThirdPassTask(PxU64 contextID, SimpleIslandManager& islandManager, IslandSim& islandSim);
 
-	virtual void runInternal();
+	virtual void runInternal() PX_OVERRIDE;
 
-	virtual const char* getName() const
+	virtual const char* getName() const PX_OVERRIDE
 	{
 		return "ThirdPassIslandGenTask";
 	}
@@ -73,9 +126,9 @@ public:
 
 	PostThirdPassTask(PxU64 contextID, SimpleIslandManager& islandManager);
 
-	virtual void runInternal();
+	virtual void runInternal() PX_OVERRIDE;
 
-	virtual const char* getName() const
+	virtual const char* getName() const PX_OVERRIDE
 	{
 		return "PostThirdPassTask";
 	}
@@ -83,29 +136,35 @@ private:
 	PX_NOCOPY(PostThirdPassTask)
 };
 
-class SimpleIslandManager
+class AuxCpuData
 {
+	public:
+	PX_FORCE_INLINE PxsContactManager*	getContactManager(IG::EdgeIndex edgeId)	const { return reinterpret_cast<PxsContactManager*>(mConstraintOrCm[edgeId]);	}
+	PX_FORCE_INLINE Dy::Constraint*		getConstraint(IG::EdgeIndex edgeId)		const { return reinterpret_cast<Dy::Constraint*>(mConstraintOrCm[edgeId]);		}
 
-	HandleManager<PxU32> mNodeHandles;						//! Handle manager for nodes
-	HandleManager<EdgeIndex> mEdgeHandles;					//! Handle manager for edges
+	Cm::BlockArray<void*>	mConstraintOrCm;	//! Pointers to either the constraint or Cm for this pair
+};
+
+class SimpleIslandManager : public PxUserAllocated
+{
+	HandleManager<PxU32> mNodeHandles;		//! Handle manager for nodes
+	HandleManager<EdgeIndex> mEdgeHandles;	//! Handle manager for edges
 
 	//An array of destroyed nodes
-	Ps::Array<NodeIndex> mDestroyedNodes;
+	PxArray<PxNodeIndex> mDestroyedNodes;
 	Cm::BlockArray<Sc::Interaction*> mInteractions;
-	
 
 	//Edges destroyed this frame
-	Ps::Array<EdgeIndex> mDestroyedEdges;
-	Ps::Array<PartitionEdge*> mFirstPartitionEdges;
-	Ps::Array<PartitionEdge*> mDestroyedPartitionEdges;
-	//KS - stores node indices for a given edge. Node index 0 is at 2* edgeId and NodeIndex1 is at 2*edgeId + 1
-	//can also be used for edgeInstance indexing so there's no need to figure out outboundNode ID either!
-	Cm::BlockArray<NodeIndex> mEdgeNodeIndices;
-	Cm::BlockArray<void*> mConstraintOrCm;	//! Pointers to either the constraint or Cm for this pair
+	PxArray<EdgeIndex> mDestroyedEdges;
+	GPUExternalData	mGpuData;
 
-	Cm::BitMap mConnectedMap;
+	CPUExternalData	mCpuData;
+	AuxCpuData		mAuxCpuData;
 
-	IslandSim mIslandManager;
+	PxBitMap mConnectedMap;
+
+	// PT: TODO: figure out why we still need both
+	IslandSim mAccurateIslandManager;
 	IslandSim mSpeculativeIslandManager;
 
 	ThirdPassTask mSpeculativeThirdPassTask;
@@ -114,87 +173,88 @@ class SimpleIslandManager
 	PostThirdPassTask mPostThirdPassTask;
 	PxU32 mMaxDirtyNodesPerFrame;
 
-	PxU64	mContextID;
+	const PxU64	mContextID;
+	const bool mGPU;
 public:
 
-	SimpleIslandManager(bool useEnhancedDeterminism, PxU64 contextID);
-
+	SimpleIslandManager(bool useEnhancedDeterminism, bool gpu, PxU64 contextID);
 	~SimpleIslandManager();
 
-	NodeIndex addRigidBody(PxsRigidBody* body, bool isKinematic, bool isActive);
+	PxNodeIndex	addNode(bool isActive, bool isKinematic, Node::NodeType type, void* object);
+	void		removeNode(const PxNodeIndex index);
 
-	void removeNode(const NodeIndex index);
+	// PT: these two functions added for multithreaded implementation of Sc::Scene::islandInsertion
+	void preallocateContactManagers(PxU32 nb, EdgeIndex* handles);
+	bool addPreallocatedContactManager(EdgeIndex handle, PxsContactManager* manager, PxNodeIndex nodeHandle1, PxNodeIndex nodeHandle2, Sc::Interaction* interaction, Edge::EdgeType edgeType);
 
-	NodeIndex addArticulation(Sc::ArticulationSim* articulation, Dy::ArticulationV* llArtic, bool isActive);
+	EdgeIndex addContactManager(PxsContactManager* manager, PxNodeIndex nodeHandle1, PxNodeIndex nodeHandle2, Sc::Interaction* interaction, Edge::EdgeType edgeType);
+	EdgeIndex addConstraint(Dy::Constraint* constraint, PxNodeIndex nodeHandle1, PxNodeIndex nodeHandle2, Sc::Interaction* interaction);
 
-	EdgeIndex addContactManager(PxsContactManager* manager, NodeIndex nodeHandle1, NodeIndex nodeHandle2, Sc::Interaction* interaction);
+	PX_FORCE_INLINE	PxIntBool isEdgeConnected(EdgeIndex edgeIndex) const { return mConnectedMap.test(edgeIndex); }
 
-	EdgeIndex addConstraint(Dy::Constraint* constraint, NodeIndex nodeHandle1, NodeIndex nodeHandle2, Sc::Interaction* interaction);
-
-	bool isConnected(EdgeIndex edgeIndex) const { return !!mConnectedMap.test(edgeIndex); }
-
-	PX_FORCE_INLINE NodeIndex getEdgeIndex(EdgeInstanceIndex edgeIndex) const { return mEdgeNodeIndices[edgeIndex]; }
-
-	void activateNode(NodeIndex index);
-	void deactivateNode(NodeIndex index);
-	void putNodeToSleep(NodeIndex index);
+	void activateNode(PxNodeIndex index);
+	void deactivateNode(PxNodeIndex index);
+	void putNodeToSleep(PxNodeIndex index);
 
 	void removeConnection(EdgeIndex edgeIndex);
 	
 	void firstPassIslandGen();
 	void additionalSpeculativeActivation();
 	void secondPassIslandGen();
+	void secondPassIslandGenPart1();
+	void secondPassIslandGenPart2();
 	void thirdPassIslandGen(PxBaseTask* continuation);
 
-	void clearDestroyedEdges();
+	PX_INLINE void clearDestroyedPartitionEdges()
+	{
+		mGpuData.mDestroyedPartitionEdges.forceSize_Unsafe(0);
+	}
 
-	void setEdgeConnected(EdgeIndex edgeIndex);
+	void setEdgeConnected(EdgeIndex edgeIndex, Edge::EdgeType edgeType);
 	void setEdgeDisconnected(EdgeIndex edgeIndex);
-
-	bool getIsEdgeConnected(EdgeIndex edgeIndex);
 
 	void setEdgeRigidCM(const EdgeIndex edgeIndex, PxsContactManager* cm);
 
 	void clearEdgeRigidCM(const EdgeIndex edgeIndex);
 
-	void setKinematic(IG::NodeIndex nodeIndex);
+	void setKinematic(PxNodeIndex nodeIndex);
 
-	void setDynamic(IG::NodeIndex nodeIndex);
+	void setDynamic(PxNodeIndex nodeIndex);
 
-	const IslandSim& getSpeculativeIslandSim() const { return mSpeculativeIslandManager; }
-	const IslandSim& getAccurateIslandSim() const { return mIslandManager; }
+	PX_FORCE_INLINE	IslandSim&			getSpeculativeIslandSim()			{ return mSpeculativeIslandManager;	}
+	PX_FORCE_INLINE	const IslandSim&	getSpeculativeIslandSim()	const	{ return mSpeculativeIslandManager;	}
 
-	IslandSim& getAccurateIslandSim() { return mIslandManager; }
+	PX_FORCE_INLINE	IslandSim&			getAccurateIslandSim()				{ return mAccurateIslandManager;	}
+	PX_FORCE_INLINE	const IslandSim&	getAccurateIslandSim()		const	{ return mAccurateIslandManager;	}
 
-	PX_FORCE_INLINE PxU32 getNbEdgeHandles() const { return mEdgeHandles.getTotalHandles(); }
+	PX_FORCE_INLINE	const AuxCpuData&	getAuxCpuData()				const	{ return mAuxCpuData;				}
 
-	PX_FORCE_INLINE PxU32 getNbNodeHandles() const { return mNodeHandles.getTotalHandles(); }
+	PX_FORCE_INLINE PxU32				getNbEdgeHandles()			const	{ return mEdgeHandles.getTotalHandles(); }
+
+	PX_FORCE_INLINE PxU32				getNbNodeHandles()			const	{ return mNodeHandles.getTotalHandles(); }
 
 	void deactivateEdge(const EdgeIndex edge);
 
-	PX_FORCE_INLINE PxsContactManager* getContactManager(IG::EdgeIndex edgeId) const { return reinterpret_cast<PxsContactManager*>(mConstraintOrCm[edgeId]); }
-	PX_FORCE_INLINE PxsContactManager* getContactManagerUnsafe(IG::EdgeIndex edgeId) const { return reinterpret_cast<PxsContactManager*>(mConstraintOrCm[edgeId]); }
-	PX_FORCE_INLINE Dy::Constraint* getConstraint(IG::EdgeIndex edgeId) const { return reinterpret_cast<Dy::Constraint*>(mConstraintOrCm[edgeId]); }
-	PX_FORCE_INLINE Dy::Constraint* getConstraintUnsafe(IG::EdgeIndex edgeId) const { return reinterpret_cast<Dy::Constraint*>(mConstraintOrCm[edgeId]); }
+	PX_FORCE_INLINE PxsContactManager*	getContactManager(IG::EdgeIndex edgeId)	const { return reinterpret_cast<PxsContactManager*>(mAuxCpuData.mConstraintOrCm[edgeId]);	}
+	PX_FORCE_INLINE Dy::Constraint*		getConstraint(IG::EdgeIndex edgeId)		const { return reinterpret_cast<Dy::Constraint*>(mAuxCpuData.mConstraintOrCm[edgeId]);		}
 
-	PX_FORCE_INLINE Sc::Interaction* getInteraction(IG::EdgeIndex edgeId) const { return mInteractions[edgeId]; }
+	PX_FORCE_INLINE Sc::Interaction*	getInteractionFromEdgeIndex(IG::EdgeIndex edgeId) const { return mInteractions[edgeId]; }
 
-	PX_FORCE_INLINE	PxU64			getContextId() const { return mContextID; }
+	PX_FORCE_INLINE	PxU64				getContextId() const { return mContextID; }
 
 	bool checkInternalConsistency();
-
 
 private:
 
 	friend class ThirdPassTask;
 	friend class PostThirdPassTask;
 
-	bool validateDeactivations() const;
+	bool		validateDeactivations() const;
+	EdgeIndex	addEdge(void* edge, PxNodeIndex nodeHandle1, PxNodeIndex nodeHandle2, Sc::Interaction* interaction);
+	EdgeIndex	resizeEdgeArrays(EdgeIndex handle, bool flag);
 
 	PX_NOCOPY(SimpleIslandManager)
 };
-
-
 
 }
 }

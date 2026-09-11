@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,39 +22,35 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
-
-#include "geomutils/GuContactBuffer.h"
+#include "geomutils/PxContactBuffer.h"
 #include "GuVecBox.h"
-#include "GuGeometryUnion.h"
 #include "GuContactMethodImpl.h"
 #include "GuPersistentContactManifold.h"
 
-namespace physx
-{
-namespace Gu
-{
-bool pcmContactPlaneBox(GU_CONTACT_METHOD_ARGS)
+using namespace physx;
+
+bool Gu::pcmContactPlaneBox(GU_CONTACT_METHOD_ARGS)
 {
 	PX_UNUSED(shape0);
 	PX_UNUSED(renderOutput);
 
-	using namespace Ps::aos;
+	using namespace aos;
 
-	Gu::PersistentContactManifold& manifold = cache.getManifold();
-	Ps::prefetchLine(&manifold, 256);
+	PersistentContactManifold& manifold = cache.getManifold();
+	PxPrefetchLine(&manifold, 256);
 
 	// Get actual shape data
-	const PxBoxGeometry& shapeBox = shape1.get<const PxBoxGeometry>();
+	const PxBoxGeometry& shapeBox = checkedCast<PxBoxGeometry>(shape1);
 
-	const PsTransformV transf0 = loadTransformA(transform1);//box transform
-	const PsTransformV transf1 = loadTransformA(transform0);//plane transform
+	const PxTransformV transf0 = loadTransformA(transform1);//box transform
+	const PxTransformV transf1 = loadTransformA(transform0);//plane transform
 
 	//box to plane
-	const PsTransformV curTransf(transf1.transformInv(transf0));
+	const PxTransformV curTransf(transf1.transformInv(transf0));
 
 	//in world space
 	const Vec3V negPlaneNormal = V3Normalize(V3Neg(QuatGetBasisVector0(transf1.q)));
@@ -83,7 +78,7 @@ bool pcmContactPlaneBox(GU_CONTACT_METHOD_ARGS)
 		manifold.mNumContacts = 0;
 		manifold.setRelativeTransform(curTransf);
 
-		const PsMatTransformV aToB(curTransf);
+		const PxMatTransformV aToB(curTransf);
 		const FloatV bx = V3GetX(boxExtents);
 		const FloatV by = V3GetY(boxExtents);
 		const FloatV bz = V3GetZ(boxExtents);
@@ -115,7 +110,7 @@ bool pcmContactPlaneBox(GU_CONTACT_METHOD_ARGS)
 
 		const FloatV acceptanceDist = FSub(contactDist, px);
 
-		Gu::PersistentContact* manifoldContacts = PX_CP_TO_PCP(contactBuffer.contacts);
+		PersistentContact* manifoldContacts = PX_CP_TO_PCP(contactBuffer.contacts);
 		PxU32 numContacts = 0;
 
 		if(FAllGrtr(acceptanceDist, s0))
@@ -162,7 +157,7 @@ bool pcmContactPlaneBox(GU_CONTACT_METHOD_ARGS)
 		{
 			const FloatV pen = FAdd(s4, px);
 			//(-x, y, z)
-			const Vec3V p =V3Merge(nbx, by, bz);
+			const Vec3V p = V3Merge(nbx, by, bz);
 			manifoldContacts[numContacts].mLocalPointA = p;
 			manifoldContacts[numContacts].mLocalPointB = V3NegScaleSub(localNormal, pen, aToB.transform(p)); 
 			manifoldContacts[numContacts++].mLocalNormalPen = V4SetW(Vec4V_From_Vec3V(localNormal), pen);
@@ -177,7 +172,6 @@ bool pcmContactPlaneBox(GU_CONTACT_METHOD_ARGS)
 			manifoldContacts[numContacts].mLocalPointB = V3NegScaleSub(localNormal, pen, aToB.transform(p)); 
 			manifoldContacts[numContacts++].mLocalNormalPen = V4SetW(Vec4V_From_Vec3V(localNormal), pen);
 		}
-
 	
 		if(FAllGrtr(acceptanceDist, s6))
 		{
@@ -211,8 +205,5 @@ bool pcmContactPlaneBox(GU_CONTACT_METHOD_ARGS)
 		
 		//manifold.drawManifold(*gRenderOutPut, transf0, transf1);
 		return manifold.getNumContacts() > 0;
-	}	
+	}
 }
-
-}//Gu
-}//physx

@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,12 +22,16 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
 #include "geometry/PxSphereGeometry.h"
 #include "geometry/PxConvexMeshGeometry.h"
+#include "geometry/PxTetrahedronMeshGeometry.h"
+#include "geometry/PxCustomGeometry.h"
+#include "geometry/PxConvexCoreGeometry.h"
+#include "geometry/PxGjkQuery.h"
 #include "GuMidphaseInterface.h"
 #include "GuInternal.h"
 #include "GuIntersectionRayCapsule.h"
@@ -38,6 +41,9 @@
 #include "GuDistancePointSegment.h"
 #include "GuConvexMesh.h"
 #include "CmScaling.h"
+#include "GuConvexGeometry.h"
+#include "GuConvexSupport.h"
+#include "GuBounds.h"
 
 using namespace physx;
 using namespace Gu;
@@ -45,9 +51,11 @@ using namespace Gu;
 ////////////////////////////////////////////////// raycasts //////////////////////////////////////////////////////////////////
 PxU32 raycast_box(GU_RAY_FUNC_PARAMS)
 {
-	PX_UNUSED(maxHits);
 	PX_ASSERT(geom.getType() == PxGeometryType::eBOX);
 	PX_ASSERT(maxHits && hits);
+	PX_UNUSED(threadContext);
+	PX_UNUSED(maxHits);
+	PX_UNUSED(stride);
 	const PxBoxGeometry& boxGeom = static_cast<const PxBoxGeometry&>(geom);
 
 	const PxTransform& absPose = pose;
@@ -110,9 +118,11 @@ PxU32 raycast_box(GU_RAY_FUNC_PARAMS)
 
 PxU32 raycast_sphere(GU_RAY_FUNC_PARAMS)
 {
-	PX_UNUSED(maxHits);
 	PX_ASSERT(geom.getType() == PxGeometryType::eSPHERE);
 	PX_ASSERT(maxHits && hits);
+	PX_UNUSED(threadContext);
+	PX_UNUSED(maxHits);
+	PX_UNUSED(stride);
 
 	const PxSphereGeometry& sphereGeom = static_cast<const PxSphereGeometry&>(geom);
 
@@ -157,9 +167,11 @@ PxU32 raycast_sphere(GU_RAY_FUNC_PARAMS)
 
 PxU32 raycast_capsule(GU_RAY_FUNC_PARAMS)
 {
-	PX_UNUSED(maxHits);
 	PX_ASSERT(geom.getType() == PxGeometryType::eCAPSULE);
 	PX_ASSERT(maxHits && hits);
+	PX_UNUSED(threadContext);
+	PX_UNUSED(maxHits);
+	PX_UNUSED(stride);
 
 	const PxCapsuleGeometry& capsuleGeom = static_cast<const PxCapsuleGeometry&>(geom);
 
@@ -212,10 +224,12 @@ PxU32 raycast_capsule(GU_RAY_FUNC_PARAMS)
 
 PxU32 raycast_plane(GU_RAY_FUNC_PARAMS)
 {
-	PX_UNUSED(hitFlags);
-	PX_UNUSED(maxHits);
 	PX_ASSERT(geom.getType() == PxGeometryType::ePLANE);
 	PX_ASSERT(maxHits && hits);
+	PX_UNUSED(threadContext);
+	PX_UNUSED(hitFlags);
+	PX_UNUSED(maxHits);
+	PX_UNUSED(stride);
 	PX_UNUSED(geom);
 //	const PxPlaneGeometry& planeGeom = static_cast<const PxPlaneGeometry&>(geom);
 
@@ -253,19 +267,21 @@ PxU32 raycast_plane(GU_RAY_FUNC_PARAMS)
 
 PxU32 raycast_convexMesh(GU_RAY_FUNC_PARAMS)
 { 
-	PX_UNUSED(maxHits);
 	PX_ASSERT(geom.getType() == PxGeometryType::eCONVEXMESH);
 	PX_ASSERT(maxHits && hits);
 	PX_ASSERT(PxAbs(rayDir.magnitudeSquared()-1)<1e-4f);
+	PX_UNUSED(threadContext);
+	PX_UNUSED(maxHits);
+	PX_UNUSED(stride);
 
 	const PxConvexMeshGeometry& convexGeom = static_cast<const PxConvexMeshGeometry&>(geom);
 
 	ConvexMesh* convexMesh = static_cast<ConvexMesh*>(convexGeom.convexMesh);
 
-	PxRaycastHit& hit = *hits;
+	PxGeomRaycastHit& hit = *hits;
 	
 	//scaling: transform the ray to vertex space
-	const Cm::Matrix34 world2vertexSkew = convexGeom.scale.getInverse() * pose.getInverse();	
+	const PxMat34 world2vertexSkew = convexGeom.scale.getInverse() * pose.getInverse();	
 
 	//ConvexMesh* cmesh = static_cast<ConvexMesh*>(convexGeom.convexMesh);
 	const PxU32 nPolys = convexMesh->getNbPolygonsFast();
@@ -344,7 +360,7 @@ PxU32 raycast_convexMesh(GU_RAY_FUNC_PARAMS)
 		{
 			outFlags |= PxHitFlag::ePOSITION;
 			const PxVec3 pointOnPlane = vrayOrig + latestEntry * vrayDir;
-			hit.position = pose.transform(convexGeom.scale.toMat33() * pointOnPlane);
+			hit.position = pose.transform(Cm::toMat33(convexGeom.scale) * pointOnPlane);
 		}
 		hit.distance	= latestEntry;
 		hit.u			= 0.0f;
@@ -365,8 +381,50 @@ PxU32 raycast_convexMesh(GU_RAY_FUNC_PARAMS)
 	return 0;
 }
 
+PxU32 raycast_particlesystem(GU_RAY_FUNC_PARAMS)
+{
+	PX_ASSERT(geom.getType() == PxGeometryType::ePARTICLESYSTEM);
+	PX_ASSERT(PxAbs(rayDir.magnitudeSquared() - 1)<1e-4f);
+	PX_UNUSED(threadContext);
+	PX_UNUSED(stride);
+	PX_UNUSED(rayDir);
+	PX_UNUSED(pose);
+	PX_UNUSED(rayOrigin);
+	PX_UNUSED(maxHits);
+	PX_UNUSED(maxDist);
+	PX_UNUSED(hits);
+	PX_UNUSED(hitFlags);
+	PX_UNUSED(geom);
+
+	return 0;
+}
+
+PxU32 raycast_softbody(GU_RAY_FUNC_PARAMS)
+{
+	PX_ASSERT(geom.getType() == PxGeometryType::eTETRAHEDRONMESH);
+	PX_ASSERT(PxAbs(rayDir.magnitudeSquared() - 1)<1e-4f);
+
+	PX_UNUSED(threadContext);
+	PX_UNUSED(stride);
+	PX_UNUSED(rayDir);
+	PX_UNUSED(pose);
+	PX_UNUSED(rayOrigin);
+	PX_UNUSED(maxHits);
+	PX_UNUSED(maxDist);
+	PX_UNUSED(hits);
+	PX_UNUSED(hitFlags);
+
+	const PxTetrahedronMeshGeometry& meshGeom = static_cast<const PxTetrahedronMeshGeometry&>(geom);
+
+	PX_UNUSED(meshGeom);
+
+	//ML: need to implement raycastTetrahedronMesh
+	return 0;
+}
+
 PxU32 raycast_triangleMesh(GU_RAY_FUNC_PARAMS) 
 {
+	PX_UNUSED(threadContext);
 	PX_ASSERT(geom.getType() == PxGeometryType::eTRIANGLEMESH);
 	PX_ASSERT(PxAbs(rayDir.magnitudeSquared()-1)<1e-4f);
 
@@ -374,7 +432,7 @@ PxU32 raycast_triangleMesh(GU_RAY_FUNC_PARAMS)
 
 	TriangleMesh* meshData = static_cast<TriangleMesh*>(meshGeom.triangleMesh);
 
-	return Midphase::raycastTriangleMesh(meshData, meshGeom, pose, rayOrigin, rayDir, maxDist, hitFlags, maxHits, hits);
+	return Midphase::raycastTriangleMesh(meshData, meshGeom, pose, rayOrigin, rayDir, maxDist, hitFlags, maxHits, hits, stride);
 }
 
 namespace
@@ -383,8 +441,9 @@ namespace
 	{
 		PX_NOCOPY(HFTraceSegmentCallback)
 	public:
-		PxRaycastHit*			mHits;
+		PxU8*					mHits;
 		const PxU32				mMaxHits;
+		const PxU32				mStride;
 		PxU32					mNbHits;
 		const HeightFieldUtil&	mUtil;
 		const PxTransform&		mPose;
@@ -394,11 +453,12 @@ namespace
 		const PxHitFlags		mHitFlags;
 		const bool				mIsDoubleSided;
 
-		HFTraceSegmentCallback(	PxRaycastHit* hits, PxU32 maxHits, const PxHitFlags hitFlags, const HeightFieldUtil& hfUtil, const PxTransform& pose,
+		HFTraceSegmentCallback(	PxGeomRaycastHit* hits, PxU32 maxHits, PxU32 stride, const PxHitFlags hitFlags, const HeightFieldUtil& hfUtil, const PxTransform& pose,
 								const PxVec3& rayDir, const PxVec3& localRayDir, const PxVec3& localRayOrig,
 								bool isDoubleSided) :
-			mHits			(hits),
+			mHits			(reinterpret_cast<PxU8*>(hits)),
 			mMaxHits		(maxHits),
+			mStride			(stride),
 			mNbHits			(0),
 			mUtil			(hfUtil),
 			mPose			(pose),
@@ -411,7 +471,7 @@ namespace
 			PX_ASSERT(maxHits > 0);
 		}
 
-		PX_FORCE_INLINE bool onEvent(PxU32 , PxU32*)
+		PX_FORCE_INLINE bool onEvent(PxU32, const PxU32*)
 		{
 			return true;
 		}
@@ -427,7 +487,9 @@ namespace
 			if(mNbHits >= mMaxHits)
 				return false; // false = stop traversal
 
-			PxRaycastHit& hit = mHits[mNbHits++];
+			PxGeomRaycastHit& hit = *reinterpret_cast<PxGeomRaycastHit*>(mHits);
+			mNbHits++;
+			mHits += mStride;
 			hit.position	= aHitPoint;
 			hit.faceIndex	= aTriangleIndex;
 			hit.u			= u;
@@ -462,7 +524,7 @@ PxU32 raycast_heightField(GU_RAY_FUNC_PARAMS)
 {
 	PX_ASSERT(geom.getType() == PxGeometryType::eHEIGHTFIELD);
 	PX_ASSERT(maxHits && hits);
-	PX_UNUSED(maxHits);
+	PX_UNUSED(threadContext);
 
 	const PxHeightFieldGeometry& hfGeom = static_cast<const PxHeightFieldGeometry&>(geom);
 
@@ -498,11 +560,10 @@ PxU32 raycast_heightField(GU_RAY_FUNC_PARAMS)
 	if (t > maxDist)
 		return 0;
 
-	// PT: if eMESH_ANY is used then eMESH_MULTIPLE won't be, and we'll stop the query after 1 hit is found. There is no difference
+	// PT: if eANY_HIT is used then eMESH_MULTIPLE won't be, and we'll stop the query after 1 hit is found. There is no difference
 	// between 'any hit' and 'closest hit' for HFs since hits are reported in order.
-	HFTraceSegmentCallback callback(hits, hitFlags.isSet(PxHitFlag::eMESH_MULTIPLE) ? maxHits : 1, hitFlags, hfUtil, pose,
-									rayDir, localRayDir, localRayOrig,
-									isDoubleSided); // make sure we return only 1 hit without eMESH_MULTIPLE
+	HFTraceSegmentCallback callback(hits, hitFlags.isSet(PxHitFlag::eMESH_MULTIPLE) ? maxHits : 1, stride, hitFlags, hfUtil, pose,
+									rayDir, localRayDir, localRayOrig, isDoubleSided); // make sure we return only 1 hit without eMESH_MULTIPLE
 
 	PxReal offset = 0.0f;
 	PxReal maxDistOffset = maxDist;
@@ -525,32 +586,78 @@ PxU32 raycast_heightField(GU_RAY_FUNC_PARAMS)
 	return callback.mNbHits;
 }
 
-static PxU32 raycast_heightField_unregistered(GU_RAY_FUNC_PARAMS)
+static PxU32 raycast_custom(GU_RAY_FUNC_PARAMS)
 {
-	PX_UNUSED(geom);
-	PX_UNUSED(pose);
-	PX_UNUSED(rayOrigin);
-	PX_UNUSED(rayDir);
-	PX_UNUSED(maxDist);
-	PX_UNUSED(hitFlags);
+	const PxCustomGeometry& customGeom = static_cast<const PxCustomGeometry&>(geom);
+	if(customGeom.isValid())
+		return customGeom.callbacks->raycast(rayOrigin, rayDir, geom, pose, maxDist, hitFlags, maxHits, hits, stride, threadContext);
+
+	return 0;
+}
+
+static PxU32 raycast_convexCore(GU_RAY_FUNC_PARAMS)
+{
+	PX_UNUSED(threadContext);
+	PX_UNUSED(stride);
 	PX_UNUSED(maxHits);
-	PX_UNUSED(hits);
-	Ps::getFoundation().error(PxErrorCode::eINVALID_OPERATION, __FILE__, __LINE__, "Height Field Raycast test called with height fields unregistered ");
+	PX_UNUSED(hitFlags);
+
+	struct GjkSupport : PxGjkQuery::Support
+	{
+		Gu::ConvexShape shape;
+		GjkSupport(const PxConvexCoreGeometry& g)
+		{
+			Gu::makeConvexShape(g, PxTransform(PxIdentity), shape);
+		}
+		virtual PxReal getMargin() const PX_OVERRIDE
+		{
+			return shape.margin;
+		}
+		virtual PxVec3 supportLocal(const PxVec3& dir) const PX_OVERRIDE
+		{
+			return shape.supportLocal(dir);
+		}
+	};
+
+	const PxConvexCoreGeometry& convex = static_cast<const PxConvexCoreGeometry&>(geom);
+	if (convex.isValid())
+	{
+		PxBounds3 bounds = Gu::computeBounds(convex, pose);
+		bounds.include(rayOrigin);
+		PxReal wiseDist = PxMin(maxDist, bounds.getDimensions().magnitude());
+		PxReal t;
+		PxVec3 n, p;
+		if (PxGjkQuery::raycast(GjkSupport(convex), pose, rayOrigin, rayDir, wiseDist, t, n, p))
+		{
+			PxGeomRaycastHit& hit = *hits;
+			hit.distance = t;
+			hit.position = p;
+			hit.normal = n;
+			hit.flags |= PxHitFlag::ePOSITION | PxHitFlag::eNORMAL;
+			return 1;
+		}
+	}
+
 	return 0;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // PT: table is not static because it's accessed as 'extern' within Gu (bypassing the function call).
-RaycastFunc gRaycastMap[PxGeometryType::eGEOMETRY_COUNT] =
+RaycastFunc gRaycastMap[] =
 {
 	raycast_sphere,
 	raycast_plane,
 	raycast_capsule,
 	raycast_box,
+	raycast_convexCore,
 	raycast_convexMesh,
-	raycast_triangleMesh,	
-	raycast_heightField_unregistered
+	raycast_particlesystem,
+	raycast_softbody,
+	raycast_triangleMesh,
+	raycast_heightField,
+	raycast_custom
 };
+PX_COMPILE_TIME_ASSERT(sizeof(gRaycastMap) / sizeof(gRaycastMap[0]) == PxGeometryType::eGEOMETRY_COUNT);
 
 // PT: the function is used by external modules (Np, CCT, Sq)
 const Gu::GeomRaycastTable& Gu::getRaycastFuncTable()
@@ -558,7 +665,3 @@ const Gu::GeomRaycastTable& Gu::getRaycastFuncTable()
 	return gRaycastMap;
 }
 
-void registerHeightFields_Raycasts()
-{
-	gRaycastMap[PxGeometryType::eHEIGHTFIELD] = raycast_heightField;
-}

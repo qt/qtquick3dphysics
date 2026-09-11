@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,25 +22,47 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
-#ifndef PXC_NPCACHE_H
-#define PXC_NPCACHE_H
+#ifndef PXC_NP_CACHE_H
+#define PXC_NP_CACHE_H
 
 #include "foundation/PxMemory.h"
+#include "foundation/PxIntrinsics.h"
+#include "foundation/PxPool.h"
+#include "foundation/PxPreprocessor.h"
+#include "foundation/PxUtilities.h"
 
-#include "PsIntrinsics.h"
 #include "PxcNpCacheStreamPair.h"
 
-#include "PsPool.h"
-#include "PsFoundation.h"
 #include "GuContactMethodImpl.h"
-#include "PsUtilities.h"
 
 namespace physx
 {
+
+PX_FORCE_INLINE void PxcNpCacheReserve(PxcNpCacheStreamPair& streams, Gu::Cache& cache, PxU32 bytes)
+{
+	bool sizeTooLarge;
+	PxU8* ls = streams.reserve(bytes, sizeTooLarge);
+	cache.mCachedData = ls;
+	
+	if(sizeTooLarge)
+	{
+		// PT: TODO: consider changing the error message, it will silently become obsolete if we change the value of PxcNpMemBlock::SIZE.
+		// On the other hand the PxSceneDesc::maxNbContactDataBlocks also hardcodes "16K data blocks" so this isn't urgent.
+		PX_WARN_ONCE(
+			"Attempting to allocate more than 16K of contact data for a single contact pair in narrowphase. "
+			"Either accept dropped contacts or simplify collision geometry.");
+	}
+	else if(ls==NULL)
+	{
+		PX_WARN_ONCE(
+			"Reached limit set by PxSceneDesc::maxNbContactDataBlocks - ran out of buffer space for narrow phase. "
+			"Either accept dropped contacts or increase buffer size allocated for narrow phase by increasing PxSceneDesc::maxNbContactDataBlocks.");
+	}
+}
 
 template <typename T>
 void PxcNpCacheWrite(PxcNpCacheStreamPair& streams,
@@ -50,66 +71,24 @@ void PxcNpCacheWrite(PxcNpCacheStreamPair& streams,
 					 PxU32 bytes, 
 					 const PxU8* data)
 {
-	const PxU32 payloadSize = (sizeof(payload)+3)&~3;
-	cache.mCachedSize = Ps::to16((payloadSize + 4 + bytes + 0xF)&~0xF);
+	PxU8* ls = PxcNpCacheWriteInitiate(streams, cache, payload, bytes);
 
-	PxU8* ls = streams.reserve(cache.mCachedSize);
-	cache.mCachedData = ls;
-	if(ls==NULL || (reinterpret_cast<PxU8*>(-1))==ls)
-	{
-		if(ls==NULL)
-		{
-			PX_WARN_ONCE(
-				"Reached limit set by PxSceneDesc::maxNbContactDataBlocks - ran out of buffer space for narrow phase. "
-				"Either accept dropped contacts or increase buffer size allocated for narrow phase by increasing PxSceneDesc::maxNbContactDataBlocks.");
-			return;
-		}
-		else
-		{
-			PX_WARN_ONCE(
-				"Attempting to allocate more than 16K of contact data for a single contact pair in narrowphase. "
-				"Either accept dropped contacts or simplify collision geometry.");
-			cache.mCachedData = NULL;
-			ls = NULL;
-			return;
-		}
-	}
+	if (ls == NULL)
+		return;
 
-	*reinterpret_cast<T*>(ls) = payload;
-	*reinterpret_cast<PxU32*>(ls+payloadSize) = bytes;
-	if(data)
-		PxMemCopy(ls+payloadSize+sizeof(PxU32), data, bytes);
+	PxcNpCacheWriteFinalize(ls, payload, bytes, data);
 }
 
 
 template <typename T>
 PxU8* PxcNpCacheWriteInitiate(PxcNpCacheStreamPair& streams, Gu::Cache& cache, const T& payload, PxU32 bytes)
 {
-	PX_UNUSED(payload);
-
 	const PxU32 payloadSize = (sizeof(payload)+3)&~3;
-	cache.mCachedSize = Ps::to16((payloadSize + 4 + bytes + 0xF)&~0xF);
+	cache.mCachedSize = PxTo16((payloadSize + 4 + bytes + 0xF)&~0xF);
 
-	PxU8* ls = streams.reserve(cache.mCachedSize);
-	cache.mCachedData = ls;
-	if(NULL==ls || reinterpret_cast<PxU8*>(-1)==ls)
-	{
-		if(NULL==ls)
-		{
-			PX_WARN_ONCE(
-				"Reached limit set by PxSceneDesc::maxNbContactDataBlocks - ran out of buffer space for narrow phase. "
-				"Either accept dropped contacts or increase buffer size allocated for narrow phase by increasing PxSceneDesc::maxNbContactDataBlocks.");
-		}
-		else
-		{
-			PX_WARN_ONCE(
-				"Attempting to allocate more than 16K of contact data for a single contact pair in narrowphase. "
-				"Either accept dropped contacts or simplify collision geometry.");
-			cache.mCachedData = NULL;
-			ls = NULL;
-		}
-	}
-	return ls;
+	PxcNpCacheReserve(streams, cache, cache.mCachedSize);
+
+	return cache.mCachedData;
 }
 
 template <typename T>
@@ -121,7 +100,6 @@ PX_FORCE_INLINE void PxcNpCacheWriteFinalize(PxU8* ls, const T& payload, PxU32 b
 	if(data)
 		PxMemCopy(ls+payloadSize+sizeof(PxU32), data, bytes);
 }
-
 
 template <typename T>
 PX_FORCE_INLINE PxU8* PxcNpCacheRead(Gu::Cache& cache, T*& payload)
@@ -151,4 +129,4 @@ const PxU8* PxcNpCacheRead2(Gu::Cache& cache, T& payload, PxU32& bytes)
 
 }
 
-#endif // #ifndef PXC_NPCACHE_H
+#endif

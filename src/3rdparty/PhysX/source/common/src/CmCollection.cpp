@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,12 +22,11 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
 #include "CmCollection.h"
-#include "PsFoundation.h"
 
 using namespace physx;
 using namespace Cm;
@@ -40,17 +38,17 @@ void Collection::add(PxBase& object, PxSerialObjectId id)
 	{
 		if( originId != id)
 		{
-			 physx::shdfnd::getFoundation().error(physx::PxErrorCode::eINVALID_PARAMETER, __FILE__, __LINE__,
+			 PxGetFoundation().error(physx::PxErrorCode::eINVALID_PARAMETER, PX_FL,
 		        "PxCollection::add called for an object that has an associated id already present in the collection!");
 		}
 		return;		   
 	}
 	
 	if(id != PX_SERIAL_OBJECT_ID_INVALID)
-	{		
+	{
 		if(!mIds.insert(id, &object))
 		{
-		   physx::shdfnd::getFoundation().error(physx::PxErrorCode::eINVALID_PARAMETER, __FILE__, __LINE__,
+		   PxGetFoundation().error(physx::PxErrorCode::eINVALID_PARAMETER, PX_FL,
 		        "PxCollection::add called with an id which is already used in the collection");
 		   return;	
 		}
@@ -72,7 +70,7 @@ void Collection::remove(PxBase& object)
 }
 
 bool Collection::contains(PxBase& object) const
-{	
+{
 	return  mObjects.find(&object) != NULL;
 }
 
@@ -96,7 +94,7 @@ void Collection::removeId(PxSerialObjectId id)
 	PX_CHECK_AND_RETURN(mIds.find(id), "PxCollection::removeId called with PxSerialObjectId not contained in the collection!");
 	const IdToObjectMap::Entry* e = mIds.find(id);
 	if(e)
-	{	
+	{
 		mObjects[e->second] = PX_SERIAL_OBJECT_ID_INVALID;
 	    mIds.erase(id);	   
 	}
@@ -114,7 +112,7 @@ void Collection::add(PxCollection& _collection)
 	Collection& collection = static_cast<Collection&>(_collection);
 	PX_CHECK_AND_RETURN(this != &collection, "PxCollection::add(PxCollection&) called with itself!");
 
-	mObjects.reserve(mObjects.capacity() + collection.mObjects.size());
+	mObjects.reserve(mObjects.size() + collection.mObjects.size());
 	const ObjectToIdMap::Entry* e = collection.mObjects.getEntries();
 	for (PxU32 i = 0; i < collection.mObjects.size(); ++i)
 	{
@@ -183,7 +181,7 @@ PxU32 Collection::getNbIds() const
 }
 
 PxSerialObjectId Collection::getId(const PxBase& object) const
-{	
+{
 	const ObjectToIdMap::Entry* e =  mObjects.find(const_cast<PxBase*>(&object));
 	return e ? e->second : PX_SERIAL_OBJECT_ID_INVALID;
 }

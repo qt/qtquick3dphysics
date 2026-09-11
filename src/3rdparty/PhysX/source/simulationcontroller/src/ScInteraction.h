@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,20 +22,17 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
-#ifndef PX_PHYSICS_SCP_INTERACTION
-#define PX_PHYSICS_SCP_INTERACTION
+#ifndef SC_INTERACTION_H
+#define SC_INTERACTION_H
 
-#include "foundation/Px.h"
 #include "ScInteractionFlags.h"
-#include "ScScene.h"
 #include "ScActorSim.h"
-#include "PsUserAllocated.h"
-#include "PsUtilities.h"
-#include "PsFoundation.h"
+#include "foundation/PxUserAllocated.h"
+#include "foundation/PxUtilities.h"
 
 namespace physx
 {
@@ -45,20 +41,32 @@ namespace physx
 
 namespace Sc
 {
+	struct InteractionType
+	{
+		enum Enum
+		{
+			eOVERLAP		= 0,		// corresponds to ShapeInteraction
+			eTRIGGER,					// corresponds to TriggerInteraction
+			eMARKER,					// corresponds to ElementInteractionMarker
+			eTRACKED_IN_SCENE_COUNT,	// not a real type, interactions above this limit are tracked in the scene
+			eCONSTRAINTSHADER,			// corresponds to ConstraintInteraction
+			eARTICULATION,				// corresponds to ArticulationJointSim
+
+			eINVALID
+		};
+	};
+
 	// Interactions are used for connecting actors into activation groups. An interaction always connects exactly two actors. 
 	// An interaction is implicitly active if at least one of the two actors it connects is active.
 
-	class Interaction : public Ps::UserAllocated
+	class Interaction
 	{
 		PX_NOCOPY(Interaction)
-
-	protected:
 										Interaction(ActorSim& actor0, ActorSim& actor1, InteractionType::Enum interactionType, PxU8 flags);
 										~Interaction() { PX_ASSERT(!readInteractionFlag(InteractionFlag::eIN_DIRTY_LIST)); }
-
 	public:
 		// Interactions automatically register themselves in the actors here
-		PX_FORCE_INLINE bool			registerInActors(void* data = NULL);
+		PX_FORCE_INLINE void			registerInActors();
 
 		// Interactions automatically unregister themselves from the actors here
 		PX_FORCE_INLINE void			unregisterFromActors();
@@ -77,28 +85,20 @@ namespace Sc
 		/**
 		\brief Mark the interaction as dirty. This will put the interaction into a list that is processed once per simulation step.
 
-		@see InteractionDirtyFlag
+		\see InteractionDirtyFlag
 		*/
 		PX_FORCE_INLINE void			setDirty(PxU32 dirtyFlags);
 
 		/**
 		\brief Clear all flags that mark the interaction as dirty and optionally remove the interaction from the list of dirty interactions.
 
-		@see InteractionDirtyFlag
+		\see InteractionDirtyFlag
 		*/
 		/*PX_FORCE_INLINE*/ void		setClean(bool removeFromList);
 
-		PX_FORCE_INLINE Ps::IntBool		needsRefiltering() const { return (getDirtyFlags() & InteractionDirtyFlag::eFILTER_STATE); }
+		PX_FORCE_INLINE PxIntBool		needsRefiltering() const { return (getDirtyFlags() & InteractionDirtyFlag::eFILTER_STATE); }
 
-		PX_FORCE_INLINE Ps::IntBool		isElementInteraction() const;
-
-		// Called when an interaction is activated or created.
-		// Return true if activation should proceed else return false (for example: joint interaction between two kinematics should not get activated)
-//		virtual			bool			onActivate_(void* data) = 0;
-
-		// Called when an interaction is deactivated.
-		// Return true if deactivation should proceed else return false (for example: joint interaction between two kinematics can ignore deactivation because it always is deactivated)
-//		virtual			bool			onDeactivate_() = 0;
+		PX_FORCE_INLINE PxIntBool		isElementInteraction() const;
 
 		PX_FORCE_INLINE	void			setInteractionId(PxU32 id)	{ mSceneId = id;										}
 		PX_FORCE_INLINE	PxU32			getInteractionId()	const	{ return mSceneId;										}
@@ -124,24 +124,20 @@ namespace Sc
 						PxU32			mActorId0;	// PT: id of this interaction within mActor0's mInteractions array
 						PxU32			mActorId1;	// PT: id of this interaction within mActor1's mInteractions array
 	protected:
-						PxU8			mInteractionType;	// PT: stored on a byte to save space, should be InteractionType enum, 5/6 bits needed here
+		const			PxU8			mInteractionType;	// PT: stored on a byte to save space, should be InteractionType enum, 5/6 bits needed here
 						PxU8			mInteractionFlags;	// PT: 6 bits needed here, see InteractionFlag enum
-						PxU8			mDirtyFlags;		// PT: 6 bits needed here, see InteractionDirtyFlag enum
-						PxU8			mPadding;
+						PxU8			mDirtyFlags;		// PT: 5 bits needed here, see InteractionDirtyFlag enum
+						PxU8			mPadding8;
 	};
 
 } // namespace Sc
 
 //////////////////////////////////////////////////////////////////////////
 
-PX_FORCE_INLINE bool Sc::Interaction::registerInActors(void* data)
+PX_FORCE_INLINE void Sc::Interaction::registerInActors()
 {
-	bool active = activateInteraction(this, data);
-
 	mActor0.registerInteractionInActor(this);
 	mActor1.registerInteractionInActor(this);
-
-	return active;
 }
 
 PX_FORCE_INLINE void Sc::Interaction::unregisterFromActors()
@@ -166,9 +162,9 @@ PX_FORCE_INLINE	PxU32 Sc::Interaction::getActorId(const ActorSim* actor) const
 	return &mActor0 == actor ? mActorId0 : mActorId1;
 }
 
-PX_FORCE_INLINE Ps::IntBool Sc::Interaction::isElementInteraction() const
+PX_FORCE_INLINE PxIntBool Sc::Interaction::isElementInteraction() const
 {
-	const Ps::IntBool res = readInteractionFlag(InteractionFlag::eRB_ELEMENT);
+	const PxIntBool res = readInteractionFlag(InteractionFlag::eRB_ELEMENT);
 	PX_ASSERT(	(res && 
 				((getType() == InteractionType::eOVERLAP)	|| 
 				(getType() == InteractionType::eTRIGGER)	|| 
@@ -184,7 +180,7 @@ PX_FORCE_INLINE void Sc::Interaction::setDirty(PxU32 dirtyFlags)
 {
 	PX_ASSERT(getType() != InteractionType::eARTICULATION);
 
-	mDirtyFlags |= Ps::to8(dirtyFlags);
+	mDirtyFlags |= PxTo8(dirtyFlags);
 	if(!readInteractionFlag(InteractionFlag::eIN_DIRTY_LIST))
 	{
 		addToDirtyList();
@@ -204,7 +200,6 @@ PX_FORCE_INLINE void Sc::Interaction::setDirty(PxU32 dirtyFlags)
 //	mDirtyFlags = 0;
 //}
 
-
 }
 
-#endif // PX_PHYSICS_SCP_INTERACTION
+#endif

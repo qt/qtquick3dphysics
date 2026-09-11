@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -41,7 +40,10 @@ ConstraintInteraction::ConstraintInteraction(ConstraintSim* constraint, RigidSim
 	Interaction	(r0, r1, InteractionType::eCONSTRAINTSHADER, InteractionFlag::eCONSTRAINT),
 	mConstraint	(constraint)
 {
-	registerInActors();
+	{
+		onActivate();
+		registerInActors();
+	}
 
 	BodySim* b0 = mConstraint->getBody(0);
 	BodySim* b1 = mConstraint->getBody(1);
@@ -52,7 +54,7 @@ ConstraintInteraction::ConstraintInteraction(ConstraintSim* constraint, RigidSim
 		b1->onConstraintAttach();
 
 	IG::SimpleIslandManager* simpleIslandManager = getScene().getSimpleIslandManager();
-	mEdgeIndex = simpleIslandManager->addConstraint(&mConstraint->getLowLevelConstraint(), b0 ? b0->getNodeIndex() : IG::NodeIndex(), b1 ? b1->getNodeIndex() : IG::NodeIndex(), this);
+	mEdgeIndex = simpleIslandManager->addConstraint(&mConstraint->getLowLevelConstraint(), b0 ? b0->getNodeIndex() : PxNodeIndex(), b1 ? b1->getNodeIndex() : PxNodeIndex(), this);
 }
 
 ConstraintInteraction::~ConstraintInteraction()
@@ -104,15 +106,15 @@ void ConstraintInteraction::updateState()
 	// -> need to check whether to activate the constraint and whether constraint break testing
 	//    is now necessary
 	//
-	// the transition from dynamic to kinematic will always trigger an onDeactivate_() (because the body gets deactivated)
+	// the transition from dynamic to kinematic will always trigger an onDeactivate() (because the body gets deactivated)
 	// and thus there is no need to consider that case here.
 	//
 
-	onActivate_(NULL);	// note: this will not activate if the necessary conditions are not met, so it can be called even if the pair has been deactivated again before the
+	onActivate();	// note: this will not activate if the necessary conditions are not met, so it can be called even if the pair has been deactivated again before the
 					//       simulation step started
 }
 
-bool ConstraintInteraction::onActivate_(void*)
+bool ConstraintInteraction::onActivate()
 {
 	PX_ASSERT(!mConstraint->isBroken());
 
@@ -141,7 +143,7 @@ bool ConstraintInteraction::onActivate_(void*)
 		return false;
 }
 
-bool ConstraintInteraction::onDeactivate_()
+bool ConstraintInteraction::onDeactivate()
 {
 	const BodySim* b0 = mConstraint->getBody(0);
 	const BodySim* b1 = mConstraint->getBody(1);

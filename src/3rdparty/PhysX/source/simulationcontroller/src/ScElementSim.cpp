@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,17 +22,18 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
-
-#include "PsFoundation.h"
-#include "PxsContext.h"
 #include "ScElementSim.h"
 #include "ScElementSimInteraction.h"
-#include "ScSqBoundsManager.h"
 #include "ScSimStats.h"
+
+#if PX_SUPPORT_GPU_PHYSX
+#include "cudamanager/PxCudaContextManager.h"
+#include "cudamanager/PxCudaContext.h"
+#endif
 
 using namespace physx;
 using namespace Sc;
@@ -75,14 +75,80 @@ Sc::ElementSimInteraction* Sc::ElementSim::ElementInteractionReverseIterator::ge
 	return NULL;
 }
 
-Sc::ElementSim::ElementSim(ActorSim& actor) :
-	mNextInActor	(NULL),
-	mActor			(actor),
-	mInBroadPhase	(false)
+namespace
 {
-	initID();
+	class ElemSimPtrTableStorageManager : public Cm::PtrTableStorageManager, public PxUserAllocated
+	{
+		PX_NOCOPY(ElemSimPtrTableStorageManager)
 
-	actor.onElementAttach(*this);
+	public:
+		ElemSimPtrTableStorageManager() {}
+		~ElemSimPtrTableStorageManager() {}
+
+		// PtrTableStorageManager
+		virtual	void**	allocate(PxU32 capacity)	PX_OVERRIDE
+		{
+			return PX_ALLOCATE(void*, capacity, "CmPtrTable pointer array");
+		}
+
+		virtual	void	deallocate(void** addr, PxU32 /*capacity*/)	PX_OVERRIDE
+		{
+			PX_FREE(addr);
+		}
+
+		virtual	bool canReuse(PxU32 /*originalCapacity*/, PxU32 /*newCapacity*/)	PX_OVERRIDE
+		{
+			return false;
+		}
+		//~PtrTableStorageManager
+	};
+	ElemSimPtrTableStorageManager gElemSimTableStorageManager;
+}
+
+static PX_FORCE_INLINE void onElementAttach(ElementSim& element, ShapeManager& manager)
+{
+	PX_ASSERT(element.mShapeArrayIndex == 0xffffffff);
+	element.mShapeArrayIndex = manager.mShapes.getCount();
+	manager.mShapes.add(&element, gElemSimTableStorageManager);
+}
+
+void Sc::ShapeManager::onElementDetach(ElementSim& element)
+{
+	const PxU32 index = element.mShapeArrayIndex;
+	PX_ASSERT(index != 0xffffffff);
+	PX_ASSERT(mShapes.getCount());
+	void** ptrs = mShapes.getPtrs();
+	PX_ASSERT(reinterpret_cast<ElementSim*>(ptrs[index]) == &element);
+
+	const PxU32 last = mShapes.getCount() - 1;
+	if (index != last)
+	{
+		ElementSim* moved = reinterpret_cast<ElementSim*>(ptrs[last]);
+		PX_ASSERT(moved->mShapeArrayIndex == last);
+		moved->mShapeArrayIndex = index;
+	}
+	mShapes.replaceWithLast(index, gElemSimTableStorageManager);
+	element.mShapeArrayIndex = 0xffffffff;
+}
+
+Sc::ElementSim::ElementSim(ActorSim& actor) :
+	mActor			(actor),
+	mInBroadPhase	(false),
+	mShapeArrayIndex(0xffffffff)
+{
+#if PX_SUPPORT_GPU_PHYSX
+	if(!initID())
+	{
+		PxGetFoundation().error(PxErrorCode::eOUT_OF_MEMORY, PX_FL,
+								"Sc::ElementSim::ElementSim failed to allocate pinned memory bounds array");
+		mActor.getScene().getCudaContextManager()->getCudaContext()->setAbortMode(true);
+		// executing onElementAttach below is safe, as initID always sets allocated the elementID successfully, 
+		// but might fail to expand the bounds array.
+	}
+#else
+	initID();
+#endif
+	onElementAttach(*this, actor);
 }
 
 Sc::ElementSim::~ElementSim()
@@ -92,40 +158,36 @@ Sc::ElementSim::~ElementSim()
 	mActor.onElementDetach(*this);
 }
 
-void Sc::ElementSim::setElementInteractionsDirty(InteractionDirtyFlag::Enum flag, PxU8 interactionFlag)
+void Sc::ElementSim::addToAABBMgr(PxReal contactDistance, Bp::FilterGroup::Enum group, Bp::ElementType::Enum type)
 {
-	ElementSim::ElementInteractionIterator iter = getElemInteractions();
-	ElementSimInteraction* interaction = iter.getNext();
-	while(interaction)
-	{
-		if(interaction->readInteractionFlag(interactionFlag))
-			interaction->setDirty(flag);
+	const ActorCore& actorCore = mActor.getActorCore();
+	const PxU32 aggregateID = actorCore.getAggregateID();
+	const PxU32 envID = actorCore.getEnvID();
 
-		interaction = iter.getNext();
-	}
-}
-
-void Sc::ElementSim::addToAABBMgr(PxReal contactDistance, Bp::FilterGroup::Enum group, Ps::IntBool isTrigger)
-{
 	Sc::Scene& scene = getScene();
-	if(!scene.getAABBManager()->addBounds(mElementID, contactDistance, group, this, mActor.getActorCore().getAggregateID(), isTrigger ? Bp::ElementType::eTRIGGER : Bp::ElementType::eSHAPE))
+	if(!scene.getAABBManager()->addBounds(mElementID, contactDistance, group, this, aggregateID, type, envID))
 		return;
 
 	mInBroadPhase = true;
 #if PX_ENABLE_SIM_STATS
 	scene.getStatsInternal().incBroadphaseAdds();
+#else
+	PX_CATCH_UNDEFINED_ENABLE_SIM_STATS
 #endif
 }
 
-void Sc::ElementSim::removeFromAABBMgr()
+bool Sc::ElementSim::removeFromAABBMgr()
 {
 	PX_ASSERT(mInBroadPhase);
 	Sc::Scene& scene = getScene();
-	scene.getAABBManager()->removeBounds(mElementID);
+	bool res = scene.getAABBManager()->removeBounds(mElementID);
 	scene.getAABBManager()->getChangedAABBMgActorHandleMap().growAndReset(mElementID);
 
 	mInBroadPhase = false;
 #if PX_ENABLE_SIM_STATS
 	scene.getStatsInternal().incBroadphaseRemoves();
+#else
+	PX_CATCH_UNDEFINED_ENABLE_SIM_STATS
 #endif
+	return res;
 }

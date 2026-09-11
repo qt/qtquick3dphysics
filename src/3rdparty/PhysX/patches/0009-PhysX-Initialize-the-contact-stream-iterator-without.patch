@@ -1,0 +1,36 @@
+From: Jonas Karlsson <jonas.karlsson@qt.io>
+Subject: [PATCH] PhysX: Initialize the contact stream iterator without patches
+
+PxContactStreamIterator leaves its patch, contact and face index pointers
+uninitialized when constructed from a null patch stream, and its
+hasNextPatch() only looks at the patch count, so a caller that trusts the
+count can read them. GCC also sees this through the inlining and reports
+it as a maybe-uninitialized use in code that includes the header with
+warnings as errors.
+
+This is the PhysX 4.1 patch "Workaround maybe-uninitialized error in GCC
+12.2.1", forward ported to 5.9.0, where PxContact.h is unchanged in this
+respect.
+
+Task-number: QTBUG-108045
+---
+ src/3rdparty/PhysX/include/PxContact.h | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/3rdparty/PhysX/include/PxContact.h b/src/3rdparty/PhysX/include/PxContact.h
+--- a/src/3rdparty/PhysX/include/PxContact.h
++++ b/src/3rdparty/PhysX/include/PxContact.h
+@@ -325,7 +325,12 @@ struct PxContactStreamIterator
+ 
+ 			response = (patch->internalFlags & PxContactPatch::eFORCE_NO_RESPONSE) == 0;
+ 		}
+-
++		else
++		{
++			patch = NULL;
++			contact = NULL;
++			faceIndice = NULL;
++		}
+ 
+ 		mStreamFormat = compressedModify ? eCOMPRESSED_MODIFIABLE_STREAM : modify ? eMODIFIABLE_STREAM : eSIMPLE_STREAM;
+ 		hasFaceIndices = PxU32(indices);

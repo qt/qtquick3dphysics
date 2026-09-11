@@ -1,0 +1,43 @@
+From: Jonas Karlsson <jonas.karlsson@qt.io>
+Subject: [PATCH] PhysX: ohos: fix build for pthread_cancel()
+
+HarmonyOS/OHOS has PTHREAD_CANCEL_DISABLE defined but doesn't
+provide pthread cancel related functions.
+
+This is the PhysX 4.1 patch of the same name, forward ported to 5.9.0.
+PhysX 5 no longer skips the call on Android, so the guard now covers the
+single remaining call site.
+
+Task-number: QTBUG-146708
+---
+ src/3rdparty/PhysX/source/foundation/unix/FdUnixThread.cpp | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/3rdparty/PhysX/source/foundation/unix/FdUnixThread.cpp b/src/3rdparty/PhysX/source/foundation/unix/FdUnixThread.cpp
+--- a/src/3rdparty/PhysX/source/foundation/unix/FdUnixThread.cpp
++++ b/src/3rdparty/PhysX/source/foundation/unix/FdUnixThread.cpp
+@@ -37,6 +37,11 @@
+ #endif
+ #include <stdio.h>
+ #include <pthread.h>
++#if defined(__OHOS__)
++// OHOS SDK defines PTHREAD_CANCEL_DISABLE but lacks matching pthread_*() functions
++// Details in QTBUG-146708
++#  undef PTHREAD_CANCEL_DISABLE
++#endif
+ #include <unistd.h>
+ #include <sys/syscall.h>
+ #if !PX_APPLE_FAMILY && !PX_EMSCRIPTEN
+@@ -244,8 +249,11 @@ __attribute__((noreturn))
+ 
+ void PxThreadImpl::kill()
+ {
+-	if(getThread(this)->state == ePxThreadStarted)
++	if(getThread(this)->state == ePxThreadStarted) {
++#if defined(PTHREAD_CANCEL_DISABLE)
+ 		pthread_cancel(getThread(this)->thread);
++#endif
++	}
+ 	getThread(this)->state = ePxThreadStopped;
+ }
+ 

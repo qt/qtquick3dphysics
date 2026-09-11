@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,12 +22,14 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
-#ifndef PXC_NPCONTACTPREPSHARED_H
-#define PXC_NPCONTACTPREPSHARED_H
+#ifndef PXC_NP_CONTACT_PREP_SHARED_H
+#define PXC_NP_CONTACT_PREP_SHARED_H
+
+#include "foundation/PxSimpleTypes.h"
 
 namespace physx
 {
@@ -37,20 +38,22 @@ struct PxsMaterialInfo;
 class PxsMaterialManager;
 class PxsConstraintBlockManager;
 class PxcConstraintBlockStream;
-struct PxsContactManagerOutput;
+struct PxContactPoint;
+struct PxcDataStreamPool;
 
-namespace Gu
+PX_FORCE_INLINE PxU32 computeAlignedSize(PxU32 size)
 {
-	struct ContactPoint;
+	return (size + 0xf) & 0xfffffff0;
 }
 
 static const PxReal PXC_SAME_NORMAL = 0.999f; //Around 6 degrees
 
-PxU32 writeCompressedContact(const Gu::ContactPoint* const PX_RESTRICT contactPoints, const PxU32 numContactPoints, PxcNpThreadContext* threadContext,
-									PxU8& writtenContactCount, PxU8*& outContactPatches, PxU8*& outContactPoints, PxU16& compressedContactSize, PxReal*& contactForces, PxU32 contactForceByteSize,
-									const PxsMaterialManager* materialManager, bool hasModifiableContacts, bool forceNoResponse, PxsMaterialInfo* PX_RESTRICT pMaterial, PxU8& numPatches,
-									PxU32 additionalHeaderSize = 0,  PxsConstraintBlockManager* manager = NULL, PxcConstraintBlockStream* blockStream = NULL, bool insertAveragePoint = false,
-									PxcDataStreamPool* pool = NULL, PxcDataStreamPool* patchStreamPool = NULL, PxcDataStreamPool* forcePool = NULL, const bool isMeshType = false);
+PxU32 writeCompressedContact(const PxContactPoint* const PX_RESTRICT contactPoints, const PxU32 numContactPoints, PxcNpThreadContext* threadContext,
+								PxU16& writtenContactCount, PxU8*& outContactPatches, PxU8*& outContactPoints, PxU16& compressedContactSize, PxReal*& contactForces, PxU32 contactForceByteSize,
+								PxU8*& outFrictionPatches, PxcDataStreamPool* frictionPatchesStreamPool,
+								const PxsMaterialManager* materialManager, bool hasModifiableContacts, bool forceNoResponse, const PxsMaterialInfo* PX_RESTRICT pMaterial, PxU8& numPatches,
+								PxU32 additionalHeaderSize = 0, PxsConstraintBlockManager* manager = NULL, PxcConstraintBlockStream* blockStream = NULL, bool insertAveragePoint = false,
+								PxcDataStreamPool* pool = NULL, PxcDataStreamPool* patchStreamPool = NULL, PxcDataStreamPool* forcePool = NULL, const bool isMeshType = false);
 
 }
 

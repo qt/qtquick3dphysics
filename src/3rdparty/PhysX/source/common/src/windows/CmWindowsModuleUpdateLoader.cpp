@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,11 +22,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
-
-#include "PsFoundation.h"
 
 #ifdef SUPPORT_UPDATE_LOADER_LOGGING
 #if PX_X86
@@ -39,6 +36,7 @@
 #include "windows/CmWindowsModuleUpdateLoader.h"
 #include "windows/CmWindowsLoadLibrary.h"
 
+#include "stdio.h"
 
 namespace physx { namespace Cm {
 
@@ -58,7 +56,7 @@ static void LogMessage(PXUL_ErrorCode messageType, char* message)
 	switch(messageType)
 	{
 	case PXUL_ERROR_MESSAGES:
-		getFoundation().error(PxErrorCode::eINTERNAL_ERROR, __FILE__, __LINE__, 
+		getFoundation().error(PxErrorCode::eINTERNAL_ERROR, PX_FL, 
 			"PhysX Update Loader Error: %s.", message);
 		break;
 	case PXUL_WARNING_MESSAGES:
@@ -68,7 +66,7 @@ static void LogMessage(PXUL_ErrorCode messageType, char* message)
 		getFoundation().error(PX_INFO, "PhysX Update Loader Information: %s.", message);
 		break;
 	default:
-		getFoundation().error(PxErrorCode::eINTERNAL_ERROR, __FILE__, __LINE__,
+		getFoundation().error(PxErrorCode::eINTERNAL_ERROR, PX_FL,
 			"Unknown message type from update loader.");
 		break;
 	}
@@ -121,6 +119,12 @@ HMODULE CmModuleUpdateLoader::LoadModule(const char* moduleName, const char* app
 	{
 		// If no PhysXUpdateLoader, just load the DLL directly
 		result = loadLibrary(moduleName);
+		if (result == NULL)
+		{
+			const DWORD err = GetLastError();
+			printf("%s:%i: loadLibrary error when loading %s: %lu\n", PX_FL, moduleName, err);
+		}
+
 	}
 
 	return result;

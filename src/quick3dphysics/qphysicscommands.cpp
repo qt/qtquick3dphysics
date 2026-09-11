@@ -12,7 +12,7 @@
 
 QT_BEGIN_NAMESPACE
 
-static bool isKinematicBody(physx::PxRigidBody &body)
+static bool isKinematicBody(physx::PxRigidDynamic &body)
 {
     return static_cast<bool>(body.getRigidBodyFlags() & physx::PxRigidBodyFlag::eKINEMATIC);
 }
@@ -65,7 +65,7 @@ QPhysicsCommandApplyCentralForce::~QPhysicsCommandApplyCentralForce()
     = default;
 
 void QPhysicsCommandApplyCentralForce::execute(const QDynamicRigidBody &rigidBody,
-                                               physx::PxRigidBody &body)
+                                               physx::PxRigidDynamic &body)
 {
     Q_UNUSED(rigidBody)
     if (isKinematicBody(body) || isSimulationDisabled(body))
@@ -83,7 +83,7 @@ QPhysicsCommandApplyForce::~QPhysicsCommandApplyForce()
     = default;
 
 void QPhysicsCommandApplyForce::execute(const QDynamicRigidBody &rigidBody,
-                                        physx::PxRigidBody &body)
+                                        physx::PxRigidDynamic &body)
 {
     Q_UNUSED(rigidBody)
     if (isKinematicBody(body) || isSimulationDisabled(body))
@@ -101,7 +101,7 @@ QPhysicsCommandApplyTorque::~QPhysicsCommandApplyTorque()
     = default;
 
 void QPhysicsCommandApplyTorque::execute(const QDynamicRigidBody &rigidBody,
-                                         physx::PxRigidBody &body)
+                                         physx::PxRigidDynamic &body)
 {
     Q_UNUSED(rigidBody)
     if (isKinematicBody(body) || isSimulationDisabled(body))
@@ -118,7 +118,7 @@ QPhysicsCommandApplyCentralImpulse::~QPhysicsCommandApplyCentralImpulse()
     = default;
 
 void QPhysicsCommandApplyCentralImpulse::execute(const QDynamicRigidBody &rigidBody,
-                                                 physx::PxRigidBody &body)
+                                                 physx::PxRigidDynamic &body)
 {
     Q_UNUSED(rigidBody)
     if (isKinematicBody(body) || isSimulationDisabled(body))
@@ -136,7 +136,7 @@ QPhysicsCommandApplyImpulse::~QPhysicsCommandApplyImpulse()
     = default;
 
 void QPhysicsCommandApplyImpulse::execute(const QDynamicRigidBody &rigidBody,
-                                          physx::PxRigidBody &body)
+                                          physx::PxRigidDynamic &body)
 {
     Q_UNUSED(rigidBody)
     if (isKinematicBody(body) || isSimulationDisabled(body))
@@ -155,7 +155,7 @@ QPhysicsCommandApplyTorqueImpulse::~QPhysicsCommandApplyTorqueImpulse()
     = default;
 
 void QPhysicsCommandApplyTorqueImpulse::execute(const QDynamicRigidBody &rigidBody,
-                                                physx::PxRigidBody &body)
+                                                physx::PxRigidDynamic &body)
 {
     Q_UNUSED(rigidBody)
     if (isKinematicBody(body) || isSimulationDisabled(body))
@@ -174,7 +174,7 @@ QPhysicsCommandSetAngularVelocity::~QPhysicsCommandSetAngularVelocity()
     = default;
 
 void QPhysicsCommandSetAngularVelocity::execute(const QDynamicRigidBody &rigidBody,
-                                                physx::PxRigidBody &body)
+                                                physx::PxRigidDynamic &body)
 {
     Q_UNUSED(rigidBody)
     body.setAngularVelocity(QPhysicsUtils::toPhysXType(angularVelocity));
@@ -190,7 +190,7 @@ QPhysicsCommandSetLinearVelocity::~QPhysicsCommandSetLinearVelocity()
     = default;
 
 void QPhysicsCommandSetLinearVelocity::execute(const QDynamicRigidBody &rigidBody,
-                                               physx::PxRigidBody &body)
+                                               physx::PxRigidDynamic &body)
 {
     Q_UNUSED(rigidBody)
     body.setLinearVelocity(QPhysicsUtils::toPhysXType(linearVelocity));
@@ -201,7 +201,7 @@ QPhysicsCommandSetMass::QPhysicsCommandSetMass(float inMass) : QPhysicsCommand()
 QPhysicsCommandSetMass::~QPhysicsCommandSetMass()
     = default;
 
-void QPhysicsCommandSetMass::execute(const QDynamicRigidBody &rigidBody, physx::PxRigidBody &body)
+void QPhysicsCommandSetMass::execute(const QDynamicRigidBody &rigidBody, physx::PxRigidDynamic &body)
 {
     if (rigidBody.hasStaticShapes()) {
         qWarning() << "Cannot set mass or density on a body containing trimesh/heightfield/plane, "
@@ -213,7 +213,7 @@ void QPhysicsCommandSetMass::execute(const QDynamicRigidBody &rigidBody, physx::
 }
 
 void QPhysicsCommandSetMassAndInertiaTensor::execute(const QDynamicRigidBody &rigidBody,
-                                                     physx::PxRigidBody &body)
+                                                     physx::PxRigidDynamic &body)
 {
     if (rigidBody.hasStaticShapes()) {
         qWarning() << "Cannot set mass or density on a body containing trimesh/heightfield/plane, "
@@ -238,7 +238,7 @@ QPhysicsCommandSetMassAndInertiaMatrix::~QPhysicsCommandSetMassAndInertiaMatrix(
     = default;
 
 void QPhysicsCommandSetMassAndInertiaMatrix::execute(const QDynamicRigidBody &rigidBody,
-                                                     physx::PxRigidBody &body)
+                                                     physx::PxRigidDynamic &body)
 {
     if (rigidBody.hasStaticShapes()) {
         qWarning() << "Cannot set mass or density on a body containing trimesh/heightfield/plane, "
@@ -270,7 +270,7 @@ QPhysicsCommandSetDensity::~QPhysicsCommandSetDensity()
     = default;
 
 void QPhysicsCommandSetDensity::execute(const QDynamicRigidBody &rigidBody,
-                                        physx::PxRigidBody &body)
+                                        physx::PxRigidDynamic &body)
 {
     if (rigidBody.hasStaticShapes()) {
         qWarning() << "Cannot set mass or density on a body containing trimesh/heightfield/plane, "
@@ -291,7 +291,7 @@ QPhysicsCommandSetIsKinematic::~QPhysicsCommandSetIsKinematic()
     = default;
 
 void QPhysicsCommandSetIsKinematic::execute(const QDynamicRigidBody &rigidBody,
-                                            physx::PxRigidBody &body)
+                                            physx::PxRigidDynamic &body)
 {
     if (rigidBody.hasStaticShapes() && !isKinematic) {
         qWarning() << "Cannot make a body containing trimesh/heightfield/plane non-kinematic, "
@@ -318,7 +318,7 @@ QPhysicsCommandSetCCD::QPhysicsCommandSetCCD(QDynamicRigidBody::CCDType ccdType,
 
 QPhysicsCommandSetCCD::~QPhysicsCommandSetCCD() = default;
 
-void QPhysicsCommandSetCCD::execute(const QDynamicRigidBody &rigidBody, physx::PxRigidBody &body)
+void QPhysicsCommandSetCCD::execute(const QDynamicRigidBody &rigidBody, physx::PxRigidDynamic &body)
 {
     // Clear both flags first so the writes below can never collide with a stale
     // flag from the previous ccd mode (PhysX rejects raising eENABLE_CCD while
@@ -338,7 +338,7 @@ QPhysicsCommandSetGravityEnabled::~QPhysicsCommandSetGravityEnabled()
     = default;
 
 void QPhysicsCommandSetGravityEnabled::execute(const QDynamicRigidBody &rigidBody,
-                                               physx::PxRigidBody &body)
+                                               physx::PxRigidDynamic &body)
 {
     Q_UNUSED(rigidBody)
     body.setActorFlag(physx::PxActorFlag::eDISABLE_GRAVITY, !gravityEnabled);
@@ -352,7 +352,7 @@ QPhysicsCommandReset::QPhysicsCommandReset(QVector3D inPosition, QVector3D inEul
 QPhysicsCommandReset::~QPhysicsCommandReset()
     = default;
 
-void QPhysicsCommandReset::execute(const QDynamicRigidBody &rigidBody, physx::PxRigidBody &body)
+void QPhysicsCommandReset::execute(const QDynamicRigidBody &rigidBody, physx::PxRigidDynamic &body)
 {
     Q_UNUSED(rigidBody)
     body.setLinearVelocity(physx::PxVec3(0, 0, 0));

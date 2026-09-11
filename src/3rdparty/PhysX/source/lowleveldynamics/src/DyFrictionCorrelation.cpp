@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,29 +22,26 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
-
-#include "PxvConfig.h"
+#include "PxPhysXConfig.h"
 #include "DyCorrelationBuffer.h"
 #include "PxsMaterialManager.h"
-#include "PsUtilities.h"
+#include "foundation/PxUtilities.h"
 #include "foundation/PxBounds3.h"
+#include "foundation/PxVecMath.h"
+#include "GuBounds.h"
 
 using namespace physx;
-using namespace Gu;
+using namespace aos;
 
 namespace physx
 {
-
 namespace Dy
 {
-
-namespace 
-{
-PX_FORCE_INLINE void initContactPatch(CorrelationBuffer::ContactPatchData& patch, PxU16 index, PxReal restitution, PxReal staticFriction, PxReal dynamicFriction,
+static PX_FORCE_INLINE void initContactPatch(CorrelationBuffer::ContactPatchData& patch, PxU16 index, PxReal restitution, PxReal staticFriction, PxReal dynamicFriction,
 	PxU8 flags)
 {
 	patch.start = index;
@@ -57,7 +53,70 @@ PX_FORCE_INLINE void initContactPatch(CorrelationBuffer::ContactPatchData& patch
 	patch.dynamicFriction = dynamicFriction;
 }
 
-PX_FORCE_INLINE void initFrictionPatch(FrictionPatch& p, const PxVec3& worldNormal, const PxTransform& body0Pose, const PxTransform& body1Pose, 
+bool createContactPatches(CorrelationBuffer& fb, const PxContactPoint* cb, PxU32 contactCount, PxReal normalTolerance)
+{
+	// PT: this rewritten version below doesn't have LHS
+
+	PxU32 contactPatchCount = fb.contactPatchCount;
+	if(contactPatchCount == PxContactBuffer::MAX_CONTACTS)
+		return false;
+	if(contactCount>0)
+	{
+		CorrelationBuffer::ContactPatchData* PX_RESTRICT currentPatchData = fb.contactPatches + contactPatchCount;
+		const PxContactPoint* PX_RESTRICT contacts = cb;
+
+		initContactPatch(fb.contactPatches[contactPatchCount++], PxTo16(0), contacts[0].restitution, 
+			contacts[0].staticFriction, contacts[0].dynamicFriction, PxU8(contacts[0].materialFlags));
+
+		Vec4V minV = V4LoadA(&contacts[0].point.x);
+		Vec4V maxV = minV;
+
+		PxU32 patchIndex = 0;
+		PxU8 count = 1;
+
+		for (PxU32 i = 1; i<contactCount; i++)
+		{
+			const PxContactPoint& curContact = contacts[i];
+			const PxContactPoint& preContact = contacts[patchIndex];
+
+			if(curContact.staticFriction == preContact.staticFriction
+				&& curContact.dynamicFriction == preContact.dynamicFriction
+				&& curContact.restitution == preContact.restitution
+				&& curContact.normal.dot(preContact.normal)>=normalTolerance)
+			{
+				const Vec4V ptV = V4LoadA(&curContact.point.x);
+				minV = V4Min(minV, ptV);
+				maxV = V4Max(maxV, ptV);
+
+				count++;
+			}
+			else
+			{
+				if(contactPatchCount == PxContactBuffer::MAX_CONTACTS)
+					return false;
+				patchIndex = i;
+				currentPatchData->count = count;
+				count = 1;
+				StoreBounds(currentPatchData->patchBounds, minV, maxV);
+				currentPatchData = fb.contactPatches + contactPatchCount;
+
+				initContactPatch(fb.contactPatches[contactPatchCount++], PxTo16(i), curContact.restitution,
+					curContact.staticFriction, curContact.dynamicFriction, PxU8(curContact.materialFlags));
+
+				minV = V4LoadA(&curContact.point.x);
+				maxV = minV;
+			}
+		}
+		if(count!=1)
+			currentPatchData->count = count;
+
+		StoreBounds(currentPatchData->patchBounds, minV, maxV);
+	}
+	fb.contactPatchCount = contactPatchCount;
+	return true;
+}
+
+static PX_FORCE_INLINE void initFrictionPatch(FrictionPatch& p, const PxVec3& worldNormal, const PxTransform& body0Pose, const PxTransform& body1Pose, 
 	PxReal restitution, PxReal staticFriction, PxReal dynamicFriction, PxU8 materialFlags)
 {
 	p.body0Normal = body0Pose.rotateInv(worldNormal);
@@ -70,71 +129,9 @@ PX_FORCE_INLINE void initFrictionPatch(FrictionPatch& p, const PxVec3& worldNorm
 	p.restitution = restitution;
 	p.materialFlags = materialFlags;
 }
-}
-
-
-bool createContactPatches(CorrelationBuffer& fb, const Gu::ContactPoint* cb, PxU32 contactCount, PxReal normalTolerance)
-{
-
-	// PT: this rewritten version below doesn't have LHS
-
-	PxU32 contactPatchCount = fb.contactPatchCount;
-	if(contactPatchCount == Gu::ContactBuffer::MAX_CONTACTS)
-		return false;
-	if(contactCount>0)
-	{
-		CorrelationBuffer::ContactPatchData* currentPatchData = fb.contactPatches + contactPatchCount;
-		const Gu::ContactPoint* PX_RESTRICT contacts = cb;
-
-		PxU8 count=1;
-
-		initContactPatch(fb.contactPatches[contactPatchCount++], Ps::to16(0), contacts[0].restitution, 
-			contacts[0].staticFriction, contacts[0].dynamicFriction, PxU8(contacts[0].materialFlags));
-
-		PxBounds3 bounds(contacts[0].point, contacts[0].point);
-
-		PxU32 patchIndex = 0;
-
-		for (PxU32 i = 1; i<contactCount; i++)
-		{
-			const Gu::ContactPoint& curContact = contacts[i];
-			const Gu::ContactPoint& preContact = contacts[patchIndex];
-
-			if(curContact.staticFriction == preContact.staticFriction
-				&& curContact.dynamicFriction == preContact.dynamicFriction
-				&& curContact.restitution == preContact.restitution
-				&& curContact.normal.dot(preContact.normal)>=normalTolerance)
-			{
-				bounds.include(curContact.point);
-				count++;
-			}
-			else
-			{
-				if(contactPatchCount == Gu::ContactBuffer::MAX_CONTACTS)
-					return false;
-				patchIndex = i;
-				currentPatchData->count = count;
-				count = 1;
-				currentPatchData->patchBounds = bounds;
-				currentPatchData = fb.contactPatches + contactPatchCount;
-
-				initContactPatch(fb.contactPatches[contactPatchCount++], Ps::to16(i), curContact.restitution,
-					curContact.staticFriction, curContact.dynamicFriction, PxU8(curContact.materialFlags));
-
-				bounds = PxBounds3(curContact.point, curContact.point);
-			}
-		}
-		if(count!=1)
-			currentPatchData->count = count;
-
-		currentPatchData->patchBounds = bounds;
-	}
-	fb.contactPatchCount = contactPatchCount;
-	return true;
-}
 
 bool correlatePatches(CorrelationBuffer& fb, 
-					  const Gu::ContactPoint* cb,
+					  const PxContactPoint* cb,
 					  const PxTransform& bodyFrame0,
 					  const PxTransform& bodyFrame1,
 					  PxReal normalTolerance,
@@ -173,7 +170,7 @@ bool correlatePatches(CorrelationBuffer& fb,
 		{
 			fb.patchBounds[j].include(c.patchBounds);
 			fb.frictionPatchContactCounts[j] += c.count;
-			c.next = Ps::to16(fb.correlationListHeads[j]);
+			c.next = PxTo16(fb.correlationListHeads[j]);
 		}
 
 		fb.correlationListHeads[j] = i;
@@ -188,10 +185,9 @@ bool correlatePatches(CorrelationBuffer& fb,
 // anchors that are close, we keep them, which gives us persistent spring behavior
 
 void growPatches(CorrelationBuffer& fb,
-				 const ContactPoint* cb,
+				 const PxContactPoint* cb,
 				 const PxTransform& bodyFrame0,
 				 const PxTransform& bodyFrame1,
-				 PxReal correlationDistance,
 				 PxU32 frictionPatchStartIndex,
 				 PxReal frictionOffsetThreshold)
 {
@@ -222,6 +218,8 @@ void growPatches(CorrelationBuffer& fb,
 			worldAnchors[anchorCount++] = bodyFrame0.transform(fp.body0Anchors[0]);
 		}
 
+		const PxReal eps = 1e-8f;
+
 		for(PxU32 patch = fb.correlationListHeads[i]; 
 			patch!=CorrelationBuffer::LIST_END; 
 			patch = fb.contactPatches[patch].next)
@@ -233,7 +231,6 @@ void growPatches(CorrelationBuffer& fb,
 
 				if(cb[cp.start+j].separation < frictionOffsetThreshold)
 				{
-
 					switch(anchorCount)
 					{
 					case 0:
@@ -243,7 +240,7 @@ void growPatches(CorrelationBuffer& fb,
 						break;
 					case 1:
 						pointDistSq = (worldPoint-worldAnchors[0]).magnitudeSquared(); 
-						if (pointDistSq > (correlationDistance * correlationDistance))
+						if (pointDistSq > eps)
 						{
 							fb.contactID[i][1] = PxU16(cp.start+j);
 							worldAnchors[1] = worldPoint;

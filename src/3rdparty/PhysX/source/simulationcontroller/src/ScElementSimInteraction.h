@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,13 +22,12 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
-
-#ifndef PX_PHYSICS_SCP_ELEMENT_SIM_INTERACTION
-#define PX_PHYSICS_SCP_ELEMENT_SIM_INTERACTION
+#ifndef SC_ELEMENT_SIM_INTERACTION_H
+#define SC_ELEMENT_SIM_INTERACTION_H
 
 #include "ScInteraction.h"
 #include "ScElementSim.h"
@@ -41,22 +39,20 @@ namespace Sc
 	class ElementSimInteraction : public Interaction
 	{
 	public:
-		PX_FORCE_INLINE	ElementSim&	getElement0()						const	{ return mElement0;						}
-		PX_FORCE_INLINE	ElementSim&	getElement1()						const	{ return mElement1;						}
-
-		PX_FORCE_INLINE	void		setFilterPairIndex(PxU32 filterPairIndex)	{ mFilterPairIndex = filterPairIndex;	}
-		PX_FORCE_INLINE	PxU32		getFilterPairIndex()				const	{ return mFilterPairIndex;				}
+		PX_FORCE_INLINE	ElementSim&	getElement0()	const	{ return mElement0;	}
+		PX_FORCE_INLINE	ElementSim&	getElement1()	const	{ return mElement1;	}
 
 	protected:
 		PX_INLINE					ElementSimInteraction(ElementSim& element0, ElementSim& element1, InteractionType::Enum type, PxU8 flags);
-		virtual						~ElementSimInteraction() {}
+									~ElementSimInteraction() {}
 
 		ElementSimInteraction& operator=(const ElementSimInteraction&);
 
-	private:
-						ElementSim&	mElement0;
-						ElementSim&	mElement1;
-						PxU32		mFilterPairIndex;
+						ElementSim&		mElement0;
+						ElementSim&		mElement1;
+						PxU32			mFlags;		// PT: moved there in padding bytes, from ShapeInteraction
+	public:
+						IG::EdgeIndex	mEdgeIndex;	// PT: moved there in padding bytes, from ShapeInteraction
 	};
 
 } // namespace Sc
@@ -64,10 +60,9 @@ namespace Sc
 //////////////////////////////////////////////////////////////////////////
 
 PX_INLINE Sc::ElementSimInteraction::ElementSimInteraction(ElementSim& element0, ElementSim& element1, InteractionType::Enum type, PxU8 flags) :
-	Interaction	(element0.getActor(), element1.getActor(), type, flags),
-	mElement0	(element0),
-	mElement1	(element1),
-	mFilterPairIndex(INVALID_FILTER_PAIR_INDEX)
+	Interaction		(element0.getActor(), element1.getActor(), type, flags),
+	mElement0		(element0),
+	mElement1		(element1)
 {
 }
 

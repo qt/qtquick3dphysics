@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -32,13 +31,8 @@
 #define CM_WINDOWS_LOADLIBRARY_H
 
 #include "foundation/PxPreprocessor.h"
+#include "foundation/windows/PxWindowsInclude.h"
 #include "common/windows/PxWindowsDelayLoadHook.h"
-#include "windows/PsWindowsInclude.h"
-
-#ifdef PX_SECURE_LOAD_LIBRARY
-#include "nvSecureLoadLibrary.h"
-#endif
-
 
 namespace physx
 {
@@ -48,20 +42,11 @@ namespace Cm
 
 	PX_INLINE HMODULE WINAPI loadLibrary(const char* name)
 	{
-#ifdef PX_SECURE_LOAD_LIBRARY
-		HMODULE retVal = nvLoadSignedLibrary(name,true);
-		if(!retVal)
-		{
-			exit(1);
-		}
-		return retVal;
-#else
 		return ::LoadLibraryA( name );
-#endif		
 	};
 
 	PX_INLINE FARPROC WINAPI physXCommonDliNotePreLoadLibrary(const char* libraryName, const physx::PxDelayLoadHook* delayLoadHook)
-	{	
+	{
 		if(!delayLoadHook)
 		{
 			return (FARPROC)loadLibrary(libraryName);

@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,21 +22,21 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
-
-#ifndef PX_PHYSICS_COMMON_TASK
-#define PX_PHYSICS_COMMON_TASK
+#ifndef CM_TASK_H
+#define CM_TASK_H
 
 #include "task/PxTask.h"
-#include "CmPhysXCommon.h"
-#include "PsUserAllocated.h"
-#include "PsAtomic.h"
-#include "PsMutex.h"
-#include "PsInlineArray.h"
-#include "PsFPU.h"
+#include "foundation/PxUserAllocated.h"
+#include "foundation/PxAtomic.h"
+#include "foundation/PxMutex.h"
+#include "foundation/PxInlineArray.h"
+#include "foundation/PxFPU.h"
+
+// PT: this shouldn't be in Cm. The whole task manager is in the PhysX DLL so we cannot use any of these inside the Common DLL
 
 namespace physx
 {
@@ -56,12 +55,12 @@ namespace Cm
 			mContextID = contextId;
 		}
 
-		virtual void run()
+		virtual void run() PX_OVERRIDE
 		{
 #if PX_SWITCH  // special case because default rounding mode is not nearest
 			PX_FPU_GUARD;
 #else
-			PX_SIMD_GUARD;
+			PX_SIMD_GUARD
 #endif
 			runInternal();
 		}
@@ -75,12 +74,12 @@ namespace Cm
 	{
 	public:
 
-		virtual void run()
+		virtual void run() PX_OVERRIDE
 		{
 #if PX_SWITCH  // special case because default rounding mode is not nearest
 			PX_FPU_GUARD;
 #else
-			PX_SIMD_GUARD;
+			PX_SIMD_GUARD
 #endif
 			runInternal();
 		}
@@ -89,18 +88,28 @@ namespace Cm
 	};
 
 	template <class T, void (T::*Fn)(physx::PxBaseTask*) >
-	class DelegateTask : public Cm::Task, public shdfnd::UserAllocated
+	class DelegateTask : public Cm::Task, public PxUserAllocated
 	{
 	public:
 
 		DelegateTask(PxU64 contextID, T* obj, const char* name) : Cm::Task(contextID), mObj(obj), mName(name) {}
 
-		virtual void runInternal()
+		virtual void run() PX_OVERRIDE
+		{
+#if PX_SWITCH  // special case because default rounding mode is not nearest
+			PX_FPU_GUARD;
+#else
+			PX_SIMD_GUARD
+#endif
+			(mObj->*Fn)(mCont);
+		}
+
+		virtual void runInternal() PX_OVERRIDE
 		{
 			(mObj->*Fn)(mCont);
 		}
 
-		virtual const char* getName() const
+		virtual const char* getName() const PX_OVERRIDE
 		{
 			return mName;
 		}
@@ -127,20 +136,20 @@ namespace Cm
 	public:
 		FanoutTask(PxU64 contextID, const char* name) : Cm::BaseTask(), mRefCount(0), mName(name), mNotifySubmission(false) { mContextID = contextID; }
 
-		virtual void runInternal() {}
+		virtual void runInternal() PX_OVERRIDE {}
 
-		virtual const char* getName() const { return mName; }
+		virtual const char* getName() const PX_OVERRIDE { return mName; }
 
 		/**
 		Swap mDependents with mReferencesToRemove when refcount goes to 0.
 		*/
-		virtual void removeReference()
+		virtual void removeReference() PX_OVERRIDE
 		{
-			shdfnd::Mutex::ScopedLock lock(mMutex);
-			if (!physx::shdfnd::atomicDecrement(&mRefCount))
+			PxMutex::ScopedLock lock(mMutex);
+			if (!physx::PxAtomicDecrement(&mRefCount))
 			{
 				// prevents access to mReferencesToRemove until release
-				physx::shdfnd::atomicIncrement(&mRefCount);
+				physx::PxAtomicIncrement(&mRefCount);
 				mNotifySubmission = false;
 				PX_ASSERT(mReferencesToRemove.empty());
 				for (PxU32 i = 0; i < mDependents.size(); i++)
@@ -153,17 +162,17 @@ namespace Cm
 		/** 
 		\brief Increases reference count
 		*/
-		virtual void addReference()
+		virtual void addReference() PX_OVERRIDE
 		{
-			shdfnd::Mutex::ScopedLock lock(mMutex);
-			physx::shdfnd::atomicIncrement(&mRefCount);
+			PxMutex::ScopedLock lock(mMutex);
+			physx::PxAtomicIncrement(&mRefCount);
 			mNotifySubmission = true;
 		}
 
 		/** 
 		\brief Return the ref-count for this task 
 		*/
-		PX_INLINE PxI32 getReference() const
+		virtual PX_INLINE PxI32 getReference() const	PX_OVERRIDE
 		{
 			return mRefCount;
 		}
@@ -182,8 +191,8 @@ namespace Cm
 		*/
 		PX_INLINE void addDependent(physx::PxBaseTask& dependent)
 		{
-			shdfnd::Mutex::ScopedLock lock(mMutex);
-			physx::shdfnd::atomicIncrement(&mRefCount);
+			PxMutex::ScopedLock lock(mMutex);
+			physx::PxAtomicIncrement(&mRefCount);
 			mTm = dependent.getTaskManager();
 			mDependents.pushBack(&dependent);
 			dependent.addReference();
@@ -194,12 +203,12 @@ namespace Cm
 		Reduces reference counts of the continuation task and the dependent tasks, also 
 		clearing the copy of continuation and dependents task list.
 		*/
-		virtual void release()
+		virtual void release() PX_OVERRIDE
 		{
-			Ps::InlineArray<physx::PxBaseTask*, 10> referencesToRemove;
+			PxInlineArray<physx::PxBaseTask*, 10> referencesToRemove;
 
 			{
-				shdfnd::Mutex::ScopedLock lock(mMutex);
+				PxMutex::ScopedLock lock(mMutex);
 
 				const PxU32 contCount = mReferencesToRemove.size(); 
 				referencesToRemove.reserve(contCount);
@@ -214,7 +223,7 @@ namespace Cm
 				}
 				else
 				{
-					physx::shdfnd::atomicDecrement(&mRefCount);
+					physx::PxAtomicDecrement(&mRefCount);
 				}
 
 				// the scoped lock needs to get freed before the continuation tasks get (potentially) submitted because
@@ -231,10 +240,10 @@ namespace Cm
 	protected:
 		volatile PxI32 mRefCount;
 		const char* mName;
-		Ps::InlineArray<physx::PxBaseTask*, 4> mDependents;
-		Ps::InlineArray<physx::PxBaseTask*, 4> mReferencesToRemove;
+		PxInlineArray<physx::PxBaseTask*, 4> mDependents;
+		PxInlineArray<physx::PxBaseTask*, 4> mReferencesToRemove;
 		bool mNotifySubmission;
-		Ps::Mutex mMutex; // guarding mDependents and mNotifySubmission
+		PxMutex mMutex; // guarding mDependents and mNotifySubmission
 	};
 
 
@@ -242,13 +251,13 @@ namespace Cm
 	\brief Specialization of FanoutTask class in order to provide the delegation mechanism.
 	*/
 	template <class T, void (T::*Fn)(physx::PxBaseTask*) >
-	class DelegateFanoutTask : public FanoutTask, public shdfnd::UserAllocated
+	class DelegateFanoutTask : public FanoutTask, public PxUserAllocated
 	{
 	public:
 		DelegateFanoutTask(PxU64 contextID, T* obj, const char* name) : 
 		  FanoutTask(contextID, name), mObj(obj) { }
 
-		  virtual void runInternal()
+		  virtual void runInternal() PX_OVERRIDE
 		  {
 			  physx::PxBaseTask* continuation = mReferencesToRemove.empty() ? NULL : mReferencesToRemove[0];
 			  (mObj->*Fn)(continuation);
@@ -259,6 +268,29 @@ namespace Cm
 	private:
 		T* mObj;
 	};
+
+	PX_FORCE_INLINE void startTask(Cm::Task* task, PxBaseTask* continuation)
+	{
+		if(continuation)
+		{
+			// PT: TODO: just make this a PxBaseTask function?
+			task->setContinuation(continuation);
+			task->removeReference();
+		}
+		else
+			task->runInternal();
+	}
+
+	template<class T>
+	PX_FORCE_INLINE void updateTaskLinkedList(T*& previousTask, T* task, T*& head)
+	{
+		if(previousTask)
+			previousTask->mNext = task;
+		else
+			head = task;
+
+		previousTask = task;
+	}
 
 } // namespace Cm
 

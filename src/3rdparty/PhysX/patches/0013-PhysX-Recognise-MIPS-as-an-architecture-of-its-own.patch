@@ -1,0 +1,83 @@
+From: Jonas Karlsson <jonas.karlsson@qt.io>
+Subject: [PATCH] PhysX: Recognise MIPS as an architecture of its own
+
+The architecture list in PxPreprocessor.h knows x86, arm and ppc, and
+answers everything else with #error "Unknown architecture", so nothing
+compiles for the mips64 device build. Give MIPS an entry of its own, with
+a PX_MIPS64 for the 64-bit ABIs and PX_P64_FAMILY extended to it: that
+macro is what decides the padding and the size of the solver structures,
+so without it DyConstraint.h, DySolverContact.h and DySolverContact4.h
+fail the compile time assertions that say a SolverContactHeader is 80
+bytes where a pointer is 8.
+
+PhysX 4.1 was made to build here by answering __mips__ with PX_X64 and
+switching SIMD off after it. PhysX 5 cannot be: PX_X64 puts MIPS in
+PX_INTEL_FAMILY, and PxUnixFPU.h includes <xmmintrin.h> for that family
+whatever the SIMD setting is. An architecture of its own costs two
+defines and needs nothing else, because PhysX 5 only compiles the vector
+intrinsics for the Intel family and for Switch, so MIPS gets the scalar
+vecmath by itself.
+
+PxMath.h binds expf() and powf() to glibc 2.2.5 on every Linux that is
+not arm, to keep the binaries loadable on older distributions. That
+version tag is the x86-64 base version: on mips64 the same symbols are
+GLIBC_2.0 and there is no 2.2.5 at all, so the sources compile and then
+anything that calls PxExp() or PxPow() fails to link with "undefined
+reference to expf@GLIBC_2.2.5". Ask for the Intel family, which is where
+those tags come from. PhysX 4.1 had no .symver at all, so this is new
+with 5.9, and it refines the condition the WebAssembly patch left, which
+was the same guard read for musl and emscripten.
+---
+ src/3rdparty/PhysX/include/foundation/PxMath.h         |  2 +-
+ src/3rdparty/PhysX/include/foundation/PxPreprocessor.h | 13 ++++++++++++-
+ 2 files changed, 13 insertions(+), 2 deletions(-)
+
+diff --git a/src/3rdparty/PhysX/include/foundation/PxMath.h b/src/3rdparty/PhysX/include/foundation/PxMath.h
+--- a/src/3rdparty/PhysX/include/foundation/PxMath.h
++++ b/src/3rdparty/PhysX/include/foundation/PxMath.h
+@@ -42,7 +42,7 @@
+ #pragma warning(pop)
+ #endif
+ 
+-#if (PX_LINUX_FAMILY && !PX_ARM_FAMILY && !PX_EMSCRIPTEN && defined(__GLIBC__))
++#if (PX_LINUX_FAMILY && PX_INTEL_FAMILY && !PX_EMSCRIPTEN && defined(__GLIBC__))
+ // Force linking against nothing newer than glibc v2.17 to remain compatible with platforms with older glibc versions
+ __asm__(".symver expf,expf@GLIBC_2.2.5");
+ __asm__(".symver powf,powf@GLIBC_2.2.5");
+diff --git a/src/3rdparty/PhysX/include/foundation/PxPreprocessor.h b/src/3rdparty/PhysX/include/foundation/PxPreprocessor.h
+--- a/src/3rdparty/PhysX/include/foundation/PxPreprocessor.h
++++ b/src/3rdparty/PhysX/include/foundation/PxPreprocessor.h
+@@ -116,6 +116,11 @@ Architecture defines, see http://sourceforge.net/p/predef/wiki/Architectures/
+ 	#define PX_ARM 1
+ #elif defined(__ppc__) || defined(_M_PPC) || defined(__CELLOS_LV2__)
+ 	#define PX_PPC 1
++#elif defined(__mips__) || defined(__mips)
++	#define PX_MIPS 1
++	#if defined(__mips64)
++		#define PX_MIPS64 1
++	#endif
+ #else
+ 	#error "Unknown architecture"
+ #endif
+@@ -177,6 +182,12 @@ define anything not defined on this platform to 0
+ #ifndef PX_PPC
+ 	#define PX_PPC 0
+ #endif
++#ifndef PX_MIPS
++	#define PX_MIPS 0
++#endif
++#ifndef PX_MIPS64
++	#define PX_MIPS64 0
++#endif
+ #ifndef PX_SSE2
+ 	#define PX_SSE2 0
+ #endif
+@@ -227,7 +238,7 @@ family shortcuts
+ // architecture
+ #define PX_INTEL_FAMILY (PX_X64 || PX_X86)
+ #define PX_ARM_FAMILY (PX_ARM || PX_A64)
+-#define PX_P64_FAMILY (PX_X64 || PX_A64) // shortcut for 64-bit architectures
++#define PX_P64_FAMILY (PX_X64 || PX_A64 || PX_MIPS64) // shortcut for 64-bit architectures
+ 
+ /**
+ C++ standard library defines

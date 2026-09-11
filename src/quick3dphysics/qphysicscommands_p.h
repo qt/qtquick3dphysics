@@ -24,7 +24,7 @@
 #include <QtGui/qgenericmatrix.h>
 
 namespace physx {
-class PxRigidBody;
+class PxRigidDynamic;
 }
 
 QT_BEGIN_NAMESPACE
@@ -35,7 +35,7 @@ class QPhysicsCommand
 public:
     QPhysicsCommand() = default;
     virtual ~QPhysicsCommand();
-    virtual void execute(const QDynamicRigidBody &rigidBody, physx::PxRigidBody &body) = 0;
+    virtual void execute(const QDynamicRigidBody &rigidBody, physx::PxRigidDynamic &body) = 0;
 };
 
 class QPhysicsCommandApplyCentralForce : public QPhysicsCommand
@@ -44,7 +44,7 @@ public:
     explicit QPhysicsCommandApplyCentralForce(const QVector3D &inForce);
     ~QPhysicsCommandApplyCentralForce() override;
 
-    void execute(const QDynamicRigidBody &rigidBody, physx::PxRigidBody &body) override;
+    void execute(const QDynamicRigidBody &rigidBody, physx::PxRigidDynamic &body) override;
 
 private:
     QVector3D force;
@@ -56,7 +56,7 @@ public:
     explicit QPhysicsCommandApplyForce(const QVector3D &inForce, const QVector3D &inPosition);
     ~QPhysicsCommandApplyForce() override;
 
-    void execute(const QDynamicRigidBody &rigidBody, physx::PxRigidBody &body) override;
+    void execute(const QDynamicRigidBody &rigidBody, physx::PxRigidDynamic &body) override;
 
 private:
     QVector3D force;
@@ -69,7 +69,7 @@ public:
     explicit QPhysicsCommandApplyTorque(const QVector3D &inTorque);
     ~QPhysicsCommandApplyTorque() override;
 
-    void execute(const QDynamicRigidBody &rigidBody, physx::PxRigidBody &body) override;
+    void execute(const QDynamicRigidBody &rigidBody, physx::PxRigidDynamic &body) override;
 
 private:
     QVector3D torque;
@@ -81,7 +81,7 @@ public:
     explicit QPhysicsCommandApplyCentralImpulse(const QVector3D &inImpulse);
     ~QPhysicsCommandApplyCentralImpulse() override;
 
-    void execute(const QDynamicRigidBody &rigidBody, physx::PxRigidBody &body) override;
+    void execute(const QDynamicRigidBody &rigidBody, physx::PxRigidDynamic &body) override;
 
 private:
     QVector3D impulse;
@@ -93,7 +93,7 @@ public:
     explicit QPhysicsCommandApplyImpulse(const QVector3D &inImpulse, const QVector3D &inPosition);
     ~QPhysicsCommandApplyImpulse() override;
 
-    void execute(const QDynamicRigidBody &rigidBody, physx::PxRigidBody &body) override;
+    void execute(const QDynamicRigidBody &rigidBody, physx::PxRigidDynamic &body) override;
 
 private:
     QVector3D impulse;
@@ -106,7 +106,7 @@ public:
     explicit QPhysicsCommandApplyTorqueImpulse(const QVector3D &inImpulse);
     ~QPhysicsCommandApplyTorqueImpulse() override;
 
-    void execute(const QDynamicRigidBody &rigidBody, physx::PxRigidBody &body) override;
+    void execute(const QDynamicRigidBody &rigidBody, physx::PxRigidDynamic &body) override;
 
 private:
     QVector3D impulse;
@@ -118,7 +118,7 @@ public:
     explicit QPhysicsCommandSetAngularVelocity(const QVector3D &inAngularVelocity);
     ~QPhysicsCommandSetAngularVelocity() override;
 
-    void execute(const QDynamicRigidBody &rigidBody, physx::PxRigidBody &body) override;
+    void execute(const QDynamicRigidBody &rigidBody, physx::PxRigidDynamic &body) override;
 
 private:
     QVector3D angularVelocity;
@@ -130,7 +130,7 @@ public:
     explicit QPhysicsCommandSetLinearVelocity(const QVector3D &inLinearVelocity);
     ~QPhysicsCommandSetLinearVelocity() override;
 
-    void execute(const QDynamicRigidBody &rigidBody, physx::PxRigidBody &body) override;
+    void execute(const QDynamicRigidBody &rigidBody, physx::PxRigidDynamic &body) override;
 
 private:
     QVector3D linearVelocity;
@@ -142,7 +142,7 @@ public:
     explicit QPhysicsCommandSetMass(float inMass);
     ~QPhysicsCommandSetMass() override;
 
-    void execute(const QDynamicRigidBody &rigidBody, physx::PxRigidBody &body) override;
+    void execute(const QDynamicRigidBody &rigidBody, physx::PxRigidDynamic &body) override;
 
 private:
     float mass;
@@ -154,7 +154,7 @@ public:
     explicit QPhysicsCommandSetMassAndInertiaTensor(float inMass, const QVector3D &inInertia);
     ~QPhysicsCommandSetMassAndInertiaTensor() override;
 
-    void execute(const QDynamicRigidBody &rigidBody, physx::PxRigidBody &body) override;
+    void execute(const QDynamicRigidBody &rigidBody, physx::PxRigidDynamic &body) override;
 
 private:
     float mass;
@@ -167,7 +167,7 @@ public:
     explicit QPhysicsCommandSetMassAndInertiaMatrix(float inMass, const QMatrix3x3 &inInertia);
     ~QPhysicsCommandSetMassAndInertiaMatrix() override;
 
-    void execute(const QDynamicRigidBody &rigidBody, physx::PxRigidBody &body) override;
+    void execute(const QDynamicRigidBody &rigidBody, physx::PxRigidDynamic &body) override;
 
 private:
     float mass;
@@ -180,7 +180,7 @@ public:
     explicit QPhysicsCommandSetDensity(float inDensity);
     ~QPhysicsCommandSetDensity() override;
 
-    void execute(const QDynamicRigidBody &rigidBody, physx::PxRigidBody &body) override;
+    void execute(const QDynamicRigidBody &rigidBody, physx::PxRigidDynamic &body) override;
 
 private:
     float density;
@@ -192,7 +192,7 @@ public:
     explicit QPhysicsCommandSetIsKinematic(bool inIsKinematic, bool worldEnableCCD);
     ~QPhysicsCommandSetIsKinematic() override;
 
-    void execute(const QDynamicRigidBody &rigidBody, physx::PxRigidBody &body) override;
+    void execute(const QDynamicRigidBody &rigidBody, physx::PxRigidDynamic &body) override;
 
 private:
     bool isKinematic;
@@ -205,7 +205,7 @@ public:
     explicit QPhysicsCommandSetCCD(QDynamicRigidBody::CCDType ccdType, bool worldEnableCCD);
     ~QPhysicsCommandSetCCD() override;
 
-    void execute(const QDynamicRigidBody &rigidBody, physx::PxRigidBody &body) override;
+    void execute(const QDynamicRigidBody &rigidBody, physx::PxRigidDynamic &body) override;
 
 private:
     QDynamicRigidBody::CCDType ccdType;
@@ -218,7 +218,7 @@ public:
     explicit QPhysicsCommandSetGravityEnabled(bool inGravityEnabled);
     ~QPhysicsCommandSetGravityEnabled() override;
 
-    void execute(const QDynamicRigidBody &rigidBody, physx::PxRigidBody &body) override;
+    void execute(const QDynamicRigidBody &rigidBody, physx::PxRigidDynamic &body) override;
 
 private:
     bool gravityEnabled;
@@ -230,7 +230,7 @@ public:
     explicit QPhysicsCommandReset(QVector3D inPosition, QVector3D inEulerRotation);
     ~QPhysicsCommandReset() override;
 
-    void execute(const QDynamicRigidBody &rigidBody, physx::PxRigidBody &body) override;
+    void execute(const QDynamicRigidBody &rigidBody, physx::PxRigidDynamic &body) override;
 
 private:
     QVector3D position;

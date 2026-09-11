@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -31,7 +30,7 @@
 #define PXC_CONTACT_CACHE_H
 
 #include "foundation/PxTransform.h"
-#include "PxvConfig.h"
+#include "PxPhysXConfig.h"
 #include "PxcContactMethodImpl.h"
 
 namespace physx
@@ -39,9 +38,9 @@ namespace physx
 	class PxcNpThreadContext;
 
 	bool PxcCacheLocalContacts(	PxcNpThreadContext& context, Gu::Cache& pairContactCache,
-								const PxTransform& tm0, const PxTransform& tm1,
+								const PxTransform32& tm0, const PxTransform32& tm1,
 								const PxcContactMethod conMethod,
-								const Gu::GeometryUnion& shape0, const Gu::GeometryUnion& shape1);
+								const PxGeometry& shape0, const PxGeometry& shape1);
 
 	struct PxcLocalContactsCache
 	{

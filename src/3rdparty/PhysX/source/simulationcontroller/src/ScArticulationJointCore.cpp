@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,99 +22,26 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
 #include "ScArticulationJointCore.h"
 #include "ScArticulationCore.h"
+#include "ScArticulationSim.h"
 #include "ScArticulationJointSim.h"
 #include "ScBodyCore.h"
 #include "ScPhysics.h"
 
 using namespace physx;
 
-Sc::ArticulationJointCore::ArticulationJointCore(const PxTransform& parentFrame,
-												 const PxTransform& childFrame,
-												 bool isReducedCoordinate) :
-	mSim	(NULL)
+Sc::ArticulationJointCore::ArticulationJointCore(const PxTransform& parentFrame, const PxTransform& childFrame) :
+	mCore			(parentFrame, childFrame),
+	mSim			(NULL),
+	mArticulation	(NULL),
+	mRootType		(NULL),
+	mLLLinkIndex	(0xffffffff)
 {
-	PX_ASSERT(parentFrame.isValid());
-	PX_ASSERT(childFrame.isValid());
-
-	mCore.parentPose = parentFrame;
-	mCore.childPose = childFrame;
-
-	mCore.targetPosition = PxQuat(PxIdentity);
-	mCore.targetVelocity = PxVec3(0.f);
-
-	mCore.driveType = PxArticulationJointDriveType::eTARGET;
-
-	mCore.spring = 0.0f;
-	mCore.damping = 0.0f;
-
-	mCore.internalCompliance = 1.0f;
-	mCore.externalCompliance = 1.0f;
-
-	if (!isReducedCoordinate)
-	{
-		PxReal swingYLimit = PxPi / 4;
-		PxReal swingZLimit = PxPi / 4;
-		mCore.limits[PxArticulationAxis::eSWING1].low = swingYLimit;
-		mCore.limits[PxArticulationAxis::eSWING1].high = swingYLimit;
-		mCore.limits[PxArticulationAxis::eSWING2].low = swingZLimit;
-		mCore.limits[PxArticulationAxis::eSWING2].high = swingZLimit;
-		mCore.swingLimitContactDistance = 0.05f;
-
-		PxReal twistLimitLow = -PxPi / 4;
-		PxReal twistLimitHigh = PxPi / 4;
-
-		mCore.limits[PxArticulationAxis::eTWIST].low = twistLimitLow;
-		mCore.limits[PxArticulationAxis::eTWIST].high = twistLimitHigh;
-		mCore.twistLimitContactDistance = 0.05f;
-		mCore.tanQSwingY = PxTan(swingYLimit / 4);
-		mCore.tanQSwingZ = PxTan(swingZLimit / 4);
-		mCore.tanQSwingPad = PxTan(mCore.swingLimitContactDistance / 4);
-
-		mCore.tanQTwistHigh = PxTan(twistLimitHigh / 4);
-		mCore.tanQTwistLow = PxTan(twistLimitLow / 4);
-		mCore.tanQTwistPad = PxTan(mCore.twistLimitContactDistance / 4);
-	}
-	else
-	{
-		for (PxU32 i = 0; i < 6; ++i)
-		{
-			mCore.limits[i].low = 0.f;
-			mCore.limits[i].high = 0.f;
-			mCore.drives[i].stiffness = 0.f;
-			mCore.drives[i].damping = 0.f;
-			mCore.drives[i].maxForce = 0.f;
-			mCore.drives[i].driveType = PxArticulationDriveType::eNONE;
-			mCore.targetP[i] = 0.f;
-			mCore.targetV[i] = 0.f;
-		}
-
-		mCore.twistLimitContactDistance = 0.f;
-		mCore.tanQSwingY = 0.f;
-		mCore.tanQSwingZ = 0.f;
-		mCore.tanQSwingPad = 0.f;
-
-		mCore.tanQTwistHigh = 0.f;
-		mCore.tanQTwistLow = 0.f;
-		mCore.tanQTwistPad = 0.f;
-	}
-
-	mCore.swingLimited = false;
-	mCore.twistLimited = false;
-	mCore.tangentialStiffness = 0.0f;
-	mCore.tangentialDamping = 0.0f;
-
-	mCore.frictionCoefficient = 0.05f;
-
-	mCore.jointType = PxArticulationJointType::eUNDEFINED;
-
-	for(PxU32 i = 0; i < PxArticulationAxis::eCOUNT; ++i)
-		mCore.motion[i] = PxArticulationMotion::eLOCKED;
 }
 
 Sc::ArticulationJointCore::~ArticulationJointCore()
@@ -123,196 +49,249 @@ Sc::ArticulationJointCore::~ArticulationJointCore()
 	PX_ASSERT(getSim() == 0);
 }
 
-//--------------------------------------------------------------
-//
-// ArticulationJointCore interface implementation
-//
-//--------------------------------------------------------------
+void Sc::ArticulationJointCore::setSimDirty()
+{
+	Sc::ArticulationJointSim* sim = getSim();
+	if(sim)
+		sim->setDirty();
+
+	ArticulationSim* artiSim = mArticulation->getSim();
+	if (artiSim && artiSim->isLLArticulationInitialized())
+		artiSim->mJcalcDirty = true;
+}
 
 void Sc::ArticulationJointCore::setParentPose(const PxTransform& t)
 {
-	mCore.parentPose = t;
-	setDirty(Dy::ArticulationJointCoreDirtyFlag::ePOSE);
+	// AD: we check if it changed at all to avoid marking the complete articulation dirty for a jcalc.
+	// The jcalc internally checks these ArticulationJointCoreDirtyFlag again so we would skip most things
+	// but we'd still check all the joints. The same is also true for the following functions.
+	if (!(mCore.parentPose == t))
+	{
+		mCore.parentPose = t;
+
+		setDirty();
+	}
 }
 
 void Sc::ArticulationJointCore::setChildPose(const PxTransform& t)
 {
-	mCore.childPose = t;
-	setDirty(Dy::ArticulationJointCoreDirtyFlag::ePOSE);
-}
-
-void Sc::ArticulationJointCore::setTargetOrientation(const PxQuat& p)
-{
-	mCore.targetPosition = p;
-}
-
-void Sc::ArticulationJointCore::setTargetVelocity(const PxVec3& v)
-{
-	mCore.targetVelocity = v;
-}
-
-void Sc::ArticulationJointCore::setDriveType(PxArticulationJointDriveType::Enum type)
-{
-	mCore.driveType = PxU8(type);
-}
-
-void Sc::ArticulationJointCore::setJointType(PxArticulationJointType::Enum type)
-{
-	mCore.jointType = PxU8(type);
-	mArticulation->setDirty(true);
-}
-
-PxArticulationJointType::Enum Sc::ArticulationJointCore::getJointType() const 
-{ 
-	return PxArticulationJointType::Enum(mCore.jointType); 
-}
-
-void Sc::ArticulationJointCore::setMotion(PxArticulationAxis::Enum axis, PxArticulationMotion::Enum motion)
-{
-	mCore.motion[axis] = PxU8(motion);
-	setDirty(Dy::ArticulationJointCoreDirtyFlag::eMOTION);
-}
-
-PxArticulationMotion::Enum Sc::ArticulationJointCore::getMotion(PxArticulationAxis::Enum axis) const
-{
-	return PxArticulationMotion::Enum(mCore.motion[axis]);
-}
-
-void Sc::ArticulationJointCore::setFrictionCoefficient(const PxReal coefficient)
-{
-	mCore.frictionCoefficient = coefficient;
-}
-
-PxReal Sc::ArticulationJointCore::getFrictionCoefficient() const
-{
-	return mCore.frictionCoefficient;
-}
-
-void Sc::ArticulationJointCore::setMaxJointVelocity(const PxReal maxJointV)
-{
-	mCore.maxJointVelocity = maxJointV;
-}
-
-PxReal Sc::ArticulationJointCore::getMaxJointVelocity() const
-{
-	return mCore.maxJointVelocity;
-}
-
-void Sc::ArticulationJointCore::setStiffness(PxReal s)
-{
-	mCore.spring = s;
-}
-
-void Sc::ArticulationJointCore::setDamping(PxReal d)
-{
-	mCore.damping = d;
-}
-
-void Sc::ArticulationJointCore::setInternalCompliance(PxReal r)
-{
-	mCore.internalCompliance = r;
-}
-
-void Sc::ArticulationJointCore::setExternalCompliance(PxReal r)
-{
-	mCore.externalCompliance = r;
-}
-
-void Sc::ArticulationJointCore::setSwingLimit(PxReal yLimit, PxReal zLimit)
-{
-	mCore.limits[PxArticulationAxis::eSWING1].low = yLimit;
-	mCore.limits[PxArticulationAxis::eSWING2].low = zLimit;
-
-	mCore.tanQSwingY	= PxTan(yLimit/4);
-	mCore.tanQSwingZ	= PxTan(zLimit/4);
-}
-
-void Sc::ArticulationJointCore::setTangentialStiffness(PxReal s)
-{
-	mCore.tangentialStiffness = s;
-}
-
-void Sc::ArticulationJointCore::setTangentialDamping(PxReal d)
-{
-	mCore.tangentialDamping = d;
-}
-
-void Sc::ArticulationJointCore::setSwingLimitEnabled(bool e)
-{
-	mCore.swingLimited = e;
-}
-
-void Sc::ArticulationJointCore::setSwingLimitContactDistance(PxReal e)
-{
-	mCore.swingLimitContactDistance = e;
-	mCore.tanQSwingPad = PxTan(e/4);
-}
-
-void Sc::ArticulationJointCore::setTwistLimit(PxReal lower, PxReal upper)
-{
-	mCore.limits[PxArticulationAxis::eTWIST].low = lower;
-	mCore.limits[PxArticulationAxis::eTWIST].high = upper;
-
-	mCore.tanQTwistHigh	= PxTan(upper/4);
-	mCore.tanQTwistLow	= PxTan(lower/4);
-}
-
-void Sc::ArticulationJointCore::setTwistLimitEnabled(bool e)
-{
-	mCore.twistLimited = e;
-}
-
-void Sc::ArticulationJointCore::setTwistLimitContactDistance(PxReal e)
-{
-	mCore.twistLimitContactDistance = e;
-	mCore.tanQTwistPad = PxTan(e/4);
-}
-
-void Sc::ArticulationJointCore::setDirty(Dy::ArticulationJointCoreDirtyFlag::Enum dirtyFlag)
-{
-	mCore.dirtyFlag |= dirtyFlag;
-	Sc::ArticulationJointSim* sim = getSim();
-	if (sim)
+	if (!(mCore.childPose == t))
 	{
-		sim->setDirty();
+		mCore.childPose = t;
+
+		setDirty();
 	}
 }
 
 void Sc::ArticulationJointCore::setTargetP(PxArticulationAxis::Enum axis, PxReal targetP)
 {
+	// this sets the target position in the core.
 	mCore.targetP[axis] = targetP;
-	setDirty(Dy::ArticulationJointCoreDirtyFlag::eTARGETPOSE);
+
+	// this sets the target position in the ll articulation. This needs to happen immediately because we might
+	// look up the value using the cache API again, and that one is reading directly from the llArticulation.
+	ArticulationSim* artiSim = mArticulation->getSim();
+	if (artiSim && artiSim->isLLArticulationInitialized())
+	{
+		Dy::ArticulationData& data = artiSim->getArticulationData();
+		const Dy::ArticulationJointCoreData* jointData = data.getJointData();
+		const Dy::ArticulationJointCoreData& jointDatum = jointData[mLLLinkIndex];
+
+		PxReal* jointTargetPositions = data.getJointTargetPositions();
+		PxReal* jTargetPosition = &jointTargetPositions[jointDatum.jointOffset];
+
+		const PxU32 dofId = mCore.invDofIds[axis];
+
+		if (dofId != 0xff)
+		{
+			jTargetPosition[dofId] = targetP;
+
+			artiSim->setArticulationDirty(Dy::ArticulationDirtyFlag::eDIRTY_JOINT_TARGET_POS);
+		}
+	}
+
+	// AD: does not need setDirty - we write directly into the llArticulation and the GPU part is 
+	// handled by setArticulationDirty.
 }
 
 void Sc::ArticulationJointCore::setTargetV(PxArticulationAxis::Enum axis, PxReal targetV)
 {
+	// this sets the target velocity in the core.
 	mCore.targetV[axis] = targetV;
-	setDirty(Dy::ArticulationJointCoreDirtyFlag::eTARGETVELOCITY);
+
+	// this sets the target velocity in the ll articulation. This needs to happen immediately because we might
+	// look up the value using the cache API again, and that one is reading directly from the llArticulation.
+	ArticulationSim* artiSim = mArticulation->getSim();
+	if (artiSim && artiSim->isLLArticulationInitialized())
+	{
+		Dy::ArticulationData& data = artiSim->getArticulationData();
+		const Dy::ArticulationJointCoreData* jointData = data.getJointData();
+		const Dy::ArticulationJointCoreData& jointDatum = jointData[mLLLinkIndex];
+
+		PxReal* jointTargetVelocities = data.getJointTargetVelocities();
+		PxReal* jTargetVelocity = &jointTargetVelocities[jointDatum.jointOffset];
+
+		const PxU32 dofId = mCore.invDofIds[axis];
+
+		if (dofId != 0xff)
+		{
+			jTargetVelocity[dofId] = targetV;
+
+			artiSim->setArticulationDirty(Dy::ArticulationDirtyFlag::eDIRTY_JOINT_TARGET_VEL);
+		}
+	}
+
+	// AD: does not need setDirty - we write directly into the llArticulation and the GPU part is 
+	// handled by setArticulationDirty.
 }
 
-void Sc::ArticulationJointCore::setLimit(PxArticulationAxis::Enum axis, PxReal lower, PxReal upper)
+void Sc::ArticulationJointCore::setArmature(PxArticulationAxis::Enum axis, PxReal armature)
 {
-	mCore.limits[axis].low = lower;
-	mCore.limits[axis].high = upper;
-	setDirty(Dy::ArticulationJointCoreDirtyFlag::eLIMIT);
+	if (mCore.armature[axis] != armature)
+	{
+		mCore.armature[axis] = armature;
+
+		setSimDirty();
+	}
 }
 
-void Sc::ArticulationJointCore::setDrive(PxArticulationAxis::Enum axis, PxReal stiffness, PxReal damping, PxReal maxForce, PxArticulationDriveType::Enum driveType)
+void Sc::ArticulationJointCore::setJointPosition(PxArticulationAxis::Enum axis, const PxReal jointPos)
 {
-	mCore.drives[axis].stiffness = stiffness;
-	mCore.drives[axis].damping = damping;
-	mCore.drives[axis].maxForce = maxForce;
-	mCore.drives[axis].driveType = driveType;
+	// this sets the position in the core.
+	mCore.jointPos[axis] = jointPos;
 
-	setDirty(Dy::ArticulationJointCoreDirtyFlag::eDRIVE);
+	// this sets the position in the ll articulation. This needs to happen immediately because we might
+	// look up the value using the cache API again, and that one is reading directly from the llArticulation.
+	ArticulationSim* artiSim = mArticulation->getSim();
+	if (artiSim && artiSim->isLLArticulationInitialized())
+	{
+		Dy::ArticulationData& data = artiSim->getArticulationData();
+		const Dy::ArticulationJointCoreData* jointData = data.getJointData();
+		const Dy::ArticulationJointCoreData& jointDatum = jointData[mLLLinkIndex];
+
+		PxReal* jointPositions = data.getJointPositions();
+		PxReal* jPosition = &jointPositions[jointDatum.jointOffset];
+
+		const PxU32 dofId = mCore.invDofIds[axis];
+
+		if (dofId != 0xff)
+		{
+			jPosition[dofId] = jointPos;
+
+			artiSim->setArticulationDirty(Dy::ArticulationDirtyFlag::eDIRTY_POSITIONS);
+		}
+	}
 }
 
-PxArticulationJointBase* Sc::ArticulationJointCore::getPxArticulationJointBase()
+// AD: we need this indirection right now because we could have updated joint vel using the cache, so
+// the read from the joint core might be stale.
+PxReal Sc::ArticulationJointCore::getJointPosition(PxArticulationAxis::Enum axis) const
 {
-	return gOffsetTable.convertScArticulationJoint2Px(this, getArticulation()->isReducedCoordinate());
+	PxReal jointPos = mCore.jointPos[axis];
+	ArticulationSim* artiSim = mArticulation->getSim();
+	if (artiSim && artiSim->isLLArticulationInitialized())
+	{
+		const Dy::ArticulationData& data = artiSim->getArticulationData();
+		const Dy::ArticulationJointCoreData* jointData = data.getJointData();
+		const Dy::ArticulationJointCoreData& jointDatum = jointData[mLLLinkIndex];
+
+		const PxReal* jointPositions = data.getJointPositions();
+		const PxReal* jPosition = &jointPositions[jointDatum.jointOffset];
+
+		const PxU32 dofId = mCore.invDofIds[axis];
+
+		if(dofId != 0xff)
+			jointPos = jPosition[dofId];
+	}
+
+	return jointPos;
 }
 
-const PxArticulationJointBase* Sc::ArticulationJointCore::getPxArticulationJointBase() const
+void Sc::ArticulationJointCore::setJointVelocity(PxArticulationAxis::Enum axis, const PxReal jointVel)
 {
-	return gOffsetTable.convertScArticulationJoint2Px(this, getArticulation()->isReducedCoordinate());
+	mCore.jointVel[axis] = jointVel;
+
+	ArticulationSim* artiSim = mArticulation->getSim();
+	if (artiSim && artiSim->isLLArticulationInitialized())
+	{
+		Dy::ArticulationData& data = artiSim->getArticulationData();
+		const Dy::ArticulationJointCoreData* jointData = data.getJointData();
+		const Dy::ArticulationJointCoreData& jointDatum = jointData[mLLLinkIndex];
+
+		PxReal* jointVelocities = data.getJointVelocities();
+		PxReal* jVelocity = &jointVelocities[jointDatum.jointOffset];
+
+		const PxU32 dofId = mCore.invDofIds[axis];
+		if (dofId != 0xff)
+		{
+			jVelocity[dofId] = jointVel;
+
+			artiSim->setArticulationDirty(Dy::ArticulationDirtyFlag::eDIRTY_VELOCITIES);
+		}
+	}
+}
+
+// AD: we need this indirection right now because we could have updated joint vel using the cache, so
+// the read from the joint core might be stale.
+PxReal Sc::ArticulationJointCore::getJointVelocity(PxArticulationAxis::Enum axis) const
+{
+	PxReal jointVel = mCore.jointVel[axis];
+	ArticulationSim* artiSim = mArticulation->getSim();
+	if (artiSim && artiSim->isLLArticulationInitialized())
+	{
+		const Dy::ArticulationData& data = artiSim->getArticulationData();
+		const Dy::ArticulationJointCoreData* jointData = data.getJointData();
+		const Dy::ArticulationJointCoreData& jointDatum = jointData[mLLLinkIndex];
+
+		const PxReal* jointVelocities = data.getJointVelocities();
+		const PxReal* jVelocities = &jointVelocities[jointDatum.jointOffset];
+
+		const PxU32 dofId = mCore.invDofIds[axis];
+		if (dofId != 0xff)
+			jointVel = jVelocities[dofId];
+	}
+
+	return jointVel;
+}
+
+void Sc::ArticulationJointCore::setLimit(PxArticulationAxis::Enum axis, const PxArticulationLimit& limit)
+{
+	mCore.setLimit(axis, limit);
+	
+	setSimDirty();
+}
+
+void Sc::ArticulationJointCore::setDrive(PxArticulationAxis::Enum axis, const PxArticulationDrive& drive)
+{
+	mCore.setDrive(axis, drive);
+	
+	setSimDirty();
+}
+
+void Sc::ArticulationJointCore::setFrictionCoefficient(PxReal frictionCoefficient)
+{
+	mCore.setFrictionCoefficient(frictionCoefficient);
+
+	setSimDirty();
+}
+
+void Sc::ArticulationJointCore::setFrictionParams(PxArticulationAxis::Enum axis, const PxJointFrictionParams& jointFrictionParams)
+{
+	mCore.setFrictionParams(axis, jointFrictionParams);
+
+	setSimDirty();
+}
+
+void Sc::ArticulationJointCore::setMaxJointVelocity(PxReal maxJointV)
+{
+	mCore.setMaxJointVelocity(maxJointV);
+
+	setSimDirty();
+}
+
+void Sc::ArticulationJointCore::setMaxJointVelocity(PxArticulationAxis::Enum axis, PxReal maxJointV)
+{
+	mCore.setMaxJointVelocity(axis, maxJointV);
+
+	setSimDirty();
 }

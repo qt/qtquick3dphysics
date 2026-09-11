@@ -25,8 +25,8 @@
 
 namespace physx {
 class PxFoundation;
+class PxPhysics;
 class PxDefaultCpuDispatcher;
-class PxCooking;
 class PxMaterial;
 }
 
@@ -74,7 +74,6 @@ struct StaticPhysXObjects
     physx::PxFoundation *foundation = nullptr;
     physx::PxPhysics *physics = nullptr;
     physx::PxDefaultCpuDispatcher *dispatcher = nullptr;
-    physx::PxCooking *cooking = nullptr;
 
     // The materials in use, one per distinct set of properties, and how many nodes use each.
     // They belong to 'physics' and are destroyed together with it.

@@ -5,11 +5,10 @@
 #include "qphysxworld_p.h"
 
 #include "characterkinematic/PxControllerManager.h"
-#include "cooking/PxCooking.h"
 #include "extensions/PxDefaultCpuDispatcher.h"
-#include "PxFoundation.h"
+#include "foundation/PxFoundation.h"
 #include "PxPhysics.h"
-#include "PxPhysicsVersion.h"
+#include "foundation/PxPhysicsVersion.h"
 #include "PxRigidActor.h"
 #include "PxScene.h"
 #include "PxShape.h"
@@ -263,11 +262,6 @@ void QPhysXWorld::createWorld()
         qFatal("PxCreateFoundation failed!");
 
     s_physx.foundationCreated = true;
-
-    // FIXME: does the tolerance matter?
-    s_physx.cooking = PxCreateCooking(PX_PHYSICS_VERSION, *s_physx.foundation,
-                                      physx::PxCookingParams(physx::PxTolerancesScale()));
-
 }
 
 void QPhysXWorld::deleteWorld()
@@ -278,7 +272,6 @@ void QPhysXWorld::deleteWorld()
         PHYSX_RELEASE(controllerManager);
         PHYSX_RELEASE(scene);
         PHYSX_RELEASE(s_physx.dispatcher);
-        PHYSX_RELEASE(s_physx.cooking);
         // Every node releases its material when it is cleaned up, which happens before the
         // last world is deleted, so nothing should be left to release here
         Q_ASSERT(s_physx.materials.isEmpty());

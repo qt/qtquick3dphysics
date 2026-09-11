@@ -23,7 +23,9 @@
 #include <QtQuick3DPhysics/private/qabstractcollisionshape_p.h>
 
 namespace physx {
-class PxTransform;
+template<class Type>
+class PxTransformT;
+typedef PxTransformT<float> PxTransform;
 class PxShape;
 }
 

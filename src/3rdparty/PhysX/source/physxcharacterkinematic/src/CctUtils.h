@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -48,7 +47,37 @@ PX_INLINE PxTransform getShapeGlobalPose(const PxShape& shape, const PxRigidActo
 	return PxShapeExt::getGlobalPose(shape, actor);
 }
 
+PX_INLINE void decomposeVector(PxVec3& normalCompo, PxVec3& tangentCompo, const PxVec3& outwardDir,
+	const PxVec3& outwardNormal)
+{
+	normalCompo = outwardNormal * (outwardDir.dot(outwardNormal));
+	tangentCompo = outwardDir - normalCompo;
+}
+
+PX_FORCE_INLINE bool isAlmostZero(const PxVec3& v)
+{
+	if (PxAbs(v.x) > 1e-6f || PxAbs(v.y) > 1e-6f || PxAbs(v.z) > 1e-6f)
+		return false;
+	return true;
+}
+
+
 #ifdef PX_BIG_WORLDS
+
+	PX_INLINE	void	add(PxExtendedVec3& p, const PxVec3& e)
+	{
+		p += PxExtendedVec3(PxExtended(e.x), PxExtended(e.y), PxExtended(e.z));
+	}
+
+	PX_INLINE	void	sub(PxExtendedVec3& p, const PxVec3& e)
+	{
+		p -= PxExtendedVec3(PxExtended(e.x), PxExtended(e.y), PxExtended(e.z));
+	}
+
+	PX_INLINE	PxExtended	dot(const PxExtendedVec3& p, const PxVec3& e)
+	{
+		return p.dot(PxExtendedVec3(PxExtended(e.x), PxExtended(e.y), PxExtended(e.z)));
+	}
 
 	class PxExtendedBox
 	{
@@ -83,7 +112,7 @@ PX_INLINE PxTransform getShapeGlobalPose(const PxShape& shape, const PxRigidActo
 
 		PX_INLINE void computeDirection(PxVec3& dir) const
 		{
-			dir = p1 - p0;
+			dir = diff(p1, p0);
 		}
 
 		PX_INLINE void computePoint(PxExtendedVec3& pt, PxExtended t) const
@@ -117,8 +146,8 @@ PX_INLINE PxTransform getShapeGlobalPose(const PxShape& shape, const PxRigidActo
 
 		PX_INLINE void	set(PxExtended minx, PxExtended miny, PxExtended minz, PxExtended maxx, PxExtended maxy, PxExtended maxz)
 		{
-			minimum.set(minx, miny, minz);
-			maximum.set(maxx, maxy, maxz);
+			minimum = PxExtendedVec3(minx, miny, minz);
+			maximum = PxExtendedVec3(maxx, maxy, maxz);
 		}
 
 		PX_INLINE bool	isInside(const PxExtendedBounds3& box) const
@@ -142,14 +171,15 @@ PX_INLINE PxTransform getShapeGlobalPose(const PxShape& shape, const PxRigidActo
 
 	PX_INLINE void	getExtents(const PxExtendedBounds3& b, PxVec3& extents)
 	{
-		extents = b.maximum - b.minimum;
+		extents = diff(b.maximum, b.minimum);
 		extents *= 0.5f;
 	}
 
 	PX_INLINE void	setCenterExtents(PxExtendedBounds3& b, const PxExtendedVec3& c, const PxVec3& e)
 	{
-		b.minimum = c;	b.minimum -= e;
-		b.maximum = c;	b.maximum += e;
+		const PxExtendedVec3 eExt(PxExtended(e.x), PxExtended(e.y), PxExtended(e.z));
+		b.minimum = c - eExt;
+		b.maximum = c + eExt;
 	}
 
 	PX_INLINE void	add(PxExtendedBounds3& b, const PxExtendedBounds3& b2)
@@ -157,8 +187,8 @@ PX_INLINE PxTransform getShapeGlobalPose(const PxShape& shape, const PxRigidActo
 		// - if we're empty, minimum = MAX,MAX,MAX => minimum will be b2 in all cases => it will copy b2, ok
 		// - if b2 is empty, the opposite happens => keep us unchanged => ok
 		// => same behaviour as before, automatically
-		b.minimum.minimum(b2.minimum);
-		b.maximum.maximum(b2.maximum);
+		b.minimum = b.minimum.minimum(b2.minimum);
+		b.maximum = b.maximum.maximum(b2.maximum);
 	}
 #else
 	
@@ -172,14 +202,6 @@ PX_INLINE PxTransform getShapeGlobalPose(const PxShape& shape, const PxRigidActo
 	typedef Gu::Segment	PxExtendedSegment;
 	typedef Gu::Capsule	PxExtendedCapsule;
 	typedef	PxBounds3	PxExtendedBounds3;
-
-	PX_INLINE PxExtended	distance(const PxVec3& v2, const PxVec3& v)
-	{
-		const PxExtended dx = v2.x - v.x;
-		const PxExtended dy = v2.y - v.y;
-		const PxExtended dz = v2.z - v.z;
-		return PxSqrt(dx * dx + dy * dy + dz * dz);
-	}
 
 	PX_INLINE void	getCenter(const PxBounds3& b, PxVec3& center)
 	{
@@ -204,8 +226,8 @@ PX_INLINE PxTransform getShapeGlobalPose(const PxShape& shape, const PxRigidActo
 		// - if we're empty, minimum = MAX,MAX,MAX => minimum will be b2 in all cases => it will copy b2, ok
 		// - if b2 is empty, the opposite happens => keep us unchanged => ok
 		// => same behaviour as before, automatically
-		b.minimum.minimum(b2.minimum);
-		b.maximum.maximum(b2.maximum);
+		b.minimum = b.minimum.minimum(b2.minimum);
+		b.maximum = b.maximum.maximum(b2.maximum);
 	}
 #endif
 

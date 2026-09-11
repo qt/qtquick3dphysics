@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,81 +22,68 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
-
 
 #include "task/PxTask.h"
 #include "ExtCpuWorkerThread.h"
 #include "ExtDefaultCpuDispatcher.h"
-#include "ExtTaskQueueHelper.h"
-#include "PsFPU.h"
+#include "foundation/PxFPU.h"
 
 using namespace physx;
 
-Ext::CpuWorkerThread::CpuWorkerThread()
-:	mQueueEntryPool(EXT_TASK_QUEUE_ENTRY_POOL_SIZE),
-	mThreadId(0)
+Ext::CpuWorkerThread::CpuWorkerThread() : mOwner(NULL), mThreadId(0)
 {
 }
-
 
 Ext::CpuWorkerThread::~CpuWorkerThread()
 {
 }
 
-
-void Ext::CpuWorkerThread::initialize(DefaultCpuDispatcher* ownerDispatcher)
-{
-	mOwner = ownerDispatcher;
-}
-
-
-bool Ext::CpuWorkerThread::tryAcceptJobToLocalQueue(PxBaseTask& task, Ps::Thread::Id taskSubmitionThread)
-{
-	if(taskSubmitionThread == mThreadId)
-	{
-		SharedQueueEntry* entry = mQueueEntryPool.getEntry(&task);
-		if (entry)
-		{
-			mLocalJobList.push(*entry);
-			return true;
-		}
-		else
-			return false;
-	}
-
-	return false;
-}
-
-
-PxBaseTask* Ext::CpuWorkerThread::giveUpJob()
-{
-	return TaskQueueHelper::fetchTask(mLocalJobList, mQueueEntryPool);
-}
-
+#define HighPriority	true
+#define RegularPriority	false
 
 void Ext::CpuWorkerThread::execute()
 {
 	mThreadId = getId();
 
-	while (!quitIsSignalled())
+	const PxDefaultCpuDispatcherWaitForWorkMode::Enum ownerWaitForWorkMode = mOwner->getWaitForWorkMode();
+
+	while(!quitIsSignalled())
     {
-        mOwner->resetWakeSignal();
+		if(PxDefaultCpuDispatcherWaitForWorkMode::eWAIT_FOR_WORK == ownerWaitForWorkMode)
+			mOwner->resetWakeSignal();
 
-		PxBaseTask* task = TaskQueueHelper::fetchTask(mLocalJobList, mQueueEntryPool);
-
+		// PT: look for high priority tasks first, across threads
+		PxBaseTask* task = getJob<HighPriority>();
 		if(!task)
-			task = mOwner->fetchNextTask();
-		
-		if (task)
+			task = mOwner->fetchNextTask<HighPriority>();
+
+		// PT: then look for regular tasks
+		if(!task)
+			task = getJob<RegularPriority>();
+		if(!task)
+			task = mOwner->fetchNextTask<RegularPriority>();
+
+		if(task)
 		{
 			mOwner->runTask(*task);
 			task->release();
 		}
+		else if(PxDefaultCpuDispatcherWaitForWorkMode::eYIELD_THREAD == ownerWaitForWorkMode)
+		{
+			PxThread::yield();
+		}
+		else if(PxDefaultCpuDispatcherWaitForWorkMode::eYIELD_PROCESSOR == ownerWaitForWorkMode)
+		{
+			const PxU32 pauseCounter = mOwner->getYieldProcessorCount();
+			for(PxU32 j = 0; j < pauseCounter; j++)
+				PxThread::yieldProcessor();
+		}
 		else
 		{
+			PX_ASSERT(PxDefaultCpuDispatcherWaitForWorkMode::eWAIT_FOR_WORK == ownerWaitForWorkMode);
 			mOwner->waitForWork();
 		}
 	}

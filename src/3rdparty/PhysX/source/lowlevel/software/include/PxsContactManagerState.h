@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -34,9 +33,6 @@
 
 namespace physx
 {
-
-	struct PxsShapeCore;
-
 	/**
 	There is an implicit 1:1 mapping between PxgContactManagerInput and PxsContactManagerOutput. The structures are split because PxgNpContactManagerInput contains constant
 	data that is produced by the CPU code and PxgNpContactManagerOutput contains per-frame contact information produced by the NP.
@@ -47,7 +43,6 @@ namespace physx
 	information in PxsContactManager.
 	The NP will produce a list of pairs that found/lost patches for the solver along with updating the PxgNpContactManagerOutput for all pairs.
 	*/
-
 	struct PxsContactManagerStatusFlag
 	{
 		enum Enum
@@ -60,36 +55,50 @@ namespace physx
 													// but we can not tell whether they lost contact in a pass before. We send them as pure eNOTIFY_TOUCH_CCD events to the 
 													// contact report callback if requested.
 			eDIRTY_MANAGER				= (1 << 5),
-			eTOUCH_KNOWN				= eHAS_NO_TOUCH | eHAS_TOUCH	// The touch status is known (if narrowphase never ran for a pair then no flag will be set)
+			eTOUCH_KNOWN				= eHAS_NO_TOUCH | eHAS_TOUCH,	// The touch status is known (if narrowphase never ran for a pair then no flag will be set)
+			eSTATIC_OR_KINEMATIC		= (1 << 6)
 		};
 	};
 		
-
 	struct PX_ALIGN_PREFIX(16) PxsContactManagerOutput
 	{
 		PxU8* contactPatches;				//Start index/ptr for contact patches
 		PxU8* contactPoints;				//Start index/ptr for contact points
 		PxReal* contactForces;				//Start index/ptr for contact forces
-		PxU8 nbContacts;					//Num contacts
+		PxU8* frictionPatches;				//Contact patches friction information
+		PxU8 allflagsStart;					//padding for compatibility with existing code
 		PxU8 nbPatches;						//Num patches
 		PxU8 statusFlag;					//Status flag (has touch etc.)
 		PxU8 prevPatches;					//Previous number of patches
+		PxU16 nbContacts;					//Num contacts
+		PxU16 flags;						//Not really part of outputs, but we have 4 bytes of padding, so why not?
+		PxU8 pad[8];
 
-		PX_FORCE_INLINE PxU32* getInternalFaceIndice()
+		PX_FORCE_INLINE PxU32* getInternalFaceIndice()	const
 		{
-			return reinterpret_cast<PxU32*>(contactForces + nbContacts);
+			return contactForces ? reinterpret_cast<PxU32*>(contactForces + nbContacts) : NULL;
 		}
 	} 
 	PX_ALIGN_SUFFIX(16);
+	PX_COMPILE_TIME_ASSERT((sizeof(PxsContactManagerOutput) & 0xf) == 0);
 
-	struct /*PX_ALIGN_PREFIX(16)*/ PxsContactManagerPersistency
+	struct PX_ALIGN_PREFIX(4) PxsContactManagerOutputCounts
 	{
-		PxU8 mPrevPatches;
-		PxU8 mNbFrictionPatches;
-		PxU8 mNbPrevFrictionPatches;
-	}
-	/*PX_ALIGN_SUFFIX(16)*/;
+		PxU8 nbPatches;						//Num patches
+		PxU8 prevPatches;					//Previous number of patches
+		PxU8 statusFlag;					//Status flag;
+		PxU8 unused;						//Unused
+	} PX_ALIGN_SUFFIX(4);
 
+	struct PX_ALIGN_PREFIX(8) PxsTorsionalFrictionData
+	{
+		PxReal mTorsionalPatchRadius;
+		PxReal mMinTorsionalRadius;
+
+		PxsTorsionalFrictionData() {}
+		PxsTorsionalFrictionData(const PxReal patchRadius, const PxReal minPatchRadius) :
+			mTorsionalPatchRadius(patchRadius), mMinTorsionalRadius(minPatchRadius) {}
+	} PX_ALIGN_SUFFIX(8);
 }
 
 #endif //PXG_CONTACT_MANAGER_H

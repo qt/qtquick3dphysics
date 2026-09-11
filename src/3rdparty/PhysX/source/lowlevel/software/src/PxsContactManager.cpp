@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,39 +22,34 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
-
 #include "PxsContactManager.h"
-#include "PxsRigidBody.h"
-#include "PxcContactMethodImpl.h"
-#include "PxvManager.h"
-#include "PxsIslandSim.h"
 
 using namespace physx;
 
-PxsContactManager::PxsContactManager(PxsContext*, PxU32 index) /*:
-	mUserData	(NULL)*/
+PxsContactManager::PxsContactManager(PxU32 index) : mFlags(0), mCmIndex(index)
 {
-	mFlags = 0;
-
 	// PT: TODO: any reason why we don't initialize all members here, e.g. shapeCore pointers?
-	mNpUnit.index				= index;
-	mNpUnit.rigidCore0			= NULL;
-	mNpUnit.rigidCore1			= NULL;
-	mNpUnit.restDistance		= 0;
-	mNpUnit.dominance0			= 1u;
-	mNpUnit.dominance1			= 1u;
-	mNpUnit.frictionDataPtr		= NULL;
-	mNpUnit.frictionPatchCount	= 0;
+	// PT: it might be because of the way we preallocate contact managers in the pipeline, and release the ones
+	// we filtered out. Maybe properly initializing everything "for no reason" in that case is costly.
+	// Still, it is unclear why we initialize *some* of the members there then.
+	mNpUnit.mRigidCore0			= NULL;
+	mNpUnit.mRigidCore1			= NULL;
+	mNpUnit.mRestDistance		= 0;
+	mNpUnit.mFrictionDataPtr	= NULL;
+	mNpUnit.mFrictionPatchCount	= 0;
+
+	mNpUnit.mFlags = 0;
+	mNpUnit.setDominance0(1u);
+	mNpUnit.setDominance1(1u);
 }
 
 PxsContactManager::~PxsContactManager()
 {
 }
-
 
 void PxsContactManager::setCCD(bool enable)
 {
@@ -67,21 +61,4 @@ void PxsContactManager::setCCD(bool enable)
 
 	mFlags = flags;
 }
-
-
-
-void PxsContactManager::resetCachedState()
-{ 
-	// happens when the body transform or shape relative transform changes.
-
-	PxcNpWorkUnitClearCachedState(mNpUnit);
-}
-
-void PxsContactManager::resetFrictionCachedState()
-{ 
-	// happens when the body transform or shape relative transform changes.
-
-	PxcNpWorkUnitClearFrictionCachedState(mNpUnit);
-}
-
 

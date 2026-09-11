@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -38,19 +37,20 @@
 // - method 2 if the box is an OBB (SWEEP_AABB_IMPL is undefined)
 
 #ifdef SWEEP_AABB_IMPL
-namespace {
 	// PT: TODO: refactor structure (TA34704)
+namespace
+{
 	struct RayParams
 	{
-		BV4_ALIGN16(Vec3p	mCenterOrMinCoeff_PaddedAligned);
-		BV4_ALIGN16(Vec3p	mExtentsOrMaxCoeff_PaddedAligned);
+		BV4_ALIGN16(PxVec3p	mCenterOrMinCoeff_PaddedAligned);
+		BV4_ALIGN16(PxVec3p	mExtentsOrMaxCoeff_PaddedAligned);
 	#ifndef GU_BV4_USE_SLABS
-		BV4_ALIGN16(Vec3p	mData2_PaddedAligned);
-		BV4_ALIGN16(Vec3p	mFDir_PaddedAligned);
-		BV4_ALIGN16(Vec3p	mData_PaddedAligned);
-		BV4_ALIGN16(Vec3p	mLocalDir_PaddedAligned);
+		BV4_ALIGN16(PxVec3p	mData2_PaddedAligned);
+		BV4_ALIGN16(PxVec3p	mFDir_PaddedAligned);
+		BV4_ALIGN16(PxVec3p	mData_PaddedAligned);
+		BV4_ALIGN16(PxVec3p	mLocalDir_PaddedAligned);
 	#endif
-		BV4_ALIGN16(Vec3p	mOrigin_Padded);		// PT: TODO: this one could be switched to PaddedAligned & V4LoadA (TA34704)
+		BV4_ALIGN16(PxVec3p	mOrigin_Padded);		// PT: TODO: this one could be switched to PaddedAligned & V4LoadA (TA34704)
 	};
 }
 	#include "GuBV4_AABBAABBSweepTest.h"
@@ -97,7 +97,7 @@ static bool /*__fastcall*/ triBoxSweep(BoxSweepParams* PX_RESTRICT params, PxU32
 			return false;
 	}
 
-	TrianglePadded triBoxSpace;
+	PxTrianglePadded triBoxSpace;
 	const Vec4V transModelToBoxV = V4LoadU_Safe(&params->mTModelToBox_Padded.x);
 	const Vec4V v0V = V4Add(multiply3x3V(V4LoadU_Safe(&p0.x), params->mRModelToBox_Padded), transModelToBoxV);
 	V4StoreU_Safe(v0V, &triBoxSpace.verts[0].x);
@@ -129,7 +129,7 @@ static bool /*__fastcall*/ triBoxSweep(BoxSweepParams* PX_RESTRICT params, PxU32
 			setupRayData(params, Dist, params->mOrigin_Padded, params->mLocalDir_PaddedAligned);
 	#endif
 #else
-			params->ShrinkOBB(Dist);
+			params->shrinkOBB(Dist);
 #endif
 		}
 		return true;
@@ -156,7 +156,7 @@ public:
 class LeafFunction_BoxSweepAny
 {
 public:
-	static PX_FORCE_INLINE Ps::IntBool doLeafTest(BoxSweepParams* PX_RESTRICT params, PxU32 primIndex)
+	static PX_FORCE_INLINE PxIntBool doLeafTest(BoxSweepParams* PX_RESTRICT params, PxU32 primIndex)
 	{
 		PxU32 nbToGo = getNbPrimitives(primIndex);
 		do
@@ -247,12 +247,12 @@ static PX_FORCE_INLINE void setupBoxSweepParams(ParamsT* PX_RESTRICT params, con
 #include "GuBV4_Internal.h"
 
 #ifdef SWEEP_AABB_IMPL
-Ps::IntBool Sweep_AABB_BV4(const Box& localBox, const PxVec3& localDir, float maxDist, const BV4Tree& tree, SweepHit* PX_RESTRICT hit, PxU32 flags)
+PxIntBool Sweep_AABB_BV4(const Box& localBox, const PxVec3& localDir, float maxDist, const BV4Tree& tree, SweepHit* PX_RESTRICT hit, PxU32 flags)
 #else
-Ps::IntBool Sweep_OBB_BV4(const Box& localBox, const PxVec3& localDir, float maxDist, const BV4Tree& tree, SweepHit* PX_RESTRICT hit, PxU32 flags)
+PxIntBool Sweep_OBB_BV4(const Box& localBox, const PxVec3& localDir, float maxDist, const BV4Tree& tree, SweepHit* PX_RESTRICT hit, PxU32 flags)
 #endif
 {
-	const SourceMesh* PX_RESTRICT mesh = tree.mMeshInterface;
+	const SourceMesh* PX_RESTRICT mesh = static_cast<const SourceMesh*>(tree.mMeshInterface);
 
 	BoxSweepParams Params;
 	setupBoxSweepParams(&Params, localBox, localDir, maxDist, &tree, mesh, flags);
@@ -301,7 +301,7 @@ namespace
 class LeafFunction_BoxSweepCB
 {
 public:
-	static PX_FORCE_INLINE Ps::IntBool doLeafTest(BoxSweepParamsCB* PX_RESTRICT params, PxU32 primIndex)
+	static PX_FORCE_INLINE PxIntBool doLeafTest(BoxSweepParamsCB* PX_RESTRICT params, PxU32 primIndex)
 	{
 		PxU32 nbToGo = getNbPrimitives(primIndex);
 		do
@@ -309,7 +309,7 @@ public:
 			if(triBoxSweep(params, primIndex, params->mNodeSorting))
 			{
 				// PT: TODO: in this version we must compute the impact data immediately,
-				// which is a terrible idea in general, but I'm not sure what else I can do.
+				// which is a bad idea in general, but I'm not sure what else I can do.
 				SweepHit hit;
 				const bool b = computeImpactData(params->mBoxCB, params->mDirCB, &hit, params, (params->mFlags & QUERY_MODIFIER_DOUBLE_SIDED)!=0, (params->mFlags & QUERY_MODIFIER_MESH_BOTH_SIDES)!=0);
 				PX_ASSERT(b);
@@ -343,7 +343,7 @@ void Sweep_AABB_BV4_CB(const Box& localBox, const PxVec3& localDir, float maxDis
 void Sweep_OBB_BV4_CB(const Box& localBox, const PxVec3& localDir, float maxDist, const BV4Tree& tree, const PxMat44* PX_RESTRICT worldm_Aligned, SweepUnlimitedCallback callback, void* userData, PxU32 flags, bool nodeSorting)
 #endif
 {
-	const SourceMesh* PX_RESTRICT mesh = tree.mMeshInterface;
+	const SourceMesh* PX_RESTRICT mesh = static_cast<const SourceMesh*>(tree.mMeshInterface);
 
 	BoxSweepParamsCB Params;
 	Params.mBoxCB			= localBox;
@@ -447,7 +447,7 @@ public:
 					setupRayData(params, Dist, params->mOrigin_Padded, params->mLocalDir_PaddedAligned);
 	#endif
 #else
-					params->ShrinkOBB(Dist);
+					params->shrinkOBB(Dist);
 #endif
 				}
 			}
@@ -460,7 +460,7 @@ public:
 class LeafFunction_BoxSweepAnyCB
 {
 public:
-	static PX_FORCE_INLINE Ps::IntBool doLeafTest(GenericSweepParamsCB* PX_RESTRICT params, PxU32 prim_index)
+	static PX_FORCE_INLINE PxIntBool doLeafTest(GenericSweepParamsCB* PX_RESTRICT params, PxU32 prim_index)
 	{
 		PxU32 nbToGo = getNbPrimitives(prim_index);
 		do
@@ -493,7 +493,7 @@ void GenericSweep_AABB_CB(const Box& localBox, const PxVec3& localDir, float max
 void GenericSweep_OBB_CB(const Box& localBox, const PxVec3& localDir, float maxDist, const BV4Tree& tree, MeshSweepCallback callback, void* userData, PxU32 flags)
 #endif
 {
-	const SourceMesh* PX_RESTRICT mesh = tree.mMeshInterface;
+	const SourceMesh* PX_RESTRICT mesh = static_cast<const SourceMesh*>(tree.mMeshInterface);
 
 	GenericSweepParamsCB Params;
 	Params.mCallback	= callback;

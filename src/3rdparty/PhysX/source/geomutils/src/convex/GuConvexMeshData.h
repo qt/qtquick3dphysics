@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -33,9 +32,10 @@
 #include "foundation/PxPlane.h"
 #include "foundation/PxBitAndData.h"
 
-#include "PsIntrinsics.h"
-#include "GuSerialize.h"
+#include "foundation/PxIntrinsics.h"
 #include "GuCenterExtents.h"
+#include "CmSerialize.h"
+#include "GuSDF.h"
 
 // Data definition
 
@@ -47,13 +47,6 @@ namespace Gu
 
 	struct HullPolygonData
 	{
-	//= ATTENTION! =====================================================================================
-	// Changing the data layout of this class breaks the binary serialization format.  See comments for 
-	// PX_BINARY_SERIAL_VERSION.  If a modification is required, please adjust the getBinaryMetaData 
-	// function.  If the modification is made on a custom branch, please change PX_BINARY_SERIAL_VERSION
-	// accordingly.
-	//==================================================================================================
-
 		// PT: this structure won't be allocated with PX_NEW because polygons aren't allocated alone (with a dedicated alloc).
 		// Instead they are part of a unique allocation/buffer containing all data for the ConvexHullData class (polygons, followed by
 		// hull vertices, edge data, etc). As a result, ctors for embedded classes like PxPlane won't be called.
@@ -85,35 +78,22 @@ namespace Gu
 // TEST_INTERNAL_OBJECTS
 	struct InternalObjectsData
 	{
-	//= ATTENTION! =====================================================================================
-	// Changing the data layout of this class breaks the binary serialization format.  See comments for 
-	// PX_BINARY_SERIAL_VERSION.  If a modification is required, please adjust the getBinaryMetaData 
-	// function.  If the modification is made on a custom branch, please change PX_BINARY_SERIAL_VERSION
-	// accordingly.
-	//==================================================================================================
-		PxReal	mRadius;
-		PxReal	mExtents[3];
+		PxVec3	mInternalExtents;
+		PxReal	mInternalRadius;
 
 		PX_FORCE_INLINE	void reset()
 		{
-			mRadius = 0.0f;
-			mExtents[0] = 0.0f;
-			mExtents[1] = 0.0f;
-			mExtents[2] = 0.0f;
+			mInternalExtents = PxVec3(0.0f);
+			mInternalRadius = 0.0f;
 		}
 	};
 	PX_COMPILE_TIME_ASSERT(sizeof(Gu::InternalObjectsData) == 16);
+	// PT: ensure that mInternalExtents is not the last member of InternalObjectsData, i.e. it is safe to load 4 bytes after mInternalExtents
+	PX_COMPILE_TIME_ASSERT(PX_OFFSET_OF(InternalObjectsData, mInternalExtents)+sizeof(InternalObjectsData::mInternalExtents) + 4 <= sizeof(InternalObjectsData));
 //~TEST_INTERNAL_OBJECTS
 
 	struct ConvexHullData
 	{
-	//= ATTENTION! =====================================================================================
-	// Changing the data layout of this class breaks the binary serialization format.  See comments for 
-	// PX_BINARY_SERIAL_VERSION.  If a modification is required, please adjust the getBinaryMetaData 
-	// function.  If the modification is made on a custom branch, please change PX_BINARY_SERIAL_VERSION
-	// accordingly.
-	//==================================================================================================
-
 		// PT: WARNING: bounds must be followed by at least 32bits of data for safe SIMD loading
 		CenterExtents		mAABB;				//!< bounds TODO: compute this on the fly from first 6 vertices in the vertex array.  We'll of course need to sort the most extreme ones to the front.
 		PxVec3				mCenterOfMass;		//in local space of mesh!
@@ -127,6 +107,9 @@ namespace Gu
 
 		HullPolygonData*	mPolygons;			//!< Array of mNbPolygons structures
 		BigConvexRawData*	mBigConvexRawData;	//!< Hill climbing data, only for large convexes! else NULL.
+
+		// SDF data
+		SDF*				mSdfData;
 
 // TEST_INTERNAL_OBJECTS
 		InternalObjectsData	mInternal;
@@ -197,11 +180,20 @@ namespace Gu
 			return reinterpret_cast<const PxU8*>(tmp);
 		}
 
+		PX_FORCE_INLINE bool checkExtentRadiusRatio()	const
+		{
+			const PxReal maxR = mInternal.mInternalExtents.maxElement();
+			const PxReal minR = mInternal.mInternalRadius;
+			const PxReal ratio = maxR/minR;
+
+			return ratio < 100.f;
+		}
+
 	};
 	#if PX_P64_FAMILY
-	PX_COMPILE_TIME_ASSERT(sizeof(Gu::ConvexHullData) == 72);
+	PX_COMPILE_TIME_ASSERT(sizeof(Gu::ConvexHullData) == 80);
 	#else
-	PX_COMPILE_TIME_ASSERT(sizeof(Gu::ConvexHullData) == 64);
+	PX_COMPILE_TIME_ASSERT(sizeof(Gu::ConvexHullData) == 68);
 	#endif
 
 	// PT: 'getPaddedBounds()' is only safe if we make sure the bounds member is followed by at least 32bits of data

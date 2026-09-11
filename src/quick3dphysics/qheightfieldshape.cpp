@@ -23,6 +23,7 @@
 
 #include "foundation/PxVec3.h"
 //#include "cooking/PxTriangleMeshDesc.h"
+#include "cooking/PxCooking.h"
 #include "extensions/PxDefaultStreams.h"
 #include "geometry/PxHeightField.h"
 #include "geometry/PxHeightFieldDesc.h"
@@ -216,8 +217,8 @@ physx::PxHeightField *QQuick3DPhysicsHeightField::heightField()
 
     physx::PxDefaultMemoryOutputStream buf;
 
-    const auto cooking = QPhysicsWorld::getCooking();
-    if (numRows && numCols && cooking && cooking->cookHeightField(hfDesc, buf)) {
+    const auto *cookingParams = QPhysicsWorld::getCookingParams();
+    if (numRows && numCols && cookingParams && ::PxCookHeightField(hfDesc, buf)) {
         auto size = buf.getSize();
         auto *data = buf.getData();
         physx::PxDefaultMemoryInputData input(data, size);

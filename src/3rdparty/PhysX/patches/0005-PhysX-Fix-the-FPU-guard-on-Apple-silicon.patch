@@ -1,0 +1,68 @@
+From: Jonas Karlsson <jonas.karlsson@qt.io>
+Subject: [PATCH] PhysX: Fix the FPU guard on Apple silicon
+
+macOS is assumed to be x86 here: <xmmintrin.h> and the _mm_getcsr() and
+_mm_setcsr() intrinsics that the FPU guard is written in terms of do not
+exist when building for arm64. Let arm Macs, which are all of the recent
+ones, use the fenv.h path that the other unices use, and leave enabling
+and disabling floating point exceptions a no-op there, as it already is
+everywhere except Linux and x86 macOS.
+
+This is the FPU half of the PhysX 4.1 patch "Add support for building on
+macOS ARM", forward ported to 5.9.0 and corrected: the 4.1 version tested
+defined(PX_ARM_FAMILY), which PxPreprocessor.h always defines, so it took
+the SSE code out of every macOS build rather than just the arm ones. The
+other half of that patch, which kept PhysX from treating an arm Mac as
+iOS, is not needed: PhysX 5 has no separate iOS platform.
+---
+ src/3rdparty/PhysX/source/foundation/unix/FdUnixFPU.cpp | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/3rdparty/PhysX/source/foundation/unix/FdUnixFPU.cpp b/src/3rdparty/PhysX/source/foundation/unix/FdUnixFPU.cpp
+--- a/src/3rdparty/PhysX/source/foundation/unix/FdUnixFPU.cpp
++++ b/src/3rdparty/PhysX/source/foundation/unix/FdUnixFPU.cpp
+@@ -32,7 +32,7 @@
+ PX_COMPILE_TIME_ASSERT(8 * sizeof(uint32_t) >= sizeof(fenv_t));
+ #endif
+ 
+-#if PX_OSX
++#if PX_OSX && !PX_ARM_FAMILY
+ // osx defines SIMD as standard for floating point operations.
+ #include <xmmintrin.h>
+ #endif
+@@ -41,7 +41,7 @@ physx::PxFPUGuard::PxFPUGuard()
+ {
+ #if defined(__CYGWIN__)
+ #pragma message "FPUGuard::FPUGuard() is not implemented"
+-#elif PX_OSX
++#elif PX_OSX && !PX_ARM_FAMILY
+ 	mControlWords[0] = _mm_getcsr();
+ 	// set default (disable exceptions: _MM_MASK_MASK) and FTZ (_MM_FLUSH_ZERO_ON), DAZ (_MM_DENORMALS_ZERO_ON: (1<<6))
+ 	_mm_setcsr(_MM_MASK_MASK | _MM_FLUSH_ZERO_ON | (1 << 6));
+@@ -66,7 +66,7 @@ physx::PxFPUGuard::~PxFPUGuard()
+ {
+ #if defined(__CYGWIN__)
+ #pragma message "PxFPUGuard::~PxFPUGuard() is not implemented"
+-#elif PX_OSX
++#elif PX_OSX && !PX_ARM_FAMILY
+ 	// restore control word and clear exception flags
+ 	// (setting exception state flags cause exceptions on the first following fp operation)
+ 	_mm_setcsr(mControlWords[0] & ~_MM_EXCEPT_MASK);
+@@ -82,7 +82,7 @@ PX_FOUNDATION_API void physx::PxEnableFPExceptions()
+ #if (PX_LINUX && __GLIBC__) && !defined(__EMSCRIPTEN__)
+ 	feclearexcept(FE_ALL_EXCEPT);
+ 	feenableexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW);
+-#elif PX_OSX
++#elif PX_OSX && !PX_ARM_FAMILY
+ 	// clear any pending exceptions
+ 	// (setting exception state flags cause exceptions on the first following fp operation)
+ 	uint32_t control = _mm_getcsr() & ~_MM_EXCEPT_MASK;
+@@ -98,7 +98,7 @@ PX_FOUNDATION_API void physx::PxDisableFPExceptions()
+ {
+ #if (PX_LINUX && __GLIBC__) && !defined(__EMSCRIPTEN__)
+ 	fedisableexcept(FE_ALL_EXCEPT);
+-#elif PX_OSX
++#elif PX_OSX && !PX_ARM_FAMILY
+ 	// clear any pending exceptions
+ 	// (setting exception state flags cause exceptions on the first following fp operation)
+ 	uint32_t control = _mm_getcsr() & ~_MM_EXCEPT_MASK;

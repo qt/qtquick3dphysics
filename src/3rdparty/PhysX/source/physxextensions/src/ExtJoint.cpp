@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,19 +22,19 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
 #include "ExtJoint.h"
 
+#include "omnipvd/ExtOmniPvdSetData.h"
+
 using namespace physx;
 using namespace Ext;
 
-PxConstraint* physx::resolveConstraintPtr(PxDeserializationContext& v,
-										  PxConstraint* old,
-										  PxConstraintConnector* connector,
-										  PxConstraintShaderTable &shaders)
+// PX_SERIALIZATION
+PxConstraint* physx::resolveConstraintPtr(PxDeserializationContext& v, PxConstraint* old, PxConstraintConnector* connector, PxConstraintShaderTable &shaders)
 {
 	v.translatePxBase(old);
 	PxConstraint* new_nx = static_cast<PxConstraint*>(old);
@@ -54,7 +53,7 @@ static void normalToTangents(const PxVec3& n, PxVec3& t1, PxVec3& t2)
 		t1 = PxVec3(0,-n.z*k,n.y*k);
 		t2 = PxVec3(a*k,-n.x*t1.z,n.x*t1.y);
 	}
-	else 
+	else
 	{
 		const PxReal a = n.x*n.x + n.y*n.y;
 		const PxReal k = PxReal(1.0)/PxSqrt(a);
@@ -96,7 +95,7 @@ void PxSetJointGlobalFrame(PxJoint& joint, const PxVec3* wsAnchor, const PxVec3*
 		PxVec3 normalw, binormalw;
 		::normalToTangents(axisw, binormalw, normalw);
 		//because axis is supposed to be the Z axis of a frame with the other two being X and Y, we need to negate
-		//Y to make the frame right handed. Note that the above call makes a right handed frame if we pass X --> Y,Z, so 
+		//Y to make the frame right handed. Note that the above call makes a right handed frame if we pass X --> Y,Z, so
 		//it need not be changed.
 
 		for(PxU32 i=0; i<2; i++)
@@ -115,7 +114,7 @@ void PxSetJointGlobalFrame(PxJoint& joint, const PxVec3* wsAnchor, const PxVec3*
 			}
 
 			PxMat33 rot(localAxis[i], localNormal[i], localAxis[i].cross(localNormal[i]));
-			
+
 			localPose[i].q = PxQuat(rot);
 			localPose[i].q.normalize();
 		}
@@ -124,3 +123,42 @@ void PxSetJointGlobalFrame(PxJoint& joint, const PxVec3* wsAnchor, const PxVec3*
 	for(PxU32 i=0; i<2; i++)
 		joint.setLocalPose(static_cast<PxJointActorIndex::Enum>( i ), localPose[i]);
 }
+
+#if PX_SUPPORT_OMNI_PVD
+
+void physx::Ext::omniPvdSetBaseJointParams(const PxJoint& joint, PxJointConcreteType::Enum cType)
+{
+	OMNI_PVD_WRITE_SCOPE_BEGIN(pvdWriter, pvdRegData)
+
+	const PxJoint& j = static_cast<const PxJoint&>(joint);
+	PxRigidActor* actors[2]; j.getActors(actors[0], actors[1]);
+	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxJoint, actor0, j, actors[0])
+	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxJoint, actor1, j, actors[1])
+
+	PxConstraint* constraint = j.getConstraint();
+	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxJoint, constraint, j, constraint)
+
+	PxTransform actor0LocalPose = j.getLocalPose(PxJointActorIndex::eACTOR0);
+	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxJoint, actor0LocalPose, j, actor0LocalPose)
+	PxTransform actor1LocalPose = j.getLocalPose(PxJointActorIndex::eACTOR1);
+	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxJoint, actor1LocalPose, j, actor1LocalPose)
+	PxReal breakForce, breakTorque; j.getBreakForce(breakForce, breakTorque);
+	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxJoint, breakForce, j, breakForce)
+	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxJoint, breakTorque, j, breakTorque)
+	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxJoint, constraintFlags, j, j.getConstraintFlags())
+	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxJoint, invMassScale0, j, j.getInvMassScale0())
+	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxJoint, invInertiaScale0, j, j.getInvInertiaScale0())
+	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxJoint, invMassScale1, j, j.getInvMassScale1())
+	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxJoint, invInertiaScale1, j, j.getInvInertiaScale1())
+	const char* name = j.getName() ? j.getName() : "";
+	PxU32 nameLen = PxU32(strnlen(name, UINT32_MAX - 1)) + 1;
+	OMNI_PVD_SET_ARRAY_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxJoint, name, j, name, nameLen)
+	const char* typeName = j.getConcreteTypeName();
+	PxU32 typeNameLen = PxU32(strnlen(typeName, UINT32_MAX - 1)) + 1;
+	OMNI_PVD_SET_ARRAY_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxJoint, concreteTypeName, j, typeName, typeNameLen)
+	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxJoint, type, j, cType)
+
+	OMNI_PVD_WRITE_SCOPE_END
+}
+
+#endif

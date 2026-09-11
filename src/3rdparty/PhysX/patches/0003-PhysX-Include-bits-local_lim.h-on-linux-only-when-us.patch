@@ -1,0 +1,23 @@
+From: Jonas Karlsson <jonas.karlsson@qt.io>
+Subject: [PATCH] PhysX: Include bits/local_lim.h on linux only when using
+ glibc
+
+bits/local_lim.h is not available on musl e.g.
+
+This is the PhysX 4.1 patch of the same name, forward ported to 5.9.0.
+---
+ src/3rdparty/PhysX/source/foundation/unix/FdUnixThread.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/3rdparty/PhysX/source/foundation/unix/FdUnixThread.cpp b/src/3rdparty/PhysX/source/foundation/unix/FdUnixThread.cpp
+--- a/src/3rdparty/PhysX/source/foundation/unix/FdUnixThread.cpp
++++ b/src/3rdparty/PhysX/source/foundation/unix/FdUnixThread.cpp
+@@ -32,7 +32,7 @@
+ #include "foundation/PxThread.h"
+ 
+ #include <math.h>
+-#if !PX_APPLE_FAMILY && !defined(__CYGWIN__) && !PX_EMSCRIPTEN
++#if !PX_APPLE_FAMILY && !defined(__CYGWIN__) && !PX_EMSCRIPTEN && __GLIBC__
+ #include <bits/local_lim.h> // PTHREAD_STACK_MIN
+ #endif
+ #include <stdio.h>

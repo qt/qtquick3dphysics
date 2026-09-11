@@ -16,7 +16,6 @@ qt_internal_add_app(${target_name}
 target_include_directories(${target_name} SYSTEM
     PRIVATE
     ../../src/3rdparty/PhysX/include
-    ../../src/3rdparty/PhysX/pxshared/include
 )
 if (UNIX OR MINGW)
     # Needed for PxPreprocessor.h error

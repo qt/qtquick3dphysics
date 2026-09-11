@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -40,8 +39,6 @@ using namespace Gu;
 
 #define LOCAL_EPSILON 0.00001f	// PT: this value makes the 'basicAngleTest' pass. Fails because of a ray almost parallel to a triangle
 
-namespace
-{
 static const PxReal gFatTriangleCoeff = 0.02f;
 
 static const PxVec3 gNearPlaneNormal[] = 
@@ -53,7 +50,6 @@ static const PxVec3 gNearPlaneNormal[] =
 	PxVec3(0.0f, -1.0f, 0.0f),
 	PxVec3(0.0f, 0.0f, -1.0f)
 };
-}
 
 #define	INVSQRT3 0.577350269189f	//!< 1 / sqrt(3)
 
@@ -109,7 +105,7 @@ static PxTriangle inflateTriangle(const PxTriangle& triangle, PxReal fat_coeff)
 }
 
 // PT: special version to fire N parallel rays against the same tri
-static PX_FORCE_INLINE Ps::IntBool rayTriPrecaCull(	const PxVec3& orig, const PxVec3& dir,
+static PX_FORCE_INLINE PxIntBool rayTriPrecaCull(	const PxVec3& orig, const PxVec3& dir,
 													const PxVec3& vert0, const PxVec3& edge1, const PxVec3& edge2, const PxVec3& pvec,
 													PxReal det, PxReal oneOverDet, PxReal& t)
 {
@@ -135,7 +131,7 @@ static PX_FORCE_INLINE Ps::IntBool rayTriPrecaCull(	const PxVec3& orig, const Px
 	return 1;
 }
 
-static PX_FORCE_INLINE Ps::IntBool rayTriPrecaNoCull(	const PxVec3& orig, const PxVec3& dir,
+static PX_FORCE_INLINE PxIntBool rayTriPrecaNoCull(	const PxVec3& orig, const PxVec3& dir,
 														const PxVec3& vert0, const PxVec3& edge1, const PxVec3& edge2, const PxVec3& pvec,
 														PxReal /*det*/, PxReal oneOverDet, PxReal& t)
 {
@@ -555,7 +551,7 @@ bool Gu::sweepBoxTriangle(	const PxTriangle& tri, const PxBounds3& box,
 			// PT: TODO: skip this if edge is culled
 			PxVec3 p1 = boxVertices[*edges++];
 			PxVec3 p2 = boxVertices[*edges++];
-			Ps::makeFatEdge(p1, p2, gFatBoxEdgeCoeff);
+			makeFatEdge(p1, p2, gFatBoxEdgeCoeff);
 
 			if(edgeNormals[i].dot(motion) < 0.0f)
 				continue;
@@ -569,7 +565,7 @@ bool Gu::sweepBoxTriangle(	const PxTriangle& tri, const PxBounds3& box,
 
 			// find largest 2D plane projection
 			PxU32 closest_i, closest_j;
-		//	Ps::closestAxis(plane.normal, ii, jj);
+		//	closestAxis(plane.normal, ii, jj);
 			closestAxis2(planeNormal, closest_i, closest_j);
 
 			const PxReal coeff = 1.0f / (v1[closest_i]*motion[closest_j] - v1[closest_j]*motion[closest_i]);
@@ -582,7 +578,7 @@ bool Gu::sweepBoxTriangle(	const PxTriangle& tri, const PxBounds3& box,
 				// j=1 => 1-2
 				// j=2 => 2-0
 				// => this is compatible with EdgeList
-				const PxU32 k = Ps::getNextIndex3(j);
+				const PxU32 k = PxGetNextIndex3(j);
 
 				PxReal dist;
 				PxVec3 ip;

@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,18 +22,17 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
-
-#ifndef PXD_FEATHERSTONE_ARTICULATION_JOINTCORE_H
-#define PXD_FEATHERSTONE_ARTICULATION_JOINTCORE_H
+#ifndef DY_FEATHERSTONE_ARTICULATION_JOINT_DATA_H
+#define DY_FEATHERSTONE_ARTICULATION_JOINT_DATA_H
 
 #include "foundation/PxVec3.h"
 #include "foundation/PxQuat.h"
 #include "foundation/PxTransform.h"
-#include "PsVecMath.h"
+#include "foundation/PxVecMath.h"
 #include "CmUtils.h"
 #include "CmSpatialVector.h"
 #include "DyVArticulation.h"
@@ -46,77 +44,15 @@ namespace physx
 {
 	namespace Dy
 	{
-
-	
-		class PX_ALIGN_PREFIX(16) ArticulationJointCoreData
+		class ArticulationJointCoreData
 		{
 		public:
 
-			ArticulationJointCoreData() : jointOffset(0xffffffff), dofInternalConstraintMask(0)
+			ArticulationJointCoreData() : jointOffset(0xffffffff)
 			{
 			}
 
-
-			PX_CUDA_CALLABLE PX_FORCE_INLINE void computeMotionMatrix(ArticulationJointCoreBase* joint,
-				SpatialSubspaceMatrix& motionMatrix)
-			{
-				const PxVec3 childOffset = -joint->childPose.p;
-
-				//transpose(Tc)*S = 0
-				//transpose(Ta)*S = 1
-				switch (joint->jointType)
-				{
-				case PxArticulationJointType::ePRISMATIC:
-				{
-					const Cm::UnAlignedSpatialVector& jJointAxis = jointAxis[0];
-					const PxVec3 u = (joint->childPose.rotate(jJointAxis.bottom)).getNormalized();
-
-					motionMatrix.setNumColumns(1);
-					motionMatrix.setColumn(0, PxVec3(0.f), u);
-
-					PX_ASSERT(dof == 1);
-
-					break;
-				}
-				case PxArticulationJointType::eREVOLUTE:
-				{
-					const Cm::UnAlignedSpatialVector& jJointAxis = jointAxis[0];
-					const PxVec3 u = (joint->childPose.rotate(jJointAxis.top)).getNormalized();
-					const PxVec3 uXd = u.cross(childOffset);
-
-					motionMatrix.setNumColumns(1);
-					motionMatrix.setColumn(0, u, uXd);
-
-					break;
-				}
-				case PxArticulationJointType::eSPHERICAL:
-				{
-					motionMatrix.setNumColumns(dof);
-
-					for (PxU32 ind = 0; ind <dof; ++ind)
-					{
-						const Cm::UnAlignedSpatialVector& jJointAxis = jointAxis[ind];
-						const PxVec3 u = (joint->childPose.rotate(jJointAxis.top)).getNormalized();
-
-						const PxVec3 uXd = u.cross(childOffset);
-						motionMatrix.setColumn(ind, u, uXd);
-					}
-
-					break;
-				}
-				case PxArticulationJointType::eFIX:
-				{
-					motionMatrix.setNumColumns(0);
-
-					PX_ASSERT(dof == 0);
-					break;
-				}
-				default:
-					break;
-				}
-			}
-
-			PX_CUDA_CALLABLE PX_FORCE_INLINE PxU8 computeJointDofs(ArticulationJointCoreBase* joint) const
+			PX_CUDA_CALLABLE PX_FORCE_INLINE PxU8 countJointDofs(ArticulationJointCore* joint) const
 			{
 				PxU8 tDof = 0;
 
@@ -131,129 +67,33 @@ namespace physx
 				return tDof;
 			}
 
-			PX_CUDA_CALLABLE PX_FORCE_INLINE void computeJointDof(ArticulationJointCoreBase* joint, const bool forceRecompute)
+			PX_FORCE_INLINE PxU8 configureJointDofs(ArticulationJointCore* joint)
 			{
-				if (joint->dirtyFlag & ArticulationJointCoreDirtyFlag::eMOTION || forceRecompute)
+				nbDof = 0;
+				dofLimitMask = 0;
+
+				for (PxU8 i = 0; i < DY_MAX_DOF; ++i)
 				{
-					
-					dof = 0;
-					lockedAxes = 0;
-					limitedAxes = 0;
-					
-					//KS - no need to zero memory here.
-					//PxMemZero(jointAxis, sizeof(jointAxis));
-
-					for (PxU8 i = 0; i < DY_MAX_DOF; ++i)
+					if (joint->motion[i] != PxArticulationMotion::eLOCKED)
 					{
-						if (joint->motion[i] != PxArticulationMotion::eLOCKED)
-						{
-							//axis is in the local space of joint
-							jointAxis[dof][i] = 1.f;
+						joint->invDofIds[i] = nbDof;
+						joint->dofIds[nbDof] = i;
 
-							if (joint->motion[i] == PxArticulationMotion::eLIMITED)
-							{
-								limitedAxes++;
-							}
+						if (joint->motion[i] == PxArticulationMotion::eLIMITED)
+							dofLimitMask |= 1 << nbDof;
 
-							joint->dofIds[dof++] = i;
-						}
+						nbDof++;
 					}
-
-					lockedAxes = 0;
-
-#if 1
-					//Spherical joints treat locked axes as free axes with a constraint. This produces better
-					//results for spherical joints with 2 dofs free, where keeping the 3rd axis locked can lead to
-					//an over-consrtained behaviour that is undesirable. However, the drawback is that there will be
-					//some drift and error on the joint axes
-					if (joint->jointType == PxArticulationJointType::eSPHERICAL && dof == 2)
-					{
-						for (PxU32 i = 0; i < PxArticulationAxis::eX; ++i)
-						{
-							if (joint->motion[i] == PxArticulationMotion::eLOCKED)
-							{
-								//axis is in the local space of joint
-								jointAxis[dof][i] = 1.f;
-								joint->dofIds[dof++] = PxU8(i);
-								lockedAxes++;
-							}
-						}
-					}
-#endif
-
-					joint->dirtyFlag &= (~ArticulationJointCoreDirtyFlag::eMOTION);
 				}
-
-			}
-
-			//in the joint space
-			Cm::UnAlignedSpatialVector			jointAxis[3];					//72
-			//this is the dof offset for the joint in the cache
-			PxU32								jointOffset;					//76
-			//degree of freedom
-			PxU8								dof;							//77
-			PxU8								limitedAxes;					//78
-			PxU8								dofInternalConstraintMask;		//79
-			PxU8								lockedAxes;						//80		
-
-		} PX_ALIGN_SUFFIX(16);
-
-		struct PX_ALIGN_PREFIX(16) ArticulationJointTargetData
-		{
-			PxReal								targetJointVelocity[3];			//12
-			PxReal								targetJointPosition[3];			//24
-			Cm::UnAlignedSpatialVector			worldJointAxis[3];			//96
-			//PxU32								pad[2];
 			
-
-
-
-			ArticulationJointTargetData()
-			{
-				for (PxU32 i = 0; i < 3; ++i)
-				{
-					targetJointPosition[i] = 0.f;
-					targetJointVelocity[i] = 0.f;
-				}
+				return nbDof;
 			}
 
-
-			PX_CUDA_CALLABLE PX_FORCE_INLINE void setJointVelocityDrive(ArticulationJointCoreBase* joint)
-			{
-				if (joint->dirtyFlag & ArticulationJointCoreDirtyFlag::eTARGETVELOCITY)
-				{
-					PxU32 count = 0;
-					for (PxU32 i = 0; i < DY_MAX_DOF; ++i)
-					{
-						if (joint->motion[i] != PxArticulationMotion::eLOCKED)
-						{
-							targetJointVelocity[count] = joint->targetV[i];
-							count++;
-						}
-					}
-					joint->dirtyFlag &= ~ArticulationJointCoreDirtyFlag::eTARGETVELOCITY;
-				}
-			}
-
-			PX_CUDA_CALLABLE PX_FORCE_INLINE void setJointPoseDrive(ArticulationJointCoreBase* joint)
-			{
-				if (joint->dirtyFlag & ArticulationJointCoreDirtyFlag::eTARGETPOSE)
-				{
-					PxU32 count = 0;
-					for (PxU32 i = 0; i < DY_MAX_DOF; ++i)
-					{
-						if (joint->motion[i] != PxArticulationMotion::eLOCKED)
-						{
-							targetJointPosition[count] = joint->targetP[i];
-							count++;
-						}
-					}
-
-					joint->dirtyFlag &= ~ArticulationJointCoreDirtyFlag::eTARGETPOSE;
-				}
-			}
-
-		} PX_ALIGN_SUFFIX(16);
+			PxU32	jointOffset;	//4
+			//degree of freedom
+			PxU8	nbDof;			//1
+			PxU8	dofLimitMask;	//1	
+		};
 
 	}//namespace Dy
 }

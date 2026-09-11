@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,20 +22,20 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
-#ifndef PX_PHYSICS_SCP_ELEMENT_SIM
-#define PX_PHYSICS_SCP_ELEMENT_SIM
+#ifndef SC_ELEMENT_SIM_H
+#define SC_ELEMENT_SIM_H
 
-#include "PsUserAllocated.h"
 #include "PxFiltering.h"
-#include "PxvConfig.h"
+#include "PxPhysXConfig.h"
 #include "ScActorSim.h"
 #include "ScInteraction.h"
 #include "BpAABBManager.h"
 #include "ScObjectIDTracker.h"
+#include "ScScene.h"
 
 namespace physx
 {
@@ -44,10 +43,8 @@ namespace Sc
 {
 	class ElementSimInteraction;
 
-	/*
-	A ElementSim is a part of a ActorSim. It contributes to the activation framework by adding its 
-	interactions to the actor. */
-	class ElementSim : public Ps::UserAllocated
+	// A ElementSim is a part of a ActorSim. It contributes to the activation framework by adding its interactions to the actor.
+	class ElementSim
 	{
 		PX_NOCOPY(ElementSim)
 
@@ -84,8 +81,12 @@ namespace Sc
 		public:
 
 		// Get an iterator to the interactions connected to the element
-		PX_FORCE_INLINE	ElementInteractionIterator getElemInteractions()	const	{ return ElementInteractionIterator(*this, mActor.getActorInteractionCount(), mActor.getActorInteractions()); }
-		PX_FORCE_INLINE	ElementInteractionReverseIterator getElemInteractionsReverse()	const	{ return ElementInteractionReverseIterator(*this, mActor.getActorInteractionCount(), mActor.getActorInteractions()); }
+		// PT: this may seem strange at first glance since the "element interactions" appear to use the "actor interactions". The thing that makes this work is hidden
+		// inside the iterator implementation: it does parse all the actor interactions indeed, but filters out the ones that do not contain "this", i.e. the desired element.
+		// So this is inefficient (parsing potentially many more interactions than needed, imagine in a large compound) but it works, and the iterator has a point - it isn't
+		// just the same as parsing the actor's array.
+		PX_FORCE_INLINE	ElementInteractionIterator			getElemInteractions()			const	{ return ElementInteractionIterator(*this, mActor.getActorInteractionCount(), mActor.getActorInteractions());			}
+		PX_FORCE_INLINE	ElementInteractionReverseIterator	getElemInteractionsReverse()	const	{ return ElementInteractionReverseIterator(*this, mActor.getActorInteractionCount(), mActor.getActorInteractions());	}
 
 		PX_FORCE_INLINE	ActorSim&				getActor()					const	{ return mActor; }
 
@@ -93,30 +94,35 @@ namespace Sc
 
 		PX_FORCE_INLINE PxU32					getElementID()				const	{ return mElementID;	}
 		PX_FORCE_INLINE bool					isInBroadPhase()			const	{ return mInBroadPhase;	}
-		
-						void					addToAABBMgr(PxReal contactDistance, Bp::FilterGroup::Enum group, Ps::IntBool isTrigger);
-						void					removeFromAABBMgr();
+		PX_FORCE_INLINE void					setInBroadPhase()					{ mInBroadPhase = true;	}
 
-						void					setElementInteractionsDirty(InteractionDirtyFlag::Enum flag, PxU8 interactionFlag);
+						void					addToAABBMgr(PxReal contactDistance, Bp::FilterGroup::Enum group, Bp::ElementType::Enum type);
+		PX_FORCE_INLINE	void					addToAABBMgr(PxReal contactOffset, Bp::FilterType::Enum type)
+												{
+													const PxU32 group = Bp::FilterGroup::eDYNAMICS_BASE + mActor.getActorID();
+													addToAABBMgr(contactOffset, Bp::FilterGroup::Enum((group << BP_FILTERING_TYPE_SHIFT_BIT) | type), Bp::ElementType::eSHAPE);
+												}
 
-		PX_FORCE_INLINE	void					initID()
+						bool					removeFromAABBMgr();
+
+		PX_FORCE_INLINE	bool					initID()
 												{
 													Scene& scene = getScene();
 													mElementID = scene.getElementIDPool().createID();
-													scene.getBoundsArray().initEntry(mElementID);
+													return scene.getBoundsArray().initEntry(mElementID);
 												}
 
 		PX_FORCE_INLINE	void					releaseID()
 												{
 													getScene().getElementIDPool().releaseID(mElementID);
 												}
-	public:
-						ElementSim*				mNextInActor;
-	private:
+	protected:
 						ActorSim&				mActor;
 
-						PxU32					mElementID : 31;
+						PxU32					mElementID : 31;	// PT: ID provided by Sc::Scene::mElementIDPool
 						PxU32					mInBroadPhase : 1;
+	public:
+						PxU32					mShapeArrayIndex;
 	};
 
 	PX_FORCE_INLINE void setFilterObjectAttributeType(PxFilterObjectAttributes& attr, PxFilterObjectType::Enum type)

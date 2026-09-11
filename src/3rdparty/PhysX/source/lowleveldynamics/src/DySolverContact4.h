@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,26 +22,21 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
-#ifndef DY_SOLVERCONTACT4_H
-#define DY_SOLVERCONTACT4_H
+#ifndef DY_SOLVER_CONTACT4_H
+#define DY_SOLVER_CONTACT4_H
 
 #include "foundation/PxSimpleTypes.h"
 #include "foundation/PxVec3.h"
-#include "PxvConfig.h"
-#include "PsVecMath.h"
+#include "PxPhysXConfig.h"
+#include "foundation/PxVecMath.h"
 #include "DySolverContact.h"
 
 namespace physx
 {
-
-struct PxcNpWorkUnit;
-struct PxSolverBody;
-struct PxSolverBodyData;
-struct PxSolverConstraintDesc;
 
 namespace Sc
 {
@@ -51,9 +45,6 @@ namespace Sc
 	
 namespace Dy
 {
-
-
-
 
 /**
 \brief Batched SOA contact data. Note, we don't support batching with extended contacts for the simple reason that handling multiple articulations would be complex.
@@ -90,9 +81,9 @@ struct SolverContactHeader4
 	Vec4V	angDom0;
 	Vec4V	angDom1;
 	//Normal is shared between all contacts in the batch. This will save some memory!
-	Vec4V normalX;
-	Vec4V normalY;
-	Vec4V normalZ;
+	Vec4V	normalX;
+	Vec4V	normalY;
+	Vec4V	normalZ;
 
 	Sc::ShapeInteraction* shapeInteraction[4];		//192 or 208
 }; 
@@ -115,20 +106,21 @@ struct SolverContactBatchPointBase4
 	Vec4V velMultiplier;
 	Vec4V scaledBias;
 	Vec4V biasedErr;
+	Vec4V impulseMultiplier;
 };
-PX_COMPILE_TIME_ASSERT(sizeof(SolverContactBatchPointBase4) == 96);
+PX_COMPILE_TIME_ASSERT(sizeof(SolverContactBatchPointBase4) == 112);
 
 /**
 \brief Contains the additional data required to represent 4 contacts between 2 dynamic bodies
-@see SolverContactBatchPointBase4
+\see SolverContactBatchPointBase4
 */
 struct SolverContactBatchPointDynamic4 : public SolverContactBatchPointBase4
-{	
+{
 	Vec4V rbXnX;
 	Vec4V rbXnY;
 	Vec4V rbXnZ;
 }; 
-PX_COMPILE_TIME_ASSERT(sizeof(SolverContactBatchPointDynamic4) == 144);
+PX_COMPILE_TIME_ASSERT(sizeof(SolverContactBatchPointDynamic4) == 160);
 
 /**
 \brief This represents the shared information of a batch of 4 friction constraints
@@ -144,7 +136,6 @@ struct SolverFrictionSharedData4
 #if !PX_P64_FAMILY
 PX_COMPILE_TIME_ASSERT(sizeof(SolverFrictionSharedData4) == 128);
 #endif
-
 
 /**
 \brief This represents a batch of 4 friction constraints with static rolled into a single structure
@@ -162,7 +153,7 @@ PX_COMPILE_TIME_ASSERT(sizeof(SolverContactFrictionBase4) == 96);
 
 /**
 \brief Contains the additional data required to represent 4 friction constraints between 2 dynamic bodies
-@see SolverContactFrictionBase4
+\see SolverContactFrictionBase4
 */
 struct SolverContactFrictionDynamic4 : public SolverContactFrictionBase4
 {
@@ -176,4 +167,4 @@ PX_COMPILE_TIME_ASSERT(sizeof(SolverContactFrictionDynamic4) == 144);
 
 }
 
-#endif //DY_SOLVERCONTACT4_H
+#endif

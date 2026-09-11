@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,87 +22,75 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
-#include "geomutils/GuContactBuffer.h"
-
+#include "geomutils/PxContactBuffer.h"
 #include "GuVecBox.h"
 #include "GuVecCapsule.h"
-#include "GuGeometryUnion.h"
 #include "GuContactMethodImpl.h"
 #include "GuPCMContactGen.h"
 #include "GuPCMShapeConvex.h"
 #include "GuGJKPenetration.h"
 #include "GuEPA.h"
 
-namespace physx
-{
-	using namespace Ps::aos;
+using namespace physx;
+using namespace Gu;
+using namespace aos;
 
-namespace Gu
+static bool fullContactsGenerationCapsuleBox(const CapsuleV& capsule, const BoxV& box, const PxVec3& halfExtents, const PxMatTransformV& aToB, const PxTransformV& transf0, const PxTransformV& transf1,
+											PersistentContact* manifoldContacts, PxU32& numContacts, PxContactBuffer& contactBuffer, PersistentContactManifold& manifold, Vec3V& normal, const Vec3VArg closest,
+											PxReal boxMargin, const FloatVArg contactDist, bool doOverlapTest, PxReal toleranceScale, PxRenderOutput* renderOutput)
 {
-
-static bool fullContactsGenerationCapsuleBox(const CapsuleV& capsule, const BoxV& box, const PxVec3 halfExtents,  const PsMatTransformV& aToB, const PsTransformV& transf0, const PsTransformV& transf1,
-								PersistentContact* manifoldContacts, PxU32& numContacts, ContactBuffer& contactBuffer, PersistentContactManifold& manifold, Vec3V& normal, const Vec3VArg closest,
-								const PxReal boxMargin, const FloatVArg contactDist, const bool doOverlapTest, const PxReal toleranceScale, Cm::RenderOutput* renderOutput)
-{
-
 	PolygonalData polyData;
 	PCMPolygonalBox polyBox(halfExtents);
 	polyBox.getPolygonalData(&polyData);
 
-	Mat33V identity = M33Identity();
+	const Mat33V identity = M33Identity();
 	SupportLocalImpl<BoxV> map(box, transf1, identity, identity);
 
 	PxU32 origContacts = numContacts;
-	if (generateCapsuleBoxFullContactManifold(capsule, polyData, &map, aToB, manifoldContacts, numContacts, contactDist, normal, closest, boxMargin, doOverlapTest, toleranceScale, renderOutput))
-	{
-		//EPA has contacts and we have new contacts, we discard the EPA contacts
-		if(origContacts != 0 && numContacts != origContacts)
-		{
-			numContacts--;
-			manifoldContacts++;
-		}
+	if(!generateCapsuleBoxFullContactManifold(capsule, polyData, &map, aToB, manifoldContacts, numContacts, contactDist, normal, closest, boxMargin, doOverlapTest, toleranceScale, renderOutput))
+		return false;
 
-		manifold.addBatchManifoldContacts2(manifoldContacts, numContacts);
-		
-		normal = transf1.rotate(normal);
-		
-		manifold.addManifoldContactsToContactBuffer(contactBuffer, normal, normal, transf0, capsule.radius, contactDist);
-	
-		return true;
-		
+	//EPA has contacts and we have new contacts, we discard the EPA contacts
+	if(origContacts != 0 && numContacts != origContacts)
+	{
+		numContacts--;
+		manifoldContacts++;
 	}
 
-	return false;
-
+	manifold.addBatchManifoldContacts2(manifoldContacts, numContacts);
+		
+	normal = transf1.rotate(normal);
+		
+	manifold.addManifoldContactsToContactBuffer(contactBuffer, normal, normal, transf0, capsule.radius, contactDist);
+	
+	return true;	
 }
 
-
-bool pcmContactCapsuleBox(GU_CONTACT_METHOD_ARGS)
+bool Gu::pcmContactCapsuleBox(GU_CONTACT_METHOD_ARGS)
 {
-	
 	PX_UNUSED(renderOutput);
+	PX_ASSERT(transform1.q.isSane());
+	PX_ASSERT(transform0.q.isSane());
+
+	const PxCapsuleGeometry& shapeCapsule = checkedCast<PxCapsuleGeometry>(shape0);
+	const PxBoxGeometry& shapeBox = checkedCast<PxBoxGeometry>(shape1);
 
 	PersistentContactManifold& manifold = cache.getManifold();
-	Ps::prefetchLine(&manifold, 256);
-	const PxCapsuleGeometry& shapeCapsule = shape0.get<const PxCapsuleGeometry>();
-	const PxBoxGeometry& shapeBox = shape1.get<const PxBoxGeometry>();
-
-	PX_ASSERT(transform1.q.isSane());
-	PX_ASSERT(transform0.q.isSane());  
+	PxPrefetchLine(&manifold, 256);
 
 	const Vec3V boxExtents = V3LoadU(shapeBox.halfExtents);
 
 	const FloatV contactDist = FLoad(params.mContactDistance);
 
-	const PsTransformV transf0 = loadTransformA(transform0);
-	const PsTransformV transf1 = loadTransformA(transform1);
+	const PxTransformV transf0 = loadTransformA(transform0);
+	const PxTransformV transf1 = loadTransformA(transform1);
 
-	const PsTransformV curRTrans = transf1.transformInv(transf0);
-	const PsMatTransformV aToB_(curRTrans);
+	const PxTransformV curRTrans = transf1.transformInv(transf0);
+	const PxMatTransformV aToB_(curRTrans);
 
 	const FloatV capsuleRadius = FLoad(shapeCapsule.radius);
 	const FloatV capsuleHalfHeight = FLoad(shapeCapsule.halfHeight);
@@ -111,7 +98,7 @@ bool pcmContactCapsuleBox(GU_CONTACT_METHOD_ARGS)
 	const PxU32 initialContacts = manifold.mNumContacts;
 
 	const PxReal toleranceLength = params.mToleranceLength;
-	const FloatV boxMargin = Gu::CalculatePCMBoxMargin(boxExtents, toleranceLength);
+	const FloatV boxMargin = CalculatePCMBoxMargin(boxExtents, toleranceLength);
 	
 	const FloatV minMargin = FMin(boxMargin, capsuleRadius);
 
@@ -125,22 +112,20 @@ bool pcmContactCapsuleBox(GU_CONTACT_METHOD_ARGS)
 
 	if(bLostContacts || manifold.invalidate_SphereCapsule(curRTrans, minMargin))	
 	{
-
-		
 		GjkStatus status = manifold.mNumContacts > 0 ? GJK_UNDEFINED : GJK_NON_INTERSECT;
 
 		manifold.setRelativeTransform(curRTrans);
-		const PsMatTransformV aToB(curRTrans);
+		const PxMatTransformV aToB(curRTrans);
 		
-		BoxV box(transf1.p, boxExtents);
+		const BoxV box(transf1.p, boxExtents);
 		//transform capsule into the local space of box
-		CapsuleV capsule(aToB.p, aToB.rotate(V3Scale(V3UnitX(), capsuleHalfHeight)), capsuleRadius);
-		LocalConvex<CapsuleV> convexA(capsule);
-		LocalConvex<BoxV> convexB(box);
+		const CapsuleV capsule(aToB.p, aToB.rotate(V3Scale(V3UnitX(), capsuleHalfHeight)), capsuleRadius);
+		const LocalConvex<CapsuleV> convexA(capsule);
+		const LocalConvex<BoxV> convexB(box);
 		GjkOutput output;
 
 		const Vec3V initialSearchDir = V3Sub(capsule.getCenter(), box.getCenter());
-		status =  gjkPenetration<LocalConvex<CapsuleV>, LocalConvex<BoxV> >(convexA, convexB, initialSearchDir, contactDist, true, 
+		status = gjkPenetration<LocalConvex<CapsuleV>, LocalConvex<BoxV> >(convexA, convexB, initialSearchDir, contactDist, true, 
 			manifold.mAIndice, manifold.mBIndice, manifold.mNumWarmStartPoints, output);
 
 		PersistentContact* manifoldContacts = PX_CP_TO_PCP(contactBuffer.contacts);
@@ -152,7 +137,7 @@ bool pcmContactCapsuleBox(GU_CONTACT_METHOD_ARGS)
 		}
 		else if(status == GJK_DEGENERATE)
 		{
-			return fullContactsGenerationCapsuleBox(capsule, box, shapeBox.halfExtents,  aToB, transf0, transf1, manifoldContacts, numContacts, contactBuffer,
+			return fullContactsGenerationCapsuleBox(capsule, box, shapeBox.halfExtents, aToB, transf0, transf1, manifoldContacts, numContacts, contactBuffer,
 				manifold, output.normal, output.closestB, box.getMarginF(), contactDist, true, params.mToleranceLength, renderOutput);
 		}
 		else 
@@ -170,7 +155,7 @@ bool pcmContactCapsuleBox(GU_CONTACT_METHOD_ARGS)
 			{
 				PX_ASSERT(status == EPA_CONTACT);
 	
-				status= epaPenetration(convexA, convexB,  manifold.mAIndice, manifold.mBIndice, manifold.mNumWarmStartPoints, 
+				status = epaPenetration(convexA, convexB, manifold.mAIndice, manifold.mBIndice, manifold.mNumWarmStartPoints, 
 					 true, FLoad(toleranceLength), output);
 				if(status == EPA_CONTACT)
 				{
@@ -180,24 +165,20 @@ bool pcmContactCapsuleBox(GU_CONTACT_METHOD_ARGS)
 					manifoldContacts[numContacts].mLocalPointA = localPointA;
 					manifoldContacts[numContacts].mLocalPointB = output.closestB;
 					manifoldContacts[numContacts++].mLocalNormalPen = localNormalPen;
-
 				}
 				else
 				{
 					doOverlapTest = true;
 				}
-
 			}
 			
-
 			if(initialContacts == 0 || bLostContacts || doOverlapTest)
 			{
-				return fullContactsGenerationCapsuleBox(capsule, box, shapeBox.halfExtents,  aToB, transf0, transf1, manifoldContacts, numContacts, contactBuffer, manifold, output.normal, 
+				return fullContactsGenerationCapsuleBox(capsule, box, shapeBox.halfExtents, aToB, transf0, transf1, manifoldContacts, numContacts, contactBuffer, manifold, output.normal, 
 					output.closestB, box.getMarginF(), contactDist, doOverlapTest, params.mToleranceLength, renderOutput);
 			}
 			else
 			{
-				
 				//The contacts is either come from GJK or EPA
 				const FloatV replaceBreakingThreshold = FMul(minMargin, FLoad(0.1f));
 				const Vec4V localNormalPen = V4SetW(Vec4V_From_Vec3V(output.normal), output.penDep);
@@ -208,7 +189,7 @@ bool pcmContactCapsuleBox(GU_CONTACT_METHOD_ARGS)
 			
 				return true;
 			}
-		}	
+		}
 	}
 	else if(manifold.getNumContacts() > 0)
 	{
@@ -218,7 +199,4 @@ bool pcmContactCapsuleBox(GU_CONTACT_METHOD_ARGS)
 	}
 
 	return false;
-
-}
-}
 }

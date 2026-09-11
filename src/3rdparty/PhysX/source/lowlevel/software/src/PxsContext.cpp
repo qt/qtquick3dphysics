@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,19 +22,19 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
 #include "common/PxProfileZone.h"
-#include "PxvConfig.h"
+#include "foundation/PxFoundation.h"
+#include "PxPhysXConfig.h"
 #include "PxcContactCache.h"
 #include "PxsRigidBody.h"
 #include "PxsContactManager.h"
 #include "PxsContext.h"
-#include "PxPhysXConfig.h"
 
-#include "CmBitMap.h"
+#include "foundation/PxBitMap.h"
 #include "CmFlushPool.h"
 
 #include "PxsMaterialManager.h"
@@ -52,34 +51,27 @@
 #include "PxcNpContactPrepShared.h"
 #include "PxcNpCache.h"
 
-
 using namespace physx;
-using namespace physx::shdfnd;
 
-#define PXS_CONTACTMANAGER_SLABSIZE 1024
-#define PXS_MAX_CONTACTMANAGER_SLABS 64
-
-#define PXS_BODYSHAPE_SLABSIZE 1024
-#define PXS_MAX_BODYSHAPE_SLABS 16
-
-PxsContext::PxsContext(const PxSceneDesc& desc, PxTaskManager* taskManager, Cm::FlushPool& taskPool, PxCudaContextManager* cudaContextManager, PxU64 contextID) :
-	mNpThreadContextPool		(this),
-	mContactManagerPool			("mContactManagerPool", this, 256),
-	mManifoldPool				("mManifoldPool", 256),
-	mSphereManifoldPool			("mSphereManifoldPool", 256),
-	mContactModifyCallback		(NULL),
-	mNpImplementationContext	(NULL),
+PxsContext::PxsContext(const PxSceneDesc& desc, PxTaskManager* taskManager, Cm::FlushPool& taskPool, PxCudaContextManager* cudaContextManager, PxU32 poolSlabSize, PxU64 contextID) :
+	mNpThreadContextPool			(this),
+	mContactManagerPool				("mContactManagerPool", poolSlabSize),
+	mManifoldPool					("mManifoldPool", poolSlabSize),
+	mSphereManifoldPool				("mSphereManifoldPool", poolSlabSize),
+	mContactModifyCallback			(NULL),
+	mNpImplementationContext		(NULL),
 	mNpFallbackImplementationContext(NULL),
-	mTaskManager				(taskManager),
-	mTaskPool					(taskPool),
-	mCudaContextManager			(cudaContextManager),
-	mPCM						(desc.flags & PxSceneFlag::eENABLE_PCM),
-	mContactCache				(false),
-	mCreateAveragePoint			(desc.flags & PxSceneFlag::eENABLE_AVERAGE_POINT),
-	mContextID					(contextID)
+	mTaskManager					(taskManager),
+	mTaskPool						(taskPool),
+	mCudaContextManager				(cudaContextManager),
+	mPCM							(desc.flags & PxSceneFlag::eENABLE_PCM),
+	mContactCache					(false),
+	mCreateAveragePoint				(desc.flags & PxSceneFlag::eENABLE_AVERAGE_POINT),
+	mCCD							(desc.flags & PxSceneFlag::eENABLE_CCD),
+	mContextID						(contextID)
 {
 	clearManagerTouchEvents();
-	mVisualizationCullingBox.setMaximal();
+	mVisualizationCullingBox.setEmpty();
 
 	PxMemZero(mVisualizationParams, sizeof(PxReal) * PxVisualizationParameter::eNUM_VALUES);
 
@@ -88,20 +80,14 @@ PxsContext::PxsContext(const PxSceneDesc& desc, PxTaskManager* taskManager, Cm::
 
 PxsContext::~PxsContext()
 {
-	if(mTransformCache)
-	{
-		mTransformCache->~PxsTransformCache();
-		PX_FREE(mTransformCache);
-	} 
-	mTransformCache = NULL;
-
+	PX_DELETE(mTransformCache);
 	mContactManagerPool.destroy(); //manually destroy the contact manager pool, otherwise pool deletion order is random and we can get into trouble with references into other pools needed during destruction.
 }
 
 // =========================== Create methods
 namespace physx
 {
-	bool gEnablePCMCaching[PxGeometryType::eGEOMETRY_COUNT][PxGeometryType::eGEOMETRY_COUNT] =
+	const bool gEnablePCMCaching[][PxGeometryType::eGEOMETRY_COUNT] =
 	{
 		//eSPHERE,
 		{
@@ -109,9 +95,13 @@ namespace physx
 			false,				//ePLANE
 			false,				//eCAPSULE
 			false,				//eBOX
+			false,				//eCONVEX
 			true,				//eCONVEXMESH
+			false,				//ePARTICLESYSTEM
+			true,				//eSOFTBODY,
 			true,				//eTRIANGLEMESH
-			true				//eHEIGHTFIELD
+			true,				//eHEIGHTFIELD
+			true,				//eCUSTOM
 		},
 
 		//ePLANE
@@ -120,9 +110,13 @@ namespace physx
 			false,				//ePLANE
 			true,				//eCAPSULE
 			true,				//eBOX
+			false,				//eCONVEX
 			true,				//eCONVEXMESH
+			false,				//ePARTICLESYSTEM
+			true,				//eSOFTBODY,
 			false,				//eTRIANGLEMESH
-			false				//eHEIGHTFIELD
+			false,				//eHEIGHTFIELD
+			true,				//eCUSTOM
 		},
 
 		//eCAPSULE,
@@ -131,9 +125,13 @@ namespace physx
 			true,				//ePLANE
 			false,				//eCAPSULE
 			true,				//eBOX
+			false,				//eCONVEX
 			true,				//eCONVEXMESH
+			false,				//ePARTICLESYSTEM
+			true,				//eSOFTBODY,
 			true,				//eTRIANGLEMESH
-			true				//eHEIGHTFIELD
+			true,				//eHEIGHTFIELD
+			true,				//eCUSTOM
 		},
 
 		//eBOX,
@@ -142,9 +140,28 @@ namespace physx
 			true,				//ePLANE
 			true,				//eCAPSULE
 			true,				//eBOX
+			false,				//eCONVEX
 			true,				//eCONVEXMESH
+			false,				//ePARTICLESYSTEM
+			true,				//eSOFTBODY,
 			true,				//eTRIANGLEMESH
-			true				//eHEIGHTFIELD
+			true,				//eHEIGHTFIELD
+			true,				//eCUSTOM
+		},
+
+		//eCONVEX,
+		{
+			false,				//eSPHERE
+			false,				//ePLANE
+			false,				//eCAPSULE
+			false,				//eBOX
+			false,				//eCONVEX
+			false,				//eCONVEXMESH
+			false,				//ePARTICLESYSTEM
+			false,				//eSOFTBODY,
+			false,				//eTRIANGLEMESH
+			false,				//eHEIGHTFIELD
+			false,				//eCUSTOM
 		},
 
 		//eCONVEXMESH,
@@ -153,19 +170,58 @@ namespace physx
 			true,				//ePLANE
 			true,				//eCAPSULE
 			true,				//eBOX
+			false,				//eCONVEX
 			true,				//eCONVEXMESH
+			false,				//ePARTICLESYSTEM
+			true,				//eSOFTBODY,
 			true,				//eTRIANGLEMESH
-			true				//eHEIGHTFIELD
+			true,				//eHEIGHTFIELD
+			true,				//eCUSTOM
 		},
+
+		//ePARTICLESYSTEM
+		{
+			false,				//eSPHERE
+			false,				//ePLANE
+			false,				//eCAPSULE
+			false,				//eBOX
+			false,				//eCONVEX
+			false,				//eCONVEXMESH
+			false,				//ePARTICLESYSTEM
+			false,				//eSOFTBODY,
+			false,				//eTRIANGLEMESH
+			false,				//eHEIGHTFIELD
+			false,				//eCUSTOM
+		},
+
+		//eSOFTBODY
+		{
+			false,				//eSPHERE
+			false,				//ePLANE
+			false,				//eCAPSULE
+			false,				//eBOX
+			false,				//eCONVEX
+			false,				//eCONVEXMESH
+			false,				//ePARTICLESYSTEM
+			false,				//eSOFTBODY,
+			false,				//eTRIANGLEMESH
+			false,				//eHEIGHTFIELD
+			false,				//eCUSTOM
+		},
+
 		//eTRIANGLEMESH,
 		{
 			true,				//eSPHERE
 			false,				//ePLANE
 			true,				//eCAPSULE
 			true,				//eBOX
+			false,				//eCONVEX
 			true,				//eCONVEXMESH
+			false,				//ePARTICLESYSTEM
+			true,				//eSOFTBODY,
 			false,				//eTRIANGLEMESH
-			false				//eHEIGHTFIELD
+			false,				//eHEIGHTFIELD
+			true,				//eCUSTOM
 		},
 
 		//eHEIGHTFIELD,
@@ -174,46 +230,47 @@ namespace physx
 			false,				//ePLANE
 			true,				//eCAPSULE
 			true,				//eBOX
+			false,				//eCONVEX
 			true,				//eCONVEXMESH
+			false,				//ePARTICLESYSTEM
+			true,				//eSOFTBODY,
 			false,				//eTRIANGLEMESH
-			false				//eHEIGHTFIELD
+			false,				//eHEIGHTFIELD
+			true,				//eCUSTOM
+		},
+
+		//eCUSTOM,
+		{
+			true,				//eSPHERE
+			true,				//ePLANE
+			true,				//eCAPSULE
+			true,				//eBOX
+			false,				//eCONVEX
+			true,				//eCONVEXMESH
+			false,				//ePARTICLESYSTEM
+			false,				//eSOFTBODY,
+			true,				//eTRIANGLEMESH
+			true,				//eHEIGHTFIELD
+			true,				//eCUSTOM
 		}
 	};
+	PX_COMPILE_TIME_ASSERT(sizeof(gEnablePCMCaching) / sizeof(gEnablePCMCaching[0]) == PxGeometryType::eGEOMETRY_COUNT);
 }
 
-void PxsContext::createTransformCache(Ps::VirtualAllocatorCallback& allocatorCallback)
+void PxsContext::createTransformCache(Cm::VirtualAllocatorCallback& allocator, Cm::PinnableAllocatorFallback::Enum fallback)
 {
-	mTransformCache = PX_PLACEMENT_NEW(PX_ALLOC(sizeof(PxsTransformCache), PX_DEBUG_EXP("PxsTransformCache")), PxsTransformCache(allocatorCallback));
+	mTransformCache = PX_NEW(PxsTransformCache)(allocator, fallback);
 }
 
-PxsContactManager* PxsContext::createContactManager(PxsContactManager* contactManager, const bool useCCD)
+PxsContactManager* PxsContext::createContactManager(PxsContactManager* contactManager, bool useCCD)
 {
 	PxsContactManager* cm = contactManager? contactManager : mContactManagerPool.get();
-
 	if(cm)
 	{
-		PxcNpWorkUnitClearContactState(cm->getWorkUnit());
-		PxcNpWorkUnitClearCachedState(cm->getWorkUnit());
+		cm->getWorkUnit().clearCachedState();
 
-		if (contactManager == NULL)
-		{
-			if (cm->getIndex() >= mActiveContactManager.size())
-			{
-				PxU32 newSize = (2 * cm->getIndex() + 256)&~255;
-				mActiveContactManager.resize(newSize);
-			}
-			mActiveContactManager.set(cm->getIndex());
-
-			if (useCCD)
-			{
-				if (cm->getIndex() >= mActiveContactManagersWithCCD.size())
-				{
-					PxU32 newSize = (2 * cm->getIndex() + 256)&~255;
-					mActiveContactManagersWithCCD.resize(newSize);
-				}
-				mActiveContactManagersWithCCD.set(cm->getIndex());
-			}
-		}
+		if(!contactManager)
+			setActiveContactManager(cm, useCCD);
 	}
 	else
 	{
@@ -223,46 +280,41 @@ PxsContactManager* PxsContext::createContactManager(PxsContactManager* contactMa
 	return cm;
 }
 
-void PxsContext::createCache(Gu::Cache& cache, PxsContactManager* cm, PxU8 geomType0, PxU8 geomType1)
+void PxsContext::createCache(Gu::Cache& cache, PxGeometryType::Enum geomType0, PxGeometryType::Enum geomType1)
 {
-	if(cm)
+	if(mPCM)
 	{
-		if(mPCM)
+		if(gEnablePCMCaching[geomType0][geomType1])
 		{
-			if(gEnablePCMCaching[geomType0][geomType1])
+			if(geomType0 <= PxGeometryType::eCONVEXMESH && geomType1 <= PxGeometryType::eCONVEXMESH)
 			{
-				if(geomType0 <= PxGeometryType::eCONVEXMESH && 
-				   geomType1 <= PxGeometryType::eCONVEXMESH)
+				if(geomType0 == PxGeometryType::eSPHERE || geomType1 == PxGeometryType::eSPHERE)
 				{
-					if(geomType0 == PxGeometryType::eSPHERE || geomType1 == PxGeometryType::eSPHERE)
-					{
-						Gu::PersistentContactManifold* manifold = mSphereManifoldPool.allocate();
-						new(manifold) Gu::SpherePersistentContactManifold();
-						cache.setManifold(manifold);
-					}
-					else
-					{
-						Gu::PersistentContactManifold* manifold = mManifoldPool.allocate();
-						new(manifold) Gu::LargePersistentContactManifold();
-						cache.setManifold(manifold);
-
-					}
-					cache.getManifold().clearManifold();
-
+					Gu::PersistentContactManifold* manifold = mSphereManifoldPool.allocate();
+					PX_PLACEMENT_NEW(manifold, Gu::SpherePersistentContactManifold());
+					cache.setManifold(manifold);
 				}
 				else
 				{
-					//ML: raised 1 to indicate the manifold is multiManifold which is for contact gen in mesh/height field
-					//cache.manifold = 1;
-					cache.setMultiManifold(NULL);
+					Gu::PersistentContactManifold* manifold = mManifoldPool.allocate();
+					PX_PLACEMENT_NEW(manifold, Gu::LargePersistentContactManifold());
+					cache.setManifold(manifold);
+
 				}
+				cache.getManifold().clearManifold();
 			}
 			else
 			{
-				//cache.manifold =  0;
-				cache.mCachedData = NULL;
-				cache.mManifoldFlags = 0;
-			}			
+				//ML: raised 1 to indicate the manifold is multiManifold which is for contact gen in mesh/height field
+				//cache.manifold = 1;
+				cache.setMultiManifold(NULL);
+			}
+		}
+		else
+		{
+			//cache.manifold =  0;
+			cache.mCachedData = NULL;
+			cache.mManifoldFlags = 0;
 		}
 	}
 }
@@ -270,11 +322,10 @@ void PxsContext::createCache(Gu::Cache& cache, PxsContactManager* cm, PxU8 geomT
 void PxsContext::destroyContactManager(PxsContactManager* cm)
 {
 	const PxU32 idx = cm->getIndex();
-	if (cm->getCCD())
+	if(cm->getCCD())
 		mActiveContactManagersWithCCD.growAndReset(idx);
-	mActiveContactManager.growAndReset(idx);
+	//mActiveContactManager.growAndReset(idx);
 	mContactManagerTouchEvent.growAndReset(idx);
-	mContactManagerPatchChangeEvent.growAndReset(idx);
 	mContactManagerPool.put(cm);
 }
 
@@ -285,14 +336,10 @@ void PxsContext::destroyCache(Gu::Cache& cache)
 		if(!cache.isMultiManifold())
 		{
 			Gu::PersistentContactManifold& manifold = cache.getManifold();
-			if (manifold.mCapacity == GU_SPHERE_MANIFOLD_CACHE_SIZE)
-			{
+			if(manifold.mCapacity == GU_SPHERE_MANIFOLD_CACHE_SIZE)
 				mSphereManifoldPool.deallocate(static_cast<Gu::SpherePersistentContactManifold*>(&manifold));
-			}
 			else
-			{
 				mManifoldPool.deallocate(static_cast<Gu::LargePersistentContactManifold*>(&manifold));
-			}
 		}
 		cache.mCachedData = NULL;
 		cache.mManifoldFlags = 0;
@@ -304,12 +351,6 @@ void PxsContext::setScratchBlock(void* addr, PxU32 size)
 	mScratchAllocator.setBlock(addr, size);
 }
 
-void PxsContext::setContactDistance(Ps::Array<PxReal, Ps::VirtualAllocator>* contactDistance)
-{
-	mContactDistance = contactDistance;
-}
-
-
 void PxsContext::shiftOrigin(const PxVec3& shift)
 {
 	// transform cache
@@ -319,9 +360,9 @@ void PxsContext::shiftOrigin(const PxVec3& shift)
 	if (getContactCacheFlag())
 	{
 		//Iterate all active contact managers
-		Cm::BitMap::Iterator it(mActiveContactManager);
+		PxBitMap::Iterator it(mActiveContactManager);
 		PxU32 index = it.getNext();
-		while(index != Cm::BitMap::Iterator::DONE)
+		while(index != PxBitMap::Iterator::DONE)
 		{
 			PxsContactManager* cm = mContactManagerPool.findByIndexFast(index);
 
@@ -335,7 +376,7 @@ void PxsContext::shiftOrigin(const PxVec3& shift)
 				{
 					PxcLocalContactsCache* lcc;
 					PxU8* contacts = PxcNpCacheRead(npwUnit.pairCache, lcc);
-#ifdef _DEBUG
+#if PX_DEBUG
 					PxcLocalContactsCache testCache;
 					PxU32 testBytes;
 					const PxU8* testPtr = PxcNpCacheRead2(npwUnit.pairCache, testCache, testBytes);
@@ -350,7 +391,7 @@ void PxsContext::shiftOrigin(const PxVec3& shift)
 					for(PxU32 i=0; i < nbContacts; i++)
 					{
 						if (i != nbContacts-1)
-							Ps::prefetchLine(contacts, 128);
+							PxPrefetchLine(contacts, 128);
 
 						if(!i || !sameNormal)
 							contacts += sizeof(PxVec3);
@@ -363,7 +404,7 @@ void PxsContext::shiftOrigin(const PxVec3& shift)
 						if(useFaceIndices)
 							contacts += 2 * sizeof(PxU32);
 					}
-#ifdef _DEBUG
+#if PX_DEBUG
 					PX_ASSERT(contacts == (testPtr + testBytes));
 #endif
 				}
@@ -375,12 +416,8 @@ void PxsContext::shiftOrigin(const PxVec3& shift)
 	}
 #endif
 
-	//
 	// adjust visualization culling box
-	//
-	PxBounds3 maximalBounds;
-	maximalBounds.setMaximal();
-	if ((mVisualizationCullingBox.minimum != maximalBounds.minimum) || (mVisualizationCullingBox.maximum != maximalBounds.maximum))
+	if(!mVisualizationCullingBox.isEmpty())
 	{
 		mVisualizationCullingBox.minimum -= shift;
 		mVisualizationCullingBox.maximum -= shift;
@@ -396,7 +433,7 @@ void PxsContext::mergeCMDiscreteUpdateResults(PxBaseTask* /*continuation*/)
 {
 	PX_PROFILE_ZONE("Sim.narrowPhaseMerge", mContextID);
 
-	this->mNpImplementationContext->appendContactManagers();
+	mNpImplementationContext->appendContactManagers();
 
 	//Note: the iterator extracts all the items and returns them to the cache on destruction(for thread safety).
 	PxcThreadCoherentCacheIterator<PxcNpThreadContext, PxcNpContext> threadContextIt(mNpThreadContextPool);
@@ -405,8 +442,6 @@ void PxsContext::mergeCMDiscreteUpdateResults(PxBaseTask* /*continuation*/)
 	{
 		mCMTouchEventCount[PXS_LOST_TOUCH_COUNT] += threadContext->getLocalLostTouchCount();
 		mCMTouchEventCount[PXS_NEW_TOUCH_COUNT] += threadContext->getLocalNewTouchCount();
-		mCMTouchEventCount[PXS_PATCH_FOUND_COUNT] += threadContext->getLocalFoundPatchCount();
-		mCMTouchEventCount[PXS_PATCH_LOST_COUNT] += threadContext->getLocalLostPatchCount();
 
 #if PX_ENABLE_SIM_STATS
 		for(PxU32 i=0;i<PxGeometryType::eGEOMETRY_COUNT;i++)
@@ -432,30 +467,22 @@ void PxsContext::mergeCMDiscreteUpdateResults(PxBaseTask* /*continuation*/)
 		//KS - this data is not available yet
 		//mSimStats.mTotalConstraintSize += threadContext->mConstraintSize;
 		threadContext->clearStats();
+#else
+		PX_CATCH_UNDEFINED_ENABLE_SIM_STATS
 #endif
-		mContactManagerTouchEvent.combineInPlace<Cm::BitMap::OR>(threadContext->getLocalChangeTouch());
-		mContactManagerPatchChangeEvent.combineInPlace<Cm::BitMap::OR>(threadContext->getLocalPatchChangeMap());
-		mTotalCompressedCacheSize += threadContext->mTotalCompressedCacheSize;
+		mContactManagerTouchEvent.combineInPlace<PxBitMap::OR>(threadContext->getLocalChangeTouch());
+		//mContactManagerPatchChangeEvent.combineInPlace<PxBitMap::OR>(threadContext->getLocalPatchChangeMap());
 		mMaxPatches = PxMax(mMaxPatches, threadContext->mMaxPatches);
 
-		threadContext->mTotalCompressedCacheSize = threadContext->mMaxPatches = 0;
+		threadContext->mMaxPatches = 0;
 	}
 }
 
-void PxsContext::setCreateContactStream(bool to)
-{ 
-	mCreateContactStream = to; 
-	PxcThreadCoherentCacheIterator<PxcNpThreadContext, PxcNpContext> threadContextIt(mNpThreadContextPool);
-	for(PxcNpThreadContext* threadContext = threadContextIt.getNext(); threadContext; threadContext = threadContextIt.getNext())
-	{
-		threadContext->setCreateContactStream(to);
-	}
-}
-
-void PxsContext::updateContactManager(PxReal dt, bool hasBoundsArrayChanged, bool hasContactDistanceChanged, PxBaseTask* continuation, PxBaseTask* firstPassContinuation)
+void PxsContext::updateContactManager(PxReal dt, bool hasContactDistanceChanged, PxBaseTask* continuation, PxBaseTask* firstPassContinuation,
+	Cm::FanoutTask* updateBoundAndShapeTask)
 {
 	PX_ASSERT(mNpImplementationContext);
-	mNpImplementationContext->updateContactManager(dt, hasBoundsArrayChanged, hasContactDistanceChanged, continuation, firstPassContinuation);
+	mNpImplementationContext->updateContactManager(dt, hasContactDistanceChanged, continuation, firstPassContinuation, updateBoundAndShapeTask);
 }
 
 void PxsContext::secondPassUpdateContactManager(PxReal dt, PxBaseTask* continuation)
@@ -484,140 +511,91 @@ void PxsContext::resetThreadContexts()
 	}
 }
 
-bool PxsContext::getManagerTouchEventCount(int* newTouch, int* lostTouch, int* ccdTouch) const
+bool PxsContext::getManagerTouchEventCount(PxU32* newTouch, PxU32* lostTouch, PxU32* ccdTouch) const
 {
 	if(newTouch)
-		*newTouch = int(mCMTouchEventCount[PXS_NEW_TOUCH_COUNT]);
+		*newTouch = mCMTouchEventCount[PXS_NEW_TOUCH_COUNT];
 
 	if(lostTouch)
-		*lostTouch = int(mCMTouchEventCount[PXS_LOST_TOUCH_COUNT]);
+		*lostTouch = mCMTouchEventCount[PXS_LOST_TOUCH_COUNT];
 
 	if(ccdTouch)
-		*ccdTouch = int(mCMTouchEventCount[PXS_CCD_RETOUCH_COUNT]);
+		*ccdTouch = mCMTouchEventCount[PXS_CCD_RETOUCH_COUNT];
 
 	return true;
 }
 
-bool PxsContext::fillManagerTouchEvents(PxvContactManagerTouchEvent* newTouch, PxI32& newTouchCount, PxvContactManagerTouchEvent* lostTouch, PxI32& lostTouchCount,
-										 PxvContactManagerTouchEvent* ccdTouch, PxI32& ccdTouchCount)
+void PxsContext::fillManagerTouchEvents(PxArray<PxvContactManagerTouchEvent>& newTouchEvents,
+										PxArray<PxvContactManagerTouchEvent>& lostTouchEvents,
+										PxArray<PxvContactManagerTouchEvent>* ccdTouchEvents)
 {
-	PxU32 index;
+	PX_PROFILE_ZONE("PxsContext::fillManagerTouchEvents", mContextID);
 
-	const PxvContactManagerTouchEvent* newTouchStart = newTouch;
-	const PxvContactManagerTouchEvent* lostTouchStart = lostTouch;
-	const PxvContactManagerTouchEvent* ccdTouchStart = ccdTouch;
+	// Save initial capacities (set by caller via reserve based on cached counters).
+	// If the bitmap contains more events than the counters indicated, PxArray will
+	// grow dynamically. We detect this after the loop and emit a diagnostic warning.
+	const PxU32 expectedNewCapacity = newTouchEvents.capacity();
+	const PxU32 expectedLostCapacity = lostTouchEvents.capacity();
+	const PxU32 expectedCcdCapacity = ccdTouchEvents ? ccdTouchEvents->capacity() : 0;
 
-	const PxvContactManagerTouchEvent* newTouchEnd = newTouch + newTouchCount;
-	const PxvContactManagerTouchEvent* lostTouchEnd = lostTouch + lostTouchCount;
-	const PxvContactManagerTouchEvent* ccdTouchEnd = ccdTouch + ccdTouchCount;
-
-	PX_UNUSED(newTouchEnd);
-	PX_UNUSED(lostTouchEnd);
-	PX_UNUSED(ccdTouchEnd);
-
-	Cm::BitMap::Iterator it(mContactManagerTouchEvent);
-
-	while((index = it.getNext()) != Cm::BitMap::Iterator::DONE)
+	const PxU32* bits = mContactManagerTouchEvent.getWords();
+	if(bits)
 	{
-		PxsContactManager* cm = mContactManagerPool.findByIndexFast(index);
-
-		if(cm->getTouchStatus())
+		// PT: ### bitmap iterator pattern
+		const PxU32 lastSetBit = mContactManagerTouchEvent.findLast();
+		for(PxU32 w = 0; w <= lastSetBit >> 5; ++w)
 		{
-			if (!cm->getHasCCDRetouch())
+			for(PxU32 b = bits[w]; b; b &= b-1)
 			{
-				PX_ASSERT(newTouch < newTouchEnd);
-				newTouch->manager	= cm;
-				newTouch->userData	= cm->getUserData();
-				newTouch++;
+				const PxU32 index = PxU32(w<<5|PxLowestSetBit(b));
+
+				PxsContactManager* cm = mContactManagerPool.findByIndexFast(index);
+
+				PxvContactManagerTouchEvent evt;
+				evt.setCMTouchEventUserData(cm->getShapeInteraction());
+
+				if(cm->getTouchStatus())
+				{
+					if(!cm->getHasCCDRetouch())
+					{
+						newTouchEvents.pushBack(evt);
+					}
+					else
+					{
+						PX_ASSERT(ccdTouchEvents);
+						ccdTouchEvents->pushBack(evt);
+						cm->clearCCDRetouch();
+					}
+				}
+				else
+				{
+					lostTouchEvents.pushBack(evt);
+				}
 			}
-			else
-			{
-				PX_ASSERT(ccdTouch);
-				PX_ASSERT(ccdTouch < ccdTouchEnd);
-				ccdTouch->manager	= cm;
-				ccdTouch->userData	= cm->getUserData();
-				cm->clearCCDRetouch();
-				ccdTouch++;
-			}
-		}
-		else
-		{
-			PX_ASSERT(lostTouch < lostTouchEnd);
-			lostTouch->manager	= cm;
-			lostTouch->userData	= cm->getUserData();
-			lostTouch++;
-		}
-	}
-	newTouchCount = PxI32(newTouch - newTouchStart);
-	lostTouchCount = PxI32(lostTouch - lostTouchStart);
-	ccdTouchCount = PxI32(ccdTouch - ccdTouchStart);
-	return true;
-}
-
-
-
-bool PxsContext::fillManagerPatchChangedEvents(PxsContactManager** foundPatch, PxU32& foundPatchCount,
-							PxsContactManager** lostPatch, PxU32& lostPatchCount)
-{
-	Cm::BitMap::Iterator it(mContactManagerPatchChangeEvent);
-
-	PxsContactManagerOutputIterator outputs = mNpImplementationContext->getContactManagerOutputs();
-
-	PxU32 index;
-	PxsContactManager** currFoundPatch = foundPatch;
-	PxsContactManager** currLostPatch = lostPatch;
-	while((index = it.getNext()) != Cm::BitMap::Iterator::DONE)
-	{
-		PxsContactManager* cm = mContactManagerPool.findByIndexFast(index);
-		PxcNpWorkUnit& workUnit = cm->getWorkUnit();
-		PxsContactManagerOutput& output = outputs.getContactManager(workUnit.mNpIndex);
-		if(output.nbPatches > output.prevPatches)
-		{
-			PX_ASSERT(PxU32(currFoundPatch - foundPatch) < foundPatchCount);
-			*currFoundPatch = cm;
-			currFoundPatch++;
-		}
-		else if(output.nbPatches < output.prevPatches)
-		{
-			PX_ASSERT(PxU32(currLostPatch - lostPatch) < lostPatchCount);
-			*currLostPatch = cm;
-			currLostPatch++;
 		}
 	}
 
-	foundPatchCount = PxU32(currFoundPatch - foundPatch);
-	lostPatchCount = PxU32(currLostPatch - lostPatch);
-	return true;
+	// Detect counter/bitmap desynchronization. In rare scenarios (e.g. large heightfields on GPU),
+	// the cached touch event counters can undercount the actual bitmap events. The arrays grew
+	// dynamically to handle the overflow, but we emit a warning so the root cause can be investigated.
+	if(newTouchEvents.size() > expectedNewCapacity || lostTouchEvents.size() > expectedLostCapacity
+		|| (ccdTouchEvents && ccdTouchEvents->size() > expectedCcdCapacity))
+	{
+		PxGetFoundation().error(PxErrorCode::eINTERNAL_ERROR, PX_FL,
+			"PxsContext::fillManagerTouchEvents: touch event bitmap contains more events than cached counters indicated "
+			"(new: %u vs %u, lost: %u vs %u, ccd: %u vs %u). Counters may be out of sync.",
+			newTouchEvents.size(), expectedNewCapacity,
+			lostTouchEvents.size(), expectedLostCapacity,
+			ccdTouchEvents ? ccdTouchEvents->size() : 0, expectedCcdCapacity);
+	}
 }
-
 
 void PxsContext::beginUpdate()
 {
 #if PX_ENABLE_SIM_STATS
 	mSimStats.clearAll();
+#else
+	PX_CATCH_UNDEFINED_ENABLE_SIM_STATS
 #endif
 }
-
-
-// Contact manager related
-
-PxReal PxsContext::getVisualizationParameter(PxVisualizationParameter::Enum param) const
-{
-	PX_ASSERT(param < PxVisualizationParameter::eNUM_VALUES);
-
-	return mVisualizationParams[param];
-}
-
-void PxsContext::setVisualizationParameter(PxVisualizationParameter::Enum param, PxReal value)
-{
-	PX_ASSERT(param < PxVisualizationParameter::eNUM_VALUES);
-	PX_ASSERT(value >= 0.0f);
-
-	mVisualizationParams[param] = value;
-}
-
-
-
-
-
 

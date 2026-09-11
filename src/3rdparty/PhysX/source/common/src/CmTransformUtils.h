@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,20 +22,19 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
+#ifndef CM_TRANSFORM_UTILS_H
+#define CM_TRANSFORM_UTILS_H
 
-#ifndef PX_PHYSICS_COMMON_TRANSFORMUTILS
-#define PX_PHYSICS_COMMON_TRANSFORMUTILS
-
-#include "PsVecMath.h"
+#include "foundation/PxVecMath.h"
 
 namespace
 {
 
-using namespace physx::shdfnd::aos;
+using namespace physx::aos;
 
 // V3PrepareCross would help here, but it's not on all platforms yet...
 
@@ -70,18 +68,15 @@ PX_FORCE_INLINE void transformInvFast(const FloatVArg wa, const Vec3VArg va, con
 
 }
 
-
-
-
-
 namespace physx
 {
 namespace Cm
 {
 
+// PT: actor2World * shape2Actor
 PX_FORCE_INLINE void getStaticGlobalPoseAligned(const PxTransform& actor2World, const PxTransform& shape2Actor, PxTransform& outTransform)
 {
-	using namespace shdfnd::aos;
+	using namespace aos;
 
 	PX_ASSERT((size_t(&actor2World)&15) == 0);
 	PX_ASSERT((size_t(&shape2Actor)&15) == 0);
@@ -104,7 +99,7 @@ PX_FORCE_INLINE void getStaticGlobalPoseAligned(const PxTransform& actor2World, 
 	V4StoreA(V4SetW(v,w), &outTransform.q.x);
 }
 
-
+// PT: body2World * body2Actor.getInverse() * shape2Actor
 PX_FORCE_INLINE void getDynamicGlobalPoseAligned(const PxTransform& body2World, const PxTransform& shape2Actor, const PxTransform& body2Actor, PxTransform& outTransform)
 {
 	PX_ASSERT((size_t(&body2World)&15) == 0);
@@ -112,7 +107,7 @@ PX_FORCE_INLINE void getDynamicGlobalPoseAligned(const PxTransform& body2World, 
 	PX_ASSERT((size_t(&body2Actor)&15) == 0);
 	PX_ASSERT((size_t(&outTransform)&15) == 0);
 
-	using namespace shdfnd::aos;
+	using namespace aos;
 
 	const Vec3V shape2ActorPos = V3LoadA(shape2Actor.p);
 	const QuatV shape2ActorRot = QuatVLoadA(&shape2Actor.q.x);
@@ -137,7 +132,6 @@ PX_FORCE_INLINE void getDynamicGlobalPoseAligned(const PxTransform& body2World, 
 	V3StoreA(p2, outTransform.p);
 	V4StoreA(V4SetW(v2, w2), &outTransform.q.x);
 }
-
 
 }
 }

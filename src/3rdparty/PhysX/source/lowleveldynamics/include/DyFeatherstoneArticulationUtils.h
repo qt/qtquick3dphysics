@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,17 +22,23 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
 #ifndef DY_FEATHERSTONE_ARTICULATION_UTIL_H
 #define DY_FEATHERSTONE_ARTICULATION_UTIL_H
 
-#include "PsVecMath.h"
+#include "foundation/PxVecMath.h"
 #include "CmSpatialVector.h"
-#include "PsBitUtils.h"
+#include "foundation/PxBitUtils.h"
 #include "foundation/PxMemory.h"
+
+#if PX_CUDA_COMPILER
+	#define PX_SPATIAL_MATRIX_SIMD	0
+#else
+	#define PX_SPATIAL_MATRIX_SIMD	1
+#endif
 
 namespace physx
 {
@@ -42,16 +47,19 @@ namespace Dy
 {
 	static const size_t DY_MAX_DOF = 6;
 
+#if PX_SUPPORT_GPU_PHYSX
 	struct SpatialSubspaceMatrix
 	{
 		static const PxU32 MaxColumns = 3;
 	public:
 
+#if !PX_CUDA_COMPILER
 		PX_CUDA_CALLABLE PX_FORCE_INLINE SpatialSubspaceMatrix() :numColumns(0)
 		{
 			//PxMemZero(columns, sizeof(Cm::SpatialVectorF) * 6);
-			memset(columns, 0, sizeof(Cm::UnAlignedSpatialVector) * MaxColumns);
+			PxMemSet(columns, 0, sizeof(Cm::UnAlignedSpatialVector) * MaxColumns);
 		}
+#endif
 
 		PX_CUDA_CALLABLE PX_FORCE_INLINE void setNumColumns(const PxU32 nc)
 		{
@@ -77,7 +85,6 @@ namespace Dy
 			res.bottom.x = result[3]; res.bottom.y = result[4]; res.bottom.z = result[5];
 
 			return res;
-
 		}
 
 		PX_CUDA_CALLABLE PX_FORCE_INLINE void setColumn(const PxU32 index, const PxVec3& top, const PxVec3& bottom)
@@ -103,132 +110,16 @@ namespace Dy
 			return columns;
 		}
 
-
-	private:
-		Cm::UnAlignedSpatialVector columns[MaxColumns];			//192		192			
-		PxU32	numColumns;						//4			208 (12 bytes padding)
-
+	//private:
+		Cm::UnAlignedSpatialVector columns[MaxColumns];			//3x24 = 72
+		PxU32	numColumns;										//76
+		PxU32	padding;										//80
 	};
-
-	//this should be 6x6 matrix
-	//|R,		0|
-	//|-R*rX,	R|
-	struct SpatialTransform
-	{
-		PxMat33 R;
-		PxQuat q;
-		PxMat33 T;
-
-	public:
-		PX_CUDA_CALLABLE PX_FORCE_INLINE SpatialTransform() : R(PxZero), T(PxZero)
-		{
-		}
-
-		PX_CUDA_CALLABLE PX_FORCE_INLINE SpatialTransform(const PxMat33& R_, const PxMat33& T_) : R(R_), T(T_)
-		{
-			q = PxQuat(R_);
-		}
-
-		PX_CUDA_CALLABLE PX_FORCE_INLINE SpatialTransform(const PxQuat& q_, const PxMat33& T_) : q(q_), T(T_)
-		{
-			R = PxMat33(q_);
-		}
-
-		//This assume angular is the top vector and linear is the bottom vector
-		/*PX_CUDA_CALLABLE PX_FORCE_INLINE Cm::SpatialVector operator *(const Cm::SpatialVector& s) const
-		{
-			const PxVec3 angular = R * s.angular;
-			const PxVec3 linear = T * s.angular + R * s.linear;
-			return Cm::SpatialVector(linear, angular);
-		}*/
-
-
-		////This assume angular is the top vector and linear is the bottom vector
-		//PX_FORCE_INLINE Cm::SpatialVectorF operator *(Cm::SpatialVectorF& s) const
-		//{
-		//	const PxVec3 top = R * s.top;
-		//	const PxVec3 bottom = T * s.top + R * s.bottom;
-
-		//	const PxVec3 top1 = q.rotate(s.top);
-		//	const PxVec3 bottom1 = T * s.top + q.rotate(s.bottom);
-
-		///*	const PxVec3 tDif = (top - top1).abs();
-		//	const PxVec3 bDif = (bottom - bottom1).abs();
-		//	const PxReal eps = 0.001f;
-		//	PX_ASSERT(tDif.x < eps && tDif.y < eps && tDif.z < eps);
-		//	PX_ASSERT(bDif.x < eps && bDif.y < eps && bDif.z < eps);*/
-		//	return Cm::SpatialVectorF(top1, bottom1);
-		//}
-
-		//This assume angular is the top vector and linear is the bottom vector
-		PX_CUDA_CALLABLE PX_FORCE_INLINE Cm::SpatialVectorF operator *(const Cm::SpatialVectorF& s) const
-		{
-			//const PxVec3 top = R * s.top;
-			//const PxVec3 bottom = T * s.top + R * s.bottom;
-
-			const PxVec3 top1 = q.rotate(s.top);
-			const PxVec3 bottom1 = T * s.top + q.rotate(s.bottom);
-
-			return Cm::SpatialVectorF(top1, bottom1);
-		}
-
-		PX_CUDA_CALLABLE PX_FORCE_INLINE Cm::UnAlignedSpatialVector operator *(const Cm::UnAlignedSpatialVector& s) const
-		{
-			//const PxVec3 top = R * s.top;
-			//const PxVec3 bottom = T * s.top + R * s.bottom;
-
-			const PxVec3 top1 = q.rotate(s.top);
-			const PxVec3 bottom1 = T * s.top + q.rotate(s.bottom);
-
-			return Cm::UnAlignedSpatialVector(top1, bottom1);
-		}
-
-		//transpose is the same as inverse, R(inverse) = R(transpose)
-		//|R(t),	0	|
-		//|rXR(t),	R(t)|
-		PX_CUDA_CALLABLE PX_FORCE_INLINE SpatialTransform getTranspose() const
-		{
-			SpatialTransform ret;
-			ret.q = q.getConjugate();
-			ret.R = R.getTranspose();
-			ret.T = T.getTranspose();
-			return ret;
-			
-		}
-
-		PX_CUDA_CALLABLE PX_FORCE_INLINE Cm::SpatialVectorF transposeTransform(const Cm::SpatialVectorF& s) const
-		{
-			const PxVec3 top1 = q.rotateInv(s.top);
-			const PxVec3 bottom1 = T.transformTranspose(s.top) + q.rotateInv(s.bottom);
-
-			return Cm::SpatialVectorF(top1, bottom1);
-		}
-
-		PX_CUDA_CALLABLE PX_FORCE_INLINE Cm::UnAlignedSpatialVector transposeTransform(const Cm::UnAlignedSpatialVector& s) const
-		{
-			const PxVec3 top1 = q.rotateInv(s.top);
-			const PxVec3 bottom1 = T.transformTranspose(s.top) + q.rotateInv(s.bottom);
-
-			return Cm::UnAlignedSpatialVector(top1, bottom1);
-		}
-
-		PX_CUDA_CALLABLE PX_FORCE_INLINE void operator =(SpatialTransform& other)
-		{
-			R = other.R;
-			q = other.q;
-			T = other.T;
-		}
-
-	};
+#endif
 
 	struct InvStIs
 	{
 		PxReal invStIs[3][3];
-	};
-
-	struct IsInvD
-	{
-		Cm::SpatialVectorF isInvD[3];
 	};
 
 	//this should be 6x6 matrix and initialize to
@@ -249,10 +140,9 @@ namespace Dy
 		{
 		}
 
-		PX_CUDA_CALLABLE PX_FORCE_INLINE SpatialMatrix(PxZERO r) : topLeft(PxZero), topRight(PxZero),
+		PX_CUDA_CALLABLE PX_FORCE_INLINE SpatialMatrix(PxZERO) : topLeft(PxZero), topRight(PxZero),
 			bottomLeft(PxZero)
 		{
-			PX_UNUSED(r);
 		}
 
 		PX_CUDA_CALLABLE PX_FORCE_INLINE SpatialMatrix(const PxMat33& topLeft_, const PxMat33& topRight_, const PxMat33& bottomLeft_)
@@ -267,19 +157,18 @@ namespace Dy
 			return topLeft.getTranspose();
 		}
 
-		PX_FORCE_INLINE void setZero()
+		PX_FORCE_INLINE PX_CUDA_CALLABLE void setZero()
 		{
 			topLeft = PxMat33(0.f);
 			topRight = PxMat33(0.f);
 			bottomLeft = PxMat33(0.f);
 		}
 
-
 		//This assume angular is the top vector and linear is the bottom vector
 		PX_CUDA_CALLABLE PX_FORCE_INLINE Cm::SpatialVector operator *(const Cm::SpatialVector& s) const
 		{
 			const PxVec3 angular = topLeft * s.angular + topRight * s.linear;
-			const PxVec3 linear = bottomLeft * s.angular + topLeft.getTranspose() * s.linear;
+			const PxVec3 linear = bottomLeft * s.angular + topLeft.transformTranspose(s.linear);
 			return Cm::SpatialVector(linear, angular);
 		}
 
@@ -300,82 +189,127 @@ namespace Dy
 			return Cm::UnAlignedSpatialVector(top, bottom);
 		}
 
-
-		PX_CUDA_CALLABLE PX_FORCE_INLINE SpatialMatrix operator *(const PxReal& s) const
+		// PT: this is unused
+		/*PX_CUDA_CALLABLE PX_FORCE_INLINE SpatialMatrix operator *(const PxReal& s) const
 		{
 			const PxMat33 newTopLeft = topLeft * s;
 			const PxMat33 newTopRight = topRight * s;
 			const PxMat33 newBottomLeft = bottomLeft * s;
 
 			return SpatialMatrix(newTopLeft, newTopRight, newBottomLeft);
+		}*/
+
+		static PX_FORCE_INLINE void sub(SpatialMatrix& dst, const SpatialMatrix& a, const SpatialMatrix& b)
+		{
+#if PX_SPATIAL_MATRIX_SIMD
+			using namespace aos;
+
+			const float* src0 = &a.topLeft.column0.x;
+			const float* src1 = &b.topLeft.column0.x;
+			float* d = &dst.topLeft.column0.x;
+
+			// PT: 3*3*3 floats = 27 floats of data + 1 float of padding = 28 floats to copy = 7 SIMD copies
+			V4StoreU(V4Sub(V4LoadU(src0+4*0), V4LoadU(src1+4*0)), d+4*0);
+			V4StoreU(V4Sub(V4LoadU(src0+4*1), V4LoadU(src1+4*1)), d+4*1);
+			V4StoreU(V4Sub(V4LoadU(src0+4*2), V4LoadU(src1+4*2)), d+4*2);
+			V4StoreU(V4Sub(V4LoadU(src0+4*3), V4LoadU(src1+4*3)), d+4*3);
+			V4StoreU(V4Sub(V4LoadU(src0+4*4), V4LoadU(src1+4*4)), d+4*4);
+			V4StoreU(V4Sub(V4LoadU(src0+4*5), V4LoadU(src1+4*5)), d+4*5);
+			V4StoreU(V4Sub(V4LoadU(src0+4*6), V4LoadU(src1+4*6)), d+4*6);
+#else
+			dst.topLeft = a.topLeft - b.topLeft;
+			dst.topRight = a.topRight - b.topRight;
+			dst.bottomLeft = a.bottomLeft - b.bottomLeft;
+#endif
 		}
 
+		// PT: this is unused on the CPU
+#if PX_CUDA_COMPILER
 		PX_CUDA_CALLABLE PX_FORCE_INLINE SpatialMatrix operator -(const SpatialMatrix& s) const
 		{
-			PxMat33 newTopLeft = topLeft - s.topLeft;
-			PxMat33 newTopRight = topRight - s.topRight;
-			PxMat33 newBottomLeft = bottomLeft - s.bottomLeft;
+			const PxMat33 newTopLeft = topLeft - s.topLeft;
+			const PxMat33 newTopRight = topRight - s.topRight;
+			const PxMat33 newBottomLeft = bottomLeft - s.bottomLeft;
 			
 			return SpatialMatrix(newTopLeft, newTopRight, newBottomLeft);
 		}
 
 		PX_CUDA_CALLABLE PX_FORCE_INLINE SpatialMatrix operator +(const SpatialMatrix& s) const
 		{
-			PxMat33 newTopLeft = topLeft + s.topLeft;
-			PxMat33 newTopRight = topRight + s.topRight;
-			PxMat33 newBottomLeft = bottomLeft + s.bottomLeft;
+			const PxMat33 newTopLeft = topLeft + s.topLeft;
+			const PxMat33 newTopRight = topRight + s.topRight;
+			const PxMat33 newBottomLeft = bottomLeft + s.bottomLeft;
 
 			return SpatialMatrix(newTopLeft, newTopRight, newBottomLeft);
 		}
+#endif
 
-		PX_CUDA_CALLABLE PX_FORCE_INLINE SpatialMatrix operator-()
+		// PT: this is unused
+		/*PX_CUDA_CALLABLE PX_FORCE_INLINE SpatialMatrix operator-()
 		{
-			PxMat33 newTopLeft = -topLeft;
-			PxMat33 newTopRight = -topRight;
-			PxMat33 newBottomLeft = -bottomLeft;
+			const PxMat33 newTopLeft = -topLeft;
+			const PxMat33 newTopRight = -topRight;
+			const PxMat33 newBottomLeft = -bottomLeft;
 			
 			return SpatialMatrix(newTopLeft, newTopRight, newBottomLeft);
-		}
+		}*/
 
 		PX_CUDA_CALLABLE PX_FORCE_INLINE void operator +=(const SpatialMatrix& s)
 		{
+#if PX_SPATIAL_MATRIX_SIMD
+			using namespace aos;
+
+			const float* src1 = &s.topLeft.column0.x;
+			float* d = &topLeft.column0.x;
+
+			// PT: 3*3*3 floats = 27 floats of data + 1 float of padding = 28 floats to copy = 7 SIMD copies
+			V4StoreU(V4Add(V4LoadU(d+4*0), V4LoadU(src1+4*0)), d+4*0);
+			V4StoreU(V4Add(V4LoadU(d+4*1), V4LoadU(src1+4*1)), d+4*1);
+			V4StoreU(V4Add(V4LoadU(d+4*2), V4LoadU(src1+4*2)), d+4*2);
+			V4StoreU(V4Add(V4LoadU(d+4*3), V4LoadU(src1+4*3)), d+4*3);
+			V4StoreU(V4Add(V4LoadU(d+4*4), V4LoadU(src1+4*4)), d+4*4);
+			V4StoreU(V4Add(V4LoadU(d+4*5), V4LoadU(src1+4*5)), d+4*5);
+			V4StoreU(V4Add(V4LoadU(d+4*6), V4LoadU(src1+4*6)), d+4*6);
+#else
 			topLeft += s.topLeft;
 			topRight += s.topRight;
 			bottomLeft += s.bottomLeft;
+#endif
 		}
 
-		PX_CUDA_CALLABLE PX_FORCE_INLINE SpatialMatrix operator *(const SpatialMatrix& s)
+		// PT: this is unused
+/*		PX_CUDA_CALLABLE PX_FORCE_INLINE SpatialMatrix operator *(const SpatialMatrix& s)
 		{
-			PxMat33 sBottomRight = s.topLeft.getTranspose();
-			PxMat33 bottomRight = topLeft.getTranspose();
+			const PxMat33 sBottomRight = s.topLeft.getTranspose();
+			const PxMat33 bottomRight = topLeft.getTranspose();
 
-			PxMat33 newTopLeft = topLeft * s.topLeft + topRight * s.bottomLeft;
-			PxMat33 newTopRight = topLeft * s.topRight + topRight * sBottomRight;
-			PxMat33 newBottomLeft = bottomLeft * s.topLeft + bottomRight * s.bottomLeft;
+			const PxMat33 newTopLeft = topLeft * s.topLeft + topRight * s.bottomLeft;
+			const PxMat33 newTopRight = topLeft * s.topRight + topRight * sBottomRight;
+			const PxMat33 newBottomLeft = bottomLeft * s.topLeft + bottomRight * s.bottomLeft;
 
 			return SpatialMatrix(newTopLeft, newTopRight, newBottomLeft);
-		}
+		}*/
 
+#if PX_CUDA_COMPILER
 		static SpatialMatrix constructSpatialMatrix(const Cm::SpatialVector& Is, const Cm::SpatialVector& stI)
 		{
 			//construct top left
-			PxVec3 tLeftC0 = Is.angular * stI.angular.x;
-			PxVec3 tLeftC1 = Is.angular * stI.angular.y;
-			PxVec3 tLeftC2 = Is.angular * stI.angular.z;
-
-			PxMat33 topLeft(tLeftC0, tLeftC1, tLeftC2);
+			const PxVec3 tLeftC0 = Is.angular * stI.angular.x;
+			const PxVec3 tLeftC1 = Is.angular * stI.angular.y;
+			const PxVec3 tLeftC2 = Is.angular * stI.angular.z;
+			const PxMat33 topLeft(tLeftC0, tLeftC1, tLeftC2);
 
 			//construct top right
-			PxVec3 tRightC0 = Is.angular * stI.linear.x;
-			PxVec3 tRightC1 = Is.angular * stI.linear.y;
-			PxVec3 tRightC2 = Is.angular * stI.linear.z;
-			PxMat33 topRight(tRightC0, tRightC1, tRightC2);
+			const PxVec3 tRightC0 = Is.angular * stI.linear.x;
+			const PxVec3 tRightC1 = Is.angular * stI.linear.y;
+			const PxVec3 tRightC2 = Is.angular * stI.linear.z;
+			const PxMat33 topRight(tRightC0, tRightC1, tRightC2);
 
 			//construct bottom left
-			PxVec3 bLeftC0 = Is.linear * stI.angular.x;
-			PxVec3 bLeftC1 = Is.linear * stI.angular.y;
-			PxVec3 bLeftC2 = Is.linear * stI.angular.z;
-			PxMat33 bottomLeft(bLeftC0, bLeftC1, bLeftC2);
+			const PxVec3 bLeftC0 = Is.linear * stI.angular.x;
+			const PxVec3 bLeftC1 = Is.linear * stI.angular.y;
+			const PxVec3 bLeftC2 = Is.linear * stI.angular.z;
+			const PxMat33 bottomLeft(bLeftC0, bLeftC1, bLeftC2);
 
 			return SpatialMatrix(topLeft, topRight, bottomLeft);
 		}
@@ -383,45 +317,114 @@ namespace Dy
 		static PX_CUDA_CALLABLE SpatialMatrix constructSpatialMatrix(const Cm::SpatialVectorF& Is, const Cm::SpatialVectorF& stI)
 		{
 			//construct top left
-			PxVec3 tLeftC0 = Is.top * stI.top.x;
-			PxVec3 tLeftC1 = Is.top * stI.top.y;
-			PxVec3 tLeftC2 = Is.top * stI.top.z;
-
-			PxMat33 topLeft(tLeftC0, tLeftC1, tLeftC2);
+			const PxVec3 tLeftC0 = Is.top * stI.top.x;
+			const PxVec3 tLeftC1 = Is.top * stI.top.y;
+			const PxVec3 tLeftC2 = Is.top * stI.top.z;
+			const PxMat33 topLeft(tLeftC0, tLeftC1, tLeftC2);
 
 			//construct top right
-			PxVec3 tRightC0 = Is.top * stI.bottom.x;
-			PxVec3 tRightC1 = Is.top * stI.bottom.y;
-			PxVec3 tRightC2 = Is.top * stI.bottom.z;
-			PxMat33 topRight(tRightC0, tRightC1, tRightC2);
+			const PxVec3 tRightC0 = Is.top * stI.bottom.x;
+			const PxVec3 tRightC1 = Is.top * stI.bottom.y;
+			const PxVec3 tRightC2 = Is.top * stI.bottom.z;
+			const PxMat33 topRight(tRightC0, tRightC1, tRightC2);
 
 			//construct bottom left
-			PxVec3 bLeftC0 = Is.bottom * stI.top.x;
-			PxVec3 bLeftC1 = Is.bottom * stI.top.y;
-			PxVec3 bLeftC2 = Is.bottom * stI.top.z;
-			PxMat33 bottomLeft(bLeftC0, bLeftC1, bLeftC2);
+			const PxVec3 bLeftC0 = Is.bottom * stI.top.x;
+			const PxVec3 bLeftC1 = Is.bottom * stI.top.y;
+			const PxVec3 bLeftC2 = Is.bottom * stI.top.z;
+			const PxMat33 bottomLeft(bLeftC0, bLeftC1, bLeftC2);
 
 			return SpatialMatrix(topLeft, topRight, bottomLeft);
 		}
-
-		static PX_CUDA_CALLABLE SpatialMatrix constructSpatialMatrix(const Cm::SpatialVectorF* columns)
+#else
+		static PX_CUDA_CALLABLE void constructSpatialMatrix(SpatialMatrix& dst, const Cm::SpatialVectorF& Is, const Cm::SpatialVectorF& stI)
 		{
-			PxMat33 topLeft(columns[0].top, columns[1].top, columns[2].top);
-			PxMat33 bottomLeft(columns[0].bottom, columns[1].bottom, columns[2].bottom);
-			PxMat33 topRight(columns[3].top, columns[4].top, columns[5].top);
+			using namespace aos;
+
+			const Vec4V IsTopV = V4LoadA(&Is.top.x);
+			const Vec4V IsBottomV = V4LoadA(&Is.bottom.x);
+			const Vec4V stITopV = V4LoadA(&stI.top.x);
+			const Vec4V stIBottomV = V4LoadA(&stI.bottom.x);
+
+			//construct top left
+			const Vec4V tLeftC0V = V4Scale(IsTopV, V4GetX(stITopV));
+			const Vec4V tLeftC1V = V4Scale(IsTopV, V4GetY(stITopV));
+			const Vec4V tLeftC2V = V4Scale(IsTopV, V4GetZ(stITopV));
+			V4StoreU(tLeftC0V, &dst.topLeft.column0.x);
+			V4StoreU(tLeftC1V, &dst.topLeft.column1.x);
+			V4StoreU(tLeftC2V, &dst.topLeft.column2.x);
+
+			//construct top right
+			const Vec4V tRightC0V = V4Scale(IsTopV, V4GetX(stIBottomV));
+			const Vec4V tRightC1V = V4Scale(IsTopV, V4GetY(stIBottomV));
+			const Vec4V tRightC2V = V4Scale(IsTopV, V4GetZ(stIBottomV));
+			V4StoreU(tRightC0V, &dst.topRight.column0.x);
+			V4StoreU(tRightC1V, &dst.topRight.column1.x);
+			V4StoreU(tRightC2V, &dst.topRight.column2.x);
+
+			//construct bottom left
+			const Vec4V bLeftC0V = V4Scale(IsBottomV, V4GetX(stITopV));
+			const Vec4V bLeftC1V = V4Scale(IsBottomV, V4GetY(stITopV));
+			const Vec4V bLeftC2V = V4Scale(IsBottomV, V4GetZ(stITopV));
+			V4StoreU(bLeftC0V, &dst.bottomLeft.column0.x);
+			V4StoreU(bLeftC1V, &dst.bottomLeft.column1.x);
+			V4StoreU(bLeftC2V, &dst.bottomLeft.column2.x);
+		}
+#endif
+
+#if PX_CUDA_COMPILER
+		template <typename SpatialVector>
+		static PX_CUDA_CALLABLE SpatialMatrix constructSpatialMatrix(const SpatialVector* columns)
+		{
+			const PxMat33 topLeft(columns[0].top, columns[1].top, columns[2].top);
+			const PxMat33 bottomLeft(columns[0].bottom, columns[1].bottom, columns[2].bottom);
+			const PxMat33 topRight(columns[3].top, columns[4].top, columns[5].top);
 			
 			return SpatialMatrix(topLeft, topRight, bottomLeft);
 		}
-
-		PX_CUDA_CALLABLE PX_FORCE_INLINE SpatialMatrix getTranspose()
+#else
+		static PX_CUDA_CALLABLE void constructSpatialMatrix(SpatialMatrix& dst, const Cm::SpatialVectorF* columns)
 		{
-			PxMat33 newTopLeft = topLeft.getTranspose();
-			PxMat33 newTopRight = bottomLeft.getTranspose();
-			PxMat33 newBottomLeft = topRight.getTranspose();
-			//PxMat33 newBottomRight = bottomRight.getTranspose();
+			//dst.topLeft = PxMat33(columns[0].top, columns[1].top, columns[2].top);
+			//dst.bottomLeft = PxMat33(columns[0].bottom, columns[1].bottom, columns[2].bottom);
+			//dst.topRight = PxMat33(columns[3].top, columns[4].top, columns[5].top);
+
+			using namespace aos;
+
+			const Vec4V column0TopV = V4LoadA(&columns[0].top.x);
+			const Vec4V column1TopV = V4LoadA(&columns[1].top.x);
+			const Vec4V column2TopV = V4LoadA(&columns[2].top.x);
+			V4StoreU(column0TopV, &dst.topLeft.column0.x);
+			V4StoreU(column1TopV, &dst.topLeft.column1.x);
+			V4StoreU(column2TopV, &dst.topLeft.column2.x);
+
+			const Vec4V column3TopV = V4LoadA(&columns[3].top.x);
+			const Vec4V column4TopV = V4LoadA(&columns[4].top.x);
+			const Vec4V column5TopV = V4LoadA(&columns[5].top.x);
+			V4StoreU(column3TopV, &dst.topRight.column0.x);
+			V4StoreU(column4TopV, &dst.topRight.column1.x);
+			V4StoreU(column5TopV, &dst.topRight.column2.x);
+
+			const Vec4V column0BottomV = V4LoadA(&columns[0].bottom.x);
+			const Vec4V column1BottomV = V4LoadA(&columns[1].bottom.x);
+			const Vec4V column2BottomV = V4LoadA(&columns[2].bottom.x);
+			V4StoreU(column0BottomV, &dst.bottomLeft.column0.x);
+			V4StoreU(column1BottomV, &dst.bottomLeft.column1.x);
+			V4StoreU(column2BottomV, &dst.bottomLeft.column2.x);
+			// PT: TODO: if the bottom 3/4/5 data aren't used, why did we compute them in the calling code?
+		}
+#endif
+
+		// PT: this is unused
+		/*PX_CUDA_CALLABLE PX_FORCE_INLINE SpatialMatrix getTranspose()
+		{
+			const PxMat33 newTopLeft = topLeft.getTranspose();
+			const PxMat33 newTopRight = bottomLeft.getTranspose();
+			const PxMat33 newBottomLeft = topRight.getTranspose();
+			//const PxMat33 newBottomRight = bottomRight.getTranspose();
 
 			return SpatialMatrix(newTopLeft, newTopRight, newBottomLeft);// , newBottomRight);
-		}
+		}*/
 
 		//static bool isTranspose(const PxMat33& a, const PxMat33& b)
 		//{
@@ -441,11 +444,11 @@ namespace Dy
 
 		PX_FORCE_INLINE bool isIdentity(const PxMat33& matrix)
 		{
-			PxReal eps = 0.00001f;
-			float x = PxAbs(1.f - matrix.column0.x);
-			float y = PxAbs(1.f - matrix.column1.y);
-			float z = PxAbs(1.f - matrix.column2.z);
-			bool identity = ((x < eps) && PxAbs(matrix.column0.y - 0.f) < eps && PxAbs(matrix.column0.z - 0.f) < eps) &&
+			const PxReal eps = 0.00001f;
+			const float x = PxAbs(1.f - matrix.column0.x);
+			const float y = PxAbs(1.f - matrix.column1.y);
+			const float z = PxAbs(1.f - matrix.column2.z);
+			const bool identity = ((x < eps) && PxAbs(matrix.column0.y - 0.f) < eps && PxAbs(matrix.column0.z - 0.f) < eps) &&
 				(PxAbs(matrix.column1.x - 0.f) < eps && (y < eps) && PxAbs(matrix.column1.z - 0.f) < eps) &&
 				(PxAbs(matrix.column2.x - 0.f) < eps && PxAbs(matrix.column2.y - 0.f) < eps && (z < eps));
 
@@ -454,7 +457,7 @@ namespace Dy
 
 		PX_FORCE_INLINE bool isZero(const PxMat33& matrix)
 		{
-			PxReal eps = 0.0001f;
+			const PxReal eps = 0.0001f;
 			for (PxU32 i = 0; i < 3; ++i)
 			{
 				for (PxU32 j = 0; j < 3; ++j)
@@ -469,23 +472,23 @@ namespace Dy
 
 		PX_FORCE_INLINE bool isIdentity()
 		{
-			bool topLeftIsIdentity = isIdentity(topLeft);
+			const bool topLeftIsIdentity = isIdentity(topLeft);
 
-			bool topRightIsZero = isZero(topRight);
+			const bool topRightIsZero = isZero(topRight);
 
-			bool bottomLeftIsZero = isZero(bottomLeft);
+			const bool bottomLeftIsZero = isZero(bottomLeft);
 
 			return topLeftIsIdentity && topRightIsZero && bottomLeftIsZero;
 		}
 
 		static bool isEqual(const PxMat33& s0, const PxMat33& s1)
 		{
-			PxReal eps = 0.00001f;
+			const PxReal eps = 0.00001f;
 			for (PxU32 i = 0; i < 3; ++i)
 			{
 				for (PxU32 j = 0; j < 3; ++j)
 				{
-					PxReal t = s0[i][j] - s1[i][j];
+					const PxReal t = s0[i][j] - s1[i][j];
 					if (PxAbs(t) > eps)
 						return false;
 				}
@@ -496,24 +499,24 @@ namespace Dy
 
 		PX_FORCE_INLINE bool isEqual(const SpatialMatrix& s)
 		{
-			bool topLeftEqual = isEqual(topLeft, s.topLeft);
-			bool topRightEqual = isEqual(topRight, s.topRight);
-			bool bottomLeftEqual = isEqual(bottomLeft, s.bottomLeft);
+			const bool topLeftEqual = isEqual(topLeft, s.topLeft);
+			const bool topRightEqual = isEqual(topRight, s.topRight);
+			const bool bottomLeftEqual = isEqual(bottomLeft, s.bottomLeft);
 
 			return topLeftEqual && topRightEqual && bottomLeftEqual;
 		}
 
 		static PX_CUDA_CALLABLE PX_FORCE_INLINE PxMat33 invertSym33(const PxMat33& in)
 		{
-			PxVec3 v0 = in[1].cross(in[2]),
-				v1 = in[2].cross(in[0]),
-				v2 = in[0].cross(in[1]);
+			const PxVec3 v0 = in[1].cross(in[2]);
+			const PxVec3 v1 = in[2].cross(in[0]);
+			const PxVec3 v2 = in[0].cross(in[1]);
 
-			PxReal det = v0.dot(in[0]);
+			const PxReal det = v0.dot(in[0]);
 
 			if (det != 0)
 			{
-				PxReal recipDet = 1.0f / det;
+				const PxReal recipDet = 1.0f / det;
 
 				return PxMat33(v0 * recipDet,
 					PxVec3(v0.y, v1.y, v1.z) * recipDet,
@@ -525,14 +528,14 @@ namespace Dy
 			}
 		}
 
-		static PX_FORCE_INLINE Ps::aos::Mat33V invertSym33(const Ps::aos::Mat33V& in)
+		static PX_FORCE_INLINE aos::Mat33V invertSym33(const aos::Mat33V& in)
 		{
-			using namespace Ps::aos;
+			using namespace aos;
 			const Vec3V v0 = V3Cross(in.col1, in.col2);
 			const Vec3V v1 = V3Cross(in.col2, in.col0);
 			const Vec3V v2 = V3Cross(in.col0, in.col1);
 
-			FloatV det = V3Dot(v0, in.col0);
+			const FloatV det = V3Dot(v0, in.col0);
 
 			const FloatV recipDet = FRecip(det);
 
@@ -557,68 +560,68 @@ namespace Dy
 			aa = (aa + aa.getTranspose())*0.5f;
 			ll = (ll + ll.getTranspose())*0.5f;
 
-			PxMat33 AAInv = invertSym33(aa);
+			const PxMat33 AAInv = invertSym33(aa);
 
-			PxMat33 z = -la * AAInv;
-			PxMat33 S = ll + z * la.getTranspose();	// Schur complement of mAA
+			const PxMat33 z = -la * AAInv;
+			const PxMat33 S = ll + z * la.getTranspose();	// Schur complement of mAA
 
-			PxMat33 LL = invertSym33(S);
+			const PxMat33 LL = invertSym33(S);
 
-			PxMat33 LA = LL * z;
-			PxMat33 AA = AAInv + z.getTranspose() * LA;
+			const PxMat33 LA = LL * z;
+			const PxMat33 AA = AAInv + z.getTranspose() * LA;
 
-			SpatialMatrix result(LA.getTranspose(), AA, LL);// , LA);
+			const SpatialMatrix result(LA.getTranspose(), AA, LL);// , LA);
 
 			return result;
 		}
 
-		PX_FORCE_INLINE void M33Store(const Ps::aos::Mat33V& src, PxMat33& dest)
+		PX_FORCE_INLINE void M33Store(const aos::Mat33V& src, PxMat33& dest)
 		{
-			Ps::aos::V3StoreU(src.col0, dest.column0);
-			Ps::aos::V3StoreU(src.col1, dest.column1);
-			Ps::aos::V3StoreU(src.col2, dest.column2);
+			aos::V3StoreU(src.col0, dest.column0);
+			aos::V3StoreU(src.col1, dest.column1);
+			aos::V3StoreU(src.col2, dest.column2);
 		}
 
 		PX_FORCE_INLINE void invertInertiaV(SpatialMatrix& result)
 		{
-			using namespace Ps::aos;
+			using namespace aos;
 			Mat33V aa = M33Load(bottomLeft), ll = M33Load(topRight), la = M33Load(topLeft);
 
 			aa = M33Scale(M33Add(aa, M33Trnsps(aa)), FHalf());
 			ll = M33Scale(M33Add(ll, M33Trnsps(ll)), FHalf());
 
-			Mat33V AAInv = invertSym33(aa);
+			const Mat33V AAInv = invertSym33(aa);
 
-			Mat33V z = M33MulM33(M33Neg(la), AAInv);
-			Mat33V S = M33Add(ll, M33MulM33(z, M33Trnsps(la)));	// Schur complement of mAA
+			const Mat33V z = M33MulM33(M33Neg(la), AAInv);
+			const Mat33V S = M33Add(ll, M33MulM33(z, M33Trnsps(la)));	// Schur complement of mAA
 
-			Mat33V LL = invertSym33(S);
+			const Mat33V LL = invertSym33(S);
 
-			Mat33V LA = M33MulM33(LL, z);
-			Mat33V AA = M33Add(AAInv, M33MulM33(M33Trnsps(z), LA));
+			const Mat33V LA = M33MulM33(LL, z);
+			const Mat33V AA = M33Add(AAInv, M33MulM33(M33Trnsps(z), LA));
 
 			M33Store(M33Trnsps(LA), result.topLeft);
 			M33Store(AA, result.topRight);
 			M33Store(LL, result.bottomLeft);
 		}
 
-		SpatialMatrix getInverse()
+		SpatialMatrix getInverse()	const
 		{
-			PxMat33 bottomRight = topLeft.getTranspose();
+			const PxMat33 bottomRight = topLeft.getTranspose();
 
-			PxMat33 blInverse = bottomLeft.getInverse();
-			PxMat33 lComp0 = blInverse * (-bottomRight);
-			PxMat33 lComp1 = topLeft * lComp0 + topRight;
+			const PxMat33 blInverse = bottomLeft.getInverse();
+			const PxMat33 lComp0 = blInverse * (-bottomRight);
+			const PxMat33 lComp1 = topLeft * lComp0 + topRight;
 
 			//This can be simplified
-			PxMat33 newBottomLeft = lComp1.getInverse();
-			PxMat33 newTopLeft = lComp0 * newBottomLeft;
+			const PxMat33 newBottomLeft = lComp1.getInverse();
+			const PxMat33 newTopLeft = lComp0 * newBottomLeft;
 
-			PxMat33 trInverse = topRight.getInverse();
-			PxMat33 rComp0 = trInverse * (-topLeft);
-			PxMat33 rComp1 = bottomLeft + bottomRight * rComp0;
+			const PxMat33 trInverse = topRight.getInverse();
+			const PxMat33 rComp0 = trInverse * (-topLeft);
+			const PxMat33 rComp1 = bottomLeft + bottomRight * rComp0;
 
-			PxMat33 newTopRight = rComp1.getInverse();
+			const PxMat33 newTopRight = rComp1.getInverse();
 			
 			return SpatialMatrix(newTopLeft, newTopRight, newBottomLeft);
 		}
@@ -629,28 +632,33 @@ namespace Dy
 			topRight = PxMat33(PxZero);
 			bottomLeft = PxMat33(PxZero);
 		}
-
 	};
 
-	struct SpatialImpulseResponseMatrix
-	{
-		Cm::SpatialVectorF rows[6];
+#if PX_SPATIAL_MATRIX_SIMD
+	// PT: some SIMD code above relies on this size
+	PX_COMPILE_TIME_ASSERT(sizeof(SpatialMatrix) == 7 * 16);
+#endif
 
-		Cm::SpatialVectorF getResponse(const Cm::SpatialVectorF& impulse) const
+	struct TestImpulseResponse
+	{
+		//Link deltaV responses to 6 test link impulses { [(1,0,0),(0,0,0)], [(0,1,0),(0,0,0)] ......[(0,0,0),(0,1,0)], [(0,0,0),(0,0,1)] }
+		Cm::SpatialVectorF linkDeltaVTestImpulseResponses[6];
+
+		Cm::SpatialVectorF getLinkDeltaVImpulseResponse(const Cm::SpatialVectorF& impulse) const
 		{
 			/*return rows[0] * impulse.top.x + rows[1] * impulse.top.y + rows[2] * impulse.top.z
 			+ rows[3] * impulse.bottom.x + rows[4] * impulse.bottom.y + rows[5] * impulse.bottom.z;*/
 
-			using namespace Ps::aos;
-			Cm::SpatialVectorV row0(V3LoadA(&rows[0].top.x), V3LoadA(&rows[0].bottom.x));
-			Cm::SpatialVectorV row1(V3LoadA(&rows[1].top.x), V3LoadA(&rows[1].bottom.x));
-			Cm::SpatialVectorV row2(V3LoadA(&rows[2].top.x), V3LoadA(&rows[2].bottom.x));
-			Cm::SpatialVectorV row3(V3LoadA(&rows[3].top.x), V3LoadA(&rows[3].bottom.x));
-			Cm::SpatialVectorV row4(V3LoadA(&rows[4].top.x), V3LoadA(&rows[4].bottom.x));
-			Cm::SpatialVectorV row5(V3LoadA(&rows[5].top.x), V3LoadA(&rows[5].bottom.x));
+			using namespace aos;
+			const Cm::SpatialVectorV row0(V3LoadA(&linkDeltaVTestImpulseResponses[0].top.x), V3LoadA(&linkDeltaVTestImpulseResponses[0].bottom.x));
+			const Cm::SpatialVectorV row1(V3LoadA(&linkDeltaVTestImpulseResponses[1].top.x), V3LoadA(&linkDeltaVTestImpulseResponses[1].bottom.x));
+			const Cm::SpatialVectorV row2(V3LoadA(&linkDeltaVTestImpulseResponses[2].top.x), V3LoadA(&linkDeltaVTestImpulseResponses[2].bottom.x));
+			const Cm::SpatialVectorV row3(V3LoadA(&linkDeltaVTestImpulseResponses[3].top.x), V3LoadA(&linkDeltaVTestImpulseResponses[3].bottom.x));
+			const Cm::SpatialVectorV row4(V3LoadA(&linkDeltaVTestImpulseResponses[4].top.x), V3LoadA(&linkDeltaVTestImpulseResponses[4].bottom.x));
+			const Cm::SpatialVectorV row5(V3LoadA(&linkDeltaVTestImpulseResponses[5].top.x), V3LoadA(&linkDeltaVTestImpulseResponses[5].bottom.x));
 
-			Vec4V top = V4LoadA(&impulse.top.x);
-			Vec4V bottom = V4LoadA(&impulse.bottom.x);
+			const Vec4V top = V4LoadA(&impulse.top.x);
+			const Vec4V bottom = V4LoadA(&impulse.bottom.x);
 
 			const FloatV ix = V4GetX(top);
 			const FloatV iy = V4GetY(top);
@@ -666,18 +674,17 @@ namespace Dy
 			V4StoreA(Vec4V_From_Vec3V(res.angular), &returnVal.bottom.x);
 
 			return returnVal;
-
 		}
 
-		Cm::SpatialVectorV getResponse(const Cm::SpatialVectorV& impulse) const
+		Cm::SpatialVectorV getLinkDeltaVImpulseResponse(const Cm::SpatialVectorV& impulse) const
 		{
-			using namespace Ps::aos;
-			Cm::SpatialVectorV row0(V3LoadA(&rows[0].top.x), V3LoadA(&rows[0].bottom.x));
-			Cm::SpatialVectorV row1(V3LoadA(&rows[1].top.x), V3LoadA(&rows[1].bottom.x));
-			Cm::SpatialVectorV row2(V3LoadA(&rows[2].top.x), V3LoadA(&rows[2].bottom.x));
-			Cm::SpatialVectorV row3(V3LoadA(&rows[3].top.x), V3LoadA(&rows[3].bottom.x));
-			Cm::SpatialVectorV row4(V3LoadA(&rows[4].top.x), V3LoadA(&rows[4].bottom.x));
-			Cm::SpatialVectorV row5(V3LoadA(&rows[5].top.x), V3LoadA(&rows[5].bottom.x));
+			using namespace aos;
+			const Cm::SpatialVectorV row0(V3LoadA(&linkDeltaVTestImpulseResponses[0].top.x), V3LoadA(&linkDeltaVTestImpulseResponses[0].bottom.x));
+			const Cm::SpatialVectorV row1(V3LoadA(&linkDeltaVTestImpulseResponses[1].top.x), V3LoadA(&linkDeltaVTestImpulseResponses[1].bottom.x));
+			const Cm::SpatialVectorV row2(V3LoadA(&linkDeltaVTestImpulseResponses[2].top.x), V3LoadA(&linkDeltaVTestImpulseResponses[2].bottom.x));
+			const Cm::SpatialVectorV row3(V3LoadA(&linkDeltaVTestImpulseResponses[3].top.x), V3LoadA(&linkDeltaVTestImpulseResponses[3].bottom.x));
+			const Cm::SpatialVectorV row4(V3LoadA(&linkDeltaVTestImpulseResponses[4].top.x), V3LoadA(&linkDeltaVTestImpulseResponses[4].bottom.x));
+			const Cm::SpatialVectorV row5(V3LoadA(&linkDeltaVTestImpulseResponses[5].top.x), V3LoadA(&linkDeltaVTestImpulseResponses[5].bottom.x));
 
 			const Vec3V top = impulse.linear;
 			const Vec3V bottom = impulse.angular;
@@ -703,7 +710,6 @@ namespace Dy
 
 		Temp6x3Matrix()
 		{
-
 		}
 
 		Temp6x3Matrix(const Cm::SpatialVectorF* spatialAxis)
@@ -755,7 +761,7 @@ namespace Dy
 			for (PxU32 i = 0; i < 3; ++i)
 			{
 				PxReal* tc = temp.column[i];
-				PxVec3 sc = s[i];
+				const PxVec3 sc = s[i];
 
 				for (PxU32 j = 0; j < 6; ++j)
 				{
@@ -783,9 +789,7 @@ namespace Dy
 			}
 			return true;
 		}
-
 	};
-
 
 	struct Temp6x6Matrix
 	{
@@ -793,7 +797,6 @@ namespace Dy
 	public:
 		Temp6x6Matrix()
 		{
-
 		}
 
 		Temp6x6Matrix(const SpatialMatrix& spatialMatrix)
@@ -857,13 +860,11 @@ namespace Dy
 				}
 			}
 
-
 			Cm::SpatialVector temp;
 			temp.angular.x = result[0]; temp.angular.y = result[1]; temp.angular.z = result[2];
 			temp.linear.x = result[3]; temp.linear.y = result[4]; temp.linear.z = result[5];
 			return temp;
 		}
-
 
 		PX_FORCE_INLINE Cm::SpatialVectorF operator * (const Cm::SpatialVectorF& s) const
 		{
@@ -907,7 +908,6 @@ namespace Dy
 			}
 
 			return temp;
-
 		}
 
 		PX_FORCE_INLINE Cm::SpatialVector spatialVectorMul(const Cm::SpatialVector& s)
@@ -935,7 +935,7 @@ namespace Dy
 		PX_FORCE_INLINE bool isEqual(const Cm::SpatialVectorF* m)
 		{
 			PxReal temp[6];
-			PxReal eps = 0.00001f;
+			const PxReal eps = 0.00001f;
 			for (PxU32 i = 0; i < 6; ++i)
 			{
 				temp[0] = m[i].top.x; temp[1] = m[i].top.y; temp[2] = m[i].top.z;
@@ -943,7 +943,7 @@ namespace Dy
 
 				for (PxU32 j = 0; j < 6; ++j)
 				{
-					PxReal dif = column[i][j] - temp[j];
+					const PxReal dif = column[i][j] - temp[j];
 					if (PxAbs(dif) > eps)
 						return false;
 				}
@@ -991,7 +991,6 @@ namespace Dy
 		angular = (axis * angle) / dt;
 	}
 
-
 	// generates a pair of quaternions (swing, twist) such that in = swing * twist, with
 	// swing.x = 0
 	// twist.y = twist.z = 0, and twist is a unit quat
@@ -1012,7 +1011,6 @@ namespace Dy
 		swing = swing * swing1.getConjugate();
 		twist = swing.x != 0.f ? PxQuat(swing.x, 0.f, 0.f, swing.w).getNormalized() : PxQuat(PxIdentity);
 	}
-
 
 } //namespace Dy
 

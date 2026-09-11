@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -33,7 +32,7 @@
 	#pragma warning(disable: 4505)	// unreferenced local function has been removed
 #endif
 
-#include "PsBasicTemplates.h"
+#include "foundation/PxBasicTemplates.h"
 
 namespace
 {
@@ -64,7 +63,7 @@ struct BoxSweepParams : OBBTestParams
 	PxVec3				mDP;
 
 #ifndef SWEEP_AABB_IMPL
-	PxMat33				mAR;				//!< Absolute rotation matrix
+	PxMat33				mAbsRot;				//!< Absolute rotation matrix
 #endif
 
 	PxMat33				mRModelToBox_Padded;	//!< Rotation from model space to obb space
@@ -75,12 +74,12 @@ struct BoxSweepParams : OBBTestParams
 	PxVec3				mOneOverOriginalDir;
 
 #ifndef SWEEP_AABB_IMPL
-	PX_FORCE_INLINE void ShrinkOBB(float d)
+	PX_FORCE_INLINE void shrinkOBB(float d)
 	{
 		const PxVec3 BoxExtents = mDP + d * mProj;
 		mTBoxToModel_PaddedAligned = mLocalBox.center + mLocalDir_Padded*d*0.5f;
 
-		setupBoxData(this, BoxExtents, &mAR);
+		setupBoxBoxExtentData(this, BoxExtents, &mAbsRot);
 	}
 #endif
 };
@@ -140,7 +139,7 @@ static void prepareSweepData(const Box& box, const PxVec3& dir, float maxDist, B
 					ax1=1;
 				}
 				if(dd[ax1]<dd[ax0])
-					Ps::swap(ax0, ax1);
+					PxSwap(ax0, ax1);
 
 				R1 = LocalBox.rot[ax0];
 				R1 -= R1.dot(LocalDir)*LocalDir;	// Project to plane whose normal is dir
@@ -183,7 +182,7 @@ static void prepareSweepData(const Box& box, const PxVec3& dir, float maxDist, B
 			// <=>	mExtents[r] = Offset[r]*0.5f + Params.mDP[r];		We precompute the second part that doesn't depend on d, stored in mDP
 			// <=>	mExtents[r] = Params.mProj[r]*d + Params.mDP[r];	We extract d from the first part, store what is left in mProj
 			//
-			// Thus in ShrinkOBB the code needed to update the extents is just:
+			// Thus in shrinkOBB the code needed to update the extents is just:
 			//	mBoxExtents = mDP + d * mProj;
 			//
 			// For mCenter we have:
@@ -192,7 +191,7 @@ static void prepareSweepData(const Box& box, const PxVec3& dir, float maxDist, B
 			//
 			// So we simply use this formula directly, with the new d. Result is stored in 'mTBoxToModel'
 /*
-			PX_FORCE_INLINE void ShrinkOBB(float d)
+			PX_FORCE_INLINE void shrinkOBB(float d)
 			{
 				mBoxExtents = mDP + d * mProj;
 				mTBoxToModel = mLocalBox.mCenter + mLocalDir*d*0.5f;
@@ -203,9 +202,9 @@ static void prepareSweepData(const Box& box, const PxVec3& dir, float maxDist, B
 		params->mOffset = params->mDP.x + LocalBox.center.dot(LocalDir);
 
 #ifndef SWEEP_AABB_IMPL
-		precomputeData(params, &params->mAR, &boxToModelR);
+		setupBoxBoxRotationData(params, &params->mAbsRot, &boxToModelR);
 
-		params->ShrinkOBB(maxDist);
+		params->shrinkOBB(maxDist);
 #endif
 	}
 }

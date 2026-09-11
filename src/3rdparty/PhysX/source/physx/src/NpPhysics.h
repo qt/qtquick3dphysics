@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,36 +22,49 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
-
-#ifndef PX_PHYSICS_NP_PHYSICS
-#define PX_PHYSICS_NP_PHYSICS
+#ifndef NP_PHYSICS_H
+#define NP_PHYSICS_H
 
 #include "PxPhysics.h"
-#include "PsUserAllocated.h"
+#include "foundation/PxUserAllocated.h"
+#include "foundation/PxHashSet.h"
+#include "foundation/PxHashMap.h"
 #include "GuMeshFactory.h"
 #include "NpMaterial.h"
 #include "NpPhysicsInsertionCallback.h"
 #include "NpMaterialManager.h"
 #include "ScPhysics.h"
-#include "PsHashSet.h"
-#include "PsHashMap.h"
+#if PX_SUPPORT_GPU_PHYSX
+	#include "NpPBDMaterial.h"
+	#include "NpDeformableVolumeMaterial.h"
+	#include "NpDeformableSurfaceMaterial.h"
+#endif
 
 #ifdef LINUX
 #include <string.h>
 #endif
 
-#if PX_SUPPORT_GPU_PHYSX
-#include "device/PhysXIndicator.h"
+#if PX_SUPPORT_GPU_PHYSX && !PX_PUBLIC_RELEASE
+#include "internal/device/PhysXIndicator.h"
 #endif
 
 #include "PsPvd.h"
 
+#if PX_SUPPORT_OMNI_PVD
+class OmniPvdPxSampler;
 namespace physx
 {
+	class PxOmniPvd;
+}
+#endif
+
+namespace physx
+{
+
 #if PX_SUPPORT_PVD
 namespace Vd
 {
@@ -63,7 +75,7 @@ namespace Vd
 	{
 		NpMaterialIndexTranslator() : indicesNeedTranslation(false) {}
 
-		Ps::HashMap<PxU16, PxU16>	map;
+		PxHashMap<PxU16, PxU16>	map;
 		bool						indicesNeedTranslation;
 	};
 
@@ -75,29 +87,31 @@ namespace Vd
 #pragma warning(disable:4996)	// We have to implement deprecated member functions, do not warn.
 #endif
 
-class NpPhysics : public PxPhysics, public Ps::UserAllocated
-{
-	NpPhysics& operator=(const NpPhysics&);
-	NpPhysics(const NpPhysics &);
+template <typename T> class NpMaterialAccessor;
 
-	struct NpDelListenerEntry : public UserAllocated
+class NpPhysics : public PxPhysics, public PxUserAllocated
+{
+	PX_NOCOPY(NpPhysics)
+
+	struct NpDelListenerEntry : public PxUserAllocated
 	{
-		NpDelListenerEntry(const PxDeletionEventFlags& de, bool restrictedObjSet)
-			: flags(de)
-			, restrictedObjectSet(restrictedObjSet)
+		NpDelListenerEntry(const PxDeletionEventFlags& de, bool restrictedObjSet) :
+			flags				(de),
+			restrictedObjectSet	(restrictedObjSet)
 		{
 		}
 
-		Ps::HashSet<const PxBase*> registeredObjects;  // specifically registered objects for deletion events
-		PxDeletionEventFlags flags;
-		bool restrictedObjectSet;
+		PxHashSet<const PxBase*>	registeredObjects;  // specifically registered objects for deletion events
+		PxDeletionEventFlags		flags;
+		const bool					restrictedObjectSet;
 	};
-
 
 									NpPhysics(	const PxTolerancesScale& scale, 
 												const PxvOffsetTable& pxvOffsetTable,
 												bool trackOutstandingAllocations, 
-                                                physx::pvdsdk::PsPvd* pvd);
+                                                physx::pvdsdk::PsPvd* pvd,
+												PxFoundation&,
+												physx::PxOmniPvd* omniPvd);
 	virtual							~NpPhysics();
 
 public:
@@ -106,123 +120,213 @@ public:
 													PxFoundation& foundation, 
 													const PxTolerancesScale& scale,
 													bool trackOutstandingAllocations,
-													physx::pvdsdk::PsPvd* pvd);
+													physx::pvdsdk::PsPvd* pvd,
+													physx::PxOmniPvd* omniPvd);
 
 	static		PxU32			releaseInstance();
 
 	static      NpPhysics&		getInstance() { return *mInstance; }
 
-	virtual     void			release();
+	// PxPhysics
+	virtual     void						release()	PX_OVERRIDE;
+	virtual		PxFoundation&				getFoundation()	PX_OVERRIDE;
+	virtual		PxInsertionCallback&		getPhysicsInsertionCallback() PX_OVERRIDE	{ return mObjectInsertion; }
+	virtual		PxOmniPvd*					getOmniPvd()	PX_OVERRIDE;
+	virtual		const PxTolerancesScale&	getTolerancesScale() const	PX_OVERRIDE;
 
-	virtual		PxScene*		createScene(const PxSceneDesc&);
-				void			releaseSceneInternal(PxScene&);
-	virtual		PxU32			getNbScenes()	const;
-	virtual		PxU32			getScenes(PxScene** userBuffer, PxU32 bufferSize, PxU32 startIndex=0) const;
+	// Aggregates
+	virtual		PxAggregate*	createAggregate(PxU32 maxActors, PxU32 maxShapes, PxAggregateFilterHint filterHint)	PX_OVERRIDE;
+	virtual		PxU32			getNbAggregates() const	PX_OVERRIDE;
 
-	virtual		PxRigidStatic*						createRigidStatic(const PxTransform&);
-	virtual		PxRigidDynamic*						createRigidDynamic(const PxTransform&);
-	virtual		PxArticulation*						createArticulation();
-	virtual		PxArticulationReducedCoordinate*	createArticulationReducedCoordinate();
-	virtual		PxConstraint*						createConstraint(PxRigidActor* actor0, PxRigidActor* actor1, PxConstraintConnector& connector, const PxConstraintShaderTable& shaders, PxU32 dataSize);
-	virtual		PxAggregate*						createAggregate(PxU32 maxSize, bool selfCollision);
+	// Triangle meshes
+	virtual		PxTriangleMesh*	createTriangleMesh(PxInputStream&)	PX_OVERRIDE;
+	virtual		PxU32			getNbTriangleMeshes()	const	PX_OVERRIDE;
+	virtual		PxU32			getTriangleMeshes(PxTriangleMesh** userBuffer, PxU32 bufferSize, PxU32 startIndex=0)	const	PX_OVERRIDE;
 
-	virtual		PxShape*			createShape(const PxGeometry&, PxMaterial*const *, PxU16, bool, PxShapeFlags shapeFlags);
-	virtual		PxU32				getNbShapes()	const;
-	virtual		PxU32				getShapes(PxShape** userBuffer, PxU32 bufferSize, PxU32 startIndex)	const;
+	// Tetrahedron meshes
+	virtual		PxTetrahedronMesh*	createTetrahedronMesh(PxInputStream&)	PX_OVERRIDE;
+	virtual		PxU32				getNbTetrahedronMeshes()	const	PX_OVERRIDE;
+	virtual		PxU32				getTetrahedronMeshes(PxTetrahedronMesh** userBuffer, PxU32 bufferSize, PxU32 startIndex = 0)	const	PX_OVERRIDE;
 
-	virtual		PxMaterial*			createMaterial(PxReal staticFriction, PxReal dynamicFriction, PxReal restitution);
-	virtual		PxU32				getNbMaterials() const;
-	virtual		PxU32				getMaterials(PxMaterial** userBuffer, PxU32 bufferSize, PxU32 startIndex=0) const;
+	// Heightfields
+	virtual		PxHeightField*	createHeightField(PxInputStream& stream)	PX_OVERRIDE;
+	virtual		PxU32			getNbHeightFields()	const	PX_OVERRIDE;
+	virtual		PxU32			getHeightFields(PxHeightField** userBuffer, PxU32 bufferSize, PxU32 startIndex=0)	const	PX_OVERRIDE;
 
-	virtual		PxTriangleMesh*		createTriangleMesh(PxInputStream&);
-	virtual		PxU32				getNbTriangleMeshes()	const;
-	virtual		PxU32				getTriangleMeshes(PxTriangleMesh** userBuffer, PxU32 bufferSize, PxU32 startIndex=0)	const;
+	// Convex meshes
+	virtual		PxConvexMesh*	createConvexMesh(PxInputStream&)	PX_OVERRIDE;
+	virtual		PxU32			getNbConvexMeshes() const	PX_OVERRIDE;
+	virtual		PxU32			getConvexMeshes(PxConvexMesh** userBuffer, PxU32 bufferSize, PxU32 startIndex=0) const	PX_OVERRIDE;
 
-	virtual		PxHeightField*		createHeightField(PxInputStream& stream);
-	virtual		PxU32				getNbHeightFields()	const;
-	virtual		PxU32				getHeightFields(PxHeightField** userBuffer, PxU32 bufferSize, PxU32 startIndex=0)	const;
+	// Deformable volume meshes
+	virtual		PxDeformableVolumeMesh*	createDeformableVolumeMesh(PxInputStream&)	PX_OVERRIDE;
 
-	virtual		PxConvexMesh*		createConvexMesh(PxInputStream&);
-	virtual		PxU32				getNbConvexMeshes() const;
-	virtual		PxU32				getConvexMeshes(PxConvexMesh** userBuffer, PxU32 bufferSize, PxU32 startIndex=0) const;
+	// BVHs
+	virtual		PxBVH*	createBVH(PxInputStream&)	PX_OVERRIDE;
+	virtual		PxU32	getNbBVHs() const	PX_OVERRIDE;
+	virtual		PxU32	getBVHs(PxBVH** userBuffer, PxU32 bufferSize, PxU32 startIndex=0) const	PX_OVERRIDE;
 
-	virtual		PxBVHStructure*		createBVHStructure(PxInputStream&);
-	virtual		PxU32				getNbBVHStructures() const;
-	virtual		PxU32				getBVHStructures(PxBVHStructure** userBuffer, PxU32 bufferSize, PxU32 startIndex=0) const;
+	// Scenes
+	virtual		PxScene*	createScene(const PxSceneDesc&)	PX_OVERRIDE;
+	virtual		PxU32		getNbScenes()	const	PX_OVERRIDE;
+	virtual		PxU32		getScenes(PxScene** userBuffer, PxU32 bufferSize, PxU32 startIndex=0) const	PX_OVERRIDE;
+
+	// Actors
+	virtual		PxRigidStatic*		createRigidStatic(const PxTransform&)	PX_OVERRIDE;
+	virtual		PxRigidDynamic*		createRigidDynamic(const PxTransform&)	PX_OVERRIDE;
+	virtual		PxPruningStructure*	createPruningStructure(PxRigidActor*const* actors, PxU32 nbActors)	PX_OVERRIDE;
+
+	// Shapes
+	virtual		PxShape*	createShape(const PxGeometry&, PxMaterial*const *, PxU16, bool, PxShapeFlags shapeFlags)	PX_OVERRIDE;
+	virtual		PxShape*	createShape(const PxGeometry&, PxDeformableVolumeMaterial*const *, PxU16, bool, PxShapeFlags shapeFlags)	PX_OVERRIDE;
+	virtual		PxShape*	createShape(const PxGeometry&, PxDeformableSurfaceMaterial*const *, PxU16, bool, PxShapeFlags shapeFlags)	PX_OVERRIDE;
+	virtual		PxU32		getNbShapes()	const	PX_OVERRIDE;
+	virtual		PxU32		getShapes(PxShape** userBuffer, PxU32 bufferSize, PxU32 startIndex)	const	PX_OVERRIDE;
+
+	// Constraints and Articulations
+	virtual		PxConstraint*						createConstraint(PxRigidActor* actor0, PxRigidActor* actor1, PxConstraintConnector& connector, const PxConstraintShaderTable& shaders, PxU32 dataSize)	PX_OVERRIDE;
+	virtual		PxU32								getNbConstraints() const	PX_OVERRIDE;
+	virtual		PxArticulationReducedCoordinate*	createArticulationReducedCoordinate()	PX_OVERRIDE;
+	virtual		PxU32								getNbArticulations() const	PX_OVERRIDE;
+
+	// Misc / unsorted
+	virtual		PxDeformableAttachment*		createDeformableAttachment(const PxDeformableAttachmentData& data)	PX_OVERRIDE;
+	virtual		PxDeformableElementFilter*	createDeformableElementFilter(const PxDeformableElementFilterData& data)	PX_OVERRIDE;
+	virtual		PxDeformableSurface*		createDeformableSurface(PxCudaContextManager& cudaContextManager)	PX_OVERRIDE;
+	virtual		PxDeformableVolume*			createDeformableVolume(PxCudaContextManager& cudaContextManager)	PX_OVERRIDE;
+	virtual		PxPBDParticleSystem*		createPBDParticleSystem(PxCudaContextManager& cudaContextManager, PxU32 maxNeighborhood, PxReal neighborhoodScale)	PX_OVERRIDE;
+	virtual		PxParticleBuffer*			createParticleBuffer(PxU32 maxParticles, PxCudaContextManager* cudaContextManager)	PX_OVERRIDE;
+	virtual		PxParticleAndDiffuseBuffer*	createParticleAndDiffuseBuffer(PxU32 maxParticles, PxU32 maxDiffuseParticles, PxCudaContextManager* cudaContextManager)	PX_OVERRIDE;
+	// Materials
+	virtual		PxMaterial*	createMaterial(PxReal staticFriction, PxReal dynamicFriction, PxReal restitution)	PX_OVERRIDE;
+	virtual		PxU32		getNbMaterials() const	PX_OVERRIDE;
+	virtual		PxU32		getMaterials(PxMaterial** userBuffer, PxU32 bufferSize, PxU32 startIndex=0) const	PX_OVERRIDE;
+
+	virtual		PxDeformableSurfaceMaterial*	createDeformableSurfaceMaterial(PxReal youngs, PxReal poissons, PxReal dynamicFriction, PxReal thickness, PxReal bendingStiffness, PxReal damping, PxReal bendingDamping)	PX_OVERRIDE;
+	virtual		PxU32							getNbDeformableSurfaceMaterials() const	PX_OVERRIDE;
+	virtual		PxU32							getDeformableSurfaceMaterials(PxDeformableSurfaceMaterial** userBuffer, PxU32 bufferSize, PxU32 startIndex = 0) const	PX_OVERRIDE;
+
+	virtual		PxDeformableVolumeMaterial*	createDeformableVolumeMaterial(PxReal youngs, PxReal poissons, PxReal dynamicFriction, PxReal elasticityDamping)	PX_OVERRIDE;
+	virtual		PxU32						getNbDeformableVolumeMaterials() const	PX_OVERRIDE;
+	virtual		PxU32						getDeformableVolumeMaterials(PxDeformableVolumeMaterial** userBuffer, PxU32 bufferSize, PxU32 startIndex = 0) const	PX_OVERRIDE;
+
+	virtual		PxPBDMaterial*	createPBDMaterial(PxReal friction, PxReal damping, PxReal adhesion, PxReal viscosity, PxReal vorticityConfinement, PxReal surfaceTension, PxReal cohesion, PxReal lift, PxReal drag, PxReal cflCoefficient, PxReal gravityScale)	PX_OVERRIDE;
+	virtual		PxU32			getNbPBDMaterials() const	PX_OVERRIDE;
+	virtual		PxU32			getPBDMaterials(PxPBDMaterial** userBuffer, PxU32 bufferSize, PxU32 startIndex = 0) const	PX_OVERRIDE;
+
+	// Deletion Listeners
+	virtual		void	registerDeletionListener(PxDeletionListener& observer, const PxDeletionEventFlags& deletionEvents, bool restrictedObjectSet)	PX_OVERRIDE;
+	virtual		void	unregisterDeletionListener(PxDeletionListener& observer)	PX_OVERRIDE;
+	virtual		void	registerDeletionListenerObjects(PxDeletionListener& observer, const PxBase* const* observables, PxU32 observableCount)	PX_OVERRIDE;
+	virtual		void	unregisterDeletionListenerObjects(PxDeletionListener& observer, const PxBase* const* observables, PxU32 observableCount)	PX_OVERRIDE;
+
+	//~PxPhysics
+
+				void		releaseSceneInternal(PxScene&);
 
 #if PX_SUPPORT_GPU_PHYSX
-	void							registerPhysXIndicatorGpuClient();
-	void							unregisterPhysXIndicatorGpuClient();
+				void		registerPhysXIndicatorGpuClient();
+				void		unregisterPhysXIndicatorGpuClient();
 #else
-	PX_FORCE_INLINE void			registerPhysXIndicatorGpuClient() {}
-	PX_FORCE_INLINE void			unregisterPhysXIndicatorGpuClient() {}
+	PX_FORCE_INLINE void	registerPhysXIndicatorGpuClient() {}
+	PX_FORCE_INLINE void	unregisterPhysXIndicatorGpuClient() {}
 #endif
 
-	virtual		PxPruningStructure*	createPruningStructure(PxRigidActor*const* actors, PxU32 nbActors);
 
-	virtual		const PxTolerancesScale&		getTolerancesScale() const;
+	PX_INLINE	NpScene*	getScene(PxU32 i) const { return mSceneArray[i]; }
+	PX_INLINE	PxU32		getNumScenes() const { return mSceneArray.size(); }
 
-	virtual		PxFoundation&		getFoundation();
 
-	PX_INLINE	NpScene*			getScene(PxU32 i) const { return mSceneArray[i]; }
-	PX_INLINE	PxU32				getNumScenes() const { return mSceneArray.size(); }
-#if PX_CHECKED
-	static PX_INLINE	void		heightfieldsAreRegistered() { mHeightFieldsRegistered = true;  }
+				void		notifyDeletionListeners(const PxBase*, void* userData, PxDeletionEventFlag::Enum deletionEvent);
+	PX_FORCE_INLINE void	notifyDeletionListenersUserRelease(const PxBase* b, void* userData) { notifyDeletionListeners(b, userData, PxDeletionEventFlag::eUSER_RELEASE); }
+	PX_FORCE_INLINE void	notifyDeletionListenersMemRelease(const PxBase* b, void* userData) { notifyDeletionListeners(b, userData, PxDeletionEventFlag::eMEMORY_RELEASE); }
+
+
+				bool		sendMaterialTable(NpScene&);
+
+				NpMaterialManager<NpMaterial>&				getMaterialManager()	{	return mMasterMaterialManager;	}
+#if PX_SUPPORT_GPU_PHYSX
+				NpMaterialManager<NpDeformableSurfaceMaterial>&	getDeformableSurfaceMaterialManager()	{ return mMasterDeformableSurfaceMaterialManager; }
+				NpMaterialManager<NpDeformableVolumeMaterial>&	getDeformableVolumeMaterialManager()	{ return mMasterDeformableVolumeMaterialManager; }
+				NpMaterialManager<NpPBDMaterial>&				getPBDMaterialManager()					{ return mMasterPBDMaterialManager; }
+#endif
+				NpMaterial*						addMaterial(NpMaterial* np);
+				void							removeMaterialFromTable(NpMaterial&);
+				void							updateMaterial(NpMaterial&);
+
+#if PX_SUPPORT_GPU_PHYSX
+				NpDeformableSurfaceMaterial*	addMaterial(NpDeformableSurfaceMaterial* np);
+				void							removeMaterialFromTable(NpDeformableSurfaceMaterial&);
+				void							updateMaterial(NpDeformableSurfaceMaterial&);
+
+				NpDeformableVolumeMaterial*		addMaterial(NpDeformableVolumeMaterial* np);
+				void							removeMaterialFromTable(NpDeformableVolumeMaterial&);
+				void							updateMaterial(NpDeformableVolumeMaterial&);
+
+				NpPBDMaterial*					addMaterial(NpPBDMaterial* np);
+				void							removeMaterialFromTable(NpPBDMaterial&);
+				void							updateMaterial(NpPBDMaterial&);
 #endif
 
-	virtual		void				registerDeletionListener(PxDeletionListener& observer, const PxDeletionEventFlags& deletionEvents, bool restrictedObjectSet);
-	virtual		void				unregisterDeletionListener(PxDeletionListener& observer);
-	virtual		void				registerDeletionListenerObjects(PxDeletionListener& observer, const PxBase* const* observables, PxU32 observableCount);
-	virtual		void				unregisterDeletionListenerObjects(PxDeletionListener& observer, const PxBase* const* observables, PxU32 observableCount);
-
-				void				notifyDeletionListeners(const PxBase*, void* userData, PxDeletionEventFlag::Enum deletionEvent);
-	PX_FORCE_INLINE void			notifyDeletionListenersUserRelease(const PxBase* b, void* userData) { notifyDeletionListeners(b, userData, PxDeletionEventFlag::eUSER_RELEASE); }
-	PX_FORCE_INLINE void			notifyDeletionListenersMemRelease(const PxBase* b, void* userData) { notifyDeletionListeners(b, userData, PxDeletionEventFlag::eMEMORY_RELEASE); }
-
-	virtual		PxPhysicsInsertionCallback&	getPhysicsInsertionCallback() { return mObjectInsertion; }
-
-				void				removeMaterialFromTable(NpMaterial&);
-				void				updateMaterial(NpMaterial&);
-				bool				sendMaterialTable(NpScene&);
-
-				NpMaterialManager&	getMaterialManager()	{	return mMasterMaterialManager;	}
-
-				NpMaterial*			addMaterial(NpMaterial* np);
+				PX_FORCE_INLINE PxMutex& getSceneAndMaterialMutex() { return mSceneAndMaterialMutex; }
 
 	static		void				initOffsetTables(PxvOffsetTable& pxvOffsetTable);
 
 	static bool apiReentryLock;
 
+#if PX_SUPPORT_OMNI_PVD
+				OmniPvdPxSampler*	mOmniPvdSampler;
+				PxOmniPvd*			mOmniPvd;
+#endif
+
 private:
-				typedef Ps::CoalescedHashMap<PxDeletionListener*, NpDelListenerEntry*> DeletionListenerMap;
+				typedef PxCoalescedHashMap<PxDeletionListener*, NpDelListenerEntry*> DeletionListenerMap;
 
-				Ps::Array<NpScene*>	mSceneArray;
+				PxArray<NpScene*>	mSceneArray;
 
-				Sc::Physics					mPhysics;
-				NpMaterialManager			mMasterMaterialManager;
-
+				Sc::Physics										mPhysics;
+				NpMaterialManager<NpMaterial>					mMasterMaterialManager;
+#if PX_SUPPORT_GPU_PHYSX
+				NpMaterialManager<NpDeformableSurfaceMaterial>	mMasterDeformableSurfaceMaterialManager;
+				NpMaterialManager<NpDeformableVolumeMaterial>	mMasterDeformableVolumeMaterialManager;
+				NpMaterialManager<NpPBDMaterial>				mMasterPBDMaterialManager;
+#endif
 				NpPhysicsInsertionCallback	mObjectInsertion;
 
-				struct MeshDeletionListener: public GuMeshFactoryListener
+				struct MeshDeletionListener: public Gu::MeshFactoryListener
 				{
-					void onGuMeshFactoryBufferRelease(const PxBase* object, PxType type)
+					void onMeshFactoryBufferRelease(const PxBase* object, PxType type)
 					{
 						PX_UNUSED(type);
 						NpPhysics::getInstance().notifyDeletionListeners(object, NULL, PxDeletionEventFlag::eMEMORY_RELEASE);
 					}
 				};
 
-				Ps::Mutex								mDeletionListenerMutex;
+				PxMutex									mDeletionListenerMutex;
 				DeletionListenerMap						mDeletionListenerMap;
 				MeshDeletionListener					mDeletionMeshListener;
 				bool									mDeletionListenersExist;
 
-				Ps::Mutex								mSceneAndMaterialMutex;  // guarantees thread safety for API calls related to scene and material containers
+				PxMutex									mSceneAndMaterialMutex;
+				// guarantees thread safety for API calls related to scene and material containers
+				// For example:
+				// - add/remove scenes to/from scene pointer array
+				//   vs
+				//   adding material add/update/remove events to the scenes
+				//
+				// - parallel access to material
+				//
+				// The granularity seems a bit coarse though. Would rather expect two mutexes,
+				// one to protect access to the scene list and one for access to the material manager.
+				// This would probably need careful implementation to avoid deadlocks.
+				//
 
-#if PX_SUPPORT_GPU_PHYSX
-				PhysXIndicator		mPhysXIndicator;
-				PxU32				mNbRegisteredGpuClients;
-				Ps::Mutex			mPhysXIndicatorMutex;
+				PxFoundation&							mFoundation;
+
+#if PX_SUPPORT_GPU_PHYSX && !PX_PUBLIC_RELEASE
+				PhysXIndicator							mPhysXIndicator;
+				PxU32									mNbRegisteredGpuClients;
+				PxMutex									mPhysXIndicatorMutex;
 #endif
 #if PX_SUPPORT_PVD	
 				physx::pvdsdk::PsPvd*  mPvd;
@@ -232,16 +336,64 @@ private:
 	static		PxU32				mRefCount;
 	static		NpPhysics*			mInstance;
 
-#if PX_CHECKED
-	static		bool				mHeightFieldsRegistered;	//just for error checking
-#endif
-
 	friend class NpCollection;
+
+#if PX_SUPPORT_OMNI_PVD
+	public:
+	class OmniPvdListener : public physx::NpFactoryListener
+	{
+	public:
+		virtual void onMeshFactoryBufferRelease(const PxBase*, PxType) PX_OVERRIDE {}
+		virtual void onObjectAdd(const PxBase*) PX_OVERRIDE;
+		virtual void onObjectRemove(const PxBase*) PX_OVERRIDE;
+	}
+	mOmniPvdListener;
+	private:
+#endif
 };
+
+template <> class NpMaterialAccessor<NpMaterial>
+{
+public:
+	static NpMaterialManager<NpMaterial>& getMaterialManager(NpPhysics& physics)
+	{
+		return physics.getMaterialManager();
+	}
+};
+
+#if PX_SUPPORT_GPU_PHYSX
+template <> class NpMaterialAccessor<NpDeformableSurfaceMaterial>
+{
+public:
+	static NpMaterialManager<NpDeformableSurfaceMaterial>& getMaterialManager(NpPhysics& physics)
+	{
+		return physics.getDeformableSurfaceMaterialManager();
+	}
+};
+
+template <> class NpMaterialAccessor<NpDeformableVolumeMaterial>
+{
+public:
+	static NpMaterialManager<NpDeformableVolumeMaterial>& getMaterialManager(NpPhysics& physics)
+	{
+		return physics.getDeformableVolumeMaterialManager();
+	}
+};
+
+template <> class NpMaterialAccessor<NpPBDMaterial>
+{
+public:
+	static NpMaterialManager<NpPBDMaterial>& getMaterialManager(NpPhysics& physics)
+	{
+		return physics.getPBDMaterialManager();
+	}
+};
+
+#endif
 
 #if PX_VC
 #pragma warning(pop)
 #endif
 }
 
-#endif
+#endif // NP_PHYSICS_H

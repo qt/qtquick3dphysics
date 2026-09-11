@@ -1,0 +1,26 @@
+From: Jonas Karlsson <jonas.karlsson@qt.io>
+Subject: [PATCH] PhysX: Check for SSE to define __intXX_t
+
+The UnionM128 members are declared with the __intXX_t types, which are
+glibc reserved names from bits/types.h rather than standard ones, so on C
+libraries that do not happen to define them, musl among them, every SSE2
+build fails. Define them next to the emscripten ones, which is a no-op
+where they already exist, since they are typedefs of the same types.
+
+This is the PhysX 4.1 patch of the same name, forward ported to 5.9.0.
+---
+ src/3rdparty/PhysX/include/foundation/unix/sse2/PxUnixSse2AoS.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/3rdparty/PhysX/include/foundation/unix/sse2/PxUnixSse2AoS.h b/src/3rdparty/PhysX/include/foundation/unix/sse2/PxUnixSse2AoS.h
+--- a/src/3rdparty/PhysX/include/foundation/unix/sse2/PxUnixSse2AoS.h
++++ b/src/3rdparty/PhysX/include/foundation/unix/sse2/PxUnixSse2AoS.h
+@@ -40,7 +40,7 @@ namespace physx
+ namespace aos
+ {
+ 
+-#if PX_EMSCRIPTEN
++#if PX_EMSCRIPTEN || PX_SSE2
+ typedef int8_t   __int8_t;
+ typedef int16_t  __int16_t;
+ typedef int32_t  __int32_t;

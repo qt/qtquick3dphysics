@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -34,10 +33,9 @@
 
 namespace physx
 {
-class GuMeshFactory;
-
 namespace Gu
 {
+class MeshFactory;
 
 #if PX_VC
 #pragma warning(push)
@@ -47,23 +45,20 @@ namespace Gu
 class RTreeTriangleMesh : public TriangleMesh
 {
 	public:
-						virtual const char*				getConcreteTypeName()	const	{ return "PxBVH33TriangleMesh"; }
+						virtual const char*				getConcreteTypeName()	const PX_OVERRIDE { return "PxBVH33TriangleMesh"; }
 // PX_SERIALIZATION
 														RTreeTriangleMesh(PxBaseFlags baseFlags) : TriangleMesh(baseFlags), mRTree(PxEmpty) {}
-	PX_PHYSX_COMMON_API	virtual void					exportExtraData(PxSerializationContext& ctx);
+	PX_PHYSX_COMMON_API	virtual void					exportExtraData(PxSerializationContext& ctx)	PX_OVERRIDE;
 								void					importExtraData(PxDeserializationContext&);
 	PX_PHYSX_COMMON_API	static	TriangleMesh*			createObject(PxU8*& address, PxDeserializationContext& context);
-	PX_PHYSX_COMMON_API	static	void					getBinaryMetaData(PxOutputStream& stream);
 //~PX_SERIALIZATION
-														RTreeTriangleMesh(GuMeshFactory& factory, TriangleMeshData& data);
+														RTreeTriangleMesh(MeshFactory* factory, TriangleMeshData& data);
 						virtual							~RTreeTriangleMesh(){}
 
-						virtual	PxMeshMidPhase::Enum	getMidphaseID()			const	{ return PxMeshMidPhase::eBVH33; }
+						virtual	PxMeshMidPhase::Enum	getMidphaseID()			const PX_OVERRIDE { return PxMeshMidPhase::eBVH33; }
 
-#if PX_ENABLE_DYNAMIC_MESH_RTREE
-						virtual PxVec3*					getVerticesForModification();
-						virtual PxBounds3				refitBVH();
-#endif
+						virtual PxVec3*					getVerticesForModification() PX_OVERRIDE;
+						virtual PxBounds3				refitBVH() PX_OVERRIDE;
 
 	PX_FORCE_INLINE				const Gu::RTree&		getRTree()				const	{ return mRTree; }
 	private:

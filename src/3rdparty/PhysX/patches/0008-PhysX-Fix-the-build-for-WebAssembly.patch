@@ -1,0 +1,138 @@
+From: Jonas Karlsson <jonas.karlsson@qt.io>
+Subject: [PATCH] PhysX: Fix the build for WebAssembly
+
+PhysX treats emscripten as Linux on x86, but only turns SSE2 on there if
+the wasm SIMD extension is enabled. Nothing builds the resulting
+combination upstream, so the paths taken without SSE2 have decayed:
+
+- PxMath.h forces the math symbols it uses to their glibc 2.2.5 versions
+  with inline asm, which the wasm assembler rejects, and which musl has
+  no versioned symbols for either. Ask for glibc explicitly.
+
+- PhysX's box pruning kernels and MBP broadphase use SSE intrinsics
+  behind a plain PX_INTEL_FAMILY test, though both have a working
+  non-SIMD alternative right next to them, so make the tests ask for
+  SSE2, which also makes PX_SIMD_DISABLED work on x86.
+
+- PxTempAllocator::allocate() calls PxHighestSetBit() with a size_t
+  expression, which is unsigned long, and so matches neither the
+  uint32_t nor the uint64_t overload when a long is 4 bytes wide.
+
+- PxThreadImpl::yieldProcessor() spells the spin hint as the x86 pause
+  instruction for everything that is not arm, and emscripten is x86 to
+  PhysX, so the wasm backend answers it with "invalid instruction". Emit
+  it for the Intel family that has it, and no hint at all where there is
+  none to emit.
+
+PxMat33Padded stores its columns with V4StoreU too, which the scalar
+vecmath has no overload for, but that is not WebAssembly's alone and is
+fixed for every platform without vector intrinsics in a patch of its own.
+With both, the copy compiles with emscripten 6.0.9 for wasm32, with the
+SIMD extension and without it.
+---
+ src/3rdparty/PhysX/include/foundation/PxMath.h                     | 2 +-
+ src/3rdparty/PhysX/source/foundation/FdTempAllocator.cpp           | 2 +-
+ src/3rdparty/PhysX/source/foundation/unix/FdUnixThread.cpp         | 2 +-
+ src/3rdparty/PhysX/source/geomutils/src/GuAABBTree.cpp             | 2 +-
+ src/3rdparty/PhysX/source/lowlevelaabb/src/BpAABBManager.cpp       | 2 +-
+ src/3rdparty/PhysX/source/lowlevelaabb/src/BpBoxPruningKernels.h   | 2 +-
+ src/3rdparty/PhysX/source/lowlevelaabb/src/BpBroadPhaseABP.cpp     | 2 +-
+ src/3rdparty/PhysX/source/lowlevelaabb/src/BpBroadPhaseMBPCommon.h | 2 +-
+ 8 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/3rdparty/PhysX/include/foundation/PxMath.h b/src/3rdparty/PhysX/include/foundation/PxMath.h
+--- a/src/3rdparty/PhysX/include/foundation/PxMath.h
++++ b/src/3rdparty/PhysX/include/foundation/PxMath.h
+@@ -42,7 +42,7 @@
+ #pragma warning(pop)
+ #endif
+ 
+-#if (PX_LINUX_FAMILY && !PX_ARM_FAMILY)
++#if (PX_LINUX_FAMILY && !PX_ARM_FAMILY && !PX_EMSCRIPTEN && defined(__GLIBC__))
+ // Force linking against nothing newer than glibc v2.17 to remain compatible with platforms with older glibc versions
+ __asm__(".symver expf,expf@GLIBC_2.2.5");
+ __asm__(".symver powf,powf@GLIBC_2.2.5");
+diff --git a/src/3rdparty/PhysX/source/foundation/FdTempAllocator.cpp b/src/3rdparty/PhysX/source/foundation/FdTempAllocator.cpp
+--- a/src/3rdparty/PhysX/source/foundation/FdTempAllocator.cpp
++++ b/src/3rdparty/PhysX/source/foundation/FdTempAllocator.cpp
+@@ -64,7 +64,7 @@ void* PxTempAllocator::allocate(size_t size, const char* filename, PxI32 line)
+ 	if(!size)
+ 		return 0;
+ 
+-	PxU32 index = PxMax(PxHighestSetBit(PxU32(size) + sizeof(Chunk) - 1), sMinIndex);
++	PxU32 index = PxMax(PxHighestSetBit(PxU32(size + sizeof(Chunk) - 1)), sMinIndex);
+ 
+ 	Chunk* chunk = 0;
+ 	if(index < sMaxIndex)
+diff --git a/src/3rdparty/PhysX/source/foundation/unix/FdUnixThread.cpp b/src/3rdparty/PhysX/source/foundation/unix/FdUnixThread.cpp
+--- a/src/3rdparty/PhysX/source/foundation/unix/FdUnixThread.cpp
++++ b/src/3rdparty/PhysX/source/foundation/unix/FdUnixThread.cpp
+@@ -277,7 +277,7 @@ void PxThreadImpl::yieldProcessor()
+ {
+ #if (PX_ARM || PX_A64)
+ 	__asm__ __volatile__("yield");
+-#else
++#elif PX_INTEL_FAMILY && !PX_EMSCRIPTEN
+ 	__asm__ __volatile__("pause");
+ #endif
+ }
+diff --git a/src/3rdparty/PhysX/source/geomutils/src/GuAABBTree.cpp b/src/3rdparty/PhysX/source/geomutils/src/GuAABBTree.cpp
+--- a/src/3rdparty/PhysX/source/geomutils/src/GuAABBTree.cpp
++++ b/src/3rdparty/PhysX/source/geomutils/src/GuAABBTree.cpp
+@@ -724,7 +724,7 @@ static PX_FORCE_INLINE void refitNode(BVHNode* PX_RESTRICT current, const PxBoun
+ 		resultMinV = V4Min(V4LoadU(&posBox.minimum.x), V4LoadU(&negBox.minimum.x));
+ //		resultMaxV = V4Max(V4LoadU(&posBox.maximum.x), V4LoadU(&negBox.maximum.x));
+ 
+-#if PX_INTEL_FAMILY && !defined(PX_SIMD_DISABLED)
++#if PX_INTEL_FAMILY && PX_SSE2 && !defined(PX_SIMD_DISABLED)
+ 		Vec4V posMinV = V4LoadU(&posBox.minimum.z);
+ 		Vec4V negMinV = V4LoadU(&negBox.minimum.z);
+ 		posMinV = _mm_shuffle_ps(posMinV, posMinV, _MM_SHUFFLE(0, 3, 2, 1));
+diff --git a/src/3rdparty/PhysX/source/lowlevelaabb/src/BpAABBManager.cpp b/src/3rdparty/PhysX/source/lowlevelaabb/src/BpAABBManager.cpp
+--- a/src/3rdparty/PhysX/source/lowlevelaabb/src/BpAABBManager.cpp
++++ b/src/3rdparty/PhysX/source/lowlevelaabb/src/BpAABBManager.cpp
+@@ -54,7 +54,7 @@ using namespace Cm;
+ using namespace aos;
+ 
+ static const bool gSingleThreaded = false;
+-#if PX_INTEL_FAMILY && !defined(PX_SIMD_DISABLED)
++#if PX_INTEL_FAMILY && PX_SSE2 && !defined(PX_SIMD_DISABLED)
+ 	#define ABP_SIMD_OVERLAP
+ #endif
+ #ifdef ABP_SIMD_OVERLAP
+diff --git a/src/3rdparty/PhysX/source/lowlevelaabb/src/BpBoxPruningKernels.h b/src/3rdparty/PhysX/source/lowlevelaabb/src/BpBoxPruningKernels.h
+--- a/src/3rdparty/PhysX/source/lowlevelaabb/src/BpBoxPruningKernels.h
++++ b/src/3rdparty/PhysX/source/lowlevelaabb/src/BpBoxPruningKernels.h
+@@ -33,7 +33,7 @@
+ 
+ #define	CODEALIGN16		//_asm	align 16
+ 
+-#if PX_INTEL_FAMILY
++#if PX_INTEL_FAMILY && PX_SSE2
+ 	#define SIMD_OVERLAP_TEST_14a(box)	_mm_movemask_ps(_mm_cmpngt_ps(b, _mm_load_ps(box)))==15
+ 
+ 	#define SIMD_OVERLAP_INIT_9c(box)	\
+diff --git a/src/3rdparty/PhysX/source/lowlevelaabb/src/BpBroadPhaseABP.cpp b/src/3rdparty/PhysX/source/lowlevelaabb/src/BpBroadPhaseABP.cpp
+--- a/src/3rdparty/PhysX/source/lowlevelaabb/src/BpBroadPhaseABP.cpp
++++ b/src/3rdparty/PhysX/source/lowlevelaabb/src/BpBroadPhaseABP.cpp
+@@ -67,7 +67,7 @@ PT: to try:
+ //#define CHECKPOINT(x)	printf(x);
+ 
+ //#pragma warning (disable : 4702)
+-#if PX_INTEL_FAMILY && !defined(PX_SIMD_DISABLED)
++#if PX_INTEL_FAMILY && PX_SSE2 && !defined(PX_SIMD_DISABLED)
+ 	#define ABP_SIMD_OVERLAP
+ #endif
+ 
+diff --git a/src/3rdparty/PhysX/source/lowlevelaabb/src/BpBroadPhaseMBPCommon.h b/src/3rdparty/PhysX/source/lowlevelaabb/src/BpBroadPhaseMBPCommon.h
+--- a/src/3rdparty/PhysX/source/lowlevelaabb/src/BpBroadPhaseMBPCommon.h
++++ b/src/3rdparty/PhysX/source/lowlevelaabb/src/BpBroadPhaseMBPCommon.h
+@@ -40,7 +40,7 @@ namespace Bp
+ 
+ #define MBP_USE_WORDS
+ #define MBP_USE_NO_CMP_OVERLAP
+-#if PX_INTEL_FAMILY && !defined(PX_SIMD_DISABLED)
++#if PX_INTEL_FAMILY && PX_SSE2 && !defined(PX_SIMD_DISABLED)
+ 	#define MBP_SIMD_OVERLAP
+ #endif
+ 

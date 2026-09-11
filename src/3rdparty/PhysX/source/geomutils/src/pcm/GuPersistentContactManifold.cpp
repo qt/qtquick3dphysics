@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,32 +22,26 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
 #include "foundation/PxMemory.h"
-#include "geomutils/GuContactBuffer.h"
-#include "CmPhysXCommon.h"
-#include "PsAllocator.h"
-#include "PsVecTransform.h"
-#include "PsUtilities.h"
+#include "geomutils/PxContactBuffer.h"
+#include "foundation/PxAlloca.h"
+#include "foundation/PxVecTransform.h"
+#include "foundation/PxUtilities.h"
 #include "GuPersistentContactManifold.h"
 #include "GuGJKUtil.h"
+#include "GuPCMContactGenUtil.h"
 
 using namespace physx;
+using namespace aos;
+using namespace Gu;
 
-namespace physx
+//	This local function is to avoid DLL call
+static FloatV distancePointSegmentSquaredLocal(const Vec3VArg a, const Vec3VArg b, const Vec3VArg p)
 {
-namespace Gu
-{
-
-/*
-	This local function is to avoid DLL call
-*/
-static Ps::aos::FloatV distancePointSegmentSquaredLocal(const Ps::aos::Vec3VArg a, const Ps::aos::Vec3VArg b, const Ps::aos::Vec3VArg p)
-{
-	using namespace Ps::aos;
 	const FloatV zero = FZero();
 	const FloatV one = FOne();
 
@@ -64,16 +57,12 @@ static Ps::aos::FloatV distancePointSegmentSquaredLocal(const Ps::aos::Vec3VArg 
 	return V3Dot(v, v);
 }
 
-/*
-	This local function is to avoid DLL call
-*/
-static Ps::aos::FloatV distancePointTriangleSquaredLocal(	const Ps::aos::Vec3VArg p, 
-													const Ps::aos::Vec3VArg a, 
-													const Ps::aos::Vec3VArg b, 
-													const Ps::aos::Vec3VArg c)
+//	This local function is to avoid DLL call
+static FloatV distancePointTriangleSquaredLocal(const Vec3VArg p, 
+												const Vec3VArg a, 
+												const Vec3VArg b, 
+												const Vec3VArg c)
 {
-	using namespace Ps::aos;
-
 	const FloatV zero = FZero();
 	//const Vec3V zero = V3Zero();
 	const Vec3V ab = V3Sub(b, a);
@@ -177,39 +166,35 @@ static Ps::aos::FloatV distancePointTriangleSquaredLocal(	const Ps::aos::Vec3VAr
 	return V3Dot(vv, vv);
 }
 
-
-
-
+namespace physx
+{
+namespace Gu
+{
 //This is the translational threshold used in invalidate_BoxConvexHull. 0.5 is 50% of the object margin. we use different threshold between
 //0 and 4 points. This threashold is a scale that is multiplied by the objects' margins.
 const PxF32 invalidateThresholds[5] = {	0.5f, 0.125f, 0.25f, 0.375f, 0.375f	};
 
 //This is the translational threshold used in invalidate_SphereCapsule. 0.5 is 50% of the object margin, we use different threshold between
 //0 and 2 points. This threshold is a scale that is multiplied by the objects' margin
-
 const PxF32 invalidateThresholds2[3] = { 0.5f, 0.1f, 0.75f	};
 
 //This is the rotational threshold used in invalidate_BoxConvexHull. 0.9998 is a threshold for quat difference
 //between previous and current frame
 const PxF32 invalidateQuatThresholds[5] = {	0.9998f, 0.9999f, 0.9999f, 0.9999f, 0.9999f	};
 
-
 //This is the rotational threshold used in invalidate_SphereCapsule. 0.9995f is a threshold for quat difference
 //between previous and current frame
 const PxF32 invalidateQuatThresholds2[3] = { 0.9995f, 0.9999f, 0.9997f	};
-
 }
 }
-
 
 #if VISUALIZE_PERSISTENT_CONTACT
-#include "CmRenderOutput.h"
+#include "common/PxRenderOutput.h"
 
-static void drawManifoldPoint(const Gu::PersistentContact& manifold,  const Ps::aos::PsTransformV& trA, const Ps::aos::PsTransformV& trB, Cm::RenderOutput& out, PxU32 color=0xffffff)
+static void drawManifoldPoint(const PersistentContact& manifold, const PxTransformV& trA, const PxTransformV& trB, PxRenderOutput& out, PxU32 color=0xffffff)
 {
 	PX_UNUSED(color);
 
-	using namespace Ps::aos;
 	const Vec3V worldA = trA.transform(manifold.mLocalPointA);
 	const Vec3V worldB = trB.transform(manifold.mLocalPointB);
 	const Vec3V localNormal = Vec3V_From_Vec4V(manifold.mLocalNormalPen);
@@ -234,29 +219,28 @@ static void drawManifoldPoint(const Gu::PersistentContact& manifold,  const Ps::
 	const PxVec3 right2(size2, 0.f, 0.f);
 	const PxVec3 forwards2(0.f, 0.f, size2);
 	
-	PxMat44 m = PxMat44(PxIdentity);
+	const PxMat44 m(PxIdentity);
 	
-	out << 0xffff00ff << m << Cm::RenderOutput::LINES  << a << e;
-	out << 0xff00ffff << m << Cm::RenderOutput::LINES << a + up << a - up;
-	out << 0xff00ffff << m << Cm::RenderOutput::LINES << a + right << a - right;
-	out << 0xff00ffff << m << Cm::RenderOutput::LINES << a + forwards << a - forwards;
+	out << m << PxRenderOutput::LINES;
 
-	out << 0xffff0000 << m << Cm::RenderOutput::LINES << b + up2 << b - up2;
-	out << 0xffff0000 << m << Cm::RenderOutput::LINES << b + right2 << b - right2;
-	out << 0xffff0000 << m << Cm::RenderOutput::LINES << b + forwards2 << b - forwards2;
+	out << 0xffff00ff << a << e;
+	out << 0xff00ffff << a + up << a - up;
+	out << 0xff00ffff << a + right << a - right;
+	out << 0xff00ffff << a + forwards << a - forwards;
 
-	out << 0xffff0000 << m << Cm::RenderOutput::LINES << a << b;
+	out << 0xffff0000 << b + up2 << b - up2;
+	out << 0xffff0000 << b + right2 << b - right2;
+	out << 0xffff0000 << b + forwards2 << b - forwards2;
 
-	PxVec3 c = a - v*10.f;
-	out << 0xffff00ff << m << Cm::RenderOutput::LINES << a << c;
+	out << 0xffff0000 << a << b;
 
+	const PxVec3 c = a - v*10.f;
+	out << 0xffff00ff << a << c;
 }
 
-static void drawManifoldPoint(const Gu::PersistentContact& manifold,  const Ps::aos::PsTransformV& trA, const Ps::aos::PsTransformV& trB, const Ps::aos::FloatVArg radius, Cm::RenderOutput& out, PxU32 color=0xffffff)
+static void drawManifoldPoint(const PersistentContact& manifold, const PxTransformV& trA, const PxTransformV& trB, const FloatVArg radius, PxRenderOutput& out, PxU32 color=0xffffff)
 {
 	PX_UNUSED(color);
-
-	using namespace Ps::aos;
 
 	const Vec3V localNormal = Vec3V_From_Vec4V(manifold.mLocalNormalPen);
 	const Vec3V worldNormal = trB.rotate(localNormal);
@@ -282,35 +266,28 @@ static void drawManifoldPoint(const Gu::PersistentContact& manifold,  const Ps::
 	const PxVec3 right2(size2, 0.f, 0.f);
 	const PxVec3 forwards2(0.f, 0.f, size2);
 	
-	PxMat44 m = PxMat44(PxIdentity);
+	const PxMat44 m(PxIdentity);
 	
-	out << 0xffff00ff << m << Cm::RenderOutput::LINES  << a << e;
-	out << 0xff00ffff << m << Cm::RenderOutput::LINES << a + up << a - up;
-	out << 0xff00ffff << m << Cm::RenderOutput::LINES << a + right << a - right;
-	out << 0xff00ffff << m << Cm::RenderOutput::LINES << a + forwards << a - forwards;
+	out << 0xffff00ff << m << PxRenderOutput::LINES  << a << e;
+	out << 0xff00ffff << m << PxRenderOutput::LINES << a + up << a - up;
+	out << 0xff00ffff << m << PxRenderOutput::LINES << a + right << a - right;
+	out << 0xff00ffff << m << PxRenderOutput::LINES << a + forwards << a - forwards;
 
-	out << 0xffff0000 << m << Cm::RenderOutput::LINES << b + up2 << b - up2;
-	out << 0xffff0000 << m << Cm::RenderOutput::LINES << b + right2 << b - right2;
-	out << 0xffff0000 << m << Cm::RenderOutput::LINES << b + forwards2 << b - forwards2;
+	out << 0xffff0000 << m << PxRenderOutput::LINES << b + up2 << b - up2;
+	out << 0xffff0000 << m << PxRenderOutput::LINES << b + right2 << b - right2;
+	out << 0xffff0000 << m << PxRenderOutput::LINES << b + forwards2 << b - forwards2;
 
-	out << 0xffff0000 << m << Cm::RenderOutput::LINES << a << b;
-
+	out << 0xffff0000 << m << PxRenderOutput::LINES << a << b;
 }
-
 
 static PxU32 gColors[8] = { 0xff0000ff, 0xff00ff00, 0xffff0000,
 							0xff00ffff, 0xffff00ff, 0xffffff00,
 							0xff000080, 0xff008000};
-
 #endif
 
-/*
-	SIMD version 
-*/
-Ps::aos::Mat33V Gu::findRotationMatrixFromZAxis(const Ps::aos::Vec3VArg to)
+//	SIMD version 
+Mat33V Gu::findRotationMatrixFromZAxis(const Vec3VArg to)
 {
-	using namespace Ps::aos;
-	
 	const FloatV one = FOne();
 	const FloatV threshold = FLoad(0.9999f);
 
@@ -325,16 +302,14 @@ Ps::aos::Mat33V Gu::findRotationMatrixFromZAxis(const Ps::aos::Vec3VArg to)
 		const FloatV hvx = FMul(h,vx);
 		const FloatV hvxy = FMul(hvx, vy);
 
-		const Vec3V col0 = V3Merge(FScaleAdd(hvx, vx, e),		hvxy,							      vy);
-		const Vec3V col1 = V3Merge(hvxy,				   FScaleAdd(h, FMul(vy, vy), e),			FNeg(vx));
-		const Vec3V col2 = V3Merge(FNeg(vy),					   vx,							  e);
+		const Vec3V col0 = V3Merge(FScaleAdd(hvx, vx, e),	hvxy,							vy);
+		const Vec3V col1 = V3Merge(hvxy,					FScaleAdd(h, FMul(vy, vy), e),	FNeg(vx));
+		const Vec3V col2 = V3Merge(FNeg(vy),				vx,								e);
 
 		return Mat33V(col0, col1, col2);
-
 	}
 	else
 	{
-
 		const FloatV two = FLoad(2.f);
 		const Vec3V from = V3UnitZ();
 		const Vec3V absFrom = V3UnitY();
@@ -353,7 +328,6 @@ Ps::aos::Mat33V Gu::findRotationMatrixFromZAxis(const Ps::aos::Vec3VArg to)
 		const Vec3V c1u = V3Scale(u, c1);
 		const Vec3V c2v = V3Scale(v, c2);
 		const Vec3V c3v = V3Scale(v, c3);
-
 
 		FloatV temp0 = V3GetX(c1u);
 		FloatV temp1 = V3GetX(c2v);
@@ -377,23 +351,19 @@ Ps::aos::Mat33V Gu::findRotationMatrixFromZAxis(const Ps::aos::Vec3VArg to)
 		col2 = V3SetZ(col2, FAdd(V3GetZ(col2), one));
 
 		return Mat33V(col0, col1, col2);
-
 	}
 }
 
-
-void Gu::PersistentContactManifold::drawManifold( Cm::RenderOutput& out, const Ps::aos::PsTransformV& trA, const Ps::aos::PsTransformV& trB)
+void PersistentContactManifold::drawManifold(PxRenderOutput& out, const PxTransformV& trA, const PxTransformV& trB) const
 {
-	using namespace Ps::aos;
 #if VISUALIZE_PERSISTENT_CONTACT
-
 	PxVec3 a, b;
 	V3StoreU(trA.p, a);
 	V3StoreU(trB.p, b);
 
 	for(PxU32 i = 0; i< mNumContacts; ++i)
 	{
-		Gu::PersistentContact& m = mContactPoints[i];
+		PersistentContact& m = mContactPoints[i];
 		drawManifoldPoint(m, trA, trB, out, gColors[i]);
 	}
 #else
@@ -403,18 +373,16 @@ void Gu::PersistentContactManifold::drawManifold( Cm::RenderOutput& out, const P
 #endif
 }
 
-void Gu::PersistentContactManifold::drawManifold( Cm::RenderOutput& out, const Ps::aos::PsTransformV& trA, const Ps::aos::PsTransformV& trB, const Ps::aos::FloatVArg radius)
+void PersistentContactManifold::drawManifold(PxRenderOutput& out, const PxTransformV& trA, const PxTransformV& trB, const FloatVArg radius) const
 {
-	using namespace Ps::aos;
 #if VISUALIZE_PERSISTENT_CONTACT
-
 	PxVec3 a, b;
 	V3StoreU(trA.p, a);
 	V3StoreU(trB.p, b);
 
 	for(PxU32 i = 0; i< mNumContacts; ++i)
 	{
-		Gu::PersistentContact& m = mContactPoints[i];
+		PersistentContact& m = mContactPoints[i];
 		drawManifoldPoint(m, trA, trB, radius, out, gColors[i]);
 	}
 #else
@@ -425,8 +393,8 @@ void Gu::PersistentContactManifold::drawManifold( Cm::RenderOutput& out, const P
 #endif
 }
 
-void Gu::PersistentContactManifold::drawManifold(const Gu::PersistentContact& m, Cm::RenderOutput& out, const Ps::aos::PsTransformV& trA, const Ps::aos::PsTransformV& trB)
-{	
+void PersistentContactManifold::drawManifold(const PersistentContact& m, PxRenderOutput& out, const PxTransformV& trA, const PxTransformV& trB) const
+{
 #if VISUALIZE_PERSISTENT_CONTACT
 	drawManifoldPoint(m, trA, trB, out, gColors[0]);
 #else
@@ -437,9 +405,8 @@ void Gu::PersistentContactManifold::drawManifold(const Gu::PersistentContact& m,
 #endif
 }
 
-void Gu::PersistentContactManifold::drawPoint(Cm::RenderOutput& out, const Ps::aos::Vec3VArg p, const PxF32 size, const PxU32 color)
+void PersistentContactManifold::drawPoint(PxRenderOutput& out, const Vec3VArg p, const PxF32 size, PxU32 color)
 {
-	using namespace Ps::aos;
 #if VISUALIZE_PERSISTENT_CONTACT
 	const PxVec3 up(0.f, size, 0.f);
 	const PxVec3 right(size, 0.f, 0.f);
@@ -448,11 +415,11 @@ void Gu::PersistentContactManifold::drawPoint(Cm::RenderOutput& out, const Ps::a
 	PxVec3 a;
 	V3StoreU(p, a);
 
-	PxMat44 m = PxMat44(PxIdentity);
+	const PxMat44 m(PxIdentity);
 	
-	out << color << m << Cm::RenderOutput::LINES << a + up << a - up;
-	out << color << m << Cm::RenderOutput::LINES << a + right << a - right;
-	out << color << m << Cm::RenderOutput::LINES << a + forwards << a - forwards;
+	out << color << m << PxRenderOutput::LINES << a + up << a - up;
+	out << color << m << PxRenderOutput::LINES << a + right << a - right;
+	out << color << m << PxRenderOutput::LINES << a + forwards << a - forwards;
 #else
 	PX_UNUSED(out);
 	PX_UNUSED(p);
@@ -461,16 +428,15 @@ void Gu::PersistentContactManifold::drawPoint(Cm::RenderOutput& out, const Ps::a
 #endif
 }
 
-void Gu::PersistentContactManifold::drawLine(Cm::RenderOutput& out, const Ps::aos::Vec3VArg p0, const Ps::aos::Vec3VArg p1, const PxU32 color)
+void PersistentContactManifold::drawLine(PxRenderOutput& out, const Vec3VArg p0, const Vec3VArg p1, PxU32 color)
 {
-	using namespace Ps::aos;
 #if VISUALIZE_PERSISTENT_CONTACT
 	PxVec3 a, b;
 	V3StoreU(p0, a);
 	V3StoreU(p1, b);
 
-	PxMat44 m = PxMat44(PxIdentity);
-	out << color << m << Cm::RenderOutput::LINES << a << b;
+	const PxMat44 m(PxIdentity);
+	out << color << m << PxRenderOutput::LINES << a << b;
 #else
 	PX_UNUSED(out);
 	PX_UNUSED(p0);
@@ -479,17 +445,16 @@ void Gu::PersistentContactManifold::drawLine(Cm::RenderOutput& out, const Ps::ao
 #endif  
 }
 
-void Gu::PersistentContactManifold::drawTriangle(Cm::RenderOutput& out, const Ps::aos::Vec3VArg p0, const Ps::aos::Vec3VArg p1, const Ps::aos::Vec3VArg p2, const PxU32 color)
+void PersistentContactManifold::drawTriangle(PxRenderOutput& out, const Vec3VArg p0, const Vec3VArg p1, const Vec3VArg p2, PxU32 color)
 {
-	using namespace Ps::aos;
 #if VISUALIZE_PERSISTENT_CONTACT
 	PxVec3 a, b, c;
 	V3StoreU(p0, a);
 	V3StoreU(p1, b);
 	V3StoreU(p2, c);
 
-	PxMat44 m = PxMat44(PxIdentity);
-	out << color << m << Cm::RenderOutput::TRIANGLES << a << b << c;
+	const PxMat44 m(PxIdentity);
+	out << color << m << PxRenderOutput::TRIANGLES << a << b << c;
 #else
 	PX_UNUSED(out);
 	PX_UNUSED(p0);
@@ -499,9 +464,33 @@ void Gu::PersistentContactManifold::drawTriangle(Cm::RenderOutput& out, const Ps
 #endif
 }
 
-void Gu::PersistentContactManifold::drawPolygon( Cm::RenderOutput& out, const Ps::aos::PsTransformV& transform,  Ps::aos::Vec3V* points, const PxU32 numVerts, const PxU32 color)
+void PersistentContactManifold::drawTetrahedron(PxRenderOutput& out, const Vec3VArg p0, const Vec3VArg p1, const Vec3VArg p2, const Vec3VArg p3, PxU32 color)
 {
-	using namespace Ps::aos;
+#if VISUALIZE_PERSISTENT_CONTACT
+	PxVec3 a, b, c, d;
+	V3StoreU(p0, a);
+	V3StoreU(p1, b);
+	V3StoreU(p2, c);
+	V3StoreU(p3, d);
+
+	const PxMat44 m(PxIdentity);
+	out << color << m << PxRenderOutput::LINES << a << b;
+	out << color << m << PxRenderOutput::LINES << a << c;
+	out << color << m << PxRenderOutput::LINES << a << d;
+	out << color << m << PxRenderOutput::LINES << b << c;
+	out << color << m << PxRenderOutput::LINES << b << d;
+	out << color << m << PxRenderOutput::LINES << c << d;
+#else
+	PX_UNUSED(out);
+	PX_UNUSED(p0);
+	PX_UNUSED(p1);
+	PX_UNUSED(p2);
+	PX_UNUSED(color);
+#endif
+}
+
+void PersistentContactManifold::drawPolygon(PxRenderOutput& out, const PxTransformV& transform, const Vec3V* points, PxU32 numVerts, PxU32 color)
+{
 #if VISUALIZE_PERSISTENT_CONTACT
 	for(PxU32 i=0; i<numVerts; ++i)
 	{
@@ -517,12 +506,10 @@ void Gu::PersistentContactManifold::drawPolygon( Cm::RenderOutput& out, const Ps
 	PX_UNUSED(numVerts);
 	PX_UNUSED(color);
 #endif
-
 }
 
-void Gu::PersistentContactManifold::drawPolygon( Cm::RenderOutput& out, const Ps::aos::PsMatTransformV& transform,  Ps::aos::Vec3V* points, const PxU32 numVerts, const PxU32 color)
+void PersistentContactManifold::drawPolygon(PxRenderOutput& out, const PxMatTransformV& transform, const Vec3V* points, PxU32 numVerts, PxU32 color)
 {
-	using namespace Ps::aos;
 #if VISUALIZE_PERSISTENT_CONTACT
 	for(PxU32 i=0; i<numVerts; ++i)
 	{
@@ -538,68 +525,58 @@ void Gu::PersistentContactManifold::drawPolygon( Cm::RenderOutput& out, const Ps
 	PX_UNUSED(numVerts);
 	PX_UNUSED(color);
 #endif
-
 }
 
-void Gu::PersistentContactManifold::recordWarmStart(PxU8* aIndices, PxU8* bIndices, PxU8& nbWarmStartPoints)
+void PersistentContactManifold::recordWarmStart(PxU8* aIndices, PxU8* bIndices, PxU8& nbWarmStartPoints)
 {
 	nbWarmStartPoints = mNumWarmStartPoints;
-	for (PxU8 i = 0; i < mNumWarmStartPoints; ++i)
+	for(PxU8 i = 0; i < mNumWarmStartPoints; ++i)
 	{
 		aIndices[i] = mAIndice[i];
 		bIndices[i] = mBIndice[i];
 	}
 }
 
-void Gu::PersistentContactManifold::setWarmStart(const PxU8* aIndices, const PxU8* bIndices, const PxU8 nbWarmStartPoints)
+void PersistentContactManifold::setWarmStart(const PxU8* aIndices, const PxU8* bIndices, const PxU8 nbWarmStartPoints)
 {
 	mNumWarmStartPoints = nbWarmStartPoints;
-	for (PxU8 i = 0; i < nbWarmStartPoints; ++i)
+	for(PxU8 i = 0; i < nbWarmStartPoints; ++i)
 	{
 		mAIndice[i] = aIndices[i];
 		mBIndice[i] = bIndices[i];
 	}
 }
 
-/*
-	If a new point and the exisitng point's distance are within some replace breaking threshold, we will replace the existing point with the new point. This is used for
-	incremental manifold strategy.
-*/
-bool Gu::PersistentContactManifold::replaceManifoldPoint(const Ps::aos::Vec3VArg localPointA, const Ps::aos::Vec3VArg localPointB, const Ps::aos::Vec4VArg localNormalPen
-														, const Ps::aos::FloatVArg replaceBreakingThreshold)
+//	If a new point and the exisitng point's distance are within some replace breaking threshold, we will replace the existing point with the new point.
+//	This is used for incremental manifold strategy.
+bool PersistentContactManifold::replaceManifoldPoint(const Vec3VArg localPointA, const Vec3VArg localPointB, const Vec4VArg localNormalPen
+														, const FloatVArg replaceBreakingThreshold)
 {
-	using namespace Ps::aos;
-
-	const FloatV shortestDist =  FMul(replaceBreakingThreshold, replaceBreakingThreshold); 
+	const FloatV shortestDist = FMul(replaceBreakingThreshold, replaceBreakingThreshold); 
 	
-	for( PxU32 i = 0; i < mNumContacts; ++i )
+	for(PxU32 i=0; i<mNumContacts; ++i)
 	{
 		const PersistentContact& mp = mContactPoints[i];
 
-		const Vec3V diffB =  V3Sub(mp.mLocalPointB, localPointB);
+		const Vec3V diffB = V3Sub(mp.mLocalPointB, localPointB);
 		const FloatV sqDifB = V3Dot(diffB, diffB);
 		const Vec3V diffA = V3Sub(mp.mLocalPointA, localPointA);
 		const FloatV sqDifA = V3Dot(diffA, diffA);
 		const FloatV minSqDif = FMin(sqDifB, sqDifA);
 
-		if (FAllGrtr(shortestDist, minSqDif))
+		if(FAllGrtr(shortestDist, minSqDif))
 		{
 			mContactPoints[i].mLocalPointA = localPointA;
 			mContactPoints[i].mLocalPointB = localPointB;
 			mContactPoints[i].mLocalNormalPen = localNormalPen;
 			return true;
 		}
-
 	}
-
 	return false;
 }
 
-
-
-PxU32 Gu::PersistentContactManifold::reduceContactSegment(const Ps::aos::Vec3VArg localPointA, const Ps::aos::Vec3VArg localPointB, const Ps::aos::Vec4VArg localNormalPen)
+PxU32 PersistentContactManifold::reduceContactSegment(const Vec3VArg localPointA, const Vec3VArg localPointB, const Vec4VArg localNormalPen)
 {
-	using namespace Ps::aos;
 	const Vec3V p  = localPointB;
 	const Vec3V p0 = mContactPoints[0].mLocalPointB;
 	const Vec3V p1 = mContactPoints[1].mLocalPointB;
@@ -623,15 +600,10 @@ PxU32 Gu::PersistentContactManifold::reduceContactSegment(const Ps::aos::Vec3VAr
 	return 0;
 }
 
-
-
-PxU32 Gu::PersistentContactManifold::reduceContactsForPCM(const Ps::aos::Vec3VArg localPointA, const Ps::aos::Vec3VArg localPointB, const Ps::aos::Vec4VArg localNormalPen)
+PxU32 PersistentContactManifold::reduceContactsForPCM(const Vec3VArg localPointA, const Vec3VArg localPointB, const Vec4VArg localNormalPen)
 {
-	using namespace Ps::aos;
-
-
 	bool chosen[5];
-	physx::PxMemZero(chosen, sizeof(bool)*5);
+	PxMemZero(chosen, sizeof(bool)*5);
 	const FloatV negMax = FNeg(FMax());
 	PersistentContact tempContacts[5];
 	
@@ -644,7 +616,7 @@ PxU32 Gu::PersistentContactManifold::reduceContactsForPCM(const Ps::aos::Vec3VAr
 	tempContacts[4].mLocalNormalPen = localNormalPen;
 
 	//ML: we set the start point to be the 4th point
-	FloatV maxDist =V4GetW(localNormalPen);
+	FloatV maxDist = V4GetW(localNormalPen);
 	PxI32 index = 4;
 	//Choose deepest point
 	for(PxI32 i=0; i<4; ++i)
@@ -661,7 +633,7 @@ PxU32 Gu::PersistentContactManifold::reduceContactsForPCM(const Ps::aos::Vec3VAr
 	mContactPoints[0] = tempContacts[index];
 
 	//ML: we set the start point to be the 0th point 
-	Vec3V dir= V3Sub(tempContacts[0].mLocalPointB, mContactPoints[0].mLocalPointB);
+	Vec3V dir = V3Sub(tempContacts[0].mLocalPointB, mContactPoints[0].mLocalPointB);
 	maxDist = V3Dot(dir, dir);
 	index = 0;
 
@@ -709,7 +681,7 @@ PxU32 Gu::PersistentContactManifold::reduceContactsForPCM(const Ps::aos::Vec3VAr
 			const FloatV sqDif = distancePointTriangleSquaredLocal(	tempContacts[i].mLocalPointB, mContactPoints[0].mLocalPointB, mContactPoints[1].mLocalPointB, mContactPoints[2].mLocalPointB); 
 			if(FAllGrtr(sqDif, maxDist))
 			{
-				maxDist= sqDif;
+				maxDist = sqDif;
 				index = i;
 			}
 		}
@@ -725,7 +697,7 @@ PxU32 Gu::PersistentContactManifold::reduceContactsForPCM(const Ps::aos::Vec3VAr
 	else
 	{
 		chosen[index] = true;
-		mContactPoints[3]=tempContacts[index];
+		mContactPoints[3] = tempContacts[index];
 	}
 
 	//Final pass, we work out the index that we didn't choose and bind it to its closest point. We then consider whether we want to swap the point if the
@@ -760,99 +732,62 @@ PxU32 Gu::PersistentContactManifold::reduceContactsForPCM(const Ps::aos::Vec3VAr
 		mContactPoints[index] = tempContacts[notChosenIndex];
 	}
 
-
 	return 0;
 }
 
-
-/*
-	This function is for box/convexHull vs box/convexHull.
-*/
-void Gu::PersistentContactManifold::addManifoldContactsToContactBuffer(Gu::ContactBuffer& contactBuffer, const Ps::aos::Vec3VArg normal, const Ps::aos::PsTransformV& transf1, const Ps::aos::FloatVArg contactOffset)
+//	This function is for box/convexHull vs box/convexHull.
+void PersistentContactManifold::addManifoldContactsToContactBuffer(PxContactBuffer& contactBuffer, const Vec3VArg normal, const PxTransformV& transf1, const FloatVArg contactOffset)
 {
-	using namespace Ps::aos;
 	//add the manifold contacts;
-	PxU32 contactCount = 0;//contactBuffer.count;
-	for(PxU32 i=0; (i< mNumContacts) & (contactCount < Gu::ContactBuffer::MAX_CONTACTS); ++i)
+	PxU32 contactCount = 0;
+	for(PxU32 i=0; (i< mNumContacts) & (contactCount < PxContactBuffer::MAX_CONTACTS); ++i)
 	{
-		PersistentContact& p = getContactPoint(i);
+		const PersistentContact& p = getContactPoint(i);
 		
 		const FloatV dist = V4GetW(p.mLocalNormalPen);
 
 		//Either the newly created points or the cache points might have dist/penetration larger than contactOffset
 		if(FAllGrtrOrEq(contactOffset, dist))
 		{
-			const Vec3V worldP =transf1.transform(p.mLocalPointB);
+			const Vec3V worldP = transf1.transform(p.mLocalPointB);
 
-			Gu::ContactPoint& contact = contactBuffer.contacts[contactCount++];
-			//Fast allign store
-			V4StoreA(Vec4V_From_Vec3V(normal), reinterpret_cast<PxF32*>(&contact.normal.x));
-			V4StoreA(Vec4V_From_Vec3V(worldP), reinterpret_cast<PxF32*>(&contact.point.x));
-			FStore(dist, &contact.separation);
-
-			PX_ASSERT(contact.point.isFinite());
-			PX_ASSERT(contact.normal.isFinite());
-			PX_ASSERT(PxIsFinite(contact.separation));
-
-			contact.internalFaceIndex1 = PXC_CONTACT_NO_FACE_INDEX;
+			outputPCMContact(contactBuffer, contactCount, worldP, normal, dist);
 		}
-	
 	}
 
 	contactBuffer.count = contactCount;
 }
 
-/*
-	This function is for direct implementation for box vs box. We don't need to discard the contacts based on whether the contact offset is larger than penetration/dist because
-	the direct implementation will guarantee the penetration/dist won't be larger than the contact offset. Also, we won't have points from the cache if the direct implementation
-	of box vs box is called.
-*/
-void Gu::PersistentContactManifold::addManifoldContactsToContactBuffer(Gu::ContactBuffer& contactBuffer, const Ps::aos::Vec3VArg normal, const Ps::aos::PsMatTransformV& transf1)
+//	This function is for direct implementation for box vs box. We don't need to discard the contacts based on whether the contact offset is larger than penetration/dist because
+//	the direct implementation will guarantee the penetration/dist won't be larger than the contact offset. Also, we won't have points from the cache if the direct implementation
+//	of box vs box is called.
+void PersistentContactManifold::addManifoldContactsToContactBuffer(PxContactBuffer& contactBuffer, const Vec3VArg normal, const PxMatTransformV& transf1)
 {
-	using namespace Ps::aos;
-
 	//add the manifold contacts;
-	PxU32 contactCount = 0;//contactBuffer.count;
-	for(PxU32 i=0; (i< mNumContacts) & (contactCount < Gu::ContactBuffer::MAX_CONTACTS); ++i)
+	PxU32 contactCount = 0;
+	for(PxU32 i=0; (i< mNumContacts) & (contactCount < PxContactBuffer::MAX_CONTACTS); ++i)
 	{
-	
-		PersistentContact& p = getContactPoint(i);
+		const PersistentContact& p = getContactPoint(i);
 		
-		const Vec3V worldP =transf1.transform(p.mLocalPointB);
+		const Vec3V worldP = transf1.transform(p.mLocalPointB);
 		const FloatV dist = V4GetW(p.mLocalNormalPen);
 
-		Gu::ContactPoint& contact = contactBuffer.contacts[contactCount++];
-		//Fast allign store
-		V4StoreA(Vec4V_From_Vec3V(normal), reinterpret_cast<PxF32*>(&contact.normal.x));
-		V4StoreA(Vec4V_From_Vec3V(worldP), reinterpret_cast<PxF32*>(&contact.point.x));
-		FStore(dist, &contact.separation);
-		PX_ASSERT(PxIsFinite(contact.point.x));
-		PX_ASSERT(PxIsFinite(contact.point.y));
-		PX_ASSERT(PxIsFinite(contact.point.z));
-
-		//PX_ASSERT(contact.separation > -0.2f);
-
-		contact.internalFaceIndex1 = PXC_CONTACT_NO_FACE_INDEX;
+		outputPCMContact(contactBuffer, contactCount, worldP, normal, dist);
 	}
 
 	contactBuffer.count = contactCount;
 }
 
-/*
-	This function is for sphere/capsule vs other primitives. We treat sphere as a point and capsule as a segment in the contact gen and store the sphere center or a point in the segment for capsule
-	in the manifold. 
-*/
-void Gu::PersistentContactManifold::addManifoldContactsToContactBuffer(Gu::ContactBuffer& contactBuffer, const Ps::aos::Vec3VArg normal, const Ps::aos::Vec3VArg projectionNormal,
-	const Ps::aos::PsTransformV& transf0, const Ps::aos::FloatVArg radius, const Ps::aos::FloatVArg contactOffset)
+//	This function is for sphere/capsule vs other primitives. We treat sphere as a point and capsule as a segment in the contact gen and store the sphere center or a point in the segment for capsule
+//	in the manifold. 
+void PersistentContactManifold::addManifoldContactsToContactBuffer(PxContactBuffer& contactBuffer, const Vec3VArg normal, const Vec3VArg projectionNormal,
+	const PxTransformV& transf0, const FloatVArg radius, const FloatVArg contactOffset)
 {
-	using namespace Ps::aos;
-
 	//add the manifold contacts;
-	PxU32 contactCount = 0;//contactBuffer.count;
-	for(PxU32 i=0; (i< mNumContacts) & (contactCount < Gu::ContactBuffer::MAX_CONTACTS); ++i)
+	PxU32 contactCount = 0;
+	for(PxU32 i=0; (i< mNumContacts) & (contactCount < PxContactBuffer::MAX_CONTACTS); ++i)
 	{
-	
-		PersistentContact& p = getContactPoint(i);
+		const PersistentContact& p = getContactPoint(i);
 		const FloatV dist = FSub(V4GetW(p.mLocalNormalPen), radius);
 
 		//The newly created points should have a dist < contactOffset. However, points might come from the PCM contact cache so we might still have points which are
@@ -862,66 +797,50 @@ void Gu::PersistentContactManifold::addManifoldContactsToContactBuffer(Gu::Conta
 		//may introduce noticeable instability.
 		if(FAllGrtrOrEq(contactOffset, dist))
 		{
-			const Vec3V worldP =V3NegScaleSub(projectionNormal, radius, transf0.transform(p.mLocalPointA));
+			const Vec3V worldP = V3NegScaleSub(projectionNormal, radius, transf0.transform(p.mLocalPointA));
 
-			Gu::ContactPoint& contact = contactBuffer.contacts[contactCount++];
-			//Fast allign store
-			V4StoreA(Vec4V_From_Vec3V(normal), reinterpret_cast<PxF32*>(&contact.normal.x));
-			V4StoreA(Vec4V_From_Vec3V(worldP), reinterpret_cast<PxF32*>(&contact.point.x));
-			FStore(dist, &contact.separation);
-			//PX_ASSERT(PxAbs(contact.separation) < 2.f);
-
-			contact.internalFaceIndex1 = PXC_CONTACT_NO_FACE_INDEX;
+			outputPCMContact(contactBuffer, contactCount, worldP, normal, dist);
 		}
 	}
 
 	contactBuffer.count = contactCount;
 }
 
-
-/*
-	This function is used in the box/convexhull full manifold contact genenation. We will pass in a list of manifold contacts. If the number of contacts are more than
-	GU_MANIFOLD_CACHE_SIZE, we will need to do contact reduction while we are storing the chosen manifold contacts from the manifold contact list to the manifold contact
-	buffer.
-*/
-void Gu::PersistentContactManifold::addBatchManifoldContacts(const PersistentContact* manifoldContacts, 
-	const PxU32 numPoints, const PxReal toleranceLength)
+//	This function is used in the box/convexhull full manifold contact genenation. We will pass in a list of manifold contacts. If the number of contacts are more than
+//	GU_MANIFOLD_CACHE_SIZE, we will need to do contact reduction while we are storing the chosen manifold contacts from the manifold contact list to the manifold contact
+//	buffer.
+void PersistentContactManifold::addBatchManifoldContacts(const PersistentContact* manifoldContacts, PxU32 numPoints, PxReal toleranceLength)
 {
-
 	if(numPoints <= GU_MANIFOLD_CACHE_SIZE)
 	{
 		for(PxU32 i=0; i<numPoints; ++i)
 		{
-			mContactPoints[i].mLocalPointA =  manifoldContacts[i].mLocalPointA;
-			mContactPoints[i].mLocalPointB =  manifoldContacts[i].mLocalPointB;
-			mContactPoints[i].mLocalNormalPen =  manifoldContacts[i].mLocalNormalPen;
+			mContactPoints[i].mLocalPointA = manifoldContacts[i].mLocalPointA;
+			mContactPoints[i].mLocalPointB = manifoldContacts[i].mLocalPointB;
+			mContactPoints[i].mLocalNormalPen = manifoldContacts[i].mLocalNormalPen;
 		}
-		mNumContacts = Ps::to8(numPoints);
+		mNumContacts = PxTo8(numPoints);
 	}
 	else
 	{
-		
 		reduceBatchContacts(manifoldContacts, numPoints, toleranceLength);
 
 		mNumContacts = GU_MANIFOLD_CACHE_SIZE;
 	}
 }  
 
-/*
-	This function is for the plane and box contact gen. If the number of points passed in is more than 4, we need to do contact reduction 
-*/
-void Gu::PersistentContactManifold::addBatchManifoldContactsCluster(const PersistentContact* manifoldContacts, const PxU32 numPoints)
+//	This function is for the plane and box contact gen. If the number of points passed in is more than 4, we need to do contact reduction 
+void PersistentContactManifold::addBatchManifoldContactsCluster(const PersistentContact* manifoldContacts, PxU32 numPoints)
 {
-
 	if(numPoints <= GU_MANIFOLD_CACHE_SIZE)
 	{
 		for(PxU32 i=0; i<numPoints; ++i)
 		{
-			mContactPoints[i].mLocalPointA =  manifoldContacts[i].mLocalPointA;
-			mContactPoints[i].mLocalPointB =  manifoldContacts[i].mLocalPointB;
-			mContactPoints[i].mLocalNormalPen =  manifoldContacts[i].mLocalNormalPen;
+			mContactPoints[i].mLocalPointA = manifoldContacts[i].mLocalPointA;
+			mContactPoints[i].mLocalPointB = manifoldContacts[i].mLocalPointB;
+			mContactPoints[i].mLocalNormalPen = manifoldContacts[i].mLocalNormalPen;
 		}
-		mNumContacts = Ps::to8(numPoints);
+		mNumContacts = PxTo8(numPoints);
 	}
 	else
 	{
@@ -930,35 +849,31 @@ void Gu::PersistentContactManifold::addBatchManifoldContactsCluster(const Persis
 	}
 }
 
-
-/*
-	This function is called by addBatchManifoldContactCluster. The logic in this funtion is:
-	(1)get the furthest away point from origin and store in mContactPoints[0]
-	(2)get the furthest away point from mContactPoints[0] and store in mContactPoints[1]
-	(3)calculate the min and max distance point away the segment (mContactPoints[0] and mContactPoints[1]) and store the max distance point to mContactPoints[2]
-	(4)if the min and max distance on the same side of the segment, we need to chose the min distance point again and store this point to mContactPoints[3]; 
-	(5)cluster around that 4 points and chose the deepest points
-	(6)reassign contact points
-*/
-void Gu::PersistentContactManifold::reduceBatchContactsCluster(const PersistentContact* manifoldPoints, const PxU32 numPoints)
+//	This function is called by addBatchManifoldContactCluster. The logic in this funtion is:
+//	(1)get the depest-penetrated contacts and store it in mContactPoints[0]
+//	(2)get the furthest away point from mContactPoints[0] and store in mContactPoints[1]
+//	(3)calculate the min and max distance point away the segment (mContactPoints[0] and mContactPoints[1]) and store the max distance point to mContactPoints[2]
+//	(4)if the min and max distance on the same side of the segment, we need to chose the min distance point again and store this point to mContactPoints[3]; 
+//	(5)cluster around that 4 points and chose the deepest points
+//	(6)reassign contact points
+void PersistentContactManifold::reduceBatchContactsCluster(const PersistentContact* manifoldPoints, PxU32 numPoints)
 {
-	using namespace Ps::aos;
 	//get the deepest points
 
 	bool chosen[64];
-	physx::PxMemZero(chosen, sizeof(bool)*numPoints);
+	PxMemZero(chosen, sizeof(bool)*numPoints);
 	const FloatV max = FMax();
 	const FloatV nmax = FNeg(max);
-	FloatV maxDist = nmax;
+	FloatV maxDist = max;
 	PxU32 index = 0;
 
 	PxU32 indices[4];
 	
-	//get the furthest away point from itself
+	//get the deepest point
 	for(PxU32 i=0; i<numPoints; ++i)
 	{
-		const FloatV dist = V3Dot(manifoldPoints[i].mLocalPointB, manifoldPoints[i].mLocalPointB);
-		if(FAllGrtr(dist, maxDist))
+		const FloatV dist = V4GetW(manifoldPoints[i].mLocalNormalPen);
+		if(FAllGrtr(maxDist, dist))
 		{
 			maxDist = dist;
 			index = i;
@@ -966,10 +881,9 @@ void Gu::PersistentContactManifold::reduceBatchContactsCluster(const PersistentC
 	}
 
 	//keep the furthest points in the first position
-	mContactPoints[0] =  manifoldPoints[index];
+	mContactPoints[0] = manifoldPoints[index];
 	chosen[index] = true;
 	indices[0] = index;
-
 
 	//calculate the furthest away points from mContactPoints[0]
 	Vec3V v = V3Sub(manifoldPoints[0].mLocalPointB, mContactPoints[0].mLocalPointB);
@@ -988,10 +902,9 @@ void Gu::PersistentContactManifold::reduceBatchContactsCluster(const PersistentC
 	}
 
 	//PX_ASSERT(chosen[index] == false);
-	mContactPoints[1] =  manifoldPoints[index];
+	mContactPoints[1] = manifoldPoints[index];
 	chosen[index] = true;
 	indices[1] = index;
-
 
 	maxDist = nmax;
 	index = GU_MANIFOLD_INVALID_INDEX;
@@ -1002,11 +915,9 @@ void Gu::PersistentContactManifold::reduceBatchContactsCluster(const PersistentC
 	const FloatV sqLen = V3Dot(norm, norm);
 	norm = V3Sel(FIsGrtr(sqLen, FZero()), V3ScaleInv(norm, FSqrt(sqLen)), cn0);
 
-
 	FloatV minDist = max;
 	PxU32 index1 = GU_MANIFOLD_INVALID_INDEX;
 	
-
 	//calculate the min and max point away from the segment
 	for(PxU32 i=0; i<numPoints; ++i)
 	{
@@ -1029,7 +940,7 @@ void Gu::PersistentContactManifold::reduceBatchContactsCluster(const PersistentC
 	}
 
 	//PX_ASSERT(chosen[index] == false && chosen[index1] == false);
-	mContactPoints[2] =  manifoldPoints[index];
+	mContactPoints[2] = manifoldPoints[index];
 	chosen[index] = true;
 	indices[2] = index;
 
@@ -1090,19 +1001,12 @@ void Gu::PersistentContactManifold::reduceBatchContactsCluster(const PersistentC
 	mContactPoints[0] = manifoldPoints[indices[0]];
 	mContactPoints[1] = manifoldPoints[indices[1]];
 	mContactPoints[2] = manifoldPoints[indices[2]];
-	mContactPoints[3] = manifoldPoints[indices[3]];
-	
-				
+	mContactPoints[3] = manifoldPoints[indices[3]];				
 }
 
-/*
-	This function is for box/convexhull full contact generation. If the numPoints > 4, we will reduce the contact points to 4
-*/
-void Gu::PersistentContactManifold::reduceBatchContacts(const PersistentContact* manifoldPoints, 
-	const PxU32 numPoints, const PxReal tolereanceLength)
+//	This function is for box/convexhull full contact generation. If the numPoints > 4, we will reduce the contact points to 4
+void PersistentContactManifold::reduceBatchContacts(const PersistentContact* manifoldPoints, PxU32 numPoints, PxReal tolereanceLength)
 {
-	using namespace Ps::aos;
-
 	PxU8 chosenIndices[4];
 	PxU8 candidates[64];
 	
@@ -1110,21 +1014,21 @@ void Gu::PersistentContactManifold::reduceBatchContacts(const PersistentContact*
 	const FloatV max = FMax();
 	const FloatV nmax = FNeg(max);
 	FloatV maxPen = V4GetW(manifoldPoints[0].mLocalNormalPen);
-	FloatV minPen = nmax;
+	FloatV minPen = maxPen;
 	PxU32 index = 0;
 	candidates[0] = 0;
 	PxU32 candidateIndex = 0;
 
 	PxU32 nbCandiates = numPoints;
 	//keep the deepest point, candidateIndex will be the same as index
-	for (PxU32 i = 1; i<numPoints; ++i)
+	for(PxU32 i = 1; i<numPoints; ++i)
 	{
 		//at the begining candidates and indices will be the same
 		candidates[i] = PxU8(i);
 	
 		const FloatV pen = V4GetW(manifoldPoints[i].mLocalNormalPen);
 		minPen = FMax(minPen, pen);
-		if (FAllGrtr(maxPen, pen))
+		if(FAllGrtr(maxPen, pen))
 		{
 			maxPen = pen;
 			index = i;
@@ -1146,11 +1050,11 @@ void Gu::PersistentContactManifold::reduceBatchContacts(const PersistentContact*
 	index = candidates[0];
 	candidateIndex = 0;
 
-	for (PxU32 i = 1; i<nbCandiates; ++i)
+	for(PxU32 i = 1; i<nbCandiates; ++i)
 	{
 		v = V3Sub(manifoldPoints[candidates[i]].mLocalPointB, manifoldPoints[chosenIndices[0]].mLocalPointB);
 		const FloatV d = V3Dot(v, v);
-		if (FAllGrtr(d, maxDist))
+		if(FAllGrtr(d, maxDist))
 		{
 			maxDist = d;
 			index = candidates[i];
@@ -1177,54 +1081,50 @@ void Gu::PersistentContactManifold::reduceBatchContacts(const PersistentContact*
 	PxU32 index1 = GU_MANIFOLD_INVALID_INDEX;
 	PxU32 candidateIndex1 = GU_MANIFOLD_INVALID_INDEX;
 
-
 	//calculate the min and max point away from the segment
-	for (PxU32 i = 0; i<nbCandiates; ++i)
+	for(PxU32 i = 0; i<nbCandiates; ++i)
 	{
 		v = V3Sub(manifoldPoints[candidates[i]].mLocalPointB, manifoldPoints[chosenIndices[0]].mLocalPointB);
 		const FloatV d = V3Dot(v, norm);
-		if (FAllGrtr(d, maxDist))
+		if(FAllGrtr(d, maxDist))
 		{
 			maxDist = d;
 			index = candidates[i];
 			candidateIndex = i;
 		}
 
-		if (FAllGrtr(minDist, d))
+		if(FAllGrtr(minDist, d))
 		{
 			minDist = d;
 			index1 = candidates[i];
 			candidateIndex1 = i;
 		}
-		
 	}
-
 
 	chosenIndices[2] = PxU8(index);
 	//move the chosen indices out of the candidates indices
 	nbCandiates = nbCandiates - 1;
 	candidates[candidateIndex] = candidates[nbCandiates];
-	if (nbCandiates == candidateIndex1)
+	if(nbCandiates == candidateIndex1)
 		candidateIndex1 = candidateIndex;
 
 	//if min and max in the same side, chose again
 	const FloatV temp = FMul(minDist, maxDist);
-	if (FAllGrtr(temp, zero))
+	if(FAllGrtr(temp, zero))
 	{
 		//chose again
 		maxDist = nmax;
-		for (PxU32 i = 0; i < nbCandiates; ++i)
+		for(PxU32 i = 0; i < nbCandiates; ++i)
 		{
 			v = V3Sub(manifoldPoints[candidates[i]].mLocalPointB, manifoldPoints[chosenIndices[0]].mLocalPointB);
 			const FloatV d = V3Dot(v, norm);
-			if (FAllGrtr(d, maxDist))
+			if(FAllGrtr(d, maxDist))
 			{
 				maxDist = d;
 				index1 = candidates[i];
 				candidateIndex1 = i;
 			}
 		}
-		
 	}
 
 	chosenIndices[3] = PxU8(index1);
@@ -1234,26 +1134,27 @@ void Gu::PersistentContactManifold::reduceBatchContacts(const PersistentContact*
 
 	const FloatV eps = FLoad(tolereanceLength * 0.02f);
 	const BoolV con = BAnd(FIsGrtr(eps, maxPen), FIsGrtr(minPen, eps));
-	if (BAllEqTTTT(con) )
+	if(BAllEqTTTT(con))
 	{
 		//post process 
-		for (PxU32 i = 0; i < 4; ++i)
+		for(PxU32 i = 0; i < 4; ++i)
 		{
 			FloatV pen = V4GetW(manifoldPoints[chosenIndices[i]].mLocalNormalPen);
 
-			if (FAllGrtr(pen, eps))
+			if(FAllGrtr(pen, eps))
 			{
 				candidateIndex = GU_MANIFOLD_INVALID_INDEX;
-				for (PxU32 j = 0; j < nbCandiates; ++j)
+				for(PxU32 j = 0; j < nbCandiates; ++j)
 				{
 					const FloatV pen1 = V4GetW(manifoldPoints[candidates[j]].mLocalNormalPen);
-					if (FAllGrtr(pen, pen1) && FAllGrtr(eps, pen1))
+					if(FAllGrtr(pen, pen1) && FAllGrtr(eps, pen1))
 					{
 						pen = pen1;
 						candidateIndex = j;
 					}
 				}
-				if (candidateIndex < nbCandiates)
+
+				if(candidateIndex < nbCandiates)
 				{
 					const PxU8 originalIndex = chosenIndices[i];
 					chosenIndices[i] = candidates[candidateIndex];
@@ -1265,22 +1166,19 @@ void Gu::PersistentContactManifold::reduceBatchContacts(const PersistentContact*
 	}
 	else
 	{
-		for (PxU32 i = 0; i < 4; ++i)
+		for(PxU32 i = 0; i < 4; ++i)
 		{
 			mContactPoints[i] = manifoldPoints[chosenIndices[i]];
 		}
 	}
 }
-/*
-	This function is for capsule full contact generation. If the numPoints > 2, we will reduce the contact points to 2
-*/
-void Gu::PersistentContactManifold::reduceBatchContacts2(const PersistentContact* manifoldPoints, const PxU32 numPoints)  
+
+//	This function is for capsule full contact generation. If the numPoints > 2, we will reduce the contact points to 2
+void PersistentContactManifold::reduceBatchContacts2(const PersistentContact* manifoldPoints, PxU32 numPoints)
 {
-	using namespace Ps::aos;
-	
 	PX_ASSERT(numPoints < 64);
 	bool chosen[64];
-	physx::PxMemZero(chosen, sizeof(bool)*numPoints);
+	PxMemZero(chosen, sizeof(bool)*numPoints);
 	FloatV maxDis = V4GetW(manifoldPoints[0].mLocalNormalPen);
 	PxI32 index = 0;
 	//keep the deepest point
@@ -1294,9 +1192,8 @@ void Gu::PersistentContactManifold::reduceBatchContacts2(const PersistentContact
 		}
 	}
 	//keep the deepest points in the first position
-	mContactPoints[0] =  manifoldPoints[index];
+	mContactPoints[0] = manifoldPoints[index];
 	chosen[index] = true;
-
 
 	//calculate the furthest away points
 	Vec3V v = V3Sub(manifoldPoints[0].mLocalPointB, mContactPoints[0].mLocalPointB);
@@ -1315,7 +1212,7 @@ void Gu::PersistentContactManifold::reduceBatchContacts2(const PersistentContact
 	}
 
 	//PX_ASSERT(chosen[index] == false);
-	mContactPoints[1] =  manifoldPoints[index];
+	mContactPoints[1] = manifoldPoints[index];
 	chosen[index] = true;
 
 	PxI32 secondIndex = index;
@@ -1324,8 +1221,8 @@ void Gu::PersistentContactManifold::reduceBatchContacts2(const PersistentContact
 	{
 		if(!chosen[i])
 		{
-			Vec3V d0 = V3Sub(mContactPoints[0].mLocalPointB, manifoldPoints[i].mLocalPointB);
-			Vec3V d1 = V3Sub(mContactPoints[1].mLocalPointB, manifoldPoints[i].mLocalPointB);
+			const Vec3V d0 = V3Sub(mContactPoints[0].mLocalPointB, manifoldPoints[i].mLocalPointB);
+			const Vec3V d1 = V3Sub(mContactPoints[1].mLocalPointB, manifoldPoints[i].mLocalPointB);
 			const FloatV dd0 = V3Dot(d0, d0);
 			const FloatV dd1 = V3Dot(d1, d1);
 
@@ -1343,14 +1240,11 @@ void Gu::PersistentContactManifold::reduceBatchContacts2(const PersistentContact
 	if(secondIndex != index)
 	{
 		mContactPoints[1] = manifoldPoints[secondIndex];
-	}	
+	}
 }
 
-PxU32 Gu::PersistentContactManifold::addManifoldPoint(const Ps::aos::Vec3VArg localPointA, const Ps::aos::Vec3VArg localPointB, const Ps::aos::Vec4VArg localNormalPen
-													 , const Ps::aos::FloatVArg replaceBreakingThreshold)
+PxU32 PersistentContactManifold::addManifoldPoint(const Vec3VArg localPointA, const Vec3VArg localPointB, const Vec4VArg localNormalPen, const FloatVArg replaceBreakingThreshold)
 {
-	using namespace Ps::aos;
-	
 	if(replaceManifoldPoint(localPointA, localPointB, localNormalPen, replaceBreakingThreshold)) //replace the new point with the old one
 		return 0;
 
@@ -1368,19 +1262,12 @@ PxU32 Gu::PersistentContactManifold::addManifoldPoint(const Ps::aos::Vec3VArg lo
 	default:
 		return reduceContactsForPCM(localPointA, localPointB, localNormalPen);//should be always return zero
 	};
-
 }
 
-
-/*
-	This function is for capsule vs other primitives. If the manifold originally has contacts and we can incrementally add a point at a time, we will
-	use this function to add a point to manifold. If the number of contacts inside the manifold is more than 2, we will reduce contacts to 2 points.
-*/
-PxU32 Gu::PersistentContactManifold::addManifoldPoint2(const Ps::aos::Vec3VArg localPointA, const Ps::aos::Vec3VArg localPointB, const Ps::aos::Vec4VArg localNormalPen
-													  , const Ps::aos::FloatVArg replaceBreakingThreshold)
+//	This function is for capsule vs other primitives. If the manifold originally has contacts and we can incrementally add a point at a time, we will
+//	use this function to add a point to manifold. If the number of contacts inside the manifold is more than 2, we will reduce contacts to 2 points.
+PxU32 PersistentContactManifold::addManifoldPoint2(const Vec3VArg localPointA, const Vec3VArg localPointB, const Vec4VArg localNormalPen, const FloatVArg replaceBreakingThreshold)
 {
-	using namespace Ps::aos;
-	
 	if(replaceManifoldPoint(localPointA, localPointB, localNormalPen, replaceBreakingThreshold)) //replace the new point with the old one
 		return 0;
 
@@ -1398,48 +1285,37 @@ PxU32 Gu::PersistentContactManifold::addManifoldPoint2(const Ps::aos::Vec3VArg l
 		PX_ASSERT(0);
 	};
 	return 0;
-
 }
 
-/*
-	This function is used in the capsule full manifold contact genenation. We will pass in a list of manifold contacts. If the number of contacts are more than
-	2, we will need to do contact reduction while we are storing the chosen manifold contacts from the manifold contact list to the manifold contact
-	buffer.
-*/
-void Gu::PersistentContactManifold::addBatchManifoldContacts2(const PersistentContact* manifoldContacts, const PxU32 numPoints)
+//	This function is used in the capsule full manifold contact genenation. We will pass in a list of manifold contacts. If the number of contacts are more than
+//	2, we will need to do contact reduction while we are storing the chosen manifold contacts from the manifold contact list to the manifold contact buffer.
+void PersistentContactManifold::addBatchManifoldContacts2(const PersistentContact* manifoldContacts, PxU32 numPoints)
 {
-	using namespace Ps::aos;
-	
 	if(numPoints <= 2)
 	{
 		for(PxU32 i=0; i<numPoints; ++i)
 		{
-			mContactPoints[i].mLocalPointA =  manifoldContacts[i].mLocalPointA;
-			mContactPoints[i].mLocalPointB =  manifoldContacts[i].mLocalPointB;
-			mContactPoints[i].mLocalNormalPen =  manifoldContacts[i].mLocalNormalPen;
+			mContactPoints[i].mLocalPointA = manifoldContacts[i].mLocalPointA;
+			mContactPoints[i].mLocalPointB = manifoldContacts[i].mLocalPointB;
+			mContactPoints[i].mLocalNormalPen = manifoldContacts[i].mLocalNormalPen;
 		}
 
-		mNumContacts = Ps::to8(numPoints);
+		mNumContacts = PxTo8(numPoints);
 	}
 	else
 	{
 		reduceBatchContacts2(manifoldContacts, numPoints);
 		mNumContacts = 2;
 	}
-
 }
 
 
-/*
-	If the patch total number of manifold contacts are less than or equal to GU_SINGLE_MANIFOLD_CACHE_SIZE, we will add the manifold contacts in the contact stream to the manifold contact buffer
-	which is associated to this single persistent contact manifold. Otherwise, we will reduce the manifold contacts to GU_SINGLE_MANIFOLD_CACHE_SIZE.
-*/
-Ps::aos::FloatV Gu::SinglePersistentContactManifold::addBatchManifoldContactsConvex(const MeshPersistentContact* manifoldContact, const PxU32 numContactExt, PCMContactPatch& patch, const Ps::aos::FloatVArg replaceBreakingThreshold)
+//	If the patch total number of manifold contacts are less than or equal to GU_SINGLE_MANIFOLD_CACHE_SIZE, we will add the manifold contacts in the contact stream to the manifold contact buffer
+//	which is associated to this single persistent contact manifold. Otherwise, we will reduce the manifold contacts to GU_SINGLE_MANIFOLD_CACHE_SIZE.
+FloatV SinglePersistentContactManifold::addBatchManifoldContactsConvex(const MeshPersistentContact* manifoldContact, PxU32 numContactExt, PCMContactPatch& patch, const FloatVArg replaceBreakingThreshold)
 {
 	PX_UNUSED(replaceBreakingThreshold);
 
-	using namespace Ps::aos;
-	
 	if(patch.mTotalSize <= GU_SINGLE_MANIFOLD_CACHE_SIZE)
 	{
 		PCMContactPatch* currentPatch = &patch;
@@ -1450,7 +1326,7 @@ Ps::aos::FloatV Gu::SinglePersistentContactManifold::addBatchManifoldContactsCon
 		{
 			for(PxU32 j=currentPatch->mStartIndex; j<currentPatch->mEndIndex; ++j)
 			{
-				mContactPoints[tempNumContacts++] =  manifoldContact[j];
+				mContactPoints[tempNumContacts++] = manifoldContact[j];
 			}
 			currentPatch = currentPatch->mNextPatch;
 		} 
@@ -1466,22 +1342,18 @@ Ps::aos::FloatV Gu::SinglePersistentContactManifold::addBatchManifoldContactsCon
 	}
 }
 
-Ps::aos::FloatV Gu::SinglePersistentContactManifold::addBatchManifoldContactsSphere(const MeshPersistentContact* manifoldContact, const PxU32 numContactExt, PCMContactPatch& patch, const Ps::aos::FloatVArg replaceBreakingThreshold)
+FloatV SinglePersistentContactManifold::addBatchManifoldContactsSphere(const MeshPersistentContact* manifoldContact, PxU32 numContactExt, PCMContactPatch& patch, const FloatVArg replaceBreakingThreshold)
 {
 	PX_UNUSED(replaceBreakingThreshold);
-
-	using namespace Ps::aos;
 
 	const FloatV maxPen = reduceBatchContactsSphere(manifoldContact, numContactExt, patch);
 	mNumContacts = 1;
 	return maxPen;
 }
 
-Ps::aos::FloatV Gu::SinglePersistentContactManifold::addBatchManifoldContactsCapsule(const MeshPersistentContact* manifoldContact, const PxU32 numContactExt, PCMContactPatch& patch, const Ps::aos::FloatVArg replaceBreakingThreshold)
+FloatV SinglePersistentContactManifold::addBatchManifoldContactsCapsule(const MeshPersistentContact* manifoldContact, PxU32 numContactExt, PCMContactPatch& patch, const FloatVArg replaceBreakingThreshold)
 {
 	PX_UNUSED(replaceBreakingThreshold);
-
-	using namespace Ps::aos;
 
 	if(patch.mTotalSize <=GU_CAPSULE_MANIFOLD_CACHE_SIZE)
 	{
@@ -1502,25 +1374,20 @@ Ps::aos::FloatV Gu::SinglePersistentContactManifold::addBatchManifoldContactsCap
 	}
 	else
 	{
-		
 		const FloatV maxPen = reduceBatchContactsCapsule(manifoldContact, numContactExt, patch);
 		mNumContacts = GU_CAPSULE_MANIFOLD_CACHE_SIZE;
 		return maxPen;
 	}
-
 }
 
-
-Ps::aos::FloatV Gu::SinglePersistentContactManifold::reduceBatchContactsSphere(const MeshPersistentContact* manifoldContactExt, const PxU32 numContacts, PCMContactPatch& patch)
+FloatV SinglePersistentContactManifold::reduceBatchContactsSphere(const MeshPersistentContact* manifoldContactExt, PxU32 numContacts, PCMContactPatch& patch)
 {
 	PX_UNUSED(numContacts);
 
-	using namespace Ps::aos;
 	FloatV max = FMax();
 	FloatV maxDist = max;
 	PxI32 index = -1;
 
-	
 	PCMContactPatch* currentPatch = &patch;
 	while(currentPatch)
 	{
@@ -1540,21 +1407,17 @@ Ps::aos::FloatV Gu::SinglePersistentContactManifold::reduceBatchContactsSphere(c
 	mContactPoints[0] = manifoldContactExt[index];
 
 	return maxDist;
-
 }
 
-Ps::aos::FloatV Gu::SinglePersistentContactManifold::reduceBatchContactsCapsule(const MeshPersistentContact* manifoldContactExt, const PxU32 numContacts, PCMContactPatch& patch)
+FloatV SinglePersistentContactManifold::reduceBatchContactsCapsule(const MeshPersistentContact* manifoldContactExt, PxU32 numContacts, PCMContactPatch& patch)
 {
-	using namespace Ps::aos;
-
 	bool* chosen = reinterpret_cast<bool*>(PxAlloca(sizeof(bool)*numContacts));
-	physx::PxMemZero(chosen, sizeof(bool)*numContacts);
+	PxMemZero(chosen, sizeof(bool)*numContacts);
 	const FloatV max = FMax();
 	FloatV maxDis = max;
 	PxI32 index = -1;
 
 	FloatV maxPen = max;
-
 
 	PCMContactPatch* currentPatch = &patch;
 	while(currentPatch)
@@ -1574,7 +1437,6 @@ Ps::aos::FloatV Gu::SinglePersistentContactManifold::reduceBatchContactsCapsule(
 	chosen[index] = true;
 	mContactPoints[0] = manifoldContactExt[index];
 	maxPen = FMin(maxPen, V4GetW(manifoldContactExt[index].mLocalNormalPen));
-
 
 	//calculate the furthest away points
 	Vec3V v = V3Sub(manifoldContactExt[patch.mStartIndex].mLocalPointB, mContactPoints[0].mLocalPointB);
@@ -1630,12 +1492,10 @@ Ps::aos::FloatV Gu::SinglePersistentContactManifold::reduceBatchContactsCapsule(
 	return maxPen;
 }
 
-Ps::aos::FloatV Gu::SinglePersistentContactManifold::reduceBatchContactsConvex(const MeshPersistentContact* manifoldContactExt, const PxU32 numContacts, PCMContactPatch& patch)
+FloatV SinglePersistentContactManifold::reduceBatchContactsConvex(const MeshPersistentContact* manifoldContactExt, PxU32 numContacts, PCMContactPatch& patch)
 {
-	using namespace Ps::aos;
-
 	bool* chosen = reinterpret_cast<bool*>(PxAlloca(sizeof(bool)*numContacts));
-	physx::PxMemZero(chosen, sizeof(bool)*numContacts);
+	PxMemZero(chosen, sizeof(bool)*numContacts);
 	const FloatV max = FMax();
 	const FloatV nmax = FNeg(max);
 	FloatV maxDis = nmax;
@@ -1702,7 +1562,6 @@ Ps::aos::FloatV Gu::SinglePersistentContactManifold::reduceBatchContactsConvex(c
 	FloatV minDis = max;
 	PxU32 index1 = GU_MANIFOLD_INVALID_INDEX;
 	
-
 	//calculate the point furthest way to the segment
 	currentPatch = &patch;
 	
@@ -1774,7 +1633,7 @@ Ps::aos::FloatV Gu::SinglePersistentContactManifold::reduceBatchContactsConvex(c
 
 	FloatV pens[NB_TO_ADD];
 	PxU32 inds[NB_TO_ADD];
-	for (PxU32 a = 0; a < NB_TO_ADD; ++a)
+	for(PxU32 a = 0; a < NB_TO_ADD; ++a)
 	{
 		pens[a] = FMax();
 		inds[a] = 0;
@@ -1782,18 +1641,18 @@ Ps::aos::FloatV Gu::SinglePersistentContactManifold::reduceBatchContactsConvex(c
 	{
 		currentPatch = &patch;
 
-		while (currentPatch)
+		while(currentPatch)
 		{
-			for (PxU32 i = currentPatch->mStartIndex; i < currentPatch->mEndIndex; ++i)
+			for(PxU32 i = currentPatch->mStartIndex; i < currentPatch->mEndIndex; ++i)
 			{
-				if (!chosen[i])
+				if(!chosen[i])
 				{
 					const FloatV pen = V4GetW(manifoldContactExt[i].mLocalNormalPen);
-					for (PxU32 a = 0; a < NB_TO_ADD; ++a)
+					for(PxU32 a = 0; a < NB_TO_ADD; ++a)
 					{
-						if (FAllGrtr(pens[a], pen))
+						if(FAllGrtr(pens[a], pen))
 						{
-							for (PxU32 b = a + 1; b < NB_TO_ADD; ++b)
+							for(PxU32 b = a + 1; b < NB_TO_ADD; ++b)
 							{
 								pens[b] = pens[b - 1];
 								inds[b] = inds[b - 1];
@@ -1807,7 +1666,7 @@ Ps::aos::FloatV Gu::SinglePersistentContactManifold::reduceBatchContactsConvex(c
 			}
 			currentPatch = currentPatch->mNextPatch;
 		}
-		for (PxU32 i = 0; i < NB_TO_ADD; ++i)
+		for(PxU32 i = 0; i < NB_TO_ADD; ++i)
 		{
 			mContactPoints[i + 4] = manifoldContactExt[inds[i]];
 			maxPen = FMin(maxPen, pens[i]);
@@ -1816,16 +1675,31 @@ Ps::aos::FloatV Gu::SinglePersistentContactManifold::reduceBatchContactsConvex(c
 	return maxPen;
 }
 
-PxU32 Gu::SinglePersistentContactManifold::reduceContacts(MeshPersistentContact* manifoldPoints, PxU32 numPoints)
+PxU32 SinglePersistentContactManifold::reduceContacts(MeshPersistentContact* manifoldPoints, PxU32 numPoints)
 {
-	using namespace Ps::aos;
-
 	PxU8 chosenIndices[GU_SINGLE_MANIFOLD_SINGLE_POLYGONE_CACHE_SIZE];
 	PxU8* candidates = reinterpret_cast<PxU8*>(PxAlloca(sizeof(PxU8) * numPoints));
 
+	//(1) Remove duplicates...
+	for(PxU32 i = 0; i < numPoints; ++i)
+	{
+		Vec3V localPointB = manifoldPoints[i].mLocalPointB;
+		for(PxU32 j = i+1; j < numPoints; ++j)
+		{
+			if(V3AllGrtr(V3Eps(), V3Abs(V3Sub(localPointB, manifoldPoints[j].mLocalPointB))))
+			{
+				manifoldPoints[j] = manifoldPoints[numPoints - 1];
+				j--;
+				numPoints--;
+			}
+		}
+	}
+
+	if(numPoints <= GU_SINGLE_MANIFOLD_SINGLE_POLYGONE_CACHE_SIZE)
+		return numPoints;
+
 	const FloatV max = FMax();
 	const FloatV nmax = FNeg(max);
-	const FloatV zero = FZero();
 	FloatV maxPen = V4GetW(manifoldPoints[0].mLocalNormalPen);
 	PxU32 index = 0;
 	candidates[0] = 0;
@@ -1835,13 +1709,13 @@ PxU32 Gu::SinglePersistentContactManifold::reduceContacts(MeshPersistentContact*
 	MeshPersistentContact newManifold[GU_SINGLE_MANIFOLD_SINGLE_POLYGONE_CACHE_SIZE];
 
 	//keep the deepest point
-	for (PxU32 i = 1; i<numPoints; ++i)
+	for(PxU32 i = 1; i<numPoints; ++i)
 	{
 		//at the begining candidates and indices will be the same
 		candidates[i] = PxU8(i);
 
 		const FloatV pen = V4GetW(manifoldPoints[i].mLocalNormalPen);
-		if (FAllGrtr(maxPen, pen))
+		if(FAllGrtr(maxPen, pen))
 		{
 			maxPen = pen;
 			index = i;
@@ -1865,18 +1739,17 @@ PxU32 Gu::SinglePersistentContactManifold::reduceContacts(MeshPersistentContact*
 	index = candidates[0];
 	candidateIndex = 0;
 
-	for (PxU32 i = 1; i<nbCandiates; ++i)
+	for(PxU32 i = 1; i<nbCandiates; ++i)
 	{
 		v = V3Sub(manifoldPoints[candidates[i]].mLocalPointB, manifoldPoints[chosenIndices[0]].mLocalPointB);
 		const FloatV d = V3Dot(v, v);
-		if (FAllGrtr(d, maxPen))
+		if(FAllGrtr(d, maxPen))
 		{
 			maxPen = d;
 			index = candidates[i];
 			candidateIndex = i;
 		}
 	}
-
 
 	chosenIndices[1] = PxU8(index);
 	//move the chosen indices out of the candidates indices
@@ -1885,12 +1758,9 @@ PxU32 Gu::SinglePersistentContactManifold::reduceContacts(MeshPersistentContact*
 
 	newManifold[1] = manifoldPoints[chosenIndices[1]];
 
-
 	v = V3Sub(newManifold[1].mLocalPointB, newManifold[0].mLocalPointB);
 	const Vec3V cn0 = Vec3V_From_Vec4V(newManifold[0].mLocalNormalPen);
 	Vec3V norm = V3Cross(v, cn0);
-	const FloatV sqLen = V3Dot(norm, norm);
-	norm = V3Sel(FIsGrtr(sqLen, zero), V3ScaleInv(norm, FSqrt(sqLen)), cn0);
 
 	FloatV maxDist = nmax;
 	FloatV minDist = max;
@@ -1899,24 +1769,23 @@ PxU32 Gu::SinglePersistentContactManifold::reduceContacts(MeshPersistentContact*
 	PxU32 candidateIndex1 = GU_MANIFOLD_INVALID_INDEX;
 
 	//calculate the point furthest way to the segment
-	for (PxU32 i = 0; i<nbCandiates; ++i)
+	for(PxU32 i = 0; i<nbCandiates; ++i)
 	{
 		v = V3Sub(manifoldPoints[candidates[i]].mLocalPointB, newManifold[0].mLocalPointB);
 		const FloatV d = V3Dot(v, norm);
-		if (FAllGrtr(d, maxDist))
+		if(FAllGrtr(d, maxDist))
 		{
 			maxDist = d;
 			index = candidates[i];
 			candidateIndex = i;
 		}
 
-		if (FAllGrtr(minDist, d))
+		if(FAllGrtr(minDist, d))
 		{
 			minDist = d;
 			index1 = candidates[i];
 			candidateIndex1 = i;
 		}
-
 	}
 
 	chosenIndices[2] = PxU8(index);
@@ -1926,19 +1795,19 @@ PxU32 Gu::SinglePersistentContactManifold::reduceContacts(MeshPersistentContact*
 
 	newManifold[2] = manifoldPoints[chosenIndices[2]];
 
-	if (nbCandiates == candidateIndex1)
+	if(nbCandiates == candidateIndex1)
 		candidateIndex1 = candidateIndex;
 
 	const FloatV temp = FMul(minDist, maxDist);
-	if (FAllGrtr(temp, FZero()))
+	if(FAllGrtr(temp, FZero()))
 	{
 		//chose again
 		maxDist = nmax;
-		for (PxU32 i = 0; i < nbCandiates; ++i)
+		for(PxU32 i = 0; i < nbCandiates; ++i)
 		{
 			v = V3Sub(manifoldPoints[candidates[i]].mLocalPointB, newManifold[0].mLocalPointB);
 			const FloatV d = V3Dot(v, norm);
-			if (FAllGrtr(d, maxDist))
+			if(FAllGrtr(d, maxDist))
 			{
 				maxDist = d;
 				index1 = candidates[i];
@@ -1958,16 +1827,15 @@ PxU32 Gu::SinglePersistentContactManifold::reduceContacts(MeshPersistentContact*
 	index = GU_MANIFOLD_INVALID_INDEX;
 	candidateIndex = GU_MANIFOLD_INVALID_INDEX;
 	//choose the 5 point, second deepest in the left overlap point
-	for (PxU32 i = 0; i < nbCandiates; ++i)
+	for(PxU32 i = 0; i < nbCandiates; ++i)
 	{
 		const FloatV pen = V4GetW(manifoldPoints[candidates[i]].mLocalNormalPen);
-		if (FAllGrtr(maxDist, pen))
+		if(FAllGrtr(maxDist, pen))
 		{
 			maxDist = pen;
 			index = candidates[i];
 			candidateIndex = i;
 		}
-
 	}
 
 	chosenIndices[4] = PxU8(index);
@@ -1977,9 +1845,8 @@ PxU32 Gu::SinglePersistentContactManifold::reduceContacts(MeshPersistentContact*
 
 	newManifold[4] = manifoldPoints[chosenIndices[4]];
 
-
 	//copy the new manifold back
-	for (PxU32 i = 0; i<GU_SINGLE_MANIFOLD_SINGLE_POLYGONE_CACHE_SIZE; ++i)
+	for(PxU32 i = 0; i<GU_SINGLE_MANIFOLD_SINGLE_POLYGONE_CACHE_SIZE; ++i)
 	{
 		manifoldPoints[i] = newManifold[i];
 	}
@@ -1987,15 +1854,13 @@ PxU32 Gu::SinglePersistentContactManifold::reduceContacts(MeshPersistentContact*
 	return GU_SINGLE_MANIFOLD_SINGLE_POLYGONE_CACHE_SIZE;
 }
 
-
-Ps::aos::FloatV Gu::SinglePersistentContactManifold::refreshContactPoints(const Ps::aos::PsMatTransformV& aToB, const Ps::aos::FloatVArg projectBreakingThreshold, const Ps::aos::FloatVArg /*contactOffset*/)
+FloatV SinglePersistentContactManifold::refreshContactPoints(const PxMatTransformV& aToB, const FloatVArg projectBreakingThreshold, const FloatVArg /*contactOffset*/)
 {
-	using namespace Ps::aos;
-	const FloatV sqProjectBreakingThreshold =  FMul(projectBreakingThreshold, projectBreakingThreshold); 
+	const FloatV sqProjectBreakingThreshold = FMul(projectBreakingThreshold, projectBreakingThreshold); 
 
 	FloatV maxPen = FZero();
 	// first refresh worldspace positions and distance
-	for (PxU32 i=mNumContacts; i > 0; --i)
+	for(PxU32 i=mNumContacts; i > 0; --i)
 	{
 		MeshPersistentContact& manifoldPoint = mContactPoints[i-1];
 		const Vec3V localAInB = aToB.transform( manifoldPoint.mLocalPointA ); // from a to b
@@ -2003,9 +1868,9 @@ Ps::aos::FloatV Gu::SinglePersistentContactManifold::refreshContactPoints(const 
 		const Vec3V v = V3Sub(localAInB, localBInB); 
 
 		const Vec3V localNormal = Vec3V_From_Vec4V(manifoldPoint.mLocalNormalPen); // normal in b space
-		const FloatV dist= V3Dot(v, localNormal);
+		const FloatV dist = V3Dot(v, localNormal);
 
-		const Vec3V projectedPoint = V3NegScaleSub(localNormal,  dist, localAInB);//manifoldPoint.worldPointA - manifoldPoint.worldPointB * manifoldPoint.m_distance1;
+		const Vec3V projectedPoint = V3NegScaleSub(localNormal, dist, localAInB);//manifoldPoint.worldPointA - manifoldPoint.worldPointB * manifoldPoint.m_distance1;
 		const Vec3V projectedDifference = V3Sub(localBInB, projectedPoint);
 
 		const FloatV distance2d = V3Dot(projectedDifference, projectedDifference);
@@ -2025,19 +1890,16 @@ Ps::aos::FloatV Gu::SinglePersistentContactManifold::refreshContactPoints(const 
 	return maxPen;
 }
 
-
-void Gu::SinglePersistentContactManifold::drawManifold( Cm::RenderOutput& out, const Ps::aos::PsTransformV& trA, const Ps::aos::PsTransformV& trB)
+void SinglePersistentContactManifold::drawManifold(PxRenderOutput& out, const PxTransformV& trA, const PxTransformV& trB) const
 {
-	using namespace Ps::aos;
 #if VISUALIZE_PERSISTENT_CONTACT
-
 	PxVec3 a, b;
 	V3StoreU(trA.p, a);
 	V3StoreU(trB.p, b);
 
 	for(PxU32 i = 0; i< mNumContacts; ++i)
 	{
-		Gu::MeshPersistentContact& m = mContactPoints[i];
+		const MeshPersistentContact& m = mContactPoints[i];
 		drawManifoldPoint(m, trA, trB, out, gColors[i]);
 	}
 #else
@@ -2047,41 +1909,37 @@ void Gu::SinglePersistentContactManifold::drawManifold( Cm::RenderOutput& out, c
 #endif
 }
 
-void Gu::MultiplePersistentContactManifold::drawManifold( Cm::RenderOutput& out, const Ps::aos::PsTransformV& trA, const Ps::aos::PsTransformV& trB)
+void MultiplePersistentContactManifold::drawManifold(PxRenderOutput& out, const PxTransformV& trA, const PxTransformV& trB) const
 {
 	for(PxU32 i=0; i<mNumManifolds; ++i)
 	{
-		SinglePersistentContactManifold* manifold = getManifold(i);
+		const SinglePersistentContactManifold* manifold = getManifold(i);
 		manifold->drawManifold(out, trA, trB);
 	}
 }
 
-void Gu::MultiplePersistentContactManifold::drawLine(Cm::RenderOutput& out, const Ps::aos::Vec3VArg p0, const Ps::aos::Vec3VArg p1, const PxU32 color)
+void MultiplePersistentContactManifold::drawLine(PxRenderOutput& out, const Vec3VArg p0, const Vec3VArg p1, PxU32 color)
 {
-	using namespace Ps::aos;
 #if VISUALIZE_PERSISTENT_CONTACT
 	PxVec3 a, b;
 	V3StoreU(p0, a);
 	V3StoreU(p1, b);
 
-	PxMat44 m = PxMat44(PxIdentity);
-	out << color << m << Cm::RenderOutput::LINES << a << b;
+	const PxMat44 m(PxIdentity);
+	out << color << m << PxRenderOutput::LINES << a << b;
 #else
 	PX_UNUSED(out);
 	PX_UNUSED(p0);
 	PX_UNUSED(p1);
 	PX_UNUSED(color);
-
 #endif
 }
 
-void Gu::MultiplePersistentContactManifold::drawLine(Cm::RenderOutput& out, const PxVec3 p0, const PxVec3 p1, const PxU32 color)
+void MultiplePersistentContactManifold::drawLine(PxRenderOutput& out, const PxVec3 p0, const PxVec3 p1, PxU32 color)
 {
-	using namespace Ps::aos;
 #if VISUALIZE_PERSISTENT_CONTACT
-
-	PxMat44 m = PxMat44(PxIdentity);
-	out << color << m << Cm::RenderOutput::LINES << p0 << p1;
+	const PxMat44 m(PxIdentity);
+	out << color << m << PxRenderOutput::LINES << p0 << p1;
 #else
 	PX_UNUSED(out);
 	PX_UNUSED(p0);
@@ -2090,9 +1948,8 @@ void Gu::MultiplePersistentContactManifold::drawLine(Cm::RenderOutput& out, cons
 #endif
 }
 
-void Gu::MultiplePersistentContactManifold::drawPoint(Cm::RenderOutput& out, const Ps::aos::Vec3VArg p, const PxF32 size, const PxU32 color)
+void MultiplePersistentContactManifold::drawPoint(PxRenderOutput& out, const Vec3VArg p, const PxF32 size, PxU32 color)
 {
-	using namespace Ps::aos;
 #if VISUALIZE_PERSISTENT_CONTACT
 	const PxVec3 up(0.f, size, 0.f);
 	const PxVec3 right(size, 0.f, 0.f);
@@ -2101,11 +1958,11 @@ void Gu::MultiplePersistentContactManifold::drawPoint(Cm::RenderOutput& out, con
 	PxVec3 a;
 	V3StoreU(p, a);
 
-	PxMat44 m = PxMat44(PxIdentity);
+	const PxMat44 m(PxIdentity);
 	
-	out << color << m << Cm::RenderOutput::LINES << a + up << a - up;
-	out << color << m << Cm::RenderOutput::LINES << a + right << a - right;
-	out << color << m << Cm::RenderOutput::LINES << a + forwards << a - forwards;
+	out << color << m << PxRenderOutput::LINES << a + up << a - up;
+	out << color << m << PxRenderOutput::LINES << a + right << a - right;
+	out << color << m << PxRenderOutput::LINES << a + forwards << a - forwards;
 #else
 	PX_UNUSED(out);
 	PX_UNUSED(p);
@@ -2114,10 +1971,8 @@ void Gu::MultiplePersistentContactManifold::drawPoint(Cm::RenderOutput& out, con
 #endif
 }
 
-
-void Gu::MultiplePersistentContactManifold::drawPolygon( Cm::RenderOutput& out, const Ps::aos::PsTransformV& transform,  Ps::aos::Vec3V* points, const PxU32 numVerts, const PxU32 color)
+void MultiplePersistentContactManifold::drawPolygon(PxRenderOutput& out, const PxTransformV& transform, Vec3V* points, PxU32 numVerts, PxU32 color)
 {
-	using namespace Ps::aos;
 #if VISUALIZE_PERSISTENT_CONTACT
 	for(PxU32 i=0; i<numVerts; ++i)
 	{
@@ -2133,16 +1988,14 @@ void Gu::MultiplePersistentContactManifold::drawPolygon( Cm::RenderOutput& out, 
 	PX_UNUSED(numVerts);
 	PX_UNUSED(color);
 #endif
-
 }
 
-static Ps::aos::FloatV addBatchManifoldContactsToSingleManifold(Gu::SinglePersistentContactManifold* manifold, Gu::MeshPersistentContact* manifoldContact, PxU32 numManifoldContacts, Gu::PCMContactPatch* patch,  const Ps::aos::FloatVArg sqReplaceBreakingThreshold, PxU8 maxContactsPerManifold)
+static FloatV addBatchManifoldContactsToSingleManifold(SinglePersistentContactManifold* manifold, MeshPersistentContact* manifoldContact, PxU32 numManifoldContacts, PCMContactPatch* patch, const FloatVArg sqReplaceBreakingThreshold, PxU8 maxContactsPerManifold)
 {
-	using namespace Ps::aos;
 	switch(maxContactsPerManifold)
 	{
 	case GU_SPHERE_MANIFOLD_CACHE_SIZE://sphere
-		return manifold->addBatchManifoldContactsSphere(manifoldContact, numManifoldContacts, *patch,  sqReplaceBreakingThreshold);
+		return manifold->addBatchManifoldContactsSphere(manifoldContact, numManifoldContacts, *patch, sqReplaceBreakingThreshold);
 	case GU_CAPSULE_MANIFOLD_CACHE_SIZE://capsule, need to implement keep two deepest
 		return manifold->addBatchManifoldContactsCapsule(manifoldContact, numManifoldContacts, *patch, sqReplaceBreakingThreshold);
 	default://cache size GU_SINGLE_MANIFOLD_CACHE_SIZE
@@ -2150,13 +2003,9 @@ static Ps::aos::FloatV addBatchManifoldContactsToSingleManifold(Gu::SinglePersis
 	};
 }
 
-/*
-	This function adds the manifold contacts with different patches into the corresponding single persistent contact manifold
-*/
-void Gu::MultiplePersistentContactManifold::addManifoldContactPoints(MeshPersistentContact* manifoldContact, PxU32 numManifoldContacts, PCMContactPatch** contactPatch, const PxU32 numPatch, const Ps::aos::FloatVArg sqReplaceBreakingThreshold, const Ps::aos::FloatVArg acceptanceEpsilon, PxU8 maxContactsPerManifold)
+//	This function adds the manifold contacts with different patches into the corresponding single persistent contact manifold
+void MultiplePersistentContactManifold::addManifoldContactPoints(MeshPersistentContact* manifoldContact, PxU32 numManifoldContacts, PCMContactPatch** contactPatch, PxU32 numPatch, const FloatVArg sqReplaceBreakingThreshold, const FloatVArg acceptanceEpsilon, PxU8 maxContactsPerManifold)
 {
-	using namespace Ps::aos;
-	
 	if(mNumManifolds == 0)
 	{
 		for(PxU32 i=0; i<numPatch; ++i)
@@ -2178,11 +2027,8 @@ void Gu::MultiplePersistentContactManifold::addManifoldContactPoints(MeshPersist
 					//We already pre-sorted the patches so we know we can return here
 					return;
 				}
-				
 			}
 		}
-	
-		
 	}
 	else
 	{
@@ -2248,7 +2094,7 @@ void Gu::MultiplePersistentContactManifold::addManifoldContactPoints(MeshPersist
 						const FloatV _maxPen = addBatchManifoldContactsToSingleManifold(manifold, manifoldContact, numManifoldContacts, patch, sqReplaceBreakingThreshold, maxContactsPerManifold);
 						FStore(_maxPen, &mMaxPen[mManifoldIndices[mNumManifolds]]);
 						mNumManifolds++;
-					}	
+					}
 					else
 					{
 						//we can't allocate a new manifold  and no existing manifold has the same normal as this patch, we need to find the shallowest penetration manifold. If this manifold is shallower than
@@ -2280,48 +2126,39 @@ void Gu::MultiplePersistentContactManifold::addManifoldContactPoints(MeshPersist
 }
 
 //This function adds the multi manifold contacts to the contact buffer for box/convexhull
-bool Gu::MultiplePersistentContactManifold::addManifoldContactsToContactBuffer(Gu::ContactBuffer& contactBuffer, const Ps::aos::PsTransformV& meshTransform)
+bool MultiplePersistentContactManifold::addManifoldContactsToContactBuffer(PxContactBuffer& contactBuffer, const PxTransformV& meshTransform)
 {
-	using namespace Ps::aos;
-	PxU32 contactCount = 0;//contactBuffer.count;
+	PxU32 contactCount = 0;
 	PxU32 numContacts = 0;
 	mNumTotalContacts = 0;
 	//drawManifold(*gRenderOutPut, convexTransform, meshTransform);
 	for(PxU32 i=0; i < mNumManifolds; ++i)
 	{
-		Gu::SinglePersistentContactManifold& manifold = *getManifold(i);
+		SinglePersistentContactManifold& manifold = *getManifold(i);
 		numContacts = manifold.getNumContacts();
 		PX_ASSERT(mNumTotalContacts + numContacts <= 0xFF);
-		mNumTotalContacts += Ps::to8(numContacts);
+		mNumTotalContacts += PxTo8(numContacts);
 		const Vec3V normal = manifold.getWorldNormal(meshTransform);
 		
-		for(PxU32 j=0; (j< numContacts) & (contactCount < ContactBuffer::MAX_CONTACTS); ++j)
+		for(PxU32 j=0; (j< numContacts) & (contactCount < PxContactBuffer::MAX_CONTACTS); ++j)
 		{
-			Gu::MeshPersistentContact& p = manifold.getContactPoint(j);
+			const MeshPersistentContact& p = manifold.getContactPoint(j);
 			
-			const Vec3V worldP =meshTransform.transform(p.mLocalPointB);
+			const Vec3V worldP = meshTransform.transform(p.mLocalPointB);
 			const FloatV dist = V4GetW(p.mLocalNormalPen);
 			
-			Gu::ContactPoint& contact = contactBuffer.contacts[contactCount++];
-			//Fast allign store
-			V4StoreA(Vec4V_From_Vec3V(normal), reinterpret_cast<PxF32*>(&contact.normal.x));
-			V4StoreA(Vec4V_From_Vec3V(worldP), reinterpret_cast<PxF32*>(&contact.point.x));
-			FStore(dist, &contact.separation);
-
-			contact.internalFaceIndex1 = p.mFaceIndex;
-
+			outputPCMContact(contactBuffer, contactCount, worldP, normal, dist, p.mFaceIndex);
 		}
 	}
 
-	PX_ASSERT(contactCount <= 64);
+	PX_ASSERT(contactCount <= PxContactBuffer::MAX_CONTACTS);
 	contactBuffer.count = contactCount;
 	return contactCount > 0;
 }
 
 //This function adds the multi manifold contacts to the contact buffer for sphere and capsule, radius is corresponding to the sphere radius/capsule radius
-bool Gu::MultiplePersistentContactManifold::addManifoldContactsToContactBuffer(Gu::ContactBuffer& contactBuffer, const Ps::aos::PsTransformV& trA, const Ps::aos::PsTransformV& trB, const Ps::aos::FloatVArg radius)
+bool MultiplePersistentContactManifold::addManifoldContactsToContactBuffer(PxContactBuffer& contactBuffer, const PxTransformV& trA, const PxTransformV& trB, const FloatVArg radius)
 {
-	using namespace Ps::aos;
 	PxU32 contactCount = 0;
 	PxU32 numContacts = 0;
 	mNumTotalContacts = 0;
@@ -2329,52 +2166,41 @@ bool Gu::MultiplePersistentContactManifold::addManifoldContactsToContactBuffer(G
 	for(PxU32 i=0; i < mNumManifolds; ++i)
 	{
 		//get a single manifold
-		Gu::SinglePersistentContactManifold& manifold = *getManifold(i);
+		SinglePersistentContactManifold& manifold = *getManifold(i);
 		numContacts = manifold.getNumContacts();
 		PX_ASSERT(mNumTotalContacts + numContacts <= 0xFF);
-		mNumTotalContacts += Ps::to8(numContacts);
+		mNumTotalContacts += PxTo8(numContacts);
 		const Vec3V normal = manifold.getWorldNormal(trB);
 		
 		//iterate all the contacts in this single manifold and add contacts to the contact buffer
 		//each manifold contact point store two points which are in each other's local space. In this
 		//case, mLocalPointA is stored as the center of sphere/a point in the segment for capsule
-		for(PxU32 j=0; (j< numContacts) & (contactCount < ContactBuffer::MAX_CONTACTS); ++j)
+		for(PxU32 j=0; (j< numContacts) & (contactCount < PxContactBuffer::MAX_CONTACTS); ++j)
 		{
-			Gu::MeshPersistentContact& p = manifold.getContactPoint(j);
+			const MeshPersistentContact& p = manifold.getContactPoint(j);
 			
-			const Vec3V worldP =V3NegScaleSub(normal, radius, trA.transform(p.mLocalPointA));
+			const Vec3V worldP = V3NegScaleSub(normal, radius, trA.transform(p.mLocalPointA));
 			const FloatV dist = FSub(V4GetW(p.mLocalNormalPen), radius);
 			
-			Gu::ContactPoint& contact = contactBuffer.contacts[contactCount++];
-			//Fast allign store
-			V4StoreA(Vec4V_From_Vec3V(normal), reinterpret_cast<PxF32*>(&contact.normal.x));
-			V4StoreA(Vec4V_From_Vec3V(worldP), reinterpret_cast<PxF32*>(&contact.point.x));
-			FStore(dist, &contact.separation);
-
-			contact.internalFaceIndex1 = p.mFaceIndex;
-
+			outputPCMContact(contactBuffer, contactCount, worldP, normal, dist, p.mFaceIndex);
 		}
 	}
 
-	PX_ASSERT(contactCount <= 64);
+	PX_ASSERT(contactCount <= PxContactBuffer::MAX_CONTACTS);
 	contactBuffer.count = contactCount;
 	return contactCount > 0;
 }
 
-
-/*
-	This function copies the mesh persistent contact from compress buffer(NpCacheStreamPair in the PxcNpThreadContext) to the multiple manifold
-*/
+//	This function copies the mesh persistent contact from compress buffer(NpCacheStreamPair in the PxcNpThreadContext) to the multiple manifold
 // PT: function moved to cpp to go around a compiler bug on PS4
-void physx::Gu::MultiplePersistentContactManifold::fromBuffer(PxU8* PX_RESTRICT buffer)
+void MultiplePersistentContactManifold::fromBuffer(PxU8* PX_RESTRICT buffer)
 {
-	using namespace Ps::aos;
 	PxU32 numManifolds = 0;
 	if (buffer != NULL)
 	{
 		PX_ASSERT(((uintptr_t(buffer)) & 0xF) == 0);
 		PxU8* PX_RESTRICT buff = buffer;
-		MultiPersistentManifoldHeader* PX_RESTRICT header = reinterpret_cast<MultiPersistentManifoldHeader*>(buff);
+		const MultiPersistentManifoldHeader* PX_RESTRICT header = reinterpret_cast<const MultiPersistentManifoldHeader*>(buff);
 		buff += sizeof(MultiPersistentManifoldHeader);
 
 		numManifolds = header->mNumManifolds;
@@ -2385,14 +2211,14 @@ void physx::Gu::MultiplePersistentContactManifold::fromBuffer(PxU8* PX_RESTRICT 
 		for (PxU32 a = 0; a < numManifolds; ++a)
 		{
 			mManifoldIndices[a] = PxU8(a);
-			SingleManifoldHeader* PX_RESTRICT manHeader = reinterpret_cast<SingleManifoldHeader*>(buff);
+			const SingleManifoldHeader* PX_RESTRICT manHeader = reinterpret_cast<const SingleManifoldHeader*>(buff);
 			buff += sizeof(SingleManifoldHeader);
-			PxU32 numContacts = manHeader->mNumContacts;
+			const PxU32 numContacts = manHeader->mNumContacts;
 			PX_ASSERT(numContacts <= GU_SINGLE_MANIFOLD_CACHE_SIZE);
 			SinglePersistentContactManifold& manifold = mManifolds[a];
 			manifold.mNumContacts = numContacts;
 			PX_ASSERT((uintptr_t(buff) & 0xf) == 0);
-			CachedMeshPersistentContact* contacts = reinterpret_cast<CachedMeshPersistentContact*>(buff);
+			const CachedMeshPersistentContact* contacts = reinterpret_cast<const CachedMeshPersistentContact*>(buff);
 			for (PxU32 b = 0; b < manifold.mNumContacts; ++b)
 			{
 				manifold.mContactPoints[b].mLocalPointA = Vec3V_From_Vec4V(V4LoadA(&contacts[b].mLocalPointA.x));
@@ -2400,12 +2226,12 @@ void physx::Gu::MultiplePersistentContactManifold::fromBuffer(PxU8* PX_RESTRICT 
 				manifold.mContactPoints[b].mLocalNormalPen = V4LoadA(&contacts[b].mLocalNormal.x);
 				manifold.mContactPoints[b].mFaceIndex = contacts[b].mFaceIndex;
 			}
-			buff += sizeof(Gu::CachedMeshPersistentContact) * numContacts;
+			buff += sizeof(CachedMeshPersistentContact) * numContacts;
 		}
 	}
 	else
 	{
-		mRelativeTransform.Invalidate();
+		mRelativeTransform.invalidate();
 	}
 	mNumManifolds = PxU8(numManifolds);
 	for (PxU32 a = numManifolds; a < GU_MAX_MANIFOLD_SIZE; ++a)
@@ -2414,11 +2240,44 @@ void physx::Gu::MultiplePersistentContactManifold::fromBuffer(PxU8* PX_RESTRICT 
 	}
 }
 
-void Gu::addManifoldPoint(Gu::PersistentContact* manifoldContacts, Gu::PersistentContactManifold& manifold, GjkOutput& output,
-	const Ps::aos::PsMatTransformV& aToB, const Ps::aos::FloatV replaceBreakingThreshold)
+// This function copies the mesh persistent contact from the multiple manifold to compress buffer(NpCacheStreamPair in the PxcNpThreadContext)
+void MultiplePersistentContactManifold::toBuffer(PxU8* PX_RESTRICT buffer) const
 {
-	using namespace Ps::aos;
+	PxU8* buff = buffer;
 
+	PX_ASSERT(((uintptr_t(buff)) & 0xF) == 0);
+	MultiPersistentManifoldHeader* PX_RESTRICT header = reinterpret_cast<MultiPersistentManifoldHeader*>(buff);
+	buff += sizeof(MultiPersistentManifoldHeader);
+
+	PX_ASSERT(mNumManifolds <= GU_MAX_MANIFOLD_SIZE);
+	header->mNumManifolds = mNumManifolds;
+	header->mRelativeTransform = mRelativeTransform;
+
+	for(PxU32 a = 0; a < mNumManifolds; ++a)
+	{
+		SingleManifoldHeader* manHeader = reinterpret_cast<SingleManifoldHeader*>(buff);
+		buff += sizeof(SingleManifoldHeader);
+		const SinglePersistentContactManifold& manifold = *getManifold(a);
+		manHeader->mNumContacts = manifold.mNumContacts;
+		PX_ASSERT((uintptr_t(buff) & 0xf) == 0);
+		CachedMeshPersistentContact* contacts = reinterpret_cast<CachedMeshPersistentContact*>(buff);
+		//convert the mesh persistent contact to cached mesh persistent contact to save 16 byte memory per contact
+		for(PxU32 b = 0; b<manifold.mNumContacts; ++b)
+		{
+			V4StoreA(Vec4V_From_Vec3V(manifold.mContactPoints[b].mLocalPointA), &contacts[b].mLocalPointA.x);
+			V4StoreA(Vec4V_From_Vec3V(manifold.mContactPoints[b].mLocalPointB), &contacts[b].mLocalPointB.x);
+			V4StoreA(manifold.mContactPoints[b].mLocalNormalPen, &contacts[b].mLocalNormal.x);
+			//Note - this must be written last because we just wrote mLocalPointA to this memory so need to make sure
+			//that face index is written after that.
+			contacts[b].mFaceIndex = manifold.mContactPoints[b].mFaceIndex;
+		}
+		buff += sizeof(CachedMeshPersistentContact) * manifold.mNumContacts;
+	}
+}
+
+void Gu::addManifoldPoint(PersistentContact* manifoldContacts, PersistentContactManifold& manifold, GjkOutput& output,
+	const PxMatTransformV& aToB, const FloatV replaceBreakingThreshold)
+{
 	const Vec3V localPointA = aToB.transformInv(output.closestA);
 	const Vec4V localNormalPen = V4SetW(Vec4V_From_Vec3V(output.normal), output.penDep);
 

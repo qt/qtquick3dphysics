@@ -1,0 +1,36 @@
+From: Jonas Karlsson <jonas.karlsson@qt.io>
+Subject: [PATCH] PhysX: Validate the packing with a type that is 8 bytes on
+ Windows too
+
+PhysX checks that the application has not set the pack value below 8 by
+asserting that a long follows a char at offset 8 in a struct, and picks
+that long for every clang that is not compiling for 32 bit arm. A long is
+4 bytes on Windows, where clang is not only clang-cl: with llvm-mingw the
+compiler is clang and the data model is LLP64, so the assertion fails,
+and it is in PxPreprocessor.h, which means it fails in every translation
+unit of the build.
+
+Leave the Windows compilers the long long that the fallback already uses
+for MSVC, which is 8 bytes wherever PhysX builds. The long is there for
+the unices, where it is the type whose alignment -malign-double does not
+have to be asked for; that reasoning never applied to Windows.
+
+The assertion holds for x86_64 and arm64 llvm-mingw, for clang-cl, which
+takes the MSVC path and was never affected, and for the Linux, arm,
+Android and WebAssembly targets, which keep the branch they had.
+---
+ src/3rdparty/PhysX/include/foundation/PxPreprocessor.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/3rdparty/PhysX/include/foundation/PxPreprocessor.h b/src/3rdparty/PhysX/include/foundation/PxPreprocessor.h
+--- a/src/3rdparty/PhysX/include/foundation/PxPreprocessor.h
++++ b/src/3rdparty/PhysX/include/foundation/PxPreprocessor.h
+@@ -471,7 +471,7 @@ PX_CUDA_CALLABLE PX_INLINE void PX_UNUSED(T const&)
+ // This assert works on win32/win64, but may need further specialization on other platforms.
+ // Some GCC compilers need the compiler flag -malign-double to be set.
+ // Apparently the apple-clang-llvm compiler doesn't support malign-double.
+-#if PX_APPLE_FAMILY || (PX_CLANG && !PX_ARM)
++#if PX_APPLE_FAMILY || (PX_CLANG && !PX_ARM && !PX_WINDOWS_FAMILY)
+ 	struct PxPackValidation
+ 	{
+ 		char _;

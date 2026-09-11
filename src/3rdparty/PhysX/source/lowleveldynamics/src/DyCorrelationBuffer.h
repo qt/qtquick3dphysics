@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,33 +22,26 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
-
-
-#ifndef DY_CORRELATIONBUFFER_H
-#define DY_CORRELATIONBUFFER_H
+#ifndef DY_CORRELATION_BUFFER_H
+#define DY_CORRELATION_BUFFER_H
 
 #include "foundation/PxSimpleTypes.h"
 #include "foundation/PxVec3.h"
 #include "foundation/PxTransform.h"
 #include "foundation/PxBounds3.h"
-#include "geomutils/GuContactBuffer.h"
+#include "geomutils/PxContactBuffer.h"
 
-#include "PxvConfig.h"
+#include "PxPhysXConfig.h"
 #include "DyFrictionPatch.h"
 
 namespace physx
 {
-
-struct PxcNpWorkUnit;
-struct PxsMaterialInfo;
-
 namespace Dy
 {
-
 struct CorrelationBuffer
 {
 	static const PxU32 MAX_FRICTION_PATCHES = 32;
@@ -57,20 +49,24 @@ struct CorrelationBuffer
 
 	struct ContactPatchData
 	{
-		PxU16 start;
-		PxU16 next;
-		PxU8 flags;
-		PxU8 count;
-		PxReal staticFriction, dynamicFriction, restitution;
-		PxBounds3 patchBounds;
+		PxBounds3	patchBounds;
+		PxU32		boundsPadding;
+
+		PxReal		staticFriction;
+		PxReal		dynamicFriction;
+		PxReal		restitution;
+		PxU16		start;
+		PxU16		next;
+		PxU8		flags;
+		PxU8		count;
 	};
 
 	// we can have as many contact patches as contacts, unfortunately
-	ContactPatchData	contactPatches[Gu::ContactBuffer::MAX_CONTACTS];
+	ContactPatchData	PX_ALIGN(16, contactPatches[PxContactBuffer::MAX_CONTACTS]);
 
-	FrictionPatch	PX_ALIGN(16, frictionPatches[MAX_FRICTION_PATCHES]);
+	FrictionPatch		PX_ALIGN(16, frictionPatches[MAX_FRICTION_PATCHES]);
 	PxVec3				PX_ALIGN(16, frictionPatchWorldNormal[MAX_FRICTION_PATCHES]);
-	PxBounds3		patchBounds[MAX_FRICTION_PATCHES];
+	PxBounds3			patchBounds[MAX_FRICTION_PATCHES];
 
 	PxU32				frictionPatchContactCounts[MAX_FRICTION_PATCHES];
 	PxU32				correlationListHeads[MAX_FRICTION_PATCHES+1];
@@ -79,14 +75,13 @@ struct CorrelationBuffer
 	// targets have been set. 
 	PxU16				contactID[MAX_FRICTION_PATCHES][2];
 
-	PxU32 contactPatchCount, frictionPatchCount;
-
+	PxU32				contactPatchCount, frictionPatchCount;
 };
 
-bool createContactPatches(CorrelationBuffer& fb, const Gu::ContactPoint* cb, PxU32 contactCount, PxReal normalTolerance);
+bool createContactPatches(CorrelationBuffer& fb, const PxContactPoint* cb, PxU32 contactCount, PxReal normalTolerance);
 
 bool correlatePatches(CorrelationBuffer& fb, 
-					  const Gu::ContactPoint* cb,
+					  const PxContactPoint* cb,
 					  const PxTransform& bodyFrame0,
 					  const PxTransform& bodyFrame1,
 					  PxReal normalTolerance,
@@ -94,10 +89,9 @@ bool correlatePatches(CorrelationBuffer& fb,
 					  PxU32 startFrictionPatchIndex);
 
 void growPatches(CorrelationBuffer& fb,
-				 const Gu::ContactPoint* buffer,
+				 const PxContactPoint* buffer,
 				 const PxTransform& bodyFrame0,
 				 const PxTransform& bodyFrame1,
-				 PxReal normalTolerance,
 				 PxU32 frictionPatchStartIndex,
 				 PxReal frictionOffsetThreshold);
 
@@ -105,4 +99,4 @@ void growPatches(CorrelationBuffer& fb,
 
 }
 
-#endif //DY_CORRELATIONBUFFER_H
+#endif

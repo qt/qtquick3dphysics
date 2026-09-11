@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,44 +22,39 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
-
 
 #ifndef PXS_HEAP_MEMORY_ALLOCATOR_H
 #define PXS_HEAP_MEMORY_ALLOCATOR_H
 
 #include "foundation/PxSimpleTypes.h"
+#include "foundation/PxUserAllocated.h"
+#include "PxsHeapStats.h"
 
 namespace physx
 {
-	namespace shdfnd
+#if PX_SUPPORT_GPU_PHYSX
+
+	namespace Cm
 	{
 		class VirtualAllocatorCallback;
 	}
 
-	class PxErrorCallback;
-	class PxsHostMemoryAllocator;
-
-	class PxsHeapMemoryAllocator : public Ps::VirtualAllocatorCallback
+	class PxsHeapMemoryAllocatorManager : public PxUserAllocated
 	{
 	public:
-		virtual ~PxsHeapMemoryAllocator(){}
-		virtual void* allocate(const size_t size, const char* file, const int line) = 0;
-		virtual void deallocate(void* ptr) = 0;
+		virtual ~PxsHeapMemoryAllocatorManager() {}
 
-	};
+		virtual PxU64 getDeviceMemorySize() const = 0;
+		virtual PxsHeapStats getDeviceHeapStats() const = 0;
+		virtual void flushDeferredDeallocs() = 0;
 
-	class PxsHeapMemoryAllocatorManager
-	{
-	public:
-		virtual ~PxsHeapMemoryAllocatorManager()
-		{
-	
-		}
-		PxsHeapMemoryAllocator*				mMappedMemoryAllocators;
+		Cm::VirtualAllocatorCallback* mPinnedHostMemoryAllocator;
+		Cm::VirtualAllocatorCallback* mPinnedHostMappedMemoryAllocator;
 	};
+#endif
 }
 
 #endif

@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,67 +22,84 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
 #include "geometry/PxGeometry.h"
 #include "PxcContactMethodImpl.h"
 
-namespace physx
-{
-static bool PxcInvalidContactPair	(CONTACT_METHOD_ARGS_UNUSED)		{ return false;	}
+using namespace physx;
+
+#define ARGS	shape0, shape1, transform0, transform1, params, cache, contactBuffer, renderOutput
+
+static bool PxcInvalidContactPair			(GU_CONTACT_METHOD_ARGS_UNUSED)	{ return false;	}
 
 // PT: IMPORTANT: do NOT remove the indirection! Using the Gu functions directly in the table produces massive perf problems.
-static bool PxcContactSphereSphere		(GU_CONTACT_METHOD_ARGS)		{ return contactSphereSphere(shape0, shape1, transform0, transform1, params, cache, contactBuffer, renderOutput);			}
-static bool PxcContactSphereCapsule		(GU_CONTACT_METHOD_ARGS)		{ return contactSphereCapsule(shape0, shape1, transform0, transform1, params, cache, contactBuffer, renderOutput);			}
-static bool PxcContactSphereBox			(GU_CONTACT_METHOD_ARGS)		{ return contactSphereBox(shape0, shape1, transform0, transform1, params, cache, contactBuffer, renderOutput);				}
-static bool PxcContactSpherePlane		(GU_CONTACT_METHOD_ARGS)		{ return contactSpherePlane(shape0, shape1, transform0, transform1, params, cache, contactBuffer, renderOutput);			}
-static bool PxcContactSphereConvex		(GU_CONTACT_METHOD_ARGS)		{ return contactCapsuleConvex(shape0, shape1, transform0, transform1, params, cache, contactBuffer, renderOutput);			}
-static bool PxcContactSphereMesh		(GU_CONTACT_METHOD_ARGS)		{ return contactSphereMesh(shape0, shape1, transform0, transform1, params, cache, contactBuffer, renderOutput);				}
-static bool PxcContactSphereHeightField	(GU_CONTACT_METHOD_ARGS)		{ return contactSphereHeightfield(shape0, shape1, transform0, transform1, params, cache, contactBuffer, renderOutput);		}
-static bool PxcContactPlaneBox			(GU_CONTACT_METHOD_ARGS)		{ return contactPlaneBox(shape0, shape1, transform0, transform1, params, cache, contactBuffer, renderOutput);				}
-static bool PxcContactPlaneCapsule		(GU_CONTACT_METHOD_ARGS)		{ return contactPlaneCapsule(shape0, shape1, transform0, transform1, params, cache, contactBuffer, renderOutput);			}
-static bool PxcContactPlaneConvex		(GU_CONTACT_METHOD_ARGS)		{ return contactPlaneConvex(shape0, shape1, transform0, transform1, params, cache, contactBuffer, renderOutput);			}
-static bool PxcContactCapsuleCapsule	(GU_CONTACT_METHOD_ARGS)		{ return contactCapsuleCapsule(shape0, shape1, transform0, transform1, params, cache, contactBuffer, renderOutput);			}
-static bool PxcContactCapsuleBox		(GU_CONTACT_METHOD_ARGS)		{ return contactCapsuleBox(shape0, shape1, transform0, transform1, params, cache, contactBuffer, renderOutput);				}
-static bool PxcContactCapsuleConvex		(GU_CONTACT_METHOD_ARGS)		{ return contactCapsuleConvex(shape0, shape1, transform0, transform1, params, cache, contactBuffer, renderOutput);			}
-static bool PxcContactCapsuleMesh		(GU_CONTACT_METHOD_ARGS)		{ return contactCapsuleMesh(shape0, shape1, transform0, transform1, params, cache, contactBuffer, renderOutput);			}
-static bool PxcContactCapsuleHeightField(GU_CONTACT_METHOD_ARGS)		{ return contactCapsuleHeightfield(shape0, shape1, transform0, transform1, params, cache, contactBuffer, renderOutput);		}
-static bool PxcContactBoxBox			(GU_CONTACT_METHOD_ARGS)		{ return contactBoxBox(shape0, shape1, transform0, transform1, params, cache, contactBuffer, renderOutput);					}
-static bool PxcContactBoxConvex			(GU_CONTACT_METHOD_ARGS)		{ return contactBoxConvex(shape0, shape1, transform0, transform1, params, cache, contactBuffer, renderOutput);				}
-static bool PxcContactBoxMesh			(GU_CONTACT_METHOD_ARGS)		{ return contactBoxMesh(shape0, shape1, transform0, transform1, params, cache, contactBuffer, renderOutput);				}
-static bool PxcContactBoxHeightField	(GU_CONTACT_METHOD_ARGS)		{ return contactBoxHeightfield(shape0, shape1, transform0, transform1, params, cache, contactBuffer, renderOutput);			}
-static bool PxcContactConvexConvex		(GU_CONTACT_METHOD_ARGS)		{ return contactConvexConvex(shape0, shape1, transform0, transform1, params, cache, contactBuffer, renderOutput);			}
-static bool PxcContactConvexMesh		(GU_CONTACT_METHOD_ARGS)		{ return contactConvexMesh(shape0, shape1, transform0, transform1, params, cache, contactBuffer, renderOutput);				}
-static bool PxcContactConvexHeightField	(GU_CONTACT_METHOD_ARGS)		{ return contactConvexHeightfield(shape0, shape1, transform0, transform1, params, cache, contactBuffer, renderOutput);		}
+static bool PxcContactSphereSphere				(GU_CONTACT_METHOD_ARGS)	{ return contactSphereSphere(ARGS);					}
+static bool PxcContactSphereCapsule				(GU_CONTACT_METHOD_ARGS)	{ return contactSphereCapsule(ARGS);				}
+static bool PxcContactSphereBox					(GU_CONTACT_METHOD_ARGS)	{ return contactSphereBox(ARGS);					}
+static bool PxcContactSpherePlane				(GU_CONTACT_METHOD_ARGS)	{ return contactSpherePlane(ARGS);					}
+static bool PxcContactSphereConvex				(GU_CONTACT_METHOD_ARGS)	{ return contactCapsuleConvex(ARGS);				}
+static bool PxcContactSphereMesh				(GU_CONTACT_METHOD_ARGS)	{ return contactSphereMesh(ARGS);					}
+static bool PxcContactSphereHeightField			(GU_CONTACT_METHOD_ARGS)	{ return contactSphereHeightfield(ARGS);			}
+static bool PxcContactPlaneBox					(GU_CONTACT_METHOD_ARGS)	{ return contactPlaneBox(ARGS);						}
+static bool PxcContactPlaneCapsule				(GU_CONTACT_METHOD_ARGS)	{ return contactPlaneCapsule(ARGS);					}
+static bool PxcContactPlaneConvexCore			(GU_CONTACT_METHOD_ARGS)	{ return contactPlaneConvexCore(ARGS);				}
+static bool PxcContactPlaneConvex				(GU_CONTACT_METHOD_ARGS)	{ return contactPlaneConvex(ARGS);					}
+static bool PxcContactPlaneMesh	 				(GU_CONTACT_METHOD_ARGS)	{ return contactPlaneMesh(ARGS);					}
+static bool PxcContactCapsuleCapsule			(GU_CONTACT_METHOD_ARGS)	{ return contactCapsuleCapsule(ARGS);				}
+static bool PxcContactCapsuleBox				(GU_CONTACT_METHOD_ARGS)	{ return contactCapsuleBox(ARGS);					}
+static bool PxcContactCapsuleConvex				(GU_CONTACT_METHOD_ARGS)	{ return contactCapsuleConvex(ARGS);				}
+static bool PxcContactCapsuleMesh				(GU_CONTACT_METHOD_ARGS)	{ return contactCapsuleMesh(ARGS);					}
+static bool PxcContactCapsuleHeightField		(GU_CONTACT_METHOD_ARGS)	{ return contactCapsuleHeightfield(ARGS);			}
+static bool PxcContactBoxBox					(GU_CONTACT_METHOD_ARGS)	{ return contactBoxBox(ARGS);						}
+static bool PxcContactBoxConvex					(GU_CONTACT_METHOD_ARGS)	{ return contactBoxConvex(ARGS);					}
+static bool PxcContactBoxMesh					(GU_CONTACT_METHOD_ARGS)	{ return contactBoxMesh(ARGS);						}
+static bool PxcContactBoxHeightField			(GU_CONTACT_METHOD_ARGS)	{ return contactBoxHeightfield(ARGS);				}
+static bool PxcContactConvexCoreConvex			(GU_CONTACT_METHOD_ARGS)	{ return contactConvexCoreConvex(ARGS);				}
+static bool PxcContactConvexConvex				(GU_CONTACT_METHOD_ARGS)	{ return contactConvexConvex(ARGS);					}
+static bool PxcContactConvexCoreTrimesh			(GU_CONTACT_METHOD_ARGS)	{ return contactConvexCoreTrimesh(ARGS);			}
+static bool PxcContactConvexCoreHeightfield		(GU_CONTACT_METHOD_ARGS)	{ return contactConvexCoreHeightfield(ARGS);		}
+static bool PxcContactConvexMesh				(GU_CONTACT_METHOD_ARGS)	{ return contactConvexMesh(ARGS);					}
+static bool PxcContactConvexHeightField			(GU_CONTACT_METHOD_ARGS)	{ return contactConvexHeightfield(ARGS);			}
+static bool PxcContactMeshMesh	 				(GU_CONTACT_METHOD_ARGS)	{ return contactMeshMesh(ARGS);						}
+static bool PxcContactGeometryCustomGeometry	(GU_CONTACT_METHOD_ARGS)	{ return contactGeometryCustomGeometry(ARGS);		}
 
-static bool PxcPCMContactSphereSphere		(GU_CONTACT_METHOD_ARGS)	{ return pcmContactSphereSphere(shape0, shape1, transform0, transform1, params, cache, contactBuffer, renderOutput);		}
-static bool PxcPCMContactSpherePlane		(GU_CONTACT_METHOD_ARGS)	{ return pcmContactSpherePlane(shape0, shape1, transform0, transform1, params, cache, contactBuffer, renderOutput);			}
-static bool PxcPCMContactSphereBox			(GU_CONTACT_METHOD_ARGS)	{ return pcmContactSphereBox(shape0, shape1, transform0, transform1, params, cache, contactBuffer, renderOutput);			}
-static bool PxcPCMContactSphereCapsule		(GU_CONTACT_METHOD_ARGS)	{ return pcmContactSphereCapsule(shape0, shape1, transform0, transform1, params, cache, contactBuffer, renderOutput);		}
-static bool PxcPCMContactSphereConvex		(GU_CONTACT_METHOD_ARGS)	{ return pcmContactSphereConvex(shape0, shape1, transform0, transform1, params, cache, contactBuffer, renderOutput);		}
-static bool PxcPCMContactSphereMesh			(GU_CONTACT_METHOD_ARGS)	{ return pcmContactSphereMesh(shape0, shape1, transform0, transform1, params, cache, contactBuffer, renderOutput);			}
-static bool PxcPCMContactSphereHeightField	(GU_CONTACT_METHOD_ARGS)	{ return pcmContactSphereHeightField(shape0, shape1, transform0, transform1, params, cache, contactBuffer, renderOutput);	}
-static bool PxcPCMContactPlaneCapsule		(GU_CONTACT_METHOD_ARGS)	{ return pcmContactPlaneCapsule(shape0, shape1, transform0, transform1, params, cache, contactBuffer, renderOutput);		}
-static bool PxcPCMContactPlaneBox			(GU_CONTACT_METHOD_ARGS)	{ return pcmContactPlaneBox(shape0, shape1, transform0, transform1, params, cache, contactBuffer, renderOutput);			}
-static bool PxcPCMContactPlaneConvex		(GU_CONTACT_METHOD_ARGS)	{ return pcmContactPlaneConvex(shape0, shape1, transform0, transform1, params, cache, contactBuffer, renderOutput);			}
-static bool PxcPCMContactCapsuleCapsule		(GU_CONTACT_METHOD_ARGS)	{ return pcmContactCapsuleCapsule(shape0, shape1, transform0, transform1, params, cache, contactBuffer, renderOutput);		}
-static bool PxcPCMContactCapsuleBox			(GU_CONTACT_METHOD_ARGS)	{ return pcmContactCapsuleBox(shape0, shape1, transform0, transform1, params, cache, contactBuffer, renderOutput);			}
-static bool PxcPCMContactCapsuleConvex		(GU_CONTACT_METHOD_ARGS)	{ return pcmContactCapsuleConvex(shape0, shape1, transform0, transform1, params, cache, contactBuffer, renderOutput);		}
-static bool PxcPCMContactCapsuleMesh		(GU_CONTACT_METHOD_ARGS)	{ return pcmContactCapsuleMesh(shape0, shape1, transform0, transform1, params, cache, contactBuffer, renderOutput);			}
-static bool PxcPCMContactCapsuleHeightField	(GU_CONTACT_METHOD_ARGS)	{ return pcmContactCapsuleHeightField(shape0, shape1, transform0, transform1, params, cache, contactBuffer, renderOutput);	}
-static bool PxcPCMContactBoxBox				(GU_CONTACT_METHOD_ARGS)	{ return pcmContactBoxBox(shape0, shape1, transform0, transform1, params, cache, contactBuffer, renderOutput);				}
-static bool PxcPCMContactBoxConvex			(GU_CONTACT_METHOD_ARGS)	{ return pcmContactBoxConvex(shape0, shape1, transform0, transform1, params, cache, contactBuffer, renderOutput);			}
-static bool PxcPCMContactBoxMesh			(GU_CONTACT_METHOD_ARGS)	{ return pcmContactBoxMesh(shape0, shape1, transform0, transform1, params, cache, contactBuffer, renderOutput);				}
-static bool PxcPCMContactBoxHeightField		(GU_CONTACT_METHOD_ARGS)	{ return pcmContactBoxHeightField(shape0, shape1, transform0, transform1, params, cache, contactBuffer, renderOutput);		}
-static bool PxcPCMContactConvexConvex		(GU_CONTACT_METHOD_ARGS)	{ return pcmContactConvexConvex(shape0, shape1, transform0, transform1, params, cache, contactBuffer, renderOutput);		}
-static bool PxcPCMContactConvexMesh			(GU_CONTACT_METHOD_ARGS)	{ return pcmContactConvexMesh(shape0, shape1, transform0, transform1, params, cache, contactBuffer, renderOutput);			}
-static bool PxcPCMContactConvexHeightField	(GU_CONTACT_METHOD_ARGS)	{ return pcmContactConvexHeightField(shape0, shape1, transform0, transform1, params, cache, contactBuffer, renderOutput);	}
+static bool PxcPCMContactSphereSphere			(GU_CONTACT_METHOD_ARGS)	{ return pcmContactSphereSphere(ARGS);				}
+static bool PxcPCMContactSpherePlane			(GU_CONTACT_METHOD_ARGS)	{ return pcmContactSpherePlane(ARGS);				}
+static bool PxcPCMContactSphereBox				(GU_CONTACT_METHOD_ARGS)	{ return pcmContactSphereBox(ARGS);					}
+static bool PxcPCMContactSphereCapsule			(GU_CONTACT_METHOD_ARGS)	{ return pcmContactSphereCapsule(ARGS);				}
+static bool PxcPCMContactSphereConvex			(GU_CONTACT_METHOD_ARGS)	{ return pcmContactSphereConvex(ARGS);				}
+static bool PxcPCMContactSphereMesh				(GU_CONTACT_METHOD_ARGS)	{ return pcmContactSphereMesh(ARGS);				}
+static bool PxcPCMContactSphereHeightField		(GU_CONTACT_METHOD_ARGS)	{ return pcmContactSphereHeightField(ARGS);			}
+static bool PxcPCMContactPlaneCapsule			(GU_CONTACT_METHOD_ARGS)	{ return pcmContactPlaneCapsule(ARGS);				}
+static bool PxcPCMContactPlaneBox				(GU_CONTACT_METHOD_ARGS)	{ return pcmContactPlaneBox(ARGS);					}
+static bool PxcPCMContactPlaneConvexCore		(GU_CONTACT_METHOD_ARGS)	{ return contactPlaneConvexCore(ARGS);				}
+static bool PxcPCMContactPlaneConvex			(GU_CONTACT_METHOD_ARGS)	{ return pcmContactPlaneConvex(ARGS);				}
+static bool PxcPCMContactPlaneMesh				(GU_CONTACT_METHOD_ARGS)	{ return contactPlaneMesh(ARGS);					}
+static bool PxcPCMContactCapsuleCapsule			(GU_CONTACT_METHOD_ARGS)	{ return pcmContactCapsuleCapsule(ARGS);			}
+static bool PxcPCMContactCapsuleBox				(GU_CONTACT_METHOD_ARGS)	{ return pcmContactCapsuleBox(ARGS);				}
+static bool PxcPCMContactCapsuleConvex			(GU_CONTACT_METHOD_ARGS)	{ return pcmContactCapsuleConvex(ARGS);				}
+static bool PxcPCMContactCapsuleMesh			(GU_CONTACT_METHOD_ARGS)	{ return pcmContactCapsuleMesh(ARGS);				}
+static bool PxcPCMContactCapsuleHeightField		(GU_CONTACT_METHOD_ARGS)	{ return pcmContactCapsuleHeightField(ARGS);		}
+static bool PxcPCMContactBoxBox					(GU_CONTACT_METHOD_ARGS)	{ return pcmContactBoxBox(ARGS);					}
+static bool PxcPCMContactBoxConvex				(GU_CONTACT_METHOD_ARGS)	{ return pcmContactBoxConvex(ARGS);					}
+static bool PxcPCMContactBoxMesh				(GU_CONTACT_METHOD_ARGS)	{ return pcmContactBoxMesh(ARGS);					}
+static bool PxcPCMContactBoxHeightField			(GU_CONTACT_METHOD_ARGS)	{ return pcmContactBoxHeightField(ARGS);			}
+static bool PxcPCMContactConvexCoreConvex		(GU_CONTACT_METHOD_ARGS)	{ return contactConvexCoreConvex(ARGS);				}
+static bool PxcPCMContactConvexConvex			(GU_CONTACT_METHOD_ARGS)	{ return pcmContactConvexConvex(ARGS);				}
+static bool PxcPCMContactConvexCoreTrimesh		(GU_CONTACT_METHOD_ARGS)	{ return contactConvexCoreTrimesh(ARGS);			}
+static bool PxcPCMContactConvexCoreHeightfield	(GU_CONTACT_METHOD_ARGS)	{ return contactConvexCoreHeightfield(ARGS);		}
+static bool PxcPCMContactConvexMesh				(GU_CONTACT_METHOD_ARGS)	{ return pcmContactConvexMesh(ARGS);				}
+static bool PxcPCMContactConvexHeightField		(GU_CONTACT_METHOD_ARGS)	{ return pcmContactConvexHeightField(ARGS);			}
+static bool PxcPCMContactMeshMesh				(GU_CONTACT_METHOD_ARGS)	{ return contactMeshMesh(ARGS);						}
+static bool PxcPCMContactGeometryCustomGeometry	(GU_CONTACT_METHOD_ARGS)	{ return pcmContactGeometryCustomGeometry(ARGS);	}
 
-#define DYNAMIC_CONTACT_REGISTRATION(x) PxcInvalidContactPair
-//#define DYNAMIC_CONTACT_REGISTRATION(x) x
+#undef ARGS
 
+namespace physx
+{
 //Table of contact methods for different shape-type combinations
 PxcContactMethod g_ContactMethodTable[][PxGeometryType::eGEOMETRY_COUNT] = 
 {
@@ -93,9 +109,13 @@ PxcContactMethod g_ContactMethodTable[][PxGeometryType::eGEOMETRY_COUNT] =
 		PxcContactSpherePlane,			//PxGeometryType::ePLANE
 		PxcContactSphereCapsule,		//PxGeometryType::eCAPSULE
 		PxcContactSphereBox,			//PxGeometryType::eBOX
+		PxcContactConvexCoreConvex,		//PxGeometryType::eCONVEXCORE
 		PxcContactSphereConvex,			//PxGeometryType::eCONVEXMESH
+		PxcInvalidContactPair,			//PxGeometryType::ePARTICLESYSTEM
+		PxcInvalidContactPair,			//PxGeometryType::eTETRAHEDRONMESH
 		PxcContactSphereMesh,			//PxGeometryType::eTRIANGLEMESH
-		DYNAMIC_CONTACT_REGISTRATION(PxcContactSphereHeightField),	//PxGeometryType::eHEIGHTFIELD	//TODO: make HF midphase that will mask this
+		PxcContactSphereHeightField,	//PxGeometryType::eHEIGHTFIELD	//TODO: make HF midphase that will mask this
+		PxcContactGeometryCustomGeometry,	//PxGeometryType::eCUSTOM
 	},
 
 	//PxGeometryType::ePLANE
@@ -104,9 +124,13 @@ PxcContactMethod g_ContactMethodTable[][PxGeometryType::eGEOMETRY_COUNT] =
 		PxcInvalidContactPair,			//PxGeometryType::ePLANE
 		PxcContactPlaneCapsule,			//PxGeometryType::eCAPSULE
 		PxcContactPlaneBox,				//PxGeometryType::eBOX
+		PxcContactPlaneConvexCore,		//PxGeometryType::eCONVEXCORE
 		PxcContactPlaneConvex,			//PxGeometryType::eCONVEXMESH
-		PxcInvalidContactPair,			//PxGeometryType::eTRIANGLEMESH
+		PxcInvalidContactPair,			//PxGeometryType::ePARTICLESYSTEM
+		PxcInvalidContactPair,			//PxGeometryType::eTETRAHEDRONMESH
+		PxcContactPlaneMesh, 			//PxGeometryType::eTRIANGLEMESH
 		PxcInvalidContactPair,			//PxGeometryType::eHEIGHTFIELD
+		PxcContactGeometryCustomGeometry,	//PxGeometryType::eCUSTOM
 	},
 
 	//PxGeometryType::eCAPSULE
@@ -115,9 +139,13 @@ PxcContactMethod g_ContactMethodTable[][PxGeometryType::eGEOMETRY_COUNT] =
 		0,								//PxGeometryType::ePLANE
 		PxcContactCapsuleCapsule,		//PxGeometryType::eCAPSULE
 		PxcContactCapsuleBox,			//PxGeometryType::eBOX
+		PxcContactConvexCoreConvex,		//PxGeometryType::eCONVEXCORE
 		PxcContactCapsuleConvex,		//PxGeometryType::eCONVEXMESH
+		PxcInvalidContactPair,			//PxGeometryType::ePARTICLESYSTEM
+		PxcInvalidContactPair,			//PxGeometryType::eTETRAHEDRONMESH
 		PxcContactCapsuleMesh,			//PxGeometryType::eTRIANGLEMESH
-		DYNAMIC_CONTACT_REGISTRATION(PxcContactCapsuleHeightField),	//PxGeometryType::eHEIGHTFIELD		//TODO: make HF midphase that will mask this
+		PxcContactCapsuleHeightField,	//PxGeometryType::eHEIGHTFIELD		//TODO: make HF midphase that will mask this
+		PxcContactGeometryCustomGeometry,	//PxGeometryType::eCUSTOM
 	},
 
 	//PxGeometryType::eBOX
@@ -126,9 +154,28 @@ PxcContactMethod g_ContactMethodTable[][PxGeometryType::eGEOMETRY_COUNT] =
 		0,								//PxGeometryType::ePLANE
 		0,								//PxGeometryType::eCAPSULE
 		PxcContactBoxBox,				//PxGeometryType::eBOX
+		PxcContactConvexCoreConvex,		//PxGeometryType::eCONVEXCORE
 		PxcContactBoxConvex,			//PxGeometryType::eCONVEXMESH
+		PxcInvalidContactPair,			//PxGeometryType::ePARTICLESYSTEM
+		PxcInvalidContactPair,			//PxGeometryType::eTETRAHEDRONMESH
 		PxcContactBoxMesh,				//PxGeometryType::eTRIANGLEMESH
-		DYNAMIC_CONTACT_REGISTRATION(PxcContactBoxHeightField),		//PxGeometryType::eHEIGHTFIELD		//TODO: make HF midphase that will mask this
+		PxcContactBoxHeightField,		//PxGeometryType::eHEIGHTFIELD		//TODO: make HF midphase that will mask this
+		PxcContactGeometryCustomGeometry,	//PxGeometryType::eCUSTOM
+	},
+
+	//PxGeometryType::eCONVEXCORE
+	{
+		0,								//PxGeometryType::eSPHERE
+		0,								//PxGeometryType::ePLANE
+		0,								//PxGeometryType::eCAPSULE
+		0,								//PxGeometryType::eBOX
+		PxcContactConvexCoreConvex,		//PxGeometryType::eCONVEXCORE
+		PxcContactConvexCoreConvex,		//PxGeometryType::eCONVEXMESH
+		PxcInvalidContactPair,			//PxGeometryType::ePARTICLESYSTEM
+		PxcInvalidContactPair,			//PxGeometryType::eTETRAHEDRONMESH
+		PxcContactConvexCoreTrimesh,	//PxGeometryType::eTRIANGLEMESH
+		PxcContactConvexCoreHeightfield,//PxGeometryType::eHEIGHTFIELD
+		PxcInvalidContactPair,			//PxGeometryType::eCUSTOM
 	},
 
 	//PxGeometryType::eCONVEXMESH
@@ -137,129 +184,260 @@ PxcContactMethod g_ContactMethodTable[][PxGeometryType::eGEOMETRY_COUNT] =
 		0,								//PxGeometryType::ePLANE
 		0,								//PxGeometryType::eCAPSULE
 		0,								//PxGeometryType::eBOX
+		0,								//PxGeometryType::eCONVEXCORE
 		PxcContactConvexConvex,			//PxGeometryType::eCONVEXMESH
+		PxcInvalidContactPair,			//PxGeometryType::ePARTICLESYSTEM
+		PxcInvalidContactPair,			//PxGeometryType::eTETRAHEDRONMESH
 		PxcContactConvexMesh,			//PxGeometryType::eTRIANGLEMESH
-		DYNAMIC_CONTACT_REGISTRATION(PxcContactConvexHeightField),	//PxGeometryType::eHEIGHTFIELD		//TODO: make HF midphase that will mask this
+		PxcContactConvexHeightField,	//PxGeometryType::eHEIGHTFIELD		//TODO: make HF midphase that will mask this
+		PxcContactGeometryCustomGeometry,	//PxGeometryType::eCUSTOM
+	},
+
+	//PxGeometryType::ePARTICLESYSTEM
+	{
+		0,								//PxGeometryType::eSPHERE
+		0,								//PxGeometryType::ePLANE
+		0,								//PxGeometryType::eCAPSULE
+		0,								//PxGeometryType::eBOX
+		0,								//PxGeometryType::eCONVEXCORE
+		0,								//PxGeometryType::eCONVEXMESH
+		PxcInvalidContactPair,			//PxGeometryType::ePARTICLESYSTEM
+		PxcInvalidContactPair,			//PxGeometryType::eTETRAHEDRONMESH
+		PxcInvalidContactPair,			//PxGeometryType::eTRIANGLEMESH
+		PxcInvalidContactPair,			//PxGeometryType::eHEIGHTFIELD
+		PxcInvalidContactPair,			//PxGeometryType::eCUSTOM
+	},
+
+	//PxGeometryType::eTETRAHEDRONMESH
+	{
+		0,								//PxGeometryType::eSPHERE
+		0,								//PxGeometryType::ePLANE
+		0,								//PxGeometryType::eCAPSULE
+		0,								//PxGeometryType::eBOX
+		0,								//PxGeometryType::eCONVEXCORE
+		0,								//PxGeometryType::eCONVEXMESH
+		0,								//PxGeometryType::ePARTICLESYSTEM
+		PxcInvalidContactPair,			//PxGeometryType::eTETRAHEDRONMESH
+		PxcInvalidContactPair,			//PxGeometryType::eTRIANGLEMESH
+		PxcInvalidContactPair,			//PxGeometryType::eHEIGHTFIELD
+		PxcInvalidContactPair,			//PxGeometryType::eCUSTOM
 	},
 
 	//PxGeometryType::eTRIANGLEMESH
 	{
-		0,								//PxGeometryType::eSPHERE
-		0,								//PxGeometryType::ePLANE
-		0,								//PxGeometryType::eCAPSULE
-		0,								//PxGeometryType::eBOX
-		0,								//PxGeometryType::eCONVEXMESH
-		PxcInvalidContactPair,			//PxGeometryType::eTRIANGLEMESH
-		PxcInvalidContactPair,			//PxGeometryType::eHEIGHTFIELD
+		0,									//PxGeometryType::eSPHERE
+		0,									//PxGeometryType::ePLANE
+		0,									//PxGeometryType::eCAPSULE
+		0,									//PxGeometryType::eBOX
+		0,									//PxGeometryType::eCONVEXCORE
+		0,									//PxGeometryType::eCONVEXMESH
+		0,									//PxGeometryType::ePARTICLESYSTEM
+		0,									//PxGeometryType::eTETRAHEDRONMESH
+		PxcContactMeshMesh,	  				//PxGeometryType::eTRIANGLEMESH
+		PxcInvalidContactPair,				//PxGeometryType::eHEIGHTFIELD
+		PxcContactGeometryCustomGeometry,	//PxGeometryType::eCUSTOM
 	},
 
 	//PxGeometryType::eHEIGHTFIELD
 	{
-		0,								//PxGeometryType::eSPHERE
-		0,								//PxGeometryType::ePLANE
-		0,								//PxGeometryType::eCAPSULE
-		0,								//PxGeometryType::eBOX
-		0,								//PxGeometryType::eCONVEXMESH
-		0,								//PxGeometryType::eTRIANGLEMESH
-		PxcInvalidContactPair,			//PxGeometryType::eHEIGHTFIELD
+		0,									//PxGeometryType::eSPHERE
+		0,									//PxGeometryType::ePLANE
+		0,									//PxGeometryType::eCAPSULE
+		0,									//PxGeometryType::eBOX
+		0,									//PxGeometryType::eCONVEXCORE
+		0,									//PxGeometryType::eCONVEXMESH
+		0,									//PxGeometryType::ePARTICLESYSTEM
+		0,									//PxGeometryType::eTETRAHEDRONMESH
+		0,									//PxGeometryType::eTRIANGLEMESH
+		PxcInvalidContactPair,				//PxGeometryType::eHEIGHTFIELD
+		PxcContactGeometryCustomGeometry,	//PxGeometryType::eCUSTOM
+	},
+
+	//PxGeometryType::eCUSTOM
+	{
+		0,									//PxGeometryType::eSPHERE
+		0,									//PxGeometryType::ePLANE
+		0,									//PxGeometryType::eCAPSULE
+		0,									//PxGeometryType::eBOX
+		0,									//PxGeometryType::eCONVEXCORE
+		0,									//PxGeometryType::eCONVEXMESH
+		0,									//PxGeometryType::ePARTICLESYSTEM
+		0,									//PxGeometryType::eTETRAHEDRONMESH
+		0,									//PxGeometryType::eTRIANGLEMESH
+		0,									//PxGeometryType::eHEIGHTFIELD
+		PxcContactGeometryCustomGeometry,	//PxGeometryType::eCUSTOM
 	},
 };
+PX_COMPILE_TIME_ASSERT(sizeof(g_ContactMethodTable) / sizeof(g_ContactMethodTable[0]) == PxGeometryType::eGEOMETRY_COUNT);
 
-
-//#if	PERSISTENT_CONTACT_MANIFOLD
 //Table of contact methods for different shape-type combinations
 PxcContactMethod g_PCMContactMethodTable[][PxGeometryType::eGEOMETRY_COUNT] = 
 {
 	//PxGeometryType::eSPHERE
 	{
-		PxcPCMContactSphereSphere,										//PxGeometryType::eSPHERE
-		PxcPCMContactSpherePlane,										//PxGeometryType::ePLANE
-		PxcPCMContactSphereCapsule,										//PxGeometryType::eCAPSULE
-		PxcPCMContactSphereBox,											//PxGeometryType::eBOX
-		PxcPCMContactSphereConvex,										//PxGeometryType::eCONVEXMESH
-		PxcPCMContactSphereMesh,										//PxGeometryType::eTRIANGLEMESH
-		DYNAMIC_CONTACT_REGISTRATION(PxcPCMContactSphereHeightField),	//PxGeometryType::eHEIGHTFIELD	//TODO: make HF midphase that will mask this	
+		PxcPCMContactSphereSphere,				//PxGeometryType::eSPHERE
+		PxcPCMContactSpherePlane,				//PxGeometryType::ePLANE
+		PxcPCMContactSphereCapsule,				//PxGeometryType::eCAPSULE
+		PxcPCMContactSphereBox,					//PxGeometryType::eBOX
+		PxcPCMContactConvexCoreConvex,			//PxGeometryType::eCONVEXCORE
+		PxcPCMContactSphereConvex,				//PxGeometryType::eCONVEXMESH
+		PxcInvalidContactPair,					//PxGeometryType::ePARTICLESYSTEM
+		PxcInvalidContactPair,					//PxGeometryType::eTETRAHEDRONMESH
+		PxcPCMContactSphereMesh,				//PxGeometryType::eTRIANGLEMESH
+		PxcPCMContactSphereHeightField,			//PxGeometryType::eHEIGHTFIELD	//TODO: make HF midphase that will mask this
+		PxcPCMContactGeometryCustomGeometry,	//PxGeometryType::eCUSTOM
 	},
 
 	//PxGeometryType::ePLANE
 	{
-		0,															//PxGeometryType::eSPHERE
-		PxcInvalidContactPair,										//PxGeometryType::ePLANE
-		PxcPCMContactPlaneCapsule,									//PxGeometryType::eCAPSULE
-		PxcPCMContactPlaneBox,										//PxGeometryType::eBOX  
-		PxcPCMContactPlaneConvex,										//PxGeometryType::eCONVEXMESH
-		PxcInvalidContactPair,										//PxGeometryType::eTRIANGLEMESH
-		PxcInvalidContactPair,										//PxGeometryType::eHEIGHTFIELD
-	},  
+		0,									//PxGeometryType::eSPHERE
+		PxcInvalidContactPair,				//PxGeometryType::ePLANE
+		PxcPCMContactPlaneCapsule,			//PxGeometryType::eCAPSULE
+		PxcPCMContactPlaneBox,				//PxGeometryType::eBOX  
+		PxcPCMContactPlaneConvexCore,		//PxGeometryType::eCONVEXCORE
+		PxcPCMContactPlaneConvex,			//PxGeometryType::eCONVEXMESH
+		PxcInvalidContactPair,				//PxGeometryType::ePARTICLESYSTEM
+		PxcInvalidContactPair,				//PxGeometryType::eTETRAHEDRONMESH
+		PxcPCMContactPlaneMesh,				//PxGeometryType::eTRIANGLEMESH
+		PxcInvalidContactPair,				//PxGeometryType::eHEIGHTFIELD
+		PxcPCMContactGeometryCustomGeometry,//PxGeometryType::eCUSTOM
+	},
 
 	//PxGeometryType::eCAPSULE
 	{
-		0,																//PxGeometryType::eSPHERE
-		0,																//PxGeometryType::ePLANE
-		PxcPCMContactCapsuleCapsule,									//PxGeometryType::eCAPSULE
-		PxcPCMContactCapsuleBox,										//PxGeometryType::eBOX
-		PxcPCMContactCapsuleConvex,										//PxGeometryType::eCONVEXMESH
-		PxcPCMContactCapsuleMesh,										//PxGeometryType::eTRIANGLEMESH	
-		DYNAMIC_CONTACT_REGISTRATION(PxcPCMContactCapsuleHeightField),	//PxGeometryType::eHEIGHTFIELD		//TODO: make HF midphase that will mask this
+		0,										//PxGeometryType::eSPHERE
+		0,										//PxGeometryType::ePLANE
+		PxcPCMContactCapsuleCapsule,			//PxGeometryType::eCAPSULE
+		PxcPCMContactCapsuleBox,				//PxGeometryType::eBOX
+		PxcPCMContactConvexCoreConvex,			//PxGeometryType::eCONVEXCORE
+		PxcPCMContactCapsuleConvex,				//PxGeometryType::eCONVEXMESH
+		PxcInvalidContactPair,					//PxGeometryType::ePARTICLESYSTEM
+		PxcInvalidContactPair,					//PxGeometryType::eTETRAHEDRONMESH
+		PxcPCMContactCapsuleMesh,				//PxGeometryType::eTRIANGLEMESH	
+		PxcPCMContactCapsuleHeightField,		//PxGeometryType::eHEIGHTFIELD		//TODO: make HF midphase that will mask this
+		PxcPCMContactGeometryCustomGeometry,	//PxGeometryType::eCUSTOM
 	},
 
 	//PxGeometryType::eBOX
 	{
-		0,																//PxGeometryType::eSPHERE
-		0,																//PxGeometryType::ePLANE
-		0,																//PxGeometryType::eCAPSULE
-		PxcPCMContactBoxBox,											//PxGeometryType::eBOX
-		PxcPCMContactBoxConvex,											//PxGeometryType::eCONVEXMESH
-		PxcPCMContactBoxMesh,											//PxGeometryType::eTRIANGLEMESH
-		DYNAMIC_CONTACT_REGISTRATION(PxcPCMContactBoxHeightField),		//PxGeometryType::eHEIGHTFIELD		//TODO: make HF midphase that will mask this
+		0,										//PxGeometryType::eSPHERE
+		0,										//PxGeometryType::ePLANE
+		0,										//PxGeometryType::eCAPSULE
+		PxcPCMContactBoxBox,					//PxGeometryType::eBOX
+		PxcPCMContactConvexCoreConvex,			//PxGeometryType::eCONVEXCORE
+		PxcPCMContactBoxConvex,					//PxGeometryType::eCONVEXMESH
+		PxcInvalidContactPair,					//PxGeometryType::ePARTICLESYSTEM
+		PxcInvalidContactPair,					//PxGeometryType::eTETRAHEDRONMESH
+		PxcPCMContactBoxMesh,					//PxGeometryType::eTRIANGLEMESH
+		PxcPCMContactBoxHeightField,			//PxGeometryType::eHEIGHTFIELD		//TODO: make HF midphase that will mask this
+		PxcPCMContactGeometryCustomGeometry,	//PxGeometryType::eCUSTOM
+	},
 
+	//PxGeometryType::eCONVEXCORE
+	{
+		0,										//PxGeometryType::eSPHERE
+		0,										//PxGeometryType::ePLANE
+		0,										//PxGeometryType::eCAPSULE
+		0,										//PxGeometryType::eBOX
+		PxcPCMContactConvexCoreConvex,			//PxGeometryType::eCONVEXCORE
+		PxcPCMContactConvexCoreConvex,			//PxGeometryType::eCONVEXMESH
+		PxcInvalidContactPair,					//PxGeometryType::ePARTICLESYSTEM
+		PxcInvalidContactPair,					//PxGeometryType::eTETRAHEDRONMESH
+		PxcPCMContactConvexCoreTrimesh,			//PxGeometryType::eTRIANGLEMESH
+		PxcPCMContactConvexCoreHeightfield,		//PxGeometryType::eHEIGHTFIELD
+		PxcInvalidContactPair,					//PxGeometryType::eCUSTOM
 	},
 
 	//PxGeometryType::eCONVEXMESH
 	{
-		0,																	//PxGeometryType::eSPHERE
-		0,																	//PxGeometryType::ePLANE
-		0,																	//PxGeometryType::eCAPSULE
-		0,																	//PxGeometryType::eBOX
-		PxcPCMContactConvexConvex,											//PxGeometryType::eCONVEXMESH
-		PxcPCMContactConvexMesh,											//PxGeometryType::eTRIANGLEMESH
-		DYNAMIC_CONTACT_REGISTRATION(PxcPCMContactConvexHeightField),		//PxGeometryType::eHEIGHTFIELD		//TODO: make HF midphase that will mask this
+		0,										//PxGeometryType::eSPHERE
+		0,										//PxGeometryType::ePLANE
+		0,										//PxGeometryType::eCAPSULE
+		0,										//PxGeometryType::eBOX
+		0,										//PxGeometryType::eCONVEXCORE
+		PxcPCMContactConvexConvex,				//PxGeometryType::eCONVEXMESH
+		PxcInvalidContactPair,					//PxGeometryType::ePARTICLESYSTEM
+		PxcInvalidContactPair,					//PxGeometryType::eTETRAHEDRONMESH
+		PxcPCMContactConvexMesh,				//PxGeometryType::eTRIANGLEMESH
+		PxcPCMContactConvexHeightField,			//PxGeometryType::eHEIGHTFIELD		//TODO: make HF midphase that will mask this
+		PxcPCMContactGeometryCustomGeometry,	//PxGeometryType::eCUSTOM
+	},
+
+	//PxGeometryType::ePARTICLESYSTEM
+	{
+		0,						//PxGeometryType::eSPHERE
+		0,						//PxGeometryType::ePLANE
+		0,						//PxGeometryType::eCAPSULE
+		0,						//PxGeometryType::eBOX
+		0,						//PxGeometryType::eCONVEXCORE
+		0,						//PxGeometryType::eCONVEXMESH
+		PxcInvalidContactPair,	//PxGeometryType::ePARTICLESYSTEM
+		PxcInvalidContactPair,	//PxGeometryType::eTETRAHEDRONMESH
+		PxcInvalidContactPair,	//PxGeometryType::eTRIANGLEMESH
+		PxcInvalidContactPair,	//PxGeometryType::eHEIGHTFIELD		//TODO: make HF midphase that will mask this
+		PxcInvalidContactPair,	//PxGeometryType::eCUSTOM
+	},
+
+	//PxGeometryType::eTETRAHEDRONMESH
+	{
+		0,							//PxGeometryType::eSPHERE
+		0,							//PxGeometryType::ePLANE
+		0,							//PxGeometryType::eCAPSULE
+		0,							//PxGeometryType::eBOX
+		0,							//PxGeometryType::eCONVEXCORE
+		0,							//PxGeometryType::eCONVEXMESH
+		PxcInvalidContactPair,		//PxGeometryType::ePARTICLESYSTEM
+		PxcInvalidContactPair,		//PxGeometryType::eTETRAHEDRONMESH
+		PxcInvalidContactPair,		//PxGeometryType::eTRIANGLEMESH
+		PxcInvalidContactPair,		//PxGeometryType::eHEIGHTFIELD		//TODO: make HF midphase that will mask this
+		PxcInvalidContactPair,		//PxGeometryType::eCUSTOM
 	},
 
 	//PxGeometryType::eTRIANGLEMESH
 	{
-		0,																//PxGeometryType::eSPHERE
-		0,																//PxGeometryType::ePLANE
-		0,																//PxGeometryType::eCAPSULE
-		0,																//PxGeometryType::eBOX
-		0,																//PxGeometryType::eCONVEXMESH
-		PxcInvalidContactPair,											//PxGeometryType::eTRIANGLEMESH
-		PxcInvalidContactPair,											//PxGeometryType::eHEIGHTFIELD
-	},   
+		0,									//PxGeometryType::eSPHERE
+		0,									//PxGeometryType::ePLANE
+		0,									//PxGeometryType::eCAPSULE
+		0,									//PxGeometryType::eBOX
+		0,									//PxGeometryType::eCONVEXCORE
+		0,									//PxGeometryType::eCONVEXMESH
+		0,									//PxGeometryType::ePARTICLESYSTEM
+		0,									//PxGeometryType::eTETRAHEDRONMESH
+		PxcPCMContactMeshMesh,				//PxGeometryType::eTRIANGLEMESH
+		PxcInvalidContactPair,				//PxGeometryType::eHEIGHTFIELD
+		PxcPCMContactGeometryCustomGeometry,//PxGeometryType::eCUSTOM
+	},
 
 	//PxGeometryType::eHEIGHTFIELD
 	{
-		0,																//PxGeometryType::eSPHERE
-		0,																//PxGeometryType::ePLANE
-		0,																//PxGeometryType::eCAPSULE
-		0,																//PxGeometryType::eBOX
-		0,																//PxGeometryType::eCONVEXMESH
-		0,																//PxGeometryType::eTRIANGLEMESH
-		PxcInvalidContactPair,											//PxGeometryType::eHEIGHTFIELD
+		0,									//PxGeometryType::eSPHERE
+		0,									//PxGeometryType::ePLANE
+		0,									//PxGeometryType::eCAPSULE
+		0,									//PxGeometryType::eBOX
+		0,									//PxGeometryType::eCONVEXCORE
+		0,									//PxGeometryType::eCONVEXMESH
+		0,									//PxGeometryType::ePARTICLESYSTEM
+		0,									//PxGeometryType::eTETRAHEDRONMESH
+		0,									//PxGeometryType::eTRIANGLEMESH
+		PxcInvalidContactPair,				//PxGeometryType::eHEIGHTFIELD
+		PxcPCMContactGeometryCustomGeometry,//PxGeometryType::eCUSTOM
+	},
+
+	//PxGeometryType::eCUSTOM
+	{
+		0,									//PxGeometryType::eSPHERE
+		0,									//PxGeometryType::ePLANE
+		0,									//PxGeometryType::eCAPSULE
+		0,									//PxGeometryType::eBOX
+		0,									//PxGeometryType::eCONVEXCORE
+		0,									//PxGeometryType::eCONVEXMESH
+		0,									//PxGeometryType::ePARTICLESYSTEM
+		0,									//PxGeometryType::eTETRAHEDRONMESH
+		0,									//PxGeometryType::eTRIANGLEMESH
+		0,									//PxGeometryType::eHEIGHTFIELD
+		PxcPCMContactGeometryCustomGeometry,//PxGeometryType::eCUSTOM
 	},
 };
-
-void PxvRegisterHeightFields()
-{
-	g_ContactMethodTable[PxGeometryType::eSPHERE][PxGeometryType::eHEIGHTFIELD]			= PxcContactSphereHeightField;
-	g_ContactMethodTable[PxGeometryType::eCAPSULE][PxGeometryType::eHEIGHTFIELD]		= PxcContactCapsuleHeightField;
-	g_ContactMethodTable[PxGeometryType::eBOX][PxGeometryType::eHEIGHTFIELD]			= PxcContactBoxHeightField;
-	g_ContactMethodTable[PxGeometryType::eCONVEXMESH][PxGeometryType::eHEIGHTFIELD]		= PxcContactConvexHeightField;
-
-	g_PCMContactMethodTable[PxGeometryType::eSPHERE][PxGeometryType::eHEIGHTFIELD]		= PxcPCMContactSphereHeightField;
-	g_PCMContactMethodTable[PxGeometryType::eCAPSULE][PxGeometryType::eHEIGHTFIELD]		= PxcPCMContactCapsuleHeightField;
-	g_PCMContactMethodTable[PxGeometryType::eBOX][PxGeometryType::eHEIGHTFIELD]			= PxcPCMContactBoxHeightField;
-	g_PCMContactMethodTable[PxGeometryType::eCONVEXMESH][PxGeometryType::eHEIGHTFIELD]	= PxcPCMContactConvexHeightField;
-}
+PX_COMPILE_TIME_ASSERT(sizeof(g_PCMContactMethodTable) / sizeof(g_PCMContactMethodTable[0]) == PxGeometryType::eGEOMETRY_COUNT);
 
 }

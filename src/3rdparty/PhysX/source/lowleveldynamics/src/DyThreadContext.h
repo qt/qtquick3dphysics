@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,33 +22,31 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
-
-#ifndef DY_THREADCONTEXT_H
-#define DY_THREADCONTEXT_H
+#ifndef DY_THREAD_CONTEXT_H
+#define DY_THREAD_CONTEXT_H
 
 #include "foundation/PxTransform.h"
-#include "geomutils/GuContactBuffer.h"
+#include "geomutils/PxContactBuffer.h"
 
-#include "PxvConfig.h"
+#include "PxPhysXConfig.h"
 #include "PxvDynamics.h"
 #include "PxcThreadCoherentCache.h"
 #include "PxcConstraintBlockStream.h"
-#include "CmBitMap.h"
-#include "CmMatrix34.h"
-#include "DyThresholdTable.h"
-#include "DyArticulation.h"
+#include "foundation/PxBitMap.h"
+#include "DyVArticulation.h"
 #include "DyFrictionPatchStreamPair.h"
 #include "DySolverConstraintDesc.h"
 #include "DyCorrelationBuffer.h"
-#include "PsAllocator.h"
+#include "foundation/PxAllocator.h"
 
 namespace physx
 {
 struct PxsIndexedContactManager;
+class PxsRigidBody;
 
 namespace Dy
 {
@@ -63,8 +60,7 @@ Not thread-safe, so remember to have one object per thread!
 
 TODO! refactor this and rename(it is a general per thread cache). Move transform cache into its own class.
 */
-class ThreadContext : 
-	public PxcThreadCoherentCache<ThreadContext, PxcNpMemBlockPool>::EntryBase
+class ThreadContext : public PxcThreadCoherentCache<ThreadContext, PxcNpMemBlockPool>::EntryBase
 {
 	PX_NOCOPY(ThreadContext)
 public:
@@ -74,135 +70,113 @@ public:
 	{
 		void clear()
 		{
-
 			numActiveConstraints = 0;
 			numActiveDynamicBodies = 0;
 			numActiveKinematicBodies = 0;
 			numAxisSolverConstraints = 0;
-
 		}
 
 		PxU32 numActiveConstraints;
 		PxU32 numActiveDynamicBodies;
 		PxU32 numActiveKinematicBodies;
 		PxU32 numAxisSolverConstraints;
-
 	};
+#else
+	PX_CATCH_UNDEFINED_ENABLE_SIM_STATS
 #endif
 
 	//TODO: tune cache size based on number of active objects.
 	ThreadContext(PxcNpMemBlockPool* memBlockPool);
 	void reset();
-	void resizeArrays(PxU32 frictionConstraintDescCount, PxU32 articulationCount);
-
-	PX_FORCE_INLINE	Ps::Array<ArticulationSolverDesc>&		getArticulations()								{ return mArticulations;					}
-
+	void resizeArrays(PxU32 articulationCount);
 
 #if PX_ENABLE_SIM_STATS
 	PX_FORCE_INLINE ThreadSimStats& getSimStats()
 	{
 		return mThreadSimStats;
 	}
+#else
+	PX_CATCH_UNDEFINED_ENABLE_SIM_STATS
 #endif
 
-	Gu::ContactBuffer mContactBuffer;
+	PxContactBuffer								mContactBuffer;
 
 		// temporary buffer for correlation
-	PX_ALIGN(16, CorrelationBuffer			mCorrelationBuffer); 
+	PX_ALIGN(16, CorrelationBuffer				mCorrelationBuffer); 
 
-	FrictionPatchStreamPair		mFrictionPatchStreamPair;	// patch streams
+	FrictionPatchStreamPair						mFrictionPatchStreamPair;	// patch streams
 
-	PxsConstraintBlockManager		mConstraintBlockManager;	// for when this thread context is "lead" on an island
-	PxcConstraintBlockStream 		mConstraintBlockStream;		// constraint block pool
-
+	PxsConstraintBlockManager					mConstraintBlockManager;	// for when this thread context is "lead" on an island
+	PxcConstraintBlockStream 					mConstraintBlockStream;		// constraint block pool
 
 	// this stuff is just used for reformatting the solver data. Hopefully we should have a more
 	// sane format for this when the dust settles - so it's just temporary. If we keep this around
 	// here we should move these from public to private
 
-	PxU32 mNumDifferentBodyConstraints;
-	PxU32 mNumDifferentBodyFrictionConstraints;
-	PxU32 mNumSelfConstraints;
-	PxU32 mNumStaticConstraints;
-	PxU32 mNumSelfFrictionConstraints;
-	PxU32 mNumSelfConstraintFrictionBlocks;
+	PxU32										mNumDifferentBodyConstraints;
+	PxU32										mNumStaticConstraints;
+	bool										mHasOverflowPartitions;
 
-	Ps::Array<PxU32>					mConstraintsPerPartition;
-	Ps::Array<PxU32>					mFrictionConstraintsPerPartition;
-	Ps::Array<PxU32>					mPartitionNormalizationBitmap;
-	PxsBodyCore**						mBodyCoreArray;
-	PxsRigidBody**						mRigidBodyArray;
-	ArticulationV**						mArticulationArray;
-	Cm::SpatialVector*					motionVelocityArray;
-	PxU32*								bodyRemapTable;
-	PxU32*								mNodeIndexArray;
+	PxU32										mNbArticulations;
 
-	//Constraint info for normal constraint sovler
-	PxSolverConstraintDesc*				contactConstraintDescArray;
-	PxU32								contactDescArraySize;
-	PxSolverConstraintDesc*				orderedContactConstraints;
-	PxConstraintBatchHeader*			contactConstraintBatchHeaders;
-	PxU32								numContactConstraintBatches;
+	PxArray<PxU32>								mConstraintsPerPartition;
+	//PxArray<PxU32>								mPartitionNormalizationBitmap;	// PT: for PX_NORMALIZE_PARTITIONS
+	PxsBodyCore**								mBodyCoreArray;
+	PxsRigidBody**								mRigidBodyArray;
+	FeatherstoneArticulation**					mArticulationArray;
+	Cm::SpatialVector*							motionVelocityArray;
+	PxU32*										bodyRemapTable;
+	PxU32*										mNodeIndexArray;
+
+	// PT: TODO: unify names around here, some use "m", some don't
+
+	//Constraint info for normal constraint solver
+	PxSolverConstraintDesc*						contactConstraintDescArray;
+	PxU32										contactDescArraySize;
+	PxSolverConstraintDesc*						orderedContactConstraints;
+	PxConstraintBatchHeader*					contactConstraintBatchHeaders;
+	PxU32										numContactConstraintBatches;
 
 	//Constraint info for partitioning
-	PxSolverConstraintDesc*				tempConstraintDescArray;
+	PxSolverConstraintDesc*						tempConstraintDescArray;
 
-	//Additional constraint info for 1d/2d friction model
-	Ps::Array<PxSolverConstraintDesc>	frictionConstraintDescArray;
-	Ps::Array<PxConstraintBatchHeader>	frictionConstraintBatchHeaders;
-
+#if PGS_SUPPORT_COMPOUND_CONSTRAINTS
 	//Info for tracking compound contact managers (temporary data - could use scratch memory!)
-	Ps::Array<CompoundContactManager>	compoundConstraints;
+	PxArray<CompoundContactManager>				compoundConstraints;
 
 	//Used for sorting constraints. Temporary, could use scratch memory
-	Ps::Array<const PxsIndexedContactManager*>	orderedContactList;
-	Ps::Array<const PxsIndexedContactManager*>	tempContactList;
-	Ps::Array<PxU32>							sortIndexArray;
-	
-	Ps::Array<Cm::SpatialVectorF>				mZVector;
-	Ps::Array<Cm::SpatialVectorF>				mDeltaV;
-
-
-	PxU32								numDifferentBodyBatchHeaders;
-	PxU32								numSelfConstraintBatchHeaders;
-
-	
-	PxU32								mOrderedContactDescCount;
-	PxU32								mOrderedFrictionDescCount;
-
-	PxU32								mConstraintSize;
-
-	PxU32 mAxisConstraintCount;
-	SelfConstraintBlock* mSelfConstraintBlocks;
-	
-	SelfConstraintBlock* mSelfConstraintFrictionBlocks;
-
-	PxU32 mMaxPartitions;
-	PxU32 mMaxFrictionPartitions;
-	PxU32 mMaxSolverPositionIterations;
-	PxU32 mMaxSolverVelocityIterations;
-	PxU32 mMaxArticulationLength;
-	PxU32 mMaxArticulationSolverLength;
-	PxU32 mMaxArticulationLinks;
-	
-	PxSolverConstraintDesc* mContactDescPtr;
-	PxSolverConstraintDesc* mStartContactDescPtr;
-	PxSolverConstraintDesc* mFrictionDescPtr;
-
-private:
-
-	Ps::Array<ArticulationSolverDesc>	mArticulations;
-
-#if PX_ENABLE_SIM_STATS
-	ThreadSimStats				mThreadSimStats;
+	PxArray<const PxsIndexedContactManager*>	orderedContactList;
+	PxArray<const PxsIndexedContactManager*>	tempContactList;
+	PxArray<PxU32>								sortIndexArray;
 #endif
 
-	public:
+	PxArray<Cm::SpatialVectorF>					mZVector; // scratch space, used for propagation during constraint prepping
+	PxArray<Cm::SpatialVectorF>					mDeltaV; // scratch space, used temporarily for propagating velocities
 
+	PxU32										mOrderedContactDescCount;
+	PxU32										mOrderedFrictionDescCount;
+
+	PxU32										mConstraintSize;		// PT: TODO: consider removing, this is only used for stats
+	PxU32										mAxisConstraintCount;	// PT: TODO: consider removing, this is only used for stats
+
+	PxU32										mMaxPartitions;
+	PxU32										mMaxFrictionPartitions;
+	PxU32										mMaxSolverPositionIterations;
+	PxU32										mMaxSolverVelocityIterations;
+	PxU32										mMaxArticulationLinks;
+	
+	PxSolverConstraintDesc*						mContactDescPtr;
+private:
+
+#if PX_ENABLE_SIM_STATS
+	ThreadSimStats								mThreadSimStats;
+#else
+	PX_CATCH_UNDEFINED_ENABLE_SIM_STATS
+#endif
 };
 
 }
 
 }
 
-#endif //DY_THREADCONTEXT_H
+#endif

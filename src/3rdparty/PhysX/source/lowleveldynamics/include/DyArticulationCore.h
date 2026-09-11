@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,13 +22,12 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
-
-#ifndef PXDV_ARTICULATION_CORE_H
-#define PXDV_ARTICULATION_CORE_H
+#ifndef DY_ARTICULATION_CORE_H
+#define DY_ARTICULATION_CORE_H
 
 #include "PxArticulationReducedCoordinate.h"
 
@@ -39,41 +37,18 @@ namespace physx
 	{
 		struct ArticulationCore
 		{
-			//= ATTENTION! =====================================================================================
-			// Changing the data layout of this class breaks the binary serialization format.  See comments for 
-			// PX_BINARY_SERIAL_VERSION.  If a modification is required, please adjust the getBinaryMetaData 
-			// function.  If the modification is made on a custom branch, please change PX_BINARY_SERIAL_VERSION
-			// accordingly.
-			//==================================================================================================
+// PX_SERIALIZATION
+			ArticulationCore(const PxEMPTY) : flags(PxEmpty) {}
+			ArticulationCore() {}
+//~PX_SERIALIZATION
 
-			PxU32					internalDriveIterations;
-			PxU32					externalDriveIterations;
-			PxU32					maxProjectionIterations;
 			PxU16					solverIterationCounts; //KS - made a U16 so that it matches PxsRigidCore
-			PxReal					separationTolerance;
+			PxArticulationFlags		flags;
 			PxReal					sleepThreshold;
 			PxReal					freezeThreshold;
 			PxReal					wakeCounter;
-			PxArticulationFlags		flags;
+			PxU32					gpuRemapIndex;
 		};
-
-		struct ArticulationJointCoreDirtyFlag
-		{
-			enum Enum
-			{
-				eNONE = 0,
-				eMOTION = 1 << 0,
-				ePOSE = 1 << 1,
-				eTARGETPOSE = 1 << 2,
-				eTARGETVELOCITY = 1 << 3,
-				eLIMIT = 1 << 4,
-				eDRIVE = 1 << 5,
-				eALL = eMOTION | ePOSE | eTARGETPOSE | eTARGETVELOCITY
-			};
-		};
-
-		typedef PxFlags<ArticulationJointCoreDirtyFlag::Enum, PxU8> ArticulationJointCoreDirtyFlags;
-		PX_FLAGS_OPERATORS(ArticulationJointCoreDirtyFlag::Enum, PxU8)
 	}
 }
 

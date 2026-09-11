@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,78 +22,82 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
+#ifndef NP_AGGREGATE_H
+#define NP_AGGREGATE_H
 
-#ifndef PX_PHYSICS_NP_AGGREGATE
-#define PX_PHYSICS_NP_AGGREGATE
-
-#include "CmPhysXCommon.h"
 #include "PxAggregate.h"
-#include "ScbAggregate.h"
-#include "PsUserAllocated.h"
+#include "NpBase.h"
+#include "BpVolumeData.h"
 
 namespace physx
 {
-
 class NpScene;
 
-class NpAggregate : public PxAggregate, public Ps::UserAllocated
+class NpAggregate : public PxAggregate, public NpBase
 {
-//= ATTENTION! =====================================================================================
-// Changing the data layout of this class breaks the binary serialization format.  See comments for 
-// PX_BINARY_SERIAL_VERSION.  If a modification is required, please adjust the getBinaryMetaData 
-// function.  If the modification is made on a custom branch, please change PX_BINARY_SERIAL_VERSION
-// accordingly.
-//==================================================================================================
 public:
 // PX_SERIALIZATION
-										NpAggregate(PxBaseFlags baseFlags) : PxAggregate(baseFlags), mAggregate(PxEmpty) {}
-						void			preExportDataReset();
-		virtual			void			exportExtraData(PxSerializationContext& context);
-						void			importExtraData(PxDeserializationContext& context);
-						void			resolveReferences(PxDeserializationContext& context);
-		virtual			void			requiresObjects(PxProcessPxBaseCallback& c);
-		static			NpAggregate*	createObject(PxU8*& address, PxDeserializationContext& context);
-		static			void			getBinaryMetaData(PxOutputStream& stream);
+												NpAggregate(PxBaseFlags baseFlags) : PxAggregate(baseFlags), NpBase(PxEmpty) {}
+						void					preExportDataReset();
+	    virtual	        void	     			exportExtraData(PxSerializationContext& context);
+						void					importExtraData(PxDeserializationContext& context);
+						void					resolveReferences(PxDeserializationContext& context);
+	    virtual	        void					requiresObjects(PxProcessPxBaseCallback& c);
+		static			NpAggregate*			createObject(PxU8*& address, PxDeserializationContext& context);
 //~PX_SERIALIZATION
-										NpAggregate(PxU32 maxActors, bool selfCollision);
-		virtual							~NpAggregate();
+												NpAggregate(PxU32 maxActors, PxU32 maxShapes, PxAggregateFilterHint filterHint);
+		virtual									~NpAggregate();
 
-		virtual			void			release();
-		virtual			bool			addActor(PxActor&, const PxBVHStructure* );
-		virtual			bool			removeActor(PxActor&);
-		virtual			bool			addArticulation(PxArticulationBase&);
-		virtual			bool			removeArticulation(PxArticulationBase&);
+		// PxAggregate
+		virtual			void					release()	PX_OVERRIDE PX_FINAL;
+		virtual			bool					addActor(PxActor&, const PxBVH*)	PX_OVERRIDE PX_FINAL;
+		virtual			bool					removeActor(PxActor&)	PX_OVERRIDE PX_FINAL;
+		virtual			bool					addArticulation(PxArticulationReducedCoordinate&)	PX_OVERRIDE PX_FINAL;
+		virtual			bool					removeArticulation(PxArticulationReducedCoordinate&)	PX_OVERRIDE PX_FINAL;
+		virtual			PxU32					getNbActors() const	PX_OVERRIDE PX_FINAL;
+		virtual			PxU32					getMaxNbActors() const	PX_OVERRIDE PX_FINAL;
+		virtual			PxU32					getMaxNbShapes() const	PX_OVERRIDE PX_FINAL;
+		virtual			PxU32					getActors(PxActor** userBuffer, PxU32 bufferSize, PxU32 startIndex) const	PX_OVERRIDE PX_FINAL;
+		virtual			PxScene*				getScene()	PX_OVERRIDE PX_FINAL;
+		virtual			bool					getSelfCollision()	const	PX_OVERRIDE PX_FINAL;
+		virtual			bool					setEnvironmentID(PxU32 envID)	PX_OVERRIDE PX_FINAL;
+		virtual			PxU32					getEnvironmentID()		const	PX_OVERRIDE PX_FINAL;
+		//~PxAggregate
 
-		virtual			PxU32			getNbActors() const;
-		virtual			PxU32			getMaxNbActors() const;
-		virtual			PxU32			getActors(PxActor** userBuffer, PxU32 bufferSize, PxU32 startIndex) const;
+		PX_FORCE_INLINE	PxU32					getMaxNbShapesFast()	const	{ return mMaxNbShapes;	}
+		PX_FORCE_INLINE	PxU32					getCurrentSizeFast()	const	{ return mNbActors;		}
+		PX_FORCE_INLINE	PxActor*				getActorFast(PxU32 i)	const	{ return mActors[i];	}
+		PX_FORCE_INLINE Bp::AggregateHandle		getAggregateHandle()	const	{ return mAggregateHandle;	}
+		PX_FORCE_INLINE void					setAggregateHandle(Bp::AggregateHandle h)	{ mAggregateHandle = h;		}
 
-		virtual			PxScene*		getScene();
-		virtual			bool			getSelfCollision()	const;
+		PX_FORCE_INLINE	bool					getSelfCollideFast()	const	{ return PxGetAggregateSelfCollisionBit(mFilterHint)!=0;	}
+		PX_FORCE_INLINE	PxAggregateFilterHint	getFilterHint()			const	{ return mFilterHint;	}
+		PX_FORCE_INLINE	PxU32					getEnvID()				const	{ return mEnvID;		}
 
-		PX_FORCE_INLINE	PxU32			getCurrentSizeFast()	const	{ return mNbActors; }
-		PX_FORCE_INLINE	PxActor*		getActorFast(PxU32 i)	const	{ return mActors[i]; }
-		PX_FORCE_INLINE	bool			getSelfCollideFast()	const	{ return mAggregate.getSelfCollide(); }
+						void					scRemoveActor(NpActor& actor, bool reinsert);
+						bool					removeActorAndReinsert(PxActor& actor, bool reinsert);
+						bool					removeArticulationAndReinsert(PxArticulationReducedCoordinate& art, bool reinsert);
+						void					addToScene(NpScene& scene);
 
-						NpScene*		getAPIScene() const;
-						NpScene*		getOwnerScene() const; // the scene the user thinks the actor is in, or from which the actor is pending removal
-
-						void			addActorInternal(PxActor& actor, NpScene& s, const PxBVHStructure* bvhStructure);
-						void			removeAndReinsert(PxActor& actor, bool reinsert);
-						bool			removeActorAndReinsert(PxActor& actor, bool reinsert);
-						bool			removeArticulationAndReinsert(PxArticulationBase& art, bool reinsert);
-
-		PX_FORCE_INLINE	Scb::Aggregate&	getScbAggregate() { return mAggregate; }
-		static PX_FORCE_INLINE size_t	getScbAggregateOffset()	{ return PX_OFFSET_OF_RT(NpAggregate, mAggregate); }
-
+						void					incShapeCount();
+						void					decShapeCount();
 private:
-						Scb::Aggregate	mAggregate;
-						PxU32			mNbActors;
-						PxActor**		mActors;
+						Bp::AggregateHandle		mAggregateHandle;
+						PxU32					mMaxNbActors;
+						PxU32					mMaxNbShapes;
+						PxAggregateFilterHint	mFilterHint;
+						PxU32					mEnvID;
+						PxU32					mNbActors;
+						PxU32					mNbShapes;
+						PxActor**				mActors;
+
+						void					scAddActor(NpActor&);
+						void					removeAndReinsert(PxActor& actor, bool reinsert);
+						void					addActorInternal(PxActor& actor, NpScene& s, const PxBVH* bvh);
 };
 
 }

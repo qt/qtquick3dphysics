@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,12 +22,13 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.
 
 // PX_DUMMY_SYMBOL
 
+#include "foundation/PxPreprocessor.h"
 #if PX_SUPPORT_PVD
 
 #include "pvd/PxPvdTransport.h"
@@ -44,7 +44,7 @@ using namespace physx::Vd;
 
 PvdPhysicsClient::PvdPhysicsClient(PsPvd* pvd)
 : mPvd(pvd), mPvdDataStream(NULL), mIsConnected(false)
-{	
+{
 }
 
 PvdPhysicsClient::~PvdPhysicsClient()
@@ -98,7 +98,7 @@ void PvdPhysicsClient::sendEntireSDK()
 
 #define SEND_BUFFER_GROUP(type, name)                   \
 	{                                                   \
-		physx::shdfnd::Array<type*> buffers;            \
+		physx::PxArray<type*> buffers;            \
 		PxU32 numBuffers = physics.getNb##name();       \
 		buffers.resize(numBuffers);                     \
 		physics.get##name(buffers.begin(), numBuffers);	\
@@ -112,6 +112,7 @@ void PvdPhysicsClient::sendEntireSDK()
 	SEND_BUFFER_GROUP(PxMaterial, Materials);
 	SEND_BUFFER_GROUP(PxTriangleMesh, TriangleMeshes);
 	SEND_BUFFER_GROUP(PxConvexMesh, ConvexMeshes);
+	SEND_BUFFER_GROUP(PxTetrahedronMesh, TetrahedronMeshes);
 	SEND_BUFFER_GROUP(PxHeightField, HeightFields);
 }
 
@@ -129,6 +130,16 @@ void PvdPhysicsClient::createPvdInstance(const PxTriangleMesh* triMesh)
 void PvdPhysicsClient::destroyPvdInstance(const PxTriangleMesh* triMesh)
 {
 	mMetaDataBinding.destroyInstance(*mPvdDataStream, *triMesh, PxGetPhysics());
+}
+
+void PvdPhysicsClient::createPvdInstance(const PxTetrahedronMesh* tetMesh)
+{
+	mMetaDataBinding.createInstance(*mPvdDataStream, *tetMesh, PxGetPhysics());
+}
+
+void PvdPhysicsClient::destroyPvdInstance(const PxTetrahedronMesh* tetMesh)
+{
+	mMetaDataBinding.destroyInstance(*mPvdDataStream, *tetMesh, PxGetPhysics());
 }
 
 void PvdPhysicsClient::createPvdInstance(const PxConvexMesh* convexMesh)
@@ -165,8 +176,54 @@ void PvdPhysicsClient::destroyPvdInstance(const PxMaterial* mat)
 {
 	mMetaDataBinding.destroyInstance(*mPvdDataStream, *mat, PxGetPhysics());
 }
+#if PX_SUPPORT_GPU_PHYSX
+void PvdPhysicsClient::createPvdInstance(const PxDeformableSurfaceMaterial* mat)
+{
+	mMetaDataBinding.createInstance(*mPvdDataStream, *mat, PxGetPhysics());
+}
 
-void PvdPhysicsClient::onGuMeshFactoryBufferRelease(const PxBase* object, PxType typeID)
+void PvdPhysicsClient::updatePvdProperties(const PxDeformableSurfaceMaterial* mat)
+{
+	mMetaDataBinding.sendAllProperties(*mPvdDataStream, *mat);
+}
+
+void PvdPhysicsClient::destroyPvdInstance(const PxDeformableSurfaceMaterial* mat)
+{
+	mMetaDataBinding.destroyInstance(*mPvdDataStream, *mat, PxGetPhysics());
+}
+
+void PvdPhysicsClient::createPvdInstance(const PxDeformableVolumeMaterial* mat)
+{
+	mMetaDataBinding.createInstance(*mPvdDataStream, *mat, PxGetPhysics());
+}
+
+void PvdPhysicsClient::updatePvdProperties(const PxDeformableVolumeMaterial* mat)
+{
+	mMetaDataBinding.sendAllProperties(*mPvdDataStream, *mat);
+}
+
+void PvdPhysicsClient::destroyPvdInstance(const PxDeformableVolumeMaterial* mat)
+{
+	mMetaDataBinding.destroyInstance(*mPvdDataStream, *mat, PxGetPhysics());
+}
+
+void PvdPhysicsClient::createPvdInstance(const PxPBDMaterial* mat)
+{
+	mMetaDataBinding.createInstance(*mPvdDataStream, *mat, PxGetPhysics());
+}
+
+void PvdPhysicsClient::updatePvdProperties(const PxPBDMaterial* mat)
+{
+	mMetaDataBinding.sendAllProperties(*mPvdDataStream, *mat);
+}
+
+void PvdPhysicsClient::destroyPvdInstance(const PxPBDMaterial* mat)
+{
+	mMetaDataBinding.destroyInstance(*mPvdDataStream, *mat, PxGetPhysics());
+}
+#endif
+
+void PvdPhysicsClient::onMeshFactoryBufferRelease(const PxBase* object, PxType typeID)
 {
 	if(!mIsConnected || !mPvd)
 		return;
@@ -186,6 +243,10 @@ void PvdPhysicsClient::onGuMeshFactoryBufferRelease(const PxBase* object, PxType
 		case PxConcreteType::eTRIANGLE_MESH_BVH33:
 		case PxConcreteType::eTRIANGLE_MESH_BVH34:
 			destroyPvdInstance(static_cast<const PxTriangleMesh*>(object));
+			break;
+
+		case PxConcreteType::eTETRAHEDRON_MESH:
+			destroyPvdInstance(static_cast<const PxTetrahedronMesh*>(object));
 			break;
 
 		default:

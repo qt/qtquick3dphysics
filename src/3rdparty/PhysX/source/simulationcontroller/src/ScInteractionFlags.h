@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,15 +22,13 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
+#ifndef SC_INTERACTION_FLAGS_H
+#define SC_INTERACTION_FLAGS_H
 
-#ifndef PX_PHYSICS_SCP_INTERACTION_FLAGS
-#define PX_PHYSICS_SCP_INTERACTION_FLAGS
-
-#include "foundation/Px.h"
 
 namespace physx
 {
@@ -56,11 +53,10 @@ namespace Sc
 		enum Enum
 		{
 			eFILTER_STATE		= (1 << 0), // All changes filtering related
-			eMATERIAL			= (1 << 1),
-			eBODY_KINEMATIC		= (1 << 2) | eFILTER_STATE,  // A transition between dynamic and kinematic (and vice versa) require a refiltering
-			eDOMINANCE			= (1 << 3),
-			eREST_OFFSET		= (1 << 4),
-			eVISUALIZATION		= (1 << 5)
+			eBODY_KINEMATIC		= (1 << 1) | eFILTER_STATE,  // A transition between dynamic and kinematic (and vice versa) require a refiltering
+			eDOMINANCE			= (1 << 2),
+			eREST_OFFSET		= (1 << 3),
+			eVISUALIZATION		= (1 << 4)
 		};
 	};
 
@@ -71,4 +67,5 @@ namespace Sc
 } // namespace physx
 
 
-#endif // PX_PHYSICS_SCP_INTERACTION_FLAGS
+#endif
+

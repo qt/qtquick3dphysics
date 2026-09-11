@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,77 +22,34 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved. 
-
-#include "PxsSimulationController.h"
 
 #ifndef SC_SIMULATION_CONTROLLER_H
 #define	SC_SIMULATION_CONTROLLER_H
 
+#include "PxsSimulationController.h"
+#include "foundation/PxMutex.h"
 
 namespace physx
 {
-
-class PxsHeapMemoryAllocator;
-
-namespace Dy
-{
-	class FeatherstoneArticulation;
-	struct ArticulationJointCore;
-}
-
 namespace Sc
 {
-
 	class SimulationController : public PxsSimulationController
 	{
 		PX_NOCOPY(SimulationController)
 	public:
-		SimulationController(PxsSimulationControllerCallback* callback): PxsSimulationController(callback)
-		{
-		}
-	
-		virtual ~SimulationController(){}
-		virtual void addJoint(const PxU32 /*edgeIndex*/, Dy::Constraint* /*constraint*/, IG::IslandSim& /*islandSim*/, Ps::Array<PxU32>& /*jointIndices*/,
-		Ps::Array<PxgSolverConstraintManagerConstants, Ps::VirtualAllocator>& /*managerIter*/, PxU32 /*uniqueId*/){}
-		virtual void removeJoint(const PxU32 /*edgeIndex*/, Dy::Constraint* /*constraint*/, Ps::Array<PxU32>& /*jointIndices*/, IG::IslandSim& /*islandSim*/){}
-		virtual void addShape(PxsShapeSim* /*shapeSim*/, const PxU32 /*index*/){}
-		virtual void removeShape(const PxU32 /*index*/){}
-		virtual void addDynamic(PxsRigidBody* /*rigidBody*/, const IG::NodeIndex& /*nodeIndex*/){}
-		virtual void addDynamics(PxsRigidBody** /*rigidBody*/, const PxU32* /*nodeIndex*/, PxU32 /*nbBodies*/) {}
-		virtual void addArticulation(Dy::ArticulationV* /*articulation*/, const IG::NodeIndex& /*nodeIndex*/){}
-		virtual void releaseArticulation(Dy::ArticulationV* /*articulation*/, const IG::NodeIndex& /*nodeIndex*/) {}
-		virtual void releaseDeferredArticulationIds(){}
-		virtual void updateDynamic(const bool /*isArticulationLink*/, const IG::NodeIndex& /*nodeIndex*/) {}
-		virtual void updateJoint(const PxU32 /*edgeIndex*/, Dy::Constraint* /*constraint*/){}
-		virtual void updateBodies(PxsRigidBody** /*rigidBodies*/,  PxU32* /*nodeIndices*/, const PxU32 /*nbBodies*/) {}
-		virtual void updateBody(PxsRigidBody* /*rigidBody*/, const PxU32 /*nodeIndex*/) {}
-		virtual void updateBodiesAndShapes(PxBaseTask* /*continuation*/){}
-		virtual void update(const PxU32 /*bitMapWordCounts*/){}
-		virtual void gpuDmabackData(PxsTransformCache& /*cache*/, Bp::BoundsArray& /*boundArray*/, Cm::BitMapPinned&  /*changedAABBMgrHandles*/){}
-		virtual void udpateScBodyAndShapeSim(PxsTransformCache& cache, Bp::BoundsArray& boundArray, PxBaseTask* continuation);
-		virtual void updateArticulation(Dy::ArticulationV* /*articulation*/, const IG::NodeIndex& /*nodeIndex*/) {}
-		virtual void updateArticulationJoint(Dy::ArticulationV* /*articulation*/, const IG::NodeIndex& /*nodeIndex*/) {}
-		virtual PxU32* getActiveBodies() { return NULL; }
-		virtual PxU32* getDeactiveBodies() { return NULL; }
-		virtual void** getRigidBodies() { return NULL; }
-		virtual PxU32	getNbBodies() { return 0; }
-		virtual PxU32	getNbFrozenShapes() { return 0; }
-		virtual PxU32	getNbUnfrozenShapes() { return 0; }
+						SimulationController(PxsSimulationControllerCallback* callback) : PxsSimulationController(callback, PxIntFalse)	{}
+		virtual			~SimulationController()																							{}
 
-		virtual PxU32*	getUnfrozenShapes() { return NULL; }
-		virtual PxU32*	getFrozenShapes() { return NULL; }
-		virtual PxsShapeSim** getShapeSims() { return NULL; }
-		virtual PxU32	getNbShapes()	{ return 0; }
+		virtual void	updateScBodyAndShapeSim(PxsTransformCache& cache, Bp::BoundsArray& boundArray, PxBaseTask* continuation)	PX_OVERRIDE;
 
-		virtual void	clear() { }
-		virtual void	setBounds(Bp::BoundsArray* /*boundArray*/){}
-		virtual void	reserve(const PxU32 /*nbBodies*/) {}
+		virtual void	updateArticulationAfterIntegration(PxsContext*	llContext, Bp::AABBManagerBase* aabbManager,
+															PxArray<Sc::BodySim*>& ccdBodies, PxBaseTask* continuation, IG::IslandSim& islandSim, float dt, bool isSleepingDisabled)	PX_OVERRIDE;
 
-		virtual PxU32   getArticulationRemapIndex(const PxU32 /*nodeIndex*/) { return PX_INVALID_U32;}
-		
+		// PT: initial solution to sleepCheck() running non-thread-safe code in task. We should do better eventually.
+		PxMutex	mArticulationSleepLock;
 	};
 }
 

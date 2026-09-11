@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,148 +22,253 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
-
-#ifndef PX_PHYSICS_NP_ARTICULATION_RC
-#define PX_PHYSICS_NP_ARTICULATION_RC
+#ifndef NP_ARTICULATION_RC_H
+#define NP_ARTICULATION_RC_H
 
 #include "PxArticulationReducedCoordinate.h"
-#include "CmPhysXCommon.h"
+#include "foundation/PxSimpleTypes.h"
 
 #if PX_ENABLE_DEBUG_VISUALIZATION
-#include "CmRenderOutput.h"
+	#include "common/PxRenderOutput.h"
+#else
+	PX_CATCH_UNDEFINED_ENABLE_DEBUG_VISUALIZATION
 #endif
 
-#include "ScbArticulation.h"
 #include "NpArticulationLink.h"
-#include "NpArticulationTemplate.h"
 #include "NpArticulationJointReducedCoordinate.h"
+#include "NpArticulationTendon.h"
+#include "NpArticulationMimicJoint.h"
+#include "ScArticulationCore.h"
 
 namespace physx
 {
-
 	class NpArticulationLink;
 	class NpScene;
-	class NpAggregate;
 	class PxAggregate;
-	class PxJoint;
+	class PxConstraint;
+	class NpArticulationSpatialTendon;
+	class NpArticulationFixedTendon;
 
-	class NpArticulationReducedCoordinate : public NpArticulationTemplate<PxArticulationReducedCoordinate>
+	class NpArticulationReducedCoordinate : public PxArticulationReducedCoordinate, public NpBase
 	{
-		//= ATTENTION! =====================================================================================
-		// Changing the data layout of this class breaks the binary serialization format.  See comments for 
-		// PX_BINARY_SERIAL_VERSION.  If a modification is required, please adjust the getBinaryMetaData 
-		// function.  If the modification is made on a custom branch, please change PX_BINARY_SERIAL_VERSION
-		// accordingly.
-		//==================================================================================================
 	public:
 		virtual											~NpArticulationReducedCoordinate();
 
 		// PX_SERIALIZATION
 														NpArticulationReducedCoordinate(PxBaseFlags baseFlags)
-														:	NpArticulationTemplate(baseFlags) 
-														,	mLoopJoints(PxEmpty)
-														{}
+														: PxArticulationReducedCoordinate(baseFlags),
+															NpBase(PxEmpty), mCore(PxEmpty),
+															mArticulationLinks(PxEmpty), mLoopJoints(PxEmpty), mSpatialTendons(PxEmpty), mFixedTendons(PxEmpty), mMimicJoints(PxEmpty)
+														{
+														}
 		
 					void								preExportDataReset();
+					virtual			void				exportExtraData(PxSerializationContext& stream);
+					void								importExtraData(PxDeserializationContext& context);
+					void								resolveReferences(PxDeserializationContext& context);
+					virtual			void				requiresObjects(PxProcessPxBaseCallback& c);
+
 		static		NpArticulationReducedCoordinate*	createObject(PxU8*& address, PxDeserializationContext& context);
-		static		void								getBinaryMetaData(PxOutputStream& stream);
 		//~PX_SERIALIZATION
 
-		//---------------------------------------------------------------------------------
-		// PxArticulation implementation
-		//---------------------------------------------------------------------------------
+		// PxBase
+		virtual			void							release()	PX_OVERRIDE	PX_FINAL;
+		//~PxBase
 
-		//---------------------------------------------------------------------------------
-		// PxArticulationReducedCoordinate implementation
-		//---------------------------------------------------------------------------------
-		virtual		void						setArticulationFlags(PxArticulationFlags flags);
+		// PxArticulationReducedCoordinate
+		virtual	PxScene*	getScene() const	PX_OVERRIDE	PX_FINAL	{ return NpBase::getNpScene(); }
+		virtual	void		setSolverIterationCounts(PxU32 positionIters, PxU32 velocityIters)	PX_OVERRIDE	PX_FINAL;
+		virtual	void		getSolverIterationCounts(PxU32& positionIters, PxU32& velocityIters) const	PX_OVERRIDE	PX_FINAL;
+		virtual	bool		isSleeping() const	PX_OVERRIDE	PX_FINAL;
+		virtual	void		setSleepThreshold(PxReal threshold)	PX_OVERRIDE	PX_FINAL;
+		virtual	PxReal		getSleepThreshold() const	PX_OVERRIDE	PX_FINAL;
+		virtual	void		setStabilizationThreshold(PxReal threshold)	PX_OVERRIDE	PX_FINAL;
+		virtual	PxReal		getStabilizationThreshold() const	PX_OVERRIDE	PX_FINAL;
+		virtual	void		setWakeCounter(PxReal wakeCounterValue)	PX_OVERRIDE	PX_FINAL;
+		virtual	PxReal		getWakeCounter() const	PX_OVERRIDE	PX_FINAL;
+		virtual	void		wakeUp()	PX_OVERRIDE	PX_FINAL;
+		virtual	void		putToSleep()	PX_OVERRIDE	PX_FINAL;
+		virtual PxVec3		computeArticulationCOM(const bool rootFrame) const	PX_OVERRIDE	PX_FINAL;
+		virtual PxArticulationLink*		createLink(PxArticulationLink* parent, const PxTransform& pose)	PX_OVERRIDE	PX_FINAL;
+		virtual	PxU32					getNbLinks() const	PX_OVERRIDE	PX_FINAL;
+		virtual	PxU32					getLinks(PxArticulationLink** userBuffer, PxU32 bufferSize, PxU32 startIndex) const	PX_OVERRIDE	PX_FINAL;
+		virtual	PxU32					getNbShapes() const	PX_OVERRIDE	PX_FINAL;
+		virtual	void					setName(const char* name)	PX_OVERRIDE	PX_FINAL;
+		virtual	const char*				getName() const	PX_OVERRIDE	PX_FINAL;
+		virtual	PxBounds3				getWorldBounds(float inflation) const	PX_OVERRIDE	PX_FINAL;
+		virtual	PxAggregate*			getAggregate() const	PX_OVERRIDE	PX_FINAL;
+		virtual	void					setArticulationFlags(PxArticulationFlags flags)	PX_OVERRIDE	PX_FINAL;
+		virtual	void					setArticulationFlag(PxArticulationFlag::Enum flag, bool value)	PX_OVERRIDE	PX_FINAL;
+		virtual	PxArticulationFlags		getArticulationFlags() const	PX_OVERRIDE	PX_FINAL;
+		virtual	PxU32					getDofs() const	PX_OVERRIDE	PX_FINAL;
+		virtual	PxArticulationCache*	createCache() const	PX_OVERRIDE	PX_FINAL;
+		virtual	PxU32					getCacheDataSize() const	PX_OVERRIDE	PX_FINAL;
+		virtual	void					zeroCache(PxArticulationCache& cache) const	PX_OVERRIDE	PX_FINAL;
+		virtual	void					applyCache(PxArticulationCache& cache, const PxArticulationCacheFlags flags, bool autowake)	PX_OVERRIDE	PX_FINAL;
+		virtual	void					copyInternalStateToCache(PxArticulationCache& cache, const PxArticulationCacheFlags flags) const	PX_OVERRIDE	PX_FINAL;
+		virtual	void					packJointData(const PxReal* maximum, PxReal* reduced) const	PX_OVERRIDE	PX_FINAL;
+		virtual	void					unpackJointData(const PxReal* reduced, PxReal* maximum) const	PX_OVERRIDE	PX_FINAL;
+		virtual	void					commonInit() const	PX_OVERRIDE	PX_FINAL;
+		virtual	void					computeGravityCompensation(PxArticulationCache& cache) const	PX_OVERRIDE	PX_FINAL;
+		virtual	void					computeCoriolisCompensation(PxArticulationCache& cache) const	PX_OVERRIDE	PX_FINAL;
+		virtual	void					computeGeneralizedExternalForce(PxArticulationCache& cache) const	PX_OVERRIDE	PX_FINAL;
+		virtual	void					computeJointAcceleration(PxArticulationCache& cache) const	PX_OVERRIDE	PX_FINAL;
+		virtual	void					computeJointForce(PxArticulationCache& cache) const	PX_OVERRIDE	PX_FINAL;
+		virtual	void					computeDenseJacobian(PxArticulationCache& cache, PxU32& nRows, PxU32& nCols) const	PX_OVERRIDE	PX_FINAL;
+		PX_DEPRECATED virtual	void	computeCoefficientMatrix(PxArticulationCache& cache) const	PX_OVERRIDE	PX_FINAL;
+		PX_DEPRECATED virtual	bool	computeLambda(PxArticulationCache& cache, PxArticulationCache& rollBackCache, const PxReal* const jointTorque, const PxU32 maxIter) const	PX_OVERRIDE	PX_FINAL;
+		virtual	void					computeMassMatrix(PxArticulationCache& cache) const	PX_OVERRIDE	PX_FINAL;
+		virtual	void					computeCentroidalMomentumMatrix(PxArticulationCache& cache) const	PX_OVERRIDE	PX_FINAL;
+		PX_DEPRECATED	virtual	void	addLoopJoint(PxConstraint* joint)	PX_OVERRIDE	PX_FINAL;
+		PX_DEPRECATED	virtual	void	removeLoopJoint(PxConstraint* constraint)	PX_OVERRIDE	PX_FINAL;
+		PX_DEPRECATED	virtual	PxU32	getNbLoopJoints() const	PX_OVERRIDE	PX_FINAL;
+		PX_DEPRECATED	virtual	PxU32	getLoopJoints(PxConstraint** userBuffer, PxU32 bufferSize, PxU32 startIndex = 0) const	PX_OVERRIDE	PX_FINAL;
+		PX_DEPRECATED	virtual	PxU32	getCoefficientMatrixSize() const	PX_OVERRIDE	PX_FINAL;
+		virtual	void					setRootGlobalPose(const PxTransform& pose, bool autowake = true)	PX_OVERRIDE	PX_FINAL;
+		virtual	PxTransform				getRootGlobalPose() const	PX_OVERRIDE	PX_FINAL;
+		virtual	void					setRootLinearVelocity(const PxVec3& velocity, bool autowake = true)	PX_OVERRIDE	PX_FINAL;
+		virtual	PxVec3					getRootLinearVelocity() const	PX_OVERRIDE	PX_FINAL;
+		virtual	void					setRootAngularVelocity(const PxVec3& velocity, bool autowake = true)	PX_OVERRIDE	PX_FINAL;
+		virtual	PxVec3					getRootAngularVelocity() const	PX_OVERRIDE	PX_FINAL;
+		virtual	PxSpatialVelocity		getLinkAcceleration(const PxU32 linkId)	PX_OVERRIDE	PX_FINAL;
+		virtual	PxArticulationGPUIndex	getGPUIndex() const PX_OVERRIDE PX_FINAL;
+		virtual	PxArticulationSpatialTendon*	createSpatialTendon()	PX_OVERRIDE	PX_FINAL;
+		virtual	PxU32					getSpatialTendons(PxArticulationSpatialTendon** userBuffer, PxU32 bufferSize, PxU32 startIndex) const	PX_OVERRIDE	PX_FINAL;
+		virtual	PxU32					getNbSpatialTendons()	const	PX_OVERRIDE	PX_FINAL;
+		virtual	PxArticulationFixedTendon*	createFixedTendon()	PX_OVERRIDE	PX_FINAL;
+		virtual	PxU32					getFixedTendons(PxArticulationFixedTendon** userBuffer, PxU32 bufferSize, PxU32 startIndex) const	PX_OVERRIDE	PX_FINAL;
+		virtual	PxU32					getNbFixedTendons()	const	PX_OVERRIDE	PX_FINAL;
+		virtual	PxArticulationMimicJoint*	createMimicJoint(const PxArticulationJointReducedCoordinate& jointA, PxArticulationAxis::Enum axisA, const PxArticulationJointReducedCoordinate& jointB, PxArticulationAxis::Enum axisB, PxReal gearRatio, PxReal offset, PxReal naturalFrequency, PxReal dampingRatio)	PX_OVERRIDE	PX_FINAL;
+		virtual	PxU32					getMimicJoints(PxArticulationMimicJoint** userBuffer, PxU32 bufferSize, PxU32 startIndex) const	PX_OVERRIDE	PX_FINAL;
+		virtual	PxU32					getNbMimicJoints() const	PX_OVERRIDE	PX_FINAL;
+		virtual	void					updateKinematic(PxArticulationKinematicFlags flags) PX_OVERRIDE PX_FINAL;
+		//~PxArticulationReducedCoordinate
 
-		virtual		void						setArticulationFlag(PxArticulationFlag::Enum flag, bool value);
+		NpArticulationSpatialTendon*					getSpatialTendon(const PxU32 index) const;
+		NpArticulationFixedTendon*						getFixedTendon(const PxU32 index) const;
+		NpArticulationMimicJoint*						getMimicJoint(const PxU32 index) const;
 
-		virtual		PxArticulationFlags			getArticulationFlags() const;
-
-		virtual		PxU32						getDofs() const;
-
-		virtual		PxArticulationCache*		createCache() const;
-
-		virtual		PxU32						getCacheDataSize() const;
-
-		virtual		void						zeroCache(PxArticulationCache& cache);
-
-		virtual		void						applyCache(PxArticulationCache& cache, const PxArticulationCacheFlags flag, bool autowake);
-
-		virtual		void						copyInternalStateToCache(PxArticulationCache& cache, const PxArticulationCacheFlags flag) const;
-
-		virtual		void						releaseCache(PxArticulationCache& cache) const;
-
-		virtual		void						packJointData(const PxReal* maximum, PxReal* reduced) const;
-
-		virtual		void						unpackJointData(const PxReal* reduced, PxReal* maximum) const;
-
-		virtual		void						commonInit() const;
-
-		virtual		void						computeGeneralizedGravityForce(PxArticulationCache& cache) const;
-
-		virtual		void						computeCoriolisAndCentrifugalForce(PxArticulationCache& cache) const;
-
-		virtual		void						computeGeneralizedExternalForce(PxArticulationCache& cache) const;
-
-		virtual		void						computeJointAcceleration(PxArticulationCache& cache) const;
-		
-		virtual		void						computeJointForce(PxArticulationCache& cache) const;
-
-
-		virtual		void						computeDenseJacobian(PxArticulationCache& cache, PxU32& nRows, PxU32& nCols) const;
-
-		virtual		void						computeCoefficientMatrix(PxArticulationCache& cache) const;
-
-		virtual		bool						computeLambda(PxArticulationCache& cache, PxArticulationCache& rollBackCache, const PxReal* const jointTorque, const PxU32 maxIter) const;
-
-		virtual		void						computeGeneralizedMassMatrix(PxArticulationCache& cache) const;
-
-		virtual		void						addLoopJoint(PxJoint* joint);
-
-		virtual		void						removeLoopJoint(PxJoint* constraint);
-
-		virtual		PxU32						getNbLoopJoints() const;
-
-		virtual		PxU32						getLoopJoints(PxJoint** userBuffer, PxU32 bufferSize, PxU32 startIndex = 0) const;
-
-		virtual		PxU32						getCoefficientMatrixSize() const;
-
-		virtual		void						teleportRootLink(const PxTransform& pose, bool autowake);
-
-		virtual		PxSpatialVelocity			getLinkVelocity(const PxU32 linkId);
-		virtual		PxSpatialVelocity			getLinkAcceleration(const PxU32 linkId);
-
-		virtual		const char*					getConcreteTypeName() const { return "PxArticulationReducedCoordinate"; }
+		PX_FORCE_INLINE	PxArray<NpArticulationSpatialTendon*>&	getSpatialTendons() { return mSpatialTendons; }
+		PX_FORCE_INLINE	PxArray<NpArticulationFixedTendon*>&	getFixedTendons() { return mFixedTendons; }
+		PX_FORCE_INLINE	PxArray<NpArticulationMimicJoint*>&		getMimicJoints() { return mMimicJoints; }
 
 		//---------------------------------------------------------------------------------
 		// Miscellaneous
 		//---------------------------------------------------------------------------------
 		NpArticulationReducedCoordinate();
 
-		virtual		bool			isKindOf(const char* name) const { return !::strcmp("PxArticulationReducedCoordinate", name) || PxBase::isKindOf(name); }
+		PxArticulationJointReducedCoordinate*			createArticulationJoint(PxArticulationLink& parent,
+																				const PxTransform& parentFrame,
+																				PxArticulationLink& child,
+																				const PxTransform& childFrame);
 
-		virtual PxArticulationJointBase* createArticulationJoint(PxArticulationLink& parent,
-			const PxTransform& parentFrame,
-			PxArticulationLink& child,
-			const PxTransform& childFrame);
-		virtual void					 releaseArticulationJoint(PxArticulationJointBase* joint);
+		PX_INLINE	void							incrementShapeCount() { mNumShapes++; }
+		PX_INLINE	void							decrementShapeCount() { mNumShapes--; }
 
-		static PX_INLINE size_t			 getScbArticulationOffset() { return PX_OFFSET_OF_RT(NpArticulationReducedCoordinate, mImpl.mArticulation); }
+		//---------------------------------------------------------------------------------
+		// Miscellaneous
+		//---------------------------------------------------------------------------------
+		
+		PX_INLINE		void						addToLinkList(NpArticulationLink& link) { mArticulationLinks.pushBack(&link); mNumShapes += link.getNbShapes(); }
+		PX_INLINE bool								removeLinkFromList(NpArticulationLink& link) 
+		{ 
+			PX_ASSERT(mArticulationLinks.find(&link) != mArticulationLinks.end()); 
+			mTopologyChanged = true;
+			return mArticulationLinks.findAndReplaceWithLast(&link); 
+		}
+		PX_FORCE_INLINE	NpArticulationLink* const*	getLinks() { return mArticulationLinks.begin(); }
+		PX_FORCE_INLINE	const NpArticulationLink* const * getLinks() const { return mArticulationLinks.begin(); }
+
+		NpArticulationLink*							getRoot();
+		void										setAggregate(PxAggregate* a);
+
+		void										wakeUpInternal(bool forceWakeUp, bool autowake);
+		void										autoWakeInternal();
+
+		void										setGlobalPose();
+
+		PX_FORCE_INLINE	Sc::ArticulationCore&		getCore()			{ return mCore; }
+		PX_FORCE_INLINE	const Sc::ArticulationCore&	getCore()	const	{ return mCore; }
+		static PX_FORCE_INLINE size_t				getCoreOffset()		{ return PX_OFFSET_OF_RT(NpArticulationReducedCoordinate, mCore); }
+
+		void										updateKinematicInternal(PxArticulationKinematicFlags flags);
+
+		PX_INLINE		void		scSetSolverIterationCounts(PxU16 v)
+		{
+			PX_ASSERT(!isAPIWriteForbidden());
+			mCore.setSolverIterationCounts(v);
+			UPDATE_PVD_PROPERTY
+		}
+
+		PX_INLINE		void		scSetSleepThreshold(const PxReal v)
+		{
+			PX_ASSERT(!isAPIWriteForbidden());
+			mCore.setSleepThreshold(v);
+			UPDATE_PVD_PROPERTY
+		}
+
+		PX_INLINE		void		scSetFreezeThreshold(const PxReal v)
+		{
+			PX_ASSERT(!isAPIWriteForbidden());
+			mCore.setFreezeThreshold(v);
+			UPDATE_PVD_PROPERTY
+		}
+
+		PX_INLINE		void		scSetWakeCounter(PxReal counter)
+		{
+			PX_ASSERT(!isAPIWriteForbiddenExceptSplitSim());
+			mCore.setWakeCounter(counter);
+			UPDATE_PVD_PROPERTY
+		}
+
+		PX_FORCE_INLINE	void		scSetArticulationFlags(PxArticulationFlags flags)
+		{
+			PX_ASSERT(!isAPIWriteForbidden());
+			mCore.setArticulationFlags(flags);
+			UPDATE_PVD_PROPERTY
+		}
+
+		PX_FORCE_INLINE	void		scWakeUpInternal(PxReal wakeCounter)
+		{
+			PX_ASSERT(getNpScene());
+			PX_ASSERT(!isAPIWriteForbiddenExceptSplitSim());
+			mCore.wakeUp(wakeCounter);
+		}
+
+		void			recomputeLinkIDs();
+
+#if PX_ENABLE_DEBUG_VISUALIZATION
+public:
+	void						visualize(PxRenderOutput& out, NpScene& scene, float scale)	const;
+#else
+	PX_CATCH_UNDEFINED_ENABLE_DEBUG_VISUALIZATION
+#endif
+
+	Sc::ArticulationCore		mCore;
+	NpArticulationLinkArray		mArticulationLinks;
+	PxU32						mNumShapes;
+	NpAggregate*				mAggregate;
+	const char*					mName;
+	PxU32						mCacheVersion;
+	bool						mTopologyChanged;
 
 	private:
 
-		Ps::Array<PxJoint*>			mLoopJoints;
+		void									removeSpatialTendonInternal(NpArticulationSpatialTendon* tendon);
+		void									removeFixedTendonInternal(NpArticulationFixedTendon* tendon);
+		void									removeMimicJointInternal(NpArticulationMimicJoint* mimicJoint);
 
+		PxArray<NpConstraint*>					mLoopJoints;
+		PxArray<NpArticulationSpatialTendon*>	mSpatialTendons;
+		PxArray<NpArticulationFixedTendon*>		mFixedTendons;
+		PxArray<NpArticulationMimicJoint*>		mMimicJoints;
+		
 		friend class NpScene;
 	};
-
 
 }
 

@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,84 +22,68 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
 #ifndef BP_AABB_MANAGER_TASKS_H
 #define BP_AABB_MANAGER_TASKS_H
 
-#include "PsUserAllocated.h"
 #include "CmTask.h"
 
 namespace physx
 {
-	class PxcScratchAllocator;
 namespace Bp
 {
 	class AABBManager;
 	class Aggregate;
 
-	class AggregateBoundsComputationTask : public Cm::Task, public shdfnd::UserAllocated
+	class AggregateBoundsComputationTask : public Cm::Task
 	{
+		PX_NOCOPY(AggregateBoundsComputationTask)
 		public:
-										AggregateBoundsComputationTask(PxU64 contextId) :
-											Cm::Task	(contextId),
-											mManager	(NULL),
-											mStart		(0),
-											mNbToGo		(0),
-											mAggregates	(NULL)
-										{}
-										~AggregateBoundsComputationTask()	{}
+								AggregateBoundsComputationTask(PxU64 contextId) :
+									Cm::Task	(contextId),
+									mManager	(NULL),
+									mStart		(0),
+									mNbToGo		(0),
+									mAggregates	(NULL)
+								{}
 
-		virtual const char*				getName() const { return "AggregateBoundsComputationTask"; }
-		virtual void					runInternal();
+		virtual const char*		getName() const PX_OVERRIDE { return "AggregateBoundsComputationTask"; }
+		virtual void			runInternal() PX_OVERRIDE;
 
-				void					Init(AABBManager* manager, PxU32 start, PxU32 nb, Aggregate** aggregates)
-										{
-											mManager	= manager;
-											mStart		= start;
-											mNbToGo		= nb;
-											mAggregates	= aggregates;
-										}
+				void			Init(AABBManager* manager, PxU32 start, PxU32 nb, Aggregate** aggregates)
+								{
+									mManager	= manager;
+									mStart		= start;
+									mNbToGo		= nb;
+									mAggregates	= aggregates;
+								}
 		private:
-				AABBManager*			mManager;
-				PxU32					mStart;
-				PxU32					mNbToGo;
-				Aggregate**				mAggregates;
-
-		AggregateBoundsComputationTask& operator=(const AggregateBoundsComputationTask&);
+				AABBManager*	mManager;
+				PxU32			mStart;
+				PxU32			mNbToGo;
+				Aggregate**		mAggregates;
 	};
 
-	class FinalizeUpdateTask : public Cm::Task, public shdfnd::UserAllocated
+	class PreBpUpdateTask : public Cm::Task
 	{
-		public:
-										FinalizeUpdateTask(PxU64 contextId) :
-											Cm::Task				(contextId),
-											mManager				(NULL),
-											mNumCpuTasks			(0),
-											mScratchAllocator		(NULL),
-											mNarrowPhaseUnlockTask	(NULL)
-										{}
-										~FinalizeUpdateTask()	{}
+		PX_NOCOPY(PreBpUpdateTask)
+	public:
+								PreBpUpdateTask(PxU64 contextId) : Cm::Task(contextId), mManager(NULL), mNumCpuTasks(0)	{}
 
-		virtual const char*				getName() const { return "FinalizeUpdateTask"; }
-		virtual void					runInternal();
+		virtual const char*		getName() const PX_OVERRIDE { return "PreBpUpdateTask"; }
+		virtual void			runInternal() PX_OVERRIDE;
 
-				void					Init(AABBManager* manager, PxU32 numCpuTasks, PxcScratchAllocator* scratchAllocator, PxBaseTask* narrowPhaseUnlockTask)
-										{
-											mManager				= manager;
-											mNumCpuTasks			= numCpuTasks;
-											mScratchAllocator		= scratchAllocator;
-											mNarrowPhaseUnlockTask	= narrowPhaseUnlockTask;
-										}
-		private:
-				AABBManager*			mManager;
-				PxU32					mNumCpuTasks;
-				PxcScratchAllocator*	mScratchAllocator;
-				PxBaseTask*				mNarrowPhaseUnlockTask;
-
-		FinalizeUpdateTask& operator=(const FinalizeUpdateTask&);
+				void			Init(AABBManager* manager, PxU32 numCpuTasks)
+								{
+									mManager = manager;
+									mNumCpuTasks = numCpuTasks;
+								}
+	private:
+				AABBManager*	mManager;
+				PxU32			mNumCpuTasks;
 	};
 
 }

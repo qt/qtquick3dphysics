@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -33,6 +32,7 @@
 #include "geometry/PxTriangle.h"
 
 #include "GuSweepSharedTests.h"
+#include "GuInternal.h"
 
 	#define	RetType	int
 	#define	MTDType	bool
@@ -82,11 +82,13 @@ namespace Gu
 	//	if(t0 > t1)	TSwap(t0, t1);
 		const float t0_ = d0 * oneOverV;
 		const float t1_ = d1 * oneOverV;
-		float t0 = PxMin(t0_, t1_);
-		float t1 = PxMax(t0_, t1_);
+		const float t0 = PxMin(t0_, t1_);
+		const float t1 = PxMax(t0_, t1_);
 
-		if(t0 > tlast)	return false;
-		if(t1 < tfirst)	return false;
+		if(t0 > tlast)
+			return false;
+		if(t1 < tfirst)
+			return false;
 
 	//	if(t1 < tlast)	tlast = t1;
 		tlast = PxMin(t1, tlast);
@@ -125,11 +127,13 @@ namespace Gu
 	//	if(t0 > t1)	TSwap(t0, t1);
 		const float t0_ = d0 * oneOverV;
 		const float t1_ = d1 * oneOverV;
-		float t0 = PxMin(t0_, t1_);
-		float t1 = PxMax(t0_, t1_);
+		const float t0 = PxMin(t0_, t1_);
+		const float t1 = PxMax(t0_, t1_);
 
-		if(t0 > tlast)	return false;
-		if(t1 < tfirst)	return false;
+		if(t0 > tlast)
+			return false;
+		if(t1 < tfirst)
+			return false;
 
 	//	if(t1 < tlast)	tlast = t1;
 		tlast = PxMin(t1, tlast);
@@ -167,17 +171,17 @@ namespace Gu
 			const PxVec3 TriEdge = tri.verts[ip1] - tri.verts[i];
 
 			{
-				const PxVec3 Sep = Ps::cross100(TriEdge);
+				const PxVec3 Sep = cross100(TriEdge);
 				if((Sep.dot(Sep))>=1.0E-6f && !testAxis(tri, extents, dir, Sep, bValidMTD, tfirst, tlast))
 					return 0;
 			}
 			{
-				const PxVec3 Sep = Ps::cross010(TriEdge);
+				const PxVec3 Sep = cross010(TriEdge);
 				if((Sep.dot(Sep))>=1.0E-6f && !testAxis(tri, extents, dir, Sep, bValidMTD, tfirst, tlast))
 					return 0;
 			}
 			{
-				const PxVec3 Sep = Ps::cross001(TriEdge);
+				const PxVec3 Sep = cross001(TriEdge);
 				if((Sep.dot(Sep))>=1.0E-6f && !testAxis(tri, extents, dir, Sep, bValidMTD, tfirst, tlast))
 					return 0;
 			}

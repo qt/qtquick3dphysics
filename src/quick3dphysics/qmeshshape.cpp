@@ -11,6 +11,7 @@
 
 #include "foundation/PxVec3.h"
 #include "cooking/PxConvexMeshDesc.h"
+#include "cooking/PxCooking.h"
 #include "extensions/PxDefaultStreams.h"
 
 #include <QtQml/qqml.h>
@@ -120,8 +121,8 @@ physx::PxConvexMesh *QQuick3DPhysicsMesh::convexMeshQmlSource()
 
     physx::PxDefaultMemoryOutputStream buf;
     physx::PxConvexMeshCookingResult::Enum result;
-    const auto cooking = QPhysicsWorld::getCooking();
-    if (cooking && cooking->cookConvexMesh(convexDesc, buf, &result)) {
+    const auto *cookingParams = QPhysicsWorld::getCookingParams();
+    if (cookingParams && ::PxCookConvexMesh(*cookingParams, convexDesc, buf, &result)) {
         auto size = buf.getSize();
         auto *data = buf.getData();
         physx::PxDefaultMemoryInputData input(data, size);
@@ -171,10 +172,10 @@ physx::PxConvexMesh *QQuick3DPhysicsMesh::convexMeshGeometrySource()
     // NOTE: Since we are making a mesh for the convex hull and are only
     // interested in the positions we can Skip the index array.
 
-    const auto cooking = QPhysicsWorld::getCooking();
+    const auto *cookingParams = QPhysicsWorld::getCookingParams();
     physx::PxDefaultMemoryOutputStream buf;
     physx::PxConvexMeshCookingResult::Enum result;
-    if (cooking && cooking->cookConvexMesh(convexDesc, buf, &result)) {
+    if (cookingParams && ::PxCookConvexMesh(*cookingParams, convexDesc, buf, &result)) {
         auto size = buf.getSize();
         auto *data = buf.getData();
         physx::PxDefaultMemoryInputData input(data, size);
@@ -228,7 +229,7 @@ physx::PxTriangleMesh *QQuick3DPhysicsMesh::triangleMeshQmlSource()
 
         triangleDesc.triangles.data = indexBuffer.constData();
         if (u16IndexType) {
-            triangleDesc.flags.set(physx::PxMeshFlag::e16_BIT_INDICES);
+            triangleDesc.flags |= physx::PxMeshFlag::e16_BIT_INDICES;
             triangleDesc.triangles.stride = sizeof(quint16) * 3;
         } else {
             triangleDesc.triangles.stride = sizeof(quint32) * 3;
@@ -238,8 +239,8 @@ physx::PxTriangleMesh *QQuick3DPhysicsMesh::triangleMeshQmlSource()
 
     physx::PxDefaultMemoryOutputStream buf;
     physx::PxTriangleMeshCookingResult::Enum result;
-    const auto cooking = QPhysicsWorld::getCooking();
-    if (cooking && cooking->cookTriangleMesh(triangleDesc, buf, &result)) {
+    const auto *cookingParams = QPhysicsWorld::getCookingParams();
+    if (cookingParams && ::PxCookTriangleMesh(*cookingParams, triangleDesc, buf, &result)) {
         auto size = buf.getSize();
         auto *data = buf.getData();
         physx::PxDefaultMemoryInputData input(data, size);
@@ -304,7 +305,7 @@ physx::PxTriangleMesh *QQuick3DPhysicsMesh::triangleMeshGeometrySource()
 
         triangleDesc.triangles.data = indexBuffer.constData();
         if (u16IndexType) {
-            triangleDesc.flags.set(physx::PxMeshFlag::e16_BIT_INDICES);
+            triangleDesc.flags |= physx::PxMeshFlag::e16_BIT_INDICES;
             triangleDesc.triangles.stride = sizeof(quint16) * 3;
         } else {
             triangleDesc.triangles.stride = sizeof(quint32) * 3;
@@ -314,8 +315,8 @@ physx::PxTriangleMesh *QQuick3DPhysicsMesh::triangleMeshGeometrySource()
 
     physx::PxDefaultMemoryOutputStream buf;
     physx::PxTriangleMeshCookingResult::Enum result;
-    const auto cooking = QPhysicsWorld::getCooking();
-    if (cooking && cooking->cookTriangleMesh(triangleDesc, buf, &result)) {
+    const auto *cookingParams = QPhysicsWorld::getCookingParams();
+    if (cookingParams && ::PxCookTriangleMesh(*cookingParams, triangleDesc, buf, &result)) {
         auto size = buf.getSize();
         auto *data = buf.getData();
         physx::PxDefaultMemoryInputData input(data, size);

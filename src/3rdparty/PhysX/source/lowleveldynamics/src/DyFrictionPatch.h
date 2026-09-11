@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,18 +22,17 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
-
-
-#ifndef PXC_FRICTIONPATCH_H
-#define PXC_FRICTIONPATCH_H
+#ifndef DY_FRICTION_PATCH_H
+#define DY_FRICTION_PATCH_H
 
 #include "foundation/PxSimpleTypes.h"
 #include "foundation/PxVec3.h"
-#include "PxvConfig.h"
+#include "foundation/PxIntrinsics.h"
+#include "PxPhysXConfig.h"
 
 namespace physx
 {
@@ -72,7 +70,19 @@ struct FrictionPatch
 		staticFriction = other.staticFriction;
 		dynamicFriction = other.dynamicFriction;
 	}
+
+	PX_FORCE_INLINE	void	prefetch()	const
+	{
+		// PT: TODO: revisit this... not very satisfying
+		PxPrefetchLine(this);
+		PxPrefetchLine(this, 128);
+		PxPrefetchLine(this, 256);
+	}
 };  
+
+// PT: ensure that we can safely read the body anchors with V4Loads
+PX_COMPILE_TIME_ASSERT(PX_OFFSET_OF(FrictionPatch, body0Anchors)+sizeof(FrictionPatch::body0Anchors) + 4 <= sizeof(FrictionPatch));
+PX_COMPILE_TIME_ASSERT(PX_OFFSET_OF(FrictionPatch, body1Anchors)+sizeof(FrictionPatch::body1Anchors) + 4 <= sizeof(FrictionPatch));
 
 //PX_COMPILE_TIME_ASSERT(sizeof(FrictionPatch)==80);
 

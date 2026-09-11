@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,17 +22,16 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
 #ifndef BP_BROADPHASE_MBP_H
 #define BP_BROADPHASE_MBP_H
 
-#include "CmPhysXCommon.h"
 #include "BpBroadPhase.h"
 #include "BpBroadPhaseMBPCommon.h"
-#include "BpMBPTasks.h"
+#include "foundation/PxArray.h"
 
 namespace internalMBP
 {
@@ -44,7 +42,7 @@ namespace physx
 {
 namespace Bp
 {
-	class BroadPhaseMBP : public BroadPhase, public Ps::UserAllocated
+	class BroadPhaseMBP : public BroadPhase
 	{
 											PX_NOCOPY(BroadPhaseMBP)
 		public:
@@ -56,48 +54,45 @@ namespace Bp
 		virtual								~BroadPhaseMBP();
 
 	// BroadPhaseBase
-		virtual	bool						getCaps(PxBroadPhaseCaps& caps)														const;
-		virtual	PxU32						getNbRegions()																		const;
-		virtual	PxU32						getRegions(PxBroadPhaseRegionInfo* userBuffer, PxU32 bufferSize, PxU32 startIndex=0) const;
-		virtual	PxU32						addRegion(const PxBroadPhaseRegion& region, bool populateRegion, const PxBounds3* boundsArray, const PxReal* contactDistance);
-		virtual	bool						removeRegion(PxU32 handle);
-		virtual	PxU32						getNbOutOfBoundsObjects()	const;
-		virtual	const PxU32*				getOutOfBoundsObjects()		const;
+		virtual	void						getCaps(PxBroadPhaseCaps& caps)														const	PX_OVERRIDE	PX_FINAL;
 	//~BroadPhaseBase
 
-	// BroadPhase
-		virtual	PxBroadPhaseType::Enum		getType()					const	{ return PxBroadPhaseType::eMBP;	}
-		virtual	void						destroy()							{ delete this;						}
-		virtual	void						update(const PxU32 numCpuTasks, PxcScratchAllocator* scratchAllocator, const BroadPhaseUpdateData& updateData, physx::PxBaseTask* continuation, physx::PxBaseTask* narrowPhaseUnblockTask);
-		virtual void						fetchBroadPhaseResults(physx::PxBaseTask*) {}
-		virtual	PxU32						getNbCreatedPairs()		const;
-		virtual BroadPhasePair*				getCreatedPairs();
-		virtual PxU32						getNbDeletedPairs()		const;
-		virtual BroadPhasePair*				getDeletedPairs();
-		virtual void						freeBuffers();
-		virtual void						shiftOrigin(const PxVec3& shift, const PxBounds3* boundsArray, const PxReal* contactDistances);
-#if PX_CHECKED
-		virtual bool						isValid(const BroadPhaseUpdateData& updateData)	const;
-#endif
-		virtual BroadPhasePair*				getBroadPhasePairs() const  {return NULL;}  //KS - TODO - implement this!!!
-		virtual void						deletePairs(){}								//KS - TODO - implement this!!!
-		virtual	void						singleThreadedUpdate(PxcScratchAllocator* scratchAllocator, const BroadPhaseUpdateData& updateData);
-	//~BroadPhase
+	// PxBroadPhaseRegions
+		virtual	PxU32						getNbRegions()																		const	PX_OVERRIDE	PX_FINAL;
+		virtual	PxU32						getRegions(PxBroadPhaseRegionInfo* userBuffer, PxU32 bufferSize, PxU32 startIndex=0) const	PX_OVERRIDE	PX_FINAL;
+		virtual	PxU32						addRegion(const PxBroadPhaseRegion& region, bool populateRegion, const PxBounds3* boundsArray, const PxReal* contactDistance)	PX_OVERRIDE	PX_FINAL;
+		virtual	bool						removeRegion(PxU32 handle)			PX_OVERRIDE	PX_FINAL;
+		virtual	PxU32						getNbOutOfBoundsObjects()	const	PX_OVERRIDE	PX_FINAL;
+		virtual	const PxU32*				getOutOfBoundsObjects()		const	PX_OVERRIDE	PX_FINAL;
+	//~PxBroadPhaseRegions
 
-				MBPUpdateWorkTask			mMBPUpdateWorkTask;
-				MBPPostUpdateWorkTask		mMBPPostUpdateWorkTask;
+	// BroadPhase
+		virtual	PxBroadPhaseType::Enum		getType()					const	PX_OVERRIDE	PX_FINAL	{ return PxBroadPhaseType::eMBP;	}
+		virtual	void						release()							PX_OVERRIDE	PX_FINAL	{ PX_DELETE_THIS;					}
+		virtual	void						update(PxcScratchAllocator* scratchAllocator, const BroadPhaseUpdateData& updateData, physx::PxBaseTask* continuation)	PX_OVERRIDE;
+		virtual	void						preBroadPhase(const Bp::BroadPhaseUpdateData&) PX_OVERRIDE	PX_FINAL	{}
+		virtual void						fetchBroadPhaseResults()		PX_OVERRIDE	PX_FINAL	{}
+		virtual const BroadPhasePair*		getCreatedPairs(PxU32&)	const	PX_OVERRIDE	PX_FINAL;
+		virtual const BroadPhasePair*		getDeletedPairs(PxU32&)	const	PX_OVERRIDE	PX_FINAL;
+		virtual void						freeBuffers()					PX_OVERRIDE	PX_FINAL;
+		virtual void						shiftOrigin(const PxVec3& shift, const PxBounds3* boundsArray, const PxReal* contactDistances)	PX_OVERRIDE	PX_FINAL;
+#if PX_CHECKED
+		virtual BroadPhaseUpdateError::Enum	isValid(const BroadPhaseUpdateData& updateData)	const	PX_OVERRIDE	PX_FINAL;
+#endif
+	//~BroadPhase
 
 				internalMBP::MBP*			mMBP;		// PT: TODO: aggregate
 
 				MBP_Handle*					mMapping;
 				PxU32						mCapacity;
-				Ps::Array<BroadPhasePair>	mCreated;
-				Ps::Array<BroadPhasePair>	mDeleted;
+				PxArray<BroadPhasePair>		mCreated;
+				PxArray<BroadPhasePair>		mDeleted;
 
 				const Bp::FilterGroup::Enum*mGroups;
-#ifdef BP_FILTERING_USES_TYPE_IN_GROUP
-				const bool*					mLUT;
-#endif
+				const BpFilter*				mFilter;
+
+				const PxU64					mContextID;
+
 				void						setUpdateData(const BroadPhaseUpdateData& updateData);
 				void						addObjects(const BroadPhaseUpdateData& updateData);
 				void						removeObjects(const BroadPhaseUpdateData& updateData);

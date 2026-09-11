@@ -33,9 +33,9 @@ bool tryReadImage(const QString &inputPath, QImage &image)
     return image.format() != QImage::Format_Invalid;
 }
 
-bool cookMeshes(const QString &inputPath, QSSGMesh::Mesh &mesh, physx::PxCooking *cooking)
+bool cookMeshes(const QString &inputPath, QSSGMesh::Mesh &mesh,
+                const physx::PxCookingParams &cookingParams)
 {
-    Q_ASSERT(cooking);
 
     const int vStride = mesh.vertexBuffer().stride;
     const int vCount = mesh.vertexBuffer().data.size() / vStride;
@@ -66,7 +66,7 @@ bool cookMeshes(const QString &inputPath, QSSGMesh::Mesh &mesh, physx::PxCooking
         triangleDesc.triangles.data = mesh.indexBuffer().data.constData();
 
         physx::PxDefaultMemoryOutputStream buf;
-        if (!cooking->cookTriangleMesh(triangleDesc, buf, &result)) {
+        if (!::PxCookTriangleMesh(cookingParams, triangleDesc, buf, &result)) {
             std::cerr << "Error: could not cook triangle mesh '" << inputPath.toStdString() << "'." << std::endl;
             return false;
         }
@@ -107,7 +107,7 @@ bool cookMeshes(const QString &inputPath, QSSGMesh::Mesh &mesh, physx::PxCooking
         convexDesc.flags = physx::PxConvexFlag::eCOMPUTE_CONVEX;
 
         physx::PxDefaultMemoryOutputStream buf;
-        if (!cooking->cookConvexMesh(convexDesc, buf, &result)) {
+        if (!::PxCookConvexMesh(cookingParams, convexDesc, buf, &result)) {
             std::cerr << "Error: could not cook convex mesh '" << inputPath.toStdString() << "'." << std::endl;
             return false;
         }
@@ -133,10 +133,8 @@ bool cookMeshes(const QString &inputPath, QSSGMesh::Mesh &mesh, physx::PxCooking
     return true;
 }
 
-bool cookHeightfield(const QString &inputPath, QImage &heightMap, physx::PxCooking *cooking)
+bool cookHeightfield(const QString &inputPath, QImage &heightMap)
 {
-    Q_ASSERT(cooking);
-
     int numRows = heightMap.height();
     int numCols = heightMap.width();
 
@@ -156,7 +154,7 @@ bool cookHeightfield(const QString &inputPath, QImage &heightMap, physx::PxCooki
     hfDesc.samples.stride = sizeof(physx::PxHeightFieldSample);
 
     physx::PxDefaultMemoryOutputStream buf;
-    if (!(numRows && numCols && cooking->cookHeightField(hfDesc, buf))) {
+    if (!(numRows && numCols && ::PxCookHeightField(hfDesc, buf))) {
         std::cerr << "Could not create height field from '" << inputPath.toStdString() << "'." << std::endl;
         return false;
     }
@@ -201,11 +199,11 @@ int main(int argc, char *argv[])
     physx::PxDefaultErrorCallback defaultErrorCallback;
     physx::PxDefaultAllocator defaultAllocatorCallback;
     auto foundation = PxCreateFoundation(PX_PHYSICS_VERSION, defaultAllocatorCallback, defaultErrorCallback);
-    auto cooking = PxCreateCooking(PX_PHYSICS_VERSION, *foundation, physx::PxCookingParams(physx::PxTolerancesScale()));
     auto cleanup = qScopeGuard([&] {
-        cooking->release();
         foundation->release();
     });
+
+    const physx::PxCookingParams cookingParams { physx::PxTolerancesScale() };
 
     for (const QString &inputPath : args) {
         QFile *file = new QFile(inputPath);
@@ -218,10 +216,10 @@ int main(int argc, char *argv[])
         QImage image;
         QSSGMesh::Mesh mesh;
         if (tryReadImage(inputPath, image)) {
-            if (!cookHeightfield(inputPath, image, cooking))
+            if (!cookHeightfield(inputPath, image))
                 return -1;
         } else if (tryReadMesh(file, mesh)) {
-            if (!cookMeshes(inputPath, mesh, cooking))
+            if (!cookMeshes(inputPath, mesh, cookingParams))
                 return -1;
         } else {
             std::cerr << "Error: failed to read mesh or image from file '" << inputPath.toStdString() << "'" << std::endl;

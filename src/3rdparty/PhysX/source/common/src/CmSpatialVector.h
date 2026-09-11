@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,16 +22,15 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
-#ifndef PX_PHYSICS_COMMON_VECTOR
-#define PX_PHYSICS_COMMON_VECTOR
+#ifndef CM_SPATIAL_VECTOR_H
+#define CM_SPATIAL_VECTOR_H
 
 #include "foundation/PxVec3.h"
-#include "CmPhysXCommon.h"
-#include "PsVecMath.h"
+#include "foundation/PxVecMath.h"
 #include "foundation/PxTransform.h"
 
 /*!
@@ -52,8 +50,7 @@ public:
 	{}
 
 	//! Construct from two PxcVectors
-	PX_CUDA_CALLABLE PX_FORCE_INLINE SpatialVector(const PxVec3& lin, const PxVec3& ang)
-		: linear(lin), pad0(0.0f), angular(ang), pad1(0.0f)
+	PX_CUDA_CALLABLE PX_FORCE_INLINE SpatialVector(const PxVec3& lin, const PxVec3& ang) : linear(lin), angular(ang)
 	{
 	}
 
@@ -65,9 +62,7 @@ public:
 	PX_CUDA_CALLABLE PX_FORCE_INLINE	void	operator = (const SpatialVector& v)
 	{
 		linear = v.linear;
-		pad0 = 0.0f;
 		angular = v.angular;
-		pad1 = 0.0f;
 	}
 
 	static PX_CUDA_CALLABLE  PX_FORCE_INLINE SpatialVector zero() {	return SpatialVector(PxVec3(0),PxVec3(0)); }
@@ -88,7 +83,7 @@ public:
 	}
 
 	PX_CUDA_CALLABLE PX_FORCE_INLINE SpatialVector operator *(PxReal s) const
-	{	
+	{
 		return SpatialVector(linear*s,angular*s);	
 	}
 		
@@ -124,10 +119,8 @@ public:
 		return Cm::SpatialVector(linear*l, angular*a);
 	}
 
-	PxVec3 linear;
-	PxReal pad0;
-	PxVec3 angular;
-	PxReal pad1;
+	PxVec3Padded linear;
+	PxVec3Padded angular;
 }
 PX_ALIGN_SUFFIX(16);
 
@@ -140,14 +133,12 @@ public:
 	{}
 
 	PX_CUDA_CALLABLE PX_FORCE_INLINE SpatialVectorF(const PxReal* v)
-		: pad0(0.0f), pad1(0.0f)
 	{
 		top.x = v[0]; top.y = v[1]; top.z = v[2];
 		bottom.x = v[3]; bottom.y = v[4]; bottom.z = v[5];
 	}
 	//! Construct from two PxcVectors
-	PX_CUDA_CALLABLE PX_FORCE_INLINE SpatialVectorF(const PxVec3& top_, const PxVec3& bottom_)
-		: top(top_), pad0(0.0f), bottom(bottom_), pad1(0.0f)
+	PX_CUDA_CALLABLE PX_FORCE_INLINE SpatialVectorF(const PxVec3& top_, const PxVec3& bottom_) : top(top_), bottom(bottom_)
 	{
 	}
 
@@ -159,9 +150,7 @@ public:
 	PX_CUDA_CALLABLE PX_FORCE_INLINE	void	operator = (const SpatialVectorF& v)
 	{
 		top = v.top;
-		pad0 = 0.0f;
 		bottom = v.bottom;
-		pad1 = 0.0f;
 	}
 
 	static PX_CUDA_CALLABLE PX_FORCE_INLINE SpatialVectorF Zero() { return SpatialVectorF(PxVec3(0), PxVec3(0)); }
@@ -241,10 +230,8 @@ public:
 
 	PX_CUDA_CALLABLE PX_FORCE_INLINE SpatialVectorF cross(const SpatialVectorF& v) const
 	{
-		SpatialVectorF a;
-		a.top = top.cross(v.top);
-		a.bottom = top.cross(v.bottom) + bottom.cross(v.top);
-		return a;
+		return SpatialVectorF(	top.cross(v.top),
+								top.cross(v.bottom) + bottom.cross(v.top));
 	}
 
 	PX_CUDA_CALLABLE PX_FORCE_INLINE SpatialVectorF abs() const
@@ -302,10 +289,8 @@ public:
 		return bottom[index-3];
 	}
 
-	PxVec3 top;
-	PxReal pad0;
-	PxVec3 bottom;
-	PxReal pad1;
+	PxVec3Padded top;
+	PxVec3Padded bottom;
 } PX_ALIGN_SUFFIX(16);
 
 struct UnAlignedSpatialVector
@@ -392,7 +377,7 @@ public:
 		return top.magnitude() + bottom.magnitude();
 	}
 
-	PX_FORCE_INLINE PxReal magnitudeSquared()	const
+	PX_CUDA_CALLABLE PX_FORCE_INLINE PxReal magnitudeSquared()	const
 	{
 		return top.magnitudeSquared() + bottom.magnitudeSquared();
 	}
@@ -419,10 +404,8 @@ public:
 
 	PX_CUDA_CALLABLE PX_FORCE_INLINE UnAlignedSpatialVector cross(const UnAlignedSpatialVector& v) const
 	{
-		UnAlignedSpatialVector a;
-		a.top = top.cross(v.top);
-		a.bottom = top.cross(v.bottom) + bottom.cross(v.top);
-		return a;
+		return UnAlignedSpatialVector(	top.cross(v.top),
+										top.cross(v.bottom) + bottom.cross(v.top));
 	}
 
 	PX_CUDA_CALLABLE PX_FORCE_INLINE UnAlignedSpatialVector abs() const
@@ -483,44 +466,44 @@ public:
 PX_ALIGN_PREFIX(16)
 struct SpatialVectorV
 {
-	Ps::aos::Vec3V linear;
-	Ps::aos::Vec3V angular;
+	aos::Vec3V linear;
+	aos::Vec3V angular;
 
 	PX_FORCE_INLINE SpatialVectorV() {}
-	PX_FORCE_INLINE SpatialVectorV(PxZERO): linear(Ps::aos::V3Zero()), angular(Ps::aos::V3Zero()) {}
-	PX_FORCE_INLINE SpatialVectorV(const Cm::SpatialVector& v): linear(Ps::aos::V3LoadA(&v.linear.x)), angular(Ps::aos::V3LoadA(&v.angular.x)) {}
-	PX_FORCE_INLINE SpatialVectorV(const Ps::aos::Vec3VArg l, const Ps::aos::Vec3VArg a): linear(l), angular(a) {}
+	PX_FORCE_INLINE SpatialVectorV(PxZERO): linear(aos::V3Zero()), angular(aos::V3Zero()) {}
+	PX_FORCE_INLINE explicit SpatialVectorV(const Cm::SpatialVector& v): linear(aos::V3LoadA(&v.linear.x)), angular(aos::V3LoadA(&v.angular.x)) {}
+	PX_FORCE_INLINE SpatialVectorV(const aos::Vec3VArg l, const aos::Vec3VArg a): linear(l), angular(a) {}
 	PX_FORCE_INLINE SpatialVectorV(const SpatialVectorV& other): linear(other.linear), angular(other.angular) {}
 
 	PX_FORCE_INLINE SpatialVectorV& operator=(const SpatialVectorV& other) { linear = other.linear; angular = other.angular; return *this; }
 
-	PX_FORCE_INLINE SpatialVectorV operator+(const SpatialVectorV& other) const { return SpatialVectorV(Ps::aos::V3Add(linear,other.linear),
-																								  Ps::aos::V3Add(angular, other.angular)); }
+	PX_FORCE_INLINE SpatialVectorV operator+(const SpatialVectorV& other) const { return SpatialVectorV(aos::V3Add(linear,other.linear),
+																								  aos::V3Add(angular, other.angular)); }
 	
-	PX_FORCE_INLINE SpatialVectorV& operator+=(const SpatialVectorV& other) { linear = Ps::aos::V3Add(linear,other.linear); 
-																			  angular = Ps::aos::V3Add(angular, other.angular);
+	PX_FORCE_INLINE SpatialVectorV& operator+=(const SpatialVectorV& other) { linear = aos::V3Add(linear,other.linear); 
+																			  angular = aos::V3Add(angular, other.angular);
 																			  return *this;
 																			}
 																								    
-	PX_FORCE_INLINE SpatialVectorV operator-(const SpatialVectorV& other) const { return SpatialVectorV(Ps::aos::V3Sub(linear,other.linear),
-																								  Ps::aos::V3Sub(angular, other.angular)); }
+	PX_FORCE_INLINE SpatialVectorV operator-(const SpatialVectorV& other) const { return SpatialVectorV(aos::V3Sub(linear,other.linear),
+																								  aos::V3Sub(angular, other.angular)); }
 	
-	PX_FORCE_INLINE SpatialVectorV operator-() const { return SpatialVectorV(Ps::aos::V3Neg(linear), Ps::aos::V3Neg(angular)); }
+	PX_FORCE_INLINE SpatialVectorV operator-() const { return SpatialVectorV(aos::V3Neg(linear), aos::V3Neg(angular)); }
 
-	PX_FORCE_INLINE SpatialVectorV operator*(const Ps::aos::FloatVArg r) const { return SpatialVectorV(Ps::aos::V3Scale(linear,r), Ps::aos::V3Scale(angular,r)); }
+	PX_FORCE_INLINE SpatialVectorV operator*(const aos::FloatVArg r) const { return SpatialVectorV(aos::V3Scale(linear,r), aos::V3Scale(angular,r)); }
 
-	PX_FORCE_INLINE SpatialVectorV& operator-=(const SpatialVectorV& other) { linear = Ps::aos::V3Sub(linear,other.linear); 
-																			  angular = Ps::aos::V3Sub(angular, other.angular);
+	PX_FORCE_INLINE SpatialVectorV& operator-=(const SpatialVectorV& other) { linear = aos::V3Sub(linear,other.linear); 
+																			  angular = aos::V3Sub(angular, other.angular);
 																			  return *this;
 																			}
 
-	PX_FORCE_INLINE Ps::aos::FloatV dot(const SpatialVectorV& other) const { return Ps::aos::V3SumElems(Ps::aos::V3Add(Ps::aos::V3Mul(linear, other.linear), Ps::aos::V3Mul(angular, other.angular))); }
+	PX_FORCE_INLINE aos::FloatV dot(const SpatialVectorV& other) const { return aos::V3SumElems(aos::V3Add(aos::V3Mul(linear, other.linear), aos::V3Mul(angular, other.angular))); }
 
-	PX_FORCE_INLINE SpatialVectorV multiply(const SpatialVectorV& other) const { return SpatialVectorV(Ps::aos::V3Mul(linear, other.linear), Ps::aos::V3Mul(angular, other.angular)); }
+	PX_FORCE_INLINE SpatialVectorV multiply(const SpatialVectorV& other) const { return SpatialVectorV(aos::V3Mul(linear, other.linear), aos::V3Mul(angular, other.angular)); }
 
-	PX_FORCE_INLINE SpatialVectorV multiplyAdd(const SpatialVectorV& m, const SpatialVectorV& a) const { return SpatialVectorV(Ps::aos::V3MulAdd(linear, m.linear, a.linear), Ps::aos::V3MulAdd(angular, m.angular, a.angular)); }
+	PX_FORCE_INLINE SpatialVectorV multiplyAdd(const SpatialVectorV& m, const SpatialVectorV& a) const { return SpatialVectorV(aos::V3MulAdd(linear, m.linear, a.linear), aos::V3MulAdd(angular, m.angular, a.angular)); }
 
-	PX_FORCE_INLINE SpatialVectorV scale(const Ps::aos::FloatV& a, const Ps::aos::FloatV& b) const { return SpatialVectorV(Ps::aos::V3Scale(linear, a), Ps::aos::V3Scale(angular, b)); }
+	PX_FORCE_INLINE SpatialVectorV scale(const aos::FloatV& a, const aos::FloatV& b) const { return SpatialVectorV(aos::V3Scale(linear, a), aos::V3Scale(angular, b)); }
 
 }PX_ALIGN_SUFFIX(16);
 

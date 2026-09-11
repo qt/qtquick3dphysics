@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,52 +22,36 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
-#include "PxsDefaultMemoryManager.h"
+#include "PxsMemoryManager.h"
+#include "CmVirtualAllocatorCallback.h"
 
-namespace physx
+using namespace physx;
+
+namespace
 {
-
-	PxsDefaultMemoryManager::~PxsDefaultMemoryManager()
+	class PxsDefaultMemoryAllocator : public Cm::VirtualAllocatorCallback
 	{
-		for (PxU32 i = 0; i < mAllocators.size(); ++i)
-		{
-			mAllocators[i]->~VirtualAllocatorCallback();
-			PX_FREE(mAllocators[i]);
-		}
-	}
+	public:
+		virtual void* allocate(size_t size, int, const char*, int)	PX_OVERRIDE	PX_FINAL	{ return PX_ALLOC(size, "unused");	}
+		virtual void deallocate(void* ptr)							PX_OVERRIDE	PX_FINAL	{ PX_FREE(ptr);						}
+	};
 
-	Ps::VirtualAllocatorCallback* PxsDefaultMemoryManager::createHostMemoryAllocator(const PxU32 gpuComputeVersion)
+	class PxsDefaultMemoryManager : public PxsMemoryManager
 	{
-		PX_UNUSED(gpuComputeVersion);
-		Ps::VirtualAllocatorCallback* allocator = PX_PLACEMENT_NEW(PX_ALLOC(sizeof(PxsDefaultMemoryAllocator), "PxsDefaultMemoryAllocator"), PxsDefaultMemoryAllocator());
-		mAllocators.pushBack(allocator);
-		return allocator;
-	}
+	public:
+		// PxsMemoryManager
+		virtual Cm::VirtualAllocatorCallback* getPinnedHostMemoryAllocator()	PX_OVERRIDE	PX_FINAL	{ return &mDefaultMemoryAllocator; }
+		virtual Cm::VirtualAllocatorCallback* getDeviceMemoryAllocator()		PX_OVERRIDE	PX_FINAL	{ return NULL; }
+		//~PxsMemoryManager
+		PxsDefaultMemoryAllocator	mDefaultMemoryAllocator;
+	};
+}
 
-	//this is an empty stub
-	Ps::VirtualAllocatorCallback* PxsDefaultMemoryManager::createDeviceMemoryAllocator(const PxU32 gpuComputeVersion)
-	{
-		PX_UNUSED(gpuComputeVersion);
-		return NULL;
-	}
-
-	void PxsDefaultMemoryManager::destroyMemoryAllocator()
-	{
-		for (PxU32 i = 0; i < mAllocators.size(); ++i)
-		{
-			mAllocators[i]->~VirtualAllocatorCallback();
-			PX_FREE(mAllocators[i]);
-		}
-	}
-
-
-	PxsMemoryManager* createMemoryManager()
-	{
-		return PX_PLACEMENT_NEW(PX_ALLOC(sizeof(PxsDefaultMemoryManager), PX_DEBUG_EXP("PxsDefaultMemoryManager")), PxsDefaultMemoryManager());
-	}
-
+PxsMemoryManager* physx::createDefaultMemoryManager()
+{
+	return PX_NEW(PxsDefaultMemoryManager);
 }

@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,21 +22,20 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
-
 
 #ifndef DY_SOLVER_CONSTRAINT_1D_H
 #define DY_SOLVER_CONSTRAINT_1D_H
 
 #include "foundation/PxVec3.h"
-#include "PxvConfig.h"
-#include "DyArticulationUtils.h"
+#include "PxPhysXConfig.h"
 #include "DySolverConstraintTypes.h"
 #include "DySolverBody.h"
 #include "PxConstraintDesc.h"
 #include "DySolverConstraintDesc.h"
+#include "DyCpuGpu1dConstraint.h"
 
 namespace physx
 {
@@ -91,6 +89,14 @@ public:
 	PxReal		maxImpulse;				//!< Upper bound on impulse magnitude
 	PxReal		appliedForce;			//!< applied force to correct velocity+bias
 	PxU32		flags;
+
+	void setSolverConstants(const Constraint1dSolverConstantsPGS& solverConstants)
+	{
+		constant = solverConstants.constant;
+		unbiasedConstant = solverConstants.unbiasedConstant;
+		velMultiplier = solverConstants.velMultiplier;
+		impulseMultiplier = solverConstants.impulseMultiplier;
+	}
 } PX_ALIGN_SUFFIX(16); 	
 
 PX_COMPILE_TIME_ASSERT(sizeof(SolverConstraint1D) == 96);
@@ -99,8 +105,8 @@ PX_COMPILE_TIME_ASSERT(sizeof(SolverConstraint1D) == 96);
 struct SolverConstraint1DExt : public SolverConstraint1D
 {
 public:
-	Cm::SpatialVectorV deltaVA;
-	Cm::SpatialVectorV deltaVB;
+	Cm::SpatialVector deltaVA_;
+	Cm::SpatialVector deltaVB_;
 };
 
 PX_COMPILE_TIME_ASSERT(sizeof(SolverConstraint1DExt) == 160);
@@ -143,62 +149,7 @@ PX_FORCE_INLINE bool needsNormalVel(const Px1DConstraint &c)
 		|| (c.flags & Px1DConstraintFlag::eSPRING && c.flags & Px1DConstraintFlag::eACCELERATION_SPRING);
 }
 
-PX_FORCE_INLINE void setSolverConstants(PxReal& constant,
-										PxReal& unbiasedConstant,
-										PxReal& velMultiplier,
-										PxReal& impulseMultiplier,
-										const Px1DConstraint& c,
-										PxReal normalVel,
-										PxReal unitResponse,
-										PxReal minRowResponse,
-										PxReal erp,
-										PxReal dt,
-										PxReal recipdt)
-{
-	PX_ASSERT(PxIsFinite(unitResponse));
-	PxReal recipResponse = unitResponse <= minRowResponse ? 0 : 1.0f/unitResponse;
-
-	PxReal geomError = c.geometricError * erp;
-
-	if(c.flags & Px1DConstraintFlag::eSPRING)
-	{
-		PxReal a = dt * dt * c.mods.spring.stiffness + dt * c.mods.spring.damping;
-		PxReal b = dt * (c.mods.spring.damping * c.velocityTarget - c.mods.spring.stiffness * geomError);
-
-		if(c.flags & Px1DConstraintFlag::eACCELERATION_SPRING)
-		{	
-			PxReal x = 1.0f/(1.0f+a);
-			constant = unbiasedConstant = x * recipResponse * b;
-			velMultiplier = -x * recipResponse * a;
-			impulseMultiplier = 1.0f-x;
-		}
-		else
-		{
-			PxReal x = unitResponse == 0.f ? 0.f : 1.0f/(1.0f+a*unitResponse);
-			constant = unbiasedConstant = x * b;
-			velMultiplier = -x*a;
-			impulseMultiplier = 1.0f-x;
-		}
-	}
-	else
-	{
-		velMultiplier = -recipResponse;
-		impulseMultiplier = 1.0f;
-
-		if(c.flags & Px1DConstraintFlag::eRESTITUTION && -normalVel>c.mods.bounce.velocityThreshold)
-		{
-			unbiasedConstant = constant = recipResponse * c.mods.bounce.restitution*-normalVel;
-		}
-		else
-		{
-			// see usage of 'for internal use' in preprocessRows()
-			constant = recipResponse * (c.velocityTarget - geomError*recipdt);
-			unbiasedConstant = recipResponse * (c.velocityTarget - c.forInternalUse*recipdt);
-		}
-	}
-}
-
 }
 }
 
-#endif //DY_SOLVER_CONSTRAINT_1D_H
+#endif

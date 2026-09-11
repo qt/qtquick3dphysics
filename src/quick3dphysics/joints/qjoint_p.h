@@ -25,7 +25,9 @@
 #include <QString>
 
 namespace physx {
-class PxTransform;
+template<class Type>
+class PxTransformT;
+typedef PxTransformT<float> PxTransform;
 class PxPhysics;
 class PxJoint;
 class PxRigidActor;

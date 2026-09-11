@@ -6,16 +6,16 @@
     "QtUsage": "Used as a physical simulation backend in Qt Quick 3D Physics",
     "SecurityCritical": true,
 
-    "Homepage": "https://github.com/NVIDIAGameWorks/PhysX/",
-    "Version": "4.1.2.29882248",
-    "DownloadLocation": "https://github.com/NVIDIAGameWorks/PhysX/commit/c3d5537bdebd6f5cd82fcaf87474b838fe6fd5fa",
-    "PURL": "pkg:github/NVIDIAGameWorks/PhysX@c3d5537bdebd6f5cd82fcaf87474b838fe6fd5fa",
+    "Homepage": "https://github.com/NVIDIA-Omniverse/PhysX/",
+    "Version": "5.9.0",
+    "DownloadLocation": "https://github.com/NVIDIA-Omniverse/PhysX/commit/517a0073715120e114ee055b63b26c95e00d9039",
+    "PURL": "pkg:github/NVIDIA-Omniverse/PhysX@517a0073715120e114ee055b63b26c95e00d9039",
 
     "License": "BSD 3-Clause \"New\" or \"Revised\" License",
     "LicenseId": "BSD-3-Clause",
     "LicenseFile": "LICENSE.md",
     "Copyright": [
-        "Copyright (c) 2008-2021 NVIDIA Corporation",
+        "Copyright (c) 2008-2026 NVIDIA Corporation",
         "Copyright (c) 2004-2008 AGEIA Technologies, Inc.",
         "Copyright (c) 2001-2004 NovodeX AG"
     ]

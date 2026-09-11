@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -42,6 +41,16 @@
 #include "GuConvexMesh.h"
 #include "GuHillClimbing.h"
 #include "GuGJK.h"
+#include "geometry/PxSphereGeometry.h"
+#include "geometry/PxCustomGeometry.h"
+#include "CmMatrix34.h"
+#include "geometry/PxConvexCoreGeometry.h"
+#include "GuConvexGeometry.h"
+#include "GuConvexSupport.h"
+#include "GuRefGjkEpa.h"
+#include "geometry/PxHeightFieldGeometry.h"
+#include "GuHeightFieldUtil.h"
+#include "GuEntityReport.h"
 
 using namespace physx;
 using namespace Cm;
@@ -105,21 +114,21 @@ static PxVec3 projectHull_(	const ConvexHullData& hull,
 static bool intersectSphereConvex(const PxTransform& sphereTransform, float radius, const ConvexMesh& mesh, const PxMeshScale& meshScale, const PxTransform& convexGlobalPose,
 						   PxVec3*)
 {
-	using namespace Ps::aos;
+	using namespace aos;
 	const Vec3V zeroV = V3Zero();
 	const ConvexHullData* hullData = &mesh.getHull();
 	const FloatV sphereRadius = FLoad(radius);
 	const Vec3V vScale	= V3LoadU_SafeReadW(meshScale.scale);	// PT: safe because 'rotation' follows 'scale' in PxMeshScale
 	const QuatV vQuat = QuatVLoadU(&meshScale.rotation.x);
 
-	const PsMatTransformV aToB(convexGlobalPose.transformInv(sphereTransform));
-	ConvexHullV convexHull(hullData, zeroV, vScale, vQuat, meshScale.isIdentity());
-	CapsuleV capsule(aToB.p, sphereRadius);
+	const PxMatTransformV aToB(convexGlobalPose.transformInv(sphereTransform));
+	const ConvexHullV convexHull(hullData, zeroV, vScale, vQuat, meshScale.isIdentity());
+	const CapsuleV capsule(aToB.p, sphereRadius);
 
 	Vec3V contactA, contactB, normal;
 	FloatV dist;
-	LocalConvex<CapsuleV> convexA(capsule);
-	LocalConvex<ConvexHullV> convexB(convexHull);
+	const LocalConvex<CapsuleV> convexA(capsule);
+	const LocalConvex<ConvexHullV> convexB(convexHull);
 	const Vec3V initialSearchDir = V3Sub(capsule.getCenter(), convexHull.getCenter());
 
 	GjkStatus status = gjk(convexA, convexB, initialSearchDir, FZero(), contactA, contactB, normal, dist);
@@ -131,7 +140,7 @@ static bool intersectCapsuleConvex(	const PxCapsuleGeometry& capsGeom, const PxT
 									const ConvexMesh& mesh, const PxMeshScale& meshScale, const PxTransform& convexGlobalPose,
 									PxVec3*)
 {
-	using namespace Ps::aos;
+	using namespace aos;
 
 	const Vec3V zeroV = V3Zero();
 	const ConvexHullData* hull = &mesh.getHull();
@@ -142,15 +151,15 @@ static bool intersectCapsuleConvex(	const PxCapsuleGeometry& capsGeom, const PxT
 	const Vec3V vScale	= V3LoadU_SafeReadW(meshScale.scale);	// PT: safe because 'rotation' follows 'scale' in PxMeshScale
 	const QuatV vQuat = QuatVLoadU(&meshScale.rotation.x);
 
-	const PsMatTransformV aToB(convexGlobalPose.transformInv(capsGlobalPose));
+	const PxMatTransformV aToB(convexGlobalPose.transformInv(capsGlobalPose));
 
-	ConvexHullV convexHull(hull, zeroV, vScale, vQuat, meshScale.isIdentity());
-	CapsuleV capsule(aToB.p, aToB.rotate(V3Scale(V3UnitX(), capsuleHalfHeight)), capsuleRadius);
+	const ConvexHullV convexHull(hull, zeroV, vScale, vQuat, meshScale.isIdentity());
+	const CapsuleV capsule(aToB.p, aToB.rotate(V3Scale(V3UnitX(), capsuleHalfHeight)), capsuleRadius);
 
 	Vec3V contactA, contactB, normal;
 	FloatV dist;
-	LocalConvex<CapsuleV> convexA(capsule);
-	LocalConvex<ConvexHullV> convexB(convexHull);
+	const LocalConvex<CapsuleV> convexA(capsule);
+	const LocalConvex<ConvexHullV> convexB(convexHull);
 	const Vec3V initialSearchDir = V3Sub(capsule.getCenter(), convexHull.getCenter());
 	
 	GjkStatus  status = gjk(convexA, convexB, initialSearchDir, FZero(), contactA, contactB, normal, dist);
@@ -163,22 +172,22 @@ static bool intersectBoxConvex(const PxBoxGeometry& boxGeom, const PxTransform& 
 								PxVec3*)
 {
 	// AP: see archived non-GJK version in //sw/physx/dev/pterdiman/graveyard/contactConvexBox.cpp
-	using namespace Ps::aos;
+	using namespace aos;
 	const Vec3V zeroV = V3Zero();
 	const ConvexHullData* hull = &mesh.getHull();
 
 	const Vec3V vScale	= V3LoadU_SafeReadW(meshScale.scale);	// PT: safe because 'rotation' follows 'scale' in PxMeshScale
 	const QuatV vQuat = QuatVLoadU(&meshScale.rotation.x);
 	const Vec3V boxExtents = V3LoadU(boxGeom.halfExtents);
-	const PsMatTransformV aToB(convexGlobalPose.transformInv(boxGlobalPose));
+	const PxMatTransformV aToB(convexGlobalPose.transformInv(boxGlobalPose));
 
-	ConvexHullV convexHull(hull, zeroV, vScale, vQuat, meshScale.isIdentity());
-	BoxV box(zeroV, boxExtents);
+	const ConvexHullV convexHull(hull, zeroV, vScale, vQuat, meshScale.isIdentity());
+	const BoxV box(zeroV, boxExtents);
 
 	Vec3V contactA, contactB, normal;
 	FloatV dist;
-	RelativeConvex<BoxV> convexA(box, aToB);
-	LocalConvex<ConvexHullV> convexB(convexHull);
+	const RelativeConvex<BoxV> convexA(box, aToB);
+	const LocalConvex<ConvexHullV> convexB(convexHull);
 
 	GjkStatus status = gjk(convexA, convexB, aToB.p, FZero(), contactA, contactB, normal, dist);
 
@@ -218,6 +227,7 @@ static bool GeomOverlapCallback_SphereSphere(GU_OVERLAP_FUNC_PARAMS)
 	PX_ASSERT(geom0.getType()==PxGeometryType::eSPHERE);
 	PX_ASSERT(geom1.getType()==PxGeometryType::eSPHERE);
 	PX_UNUSED(cache);
+	PX_UNUSED(threadContext);
 
 	const PxSphereGeometry& sphereGeom0 = static_cast<const PxSphereGeometry&>(geom0);
 	const PxSphereGeometry& sphereGeom1 = static_cast<const PxSphereGeometry&>(geom1);
@@ -233,6 +243,7 @@ static bool GeomOverlapCallback_SpherePlane(GU_OVERLAP_FUNC_PARAMS)
 	PX_ASSERT(geom1.getType()==PxGeometryType::ePLANE);
 	PX_UNUSED(cache);
 	PX_UNUSED(geom1);
+	PX_UNUSED(threadContext);
 
 	const PxSphereGeometry& sphereGeom = static_cast<const PxSphereGeometry&>(geom0);
 
@@ -244,6 +255,7 @@ static bool GeomOverlapCallback_SphereCapsule(GU_OVERLAP_FUNC_PARAMS)
 	PX_ASSERT(geom0.getType()==PxGeometryType::eSPHERE);
 	PX_ASSERT(geom1.getType()==PxGeometryType::eCAPSULE);
 	PX_UNUSED(cache);
+	PX_UNUSED(threadContext);
 
 	const PxSphereGeometry& sphereGeom = static_cast<const PxSphereGeometry&>(geom0);
 	const PxCapsuleGeometry& capsuleGeom = static_cast<const PxCapsuleGeometry&>(geom1);
@@ -260,6 +272,7 @@ static bool GeomOverlapCallback_SphereBox(GU_OVERLAP_FUNC_PARAMS)
 	PX_ASSERT(geom0.getType()==PxGeometryType::eSPHERE);
 	PX_ASSERT(geom1.getType()==PxGeometryType::eBOX);
 	PX_UNUSED(cache);
+	PX_UNUSED(threadContext);
 
 	const PxSphereGeometry& sphereGeom = static_cast<const PxSphereGeometry&>(geom0);
 	const PxBoxGeometry& boxGeom = static_cast<const PxBoxGeometry&>(geom1);
@@ -275,6 +288,7 @@ static bool GeomOverlapCallback_SphereConvex(GU_OVERLAP_FUNC_PARAMS)
 {
 	PX_ASSERT(geom0.getType()==PxGeometryType::eSPHERE);
 	PX_ASSERT(geom1.getType()==PxGeometryType::eCONVEXMESH);
+	PX_UNUSED(threadContext);
 
 	const PxSphereGeometry& sphereGeom = static_cast<const PxSphereGeometry&>(geom0);
 	const PxConvexMeshGeometry& convexGeom = static_cast<const PxConvexMeshGeometry&>(geom1);
@@ -307,6 +321,7 @@ static bool GeomOverlapCallback_PlaneCapsule(GU_OVERLAP_FUNC_PARAMS)
 {
 	PX_ASSERT(geom0.getType()==PxGeometryType::ePLANE);
 	PX_ASSERT(geom1.getType()==PxGeometryType::eCAPSULE);
+	PX_UNUSED(threadContext);
 	PX_UNUSED(cache);
 	PX_UNUSED(geom0);
 
@@ -348,6 +363,7 @@ static bool GeomOverlapCallback_PlaneBox(GU_OVERLAP_FUNC_PARAMS)
 {
 	PX_ASSERT(geom0.getType()==PxGeometryType::ePLANE);
 	PX_ASSERT(geom1.getType()==PxGeometryType::eBOX);
+	PX_UNUSED(threadContext);
 	PX_UNUSED(cache);
 	PX_UNUSED(geom0);
 
@@ -357,7 +373,7 @@ static bool GeomOverlapCallback_PlaneBox(GU_OVERLAP_FUNC_PARAMS)
 	// I currently use the same code as for contact generation but maybe we could do something faster (in theory testing
 	// only 2 pts is enough).
 
-	const Matrix34 absPose(pose1);
+	const Matrix34FromTransform absPose(pose1);
 	const PxPlane worldPlane = getPlane(pose0);
 
 	for(int vx=-1; vx<=1; vx+=2)
@@ -376,6 +392,7 @@ static bool GeomOverlapCallback_PlaneConvex(GU_OVERLAP_FUNC_PARAMS)
 {
 	PX_ASSERT(geom0.getType()==PxGeometryType::ePLANE);
 	PX_ASSERT(geom1.getType()==PxGeometryType::eCONVEXMESH);
+	PX_UNUSED(threadContext);
 	PX_UNUSED(cache);
 	PX_UNUSED(geom0);
 
@@ -385,14 +402,33 @@ static bool GeomOverlapCallback_PlaneConvex(GU_OVERLAP_FUNC_PARAMS)
 	ConvexMesh* cm = static_cast<ConvexMesh*>(convexGeom.convexMesh);
 	
 	//find plane normal in shape space of convex:
+	// PT:: tag: scalar transform*transform
 	const PxTransform plane2convex = pose1.getInverse().transform(pose0);
 
 	const PxPlane shapeSpacePlane = getPlane(plane2convex);
 
 	PxReal minimum, maximum;
-	projectHull_(cm->getHull(), minimum, maximum, shapeSpacePlane.n, convexGeom.scale.toMat33());
+	projectHull_(cm->getHull(), minimum, maximum, shapeSpacePlane.n, toMat33(convexGeom.scale));
 
 	return (minimum <= -shapeSpacePlane.d);
+}
+
+static bool GeomOverlapCallback_PlaneConvexCore(GU_OVERLAP_FUNC_PARAMS)
+{
+	PX_ASSERT(geom0.getType()==PxGeometryType::ePLANE);
+	PX_ASSERT(geom1.getType()==PxGeometryType::eCONVEXCORE);
+	PX_UNUSED(threadContext);
+	PX_UNUSED(cache);
+	PX_UNUSED(geom0);
+
+	const PxPlane plane = getPlane(pose0);
+	const PxConvexCoreGeometry& convexCore = static_cast<const PxConvexCoreGeometry&>(geom1);
+	Gu::ConvexShape shape; Gu::makeConvexShape(convexCore, pose1, shape);
+
+	PxVec3 closestPoint = shape.support(-plane.n);
+	PxReal closestDist = plane.distance(closestPoint);
+
+	return closestDist <= 0;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -404,6 +440,7 @@ static bool GeomOverlapCallback_CapsuleCapsule(GU_OVERLAP_FUNC_PARAMS)
 	PX_ASSERT(geom0.getType()==PxGeometryType::eCAPSULE);
 	PX_ASSERT(geom1.getType()==PxGeometryType::eCAPSULE);
 	PX_UNUSED(cache);
+	PX_UNUSED(threadContext);
 
 	const PxCapsuleGeometry& capsuleGeom0 = static_cast<const PxCapsuleGeometry&>(geom0);
 	const PxCapsuleGeometry& capsuleGeom1 = static_cast<const PxCapsuleGeometry&>(geom1);
@@ -426,6 +463,7 @@ static bool GeomOverlapCallback_CapsuleBox(GU_OVERLAP_FUNC_PARAMS)
 	PX_ASSERT(geom0.getType()==PxGeometryType::eCAPSULE);
 	PX_ASSERT(geom1.getType()==PxGeometryType::eBOX);
 	PX_UNUSED(cache);
+	PX_UNUSED(threadContext);
 
 	const PxCapsuleGeometry& capsuleGeom = static_cast<const PxCapsuleGeometry&>(geom0);
 	const PxBoxGeometry& boxGeom = static_cast<const PxBoxGeometry&>(geom1);
@@ -437,7 +475,7 @@ static bool GeomOverlapCallback_CapsuleBox(GU_OVERLAP_FUNC_PARAMS)
 	const PxVec3 capsuleHalfHeightVector = getCapsuleHalfHeightVector(pose0, capsuleGeom);
 
 	// PT: TODO: remove this useless conversion
-	const PxMat33 obbRot(pose1.q);
+	const PxMat33Padded obbRot(pose1.q);
 
 	// PT: objects are defined as closed, so we return 'true' in case of equality
 	return distanceSegmentBoxSquared(capsuleHalfHeightVector, -capsuleHalfHeightVector, delta, boxGeom.halfExtents, obbRot) <= capsuleGeom.radius*capsuleGeom.radius;
@@ -447,13 +485,13 @@ static bool GeomOverlapCallback_CapsuleConvex(GU_OVERLAP_FUNC_PARAMS)
 {
 	PX_ASSERT(geom0.getType()==PxGeometryType::eCAPSULE);
 	PX_ASSERT(geom1.getType()==PxGeometryType::eCONVEXMESH);
+	PX_UNUSED(threadContext);
 
 	const PxCapsuleGeometry& capsuleGeom = static_cast<const PxCapsuleGeometry&>(geom0);
 	const PxConvexMeshGeometry& convexGeom = static_cast<const PxConvexMeshGeometry&>(geom1);
 
 	ConvexMesh* cm = static_cast<ConvexMesh*>(convexGeom.convexMesh);
 
-	
 	PxVec3 cachedSepAxis;
 	PxVec3* tmp = getCachedAxis(cache);
 	if(tmp)
@@ -478,6 +516,7 @@ static bool GeomOverlapCallback_BoxBox(GU_OVERLAP_FUNC_PARAMS)
 	PX_ASSERT(geom0.getType()==PxGeometryType::eBOX);
 	PX_ASSERT(geom1.getType()==PxGeometryType::eBOX);
 	PX_UNUSED(cache);
+	PX_UNUSED(threadContext);
 
 	const PxBoxGeometry& boxGeom0 = static_cast<const PxBoxGeometry&>(geom0);
 	const PxBoxGeometry& boxGeom1 = static_cast<const PxBoxGeometry&>(geom1);
@@ -491,6 +530,7 @@ static bool GeomOverlapCallback_BoxConvex(GU_OVERLAP_FUNC_PARAMS)
 {
 	PX_ASSERT(geom0.getType()==PxGeometryType::eBOX);
 	PX_ASSERT(geom1.getType()==PxGeometryType::eCONVEXMESH);
+	PX_UNUSED(threadContext);
 
 	const PxBoxGeometry& boxGeom = static_cast<const PxBoxGeometry&>(geom0);
 	const PxConvexMeshGeometry& convexGeom = static_cast<const PxConvexMeshGeometry&>(geom1);
@@ -517,9 +557,10 @@ static bool GeomOverlapCallback_BoxConvex(GU_OVERLAP_FUNC_PARAMS)
 // Convex-vs-shape
 static bool GeomOverlapCallback_ConvexConvex(GU_OVERLAP_FUNC_PARAMS)
 {
-	using namespace Ps::aos;
+	using namespace aos;
 	PX_ASSERT(geom0.getType()==PxGeometryType::eCONVEXMESH);
 	PX_ASSERT(geom1.getType()==PxGeometryType::eCONVEXMESH);
+	PX_UNUSED(threadContext);
 
 	const Vec3V zeroV = V3Zero();
 	const PxConvexMeshGeometry& convexGeom0 = static_cast<const PxConvexMeshGeometry&>(geom0);
@@ -543,20 +584,20 @@ static bool GeomOverlapCallback_ConvexConvex(GU_OVERLAP_FUNC_PARAMS)
 		const QuatV q1 = QuatVLoadU(&pose1.q.x);
 		const Vec3V p1 = V3LoadU(&pose1.p.x);
 
-		const PsTransformV transf0(p0, q0);
-		const PsTransformV transf1(p1, q1);
+		const PxTransformV transf0(p0, q0);
+		const PxTransformV transf1(p1, q1);
 
-		const PsMatTransformV aToB(transf1.transformInv(transf0));
+		const PxMatTransformV aToB(transf1.transformInv(transf0));
 
-		ConvexHullV convexHull0(hullData0, zeroV, vScale0, vQuat0, convexGeom0.scale.isIdentity());
-		ConvexHullV convexHull1(hullData1, zeroV, vScale1, vQuat1, convexGeom1.scale.isIdentity());
+		const ConvexHullV convexHull0(hullData0, zeroV, vScale0, vQuat0, convexGeom0.scale.isIdentity());
+		const ConvexHullV convexHull1(hullData1, zeroV, vScale1, vQuat1, convexGeom1.scale.isIdentity());
 
 		Vec3V contactA, contactB, normal;
 		FloatV dist;
-		RelativeConvex<ConvexHullV> convexA(convexHull0, aToB);
-		LocalConvex<ConvexHullV> convexB(convexHull1);
+		const RelativeConvex<ConvexHullV> convexA(convexHull0, aToB);
+		const LocalConvex<ConvexHullV> convexB(convexHull1);
 		
-		GjkStatus status = gjk(convexA, convexB, aToB.p,  FZero(), contactA, contactB, normal, dist);
+		GjkStatus status = gjk(convexA, convexB, aToB.p, FZero(), contactA, contactB, normal, dist);
 		overlap = (status == GJK_CONTACT);
 	}
 
@@ -568,33 +609,124 @@ static bool GeomOverlapCallback_ConvexConvex(GU_OVERLAP_FUNC_PARAMS)
 static bool GeomOverlapCallback_NotSupported(GU_OVERLAP_FUNC_PARAMS)
 {
 	PX_ALWAYS_ASSERT_MESSAGE("NOT SUPPORTED");
+	PX_UNUSED(threadContext);
 	PX_UNUSED(cache);
 	PX_UNUSED(pose0);
 	PX_UNUSED(pose1);
 	PX_UNUSED(geom0);
 	PX_UNUSED(geom1);
-	return false;
-}
-
-static bool GeomOverlapCallback_HeightfieldUnregistered(GU_OVERLAP_FUNC_PARAMS)
-{
-	PX_UNUSED(cache);
-	PX_UNUSED(geom0);
-	PX_UNUSED(geom1);
-	PX_UNUSED(pose0);
-	PX_UNUSED(pose1);
-	Ps::getFoundation().error(PxErrorCode::eINVALID_OPERATION, __FILE__, __LINE__, "Height Field Overlap test called with height fields unregistered ");
 	return false;
 }
 
 bool GeomOverlapCallback_SphereMesh			(GU_OVERLAP_FUNC_PARAMS);
 bool GeomOverlapCallback_CapsuleMesh		(GU_OVERLAP_FUNC_PARAMS);
 bool GeomOverlapCallback_BoxMesh			(GU_OVERLAP_FUNC_PARAMS);
+bool GeomOverlapCallback_ConvexCoreMesh		(GU_OVERLAP_FUNC_PARAMS);
 bool GeomOverlapCallback_ConvexMesh			(GU_OVERLAP_FUNC_PARAMS);
+bool GeomOverlapCallback_MeshMesh			(GU_OVERLAP_FUNC_PARAMS);
 bool GeomOverlapCallback_SphereHeightfield	(GU_OVERLAP_FUNC_PARAMS);
 bool GeomOverlapCallback_CapsuleHeightfield	(GU_OVERLAP_FUNC_PARAMS);
 bool GeomOverlapCallback_BoxHeightfield		(GU_OVERLAP_FUNC_PARAMS);
 bool GeomOverlapCallback_ConvexHeightfield	(GU_OVERLAP_FUNC_PARAMS);
+
+static bool GeomOverlapCallback_CustomGeometry(GU_OVERLAP_FUNC_PARAMS)
+{
+	PX_UNUSED(cache);
+
+	if(geom0.getType() == PxGeometryType::eCUSTOM)
+		return static_cast<const PxCustomGeometry&>(geom0).callbacks->overlap(geom0, pose0, geom1, pose1, threadContext);
+
+	if(geom1.getType() == PxGeometryType::eCUSTOM)
+		return static_cast<const PxCustomGeometry&>(geom1).callbacks->overlap(geom1, pose1, geom0, pose0, threadContext);
+
+	return false;
+}
+
+// VR: only support primitives and convexes so far. meshes will follow
+static bool GeomOverlapCallback_ConvexCoreGeometry(GU_OVERLAP_FUNC_PARAMS)
+{
+	PX_UNUSED(threadContext);
+	PX_UNUSED(cache);
+
+	Gu::ConvexShape shape0, shape1;
+	Gu::makeConvexShape(geom0, pose0, shape0);
+	Gu::makeConvexShape(geom1, pose1, shape1);
+
+	if (!shape0.isValid() || !shape1.isValid())
+		return false;
+
+	PxVec3 point0, point1, axis;
+	PxReal dist = Gu::RefGjkEpa::computeGjkDistance(shape0, shape1, shape0.pose, shape1.pose, shape0.margin + shape1.margin, point0, point1, axis);
+
+	return dist <= shape0.margin + shape1.margin + FLT_EPSILON;
+}
+
+bool GeomOverlapCallback_ConvexCoreHeightfield(GU_OVERLAP_FUNC_PARAMS)
+{
+	PX_ASSERT(geom0.getType()==PxGeometryType::eCONVEXCORE);
+	PX_ASSERT(geom1.getType()==PxGeometryType::eHEIGHTFIELD);
+	PX_UNUSED(cache);	
+	PX_UNUSED(threadContext);
+
+	const PxConvexCoreGeometry& convexGeom = static_cast<const PxConvexCoreGeometry&>(geom0);
+	const PxHeightFieldGeometry& hfGeom = static_cast<const PxHeightFieldGeometry&>(geom1);
+
+	struct ConvexCoreOverlapReport : Gu::OverlapReport
+	{
+		const Gu::ConvexShape& mConvex;
+		const PxTransform& mTransform;
+		const Gu::HeightFieldUtil mHfUtil;
+		const PxTransform& mHFPose;
+		PxIntBool mOverlap;
+
+		ConvexCoreOverlapReport(const PxHeightFieldGeometry& hfGeom_, const PxTransform& hfPose, const Gu::ConvexShape& convex, const PxTransform& transform)
+			: mConvex(convex), mTransform(transform), mHfUtil(hfGeom_), mHFPose(hfPose), mOverlap(PxIntFalse) {}
+
+		virtual bool reportTouchedTris(PxU32 nb, const PxU32* indices) PX_OVERRIDE
+		{
+			while(nb--)
+			{
+				const PxU32 triangleIndex = *indices++;
+
+				PxTrianglePadded currentTriangle;
+				mHfUtil.getTriangle(mHFPose, currentTriangle, NULL, NULL, triangleIndex, false, false);
+
+				Gu::ConvexShape tri;
+				tri.coreType = Gu::ConvexCore::Type::ePOINTS;
+				tri.pose = PxTransform(PxIdentity);
+				Gu::ConvexCore::PointsCore& core = *reinterpret_cast<Gu::ConvexCore::PointsCore*>(tri.coreData);
+				core.points = currentTriangle.verts;
+				core.numPoints = 3;
+				core.stride = sizeof(PxVec3);
+				core.S = PxVec3(1);
+				core.R = PxQuat(PxIdentity);
+				tri.margin = 0.0f;
+
+				PxVec3 point0, point1, axis;
+				PxReal dist = Gu::RefGjkEpa::computeGjkDistance(mConvex, tri, mConvex.pose, tri.pose, mConvex.margin + tri.margin, point0, point1, axis);
+				if(dist <= mConvex.margin + tri.margin + FLT_EPSILON)
+				{
+					mOverlap = PxIntTrue;
+					return false;
+				}
+			}
+			return true;
+		}
+	};
+
+	Gu::ConvexShape convexShape;
+	Gu::makeConvexShape(convexGeom, pose0, convexShape);
+
+	if (!convexShape.isValid())
+		return false;
+
+	ConvexCoreOverlapReport report(hfGeom, pose1, convexShape, pose0);
+
+	PxBounds3 bounds = Gu::computeBounds(convexGeom, pose0);
+	report.mHfUtil.overlapAABBTriangles(bounds, report, 4);
+
+	return report.mOverlap!=PxIntFalse;
+}
 
 GeomOverlapTable gGeomOverlapMethodTable[] = 
 {
@@ -604,9 +736,13 @@ GeomOverlapTable gGeomOverlapMethodTable[] =
 		GeomOverlapCallback_SpherePlane,		//PxGeometryType::ePLANE
 		GeomOverlapCallback_SphereCapsule,		//PxGeometryType::eCAPSULE
 		GeomOverlapCallback_SphereBox,			//PxGeometryType::eBOX
+		GeomOverlapCallback_ConvexCoreGeometry,	//PxGeometryType::eCONVEXCORE
 		GeomOverlapCallback_SphereConvex,		//PxGeometryType::eCONVEXMESH
+		GeomOverlapCallback_NotSupported,		//PxGeometryType::ePARTICLESYSTEM
+		GeomOverlapCallback_NotSupported,		//PxGeometryType::eTETRAHEDRONMESH
 		GeomOverlapCallback_SphereMesh,			//PxGeometryType::eTRIANGLEMESH
-		GeomOverlapCallback_HeightfieldUnregistered,	//PxGeometryType::eHEIGHTFIELD
+		GeomOverlapCallback_SphereHeightfield,	//PxGeometryType::eHEIGHTFIELD
+		GeomOverlapCallback_CustomGeometry,		//PxGeometryType::eCUSTOM
 	},
 
 	//PxGeometryType::ePLANE
@@ -615,9 +751,13 @@ GeomOverlapTable gGeomOverlapMethodTable[] =
 		GeomOverlapCallback_NotSupported,		//PxGeometryType::ePLANE
 		GeomOverlapCallback_PlaneCapsule,		//PxGeometryType::eCAPSULE
 		GeomOverlapCallback_PlaneBox,			//PxGeometryType::eBOX
+		GeomOverlapCallback_PlaneConvexCore,	//PxGeometryType::eCONVEXCORE
 		GeomOverlapCallback_PlaneConvex,		//PxGeometryType::eCONVEXMESH
+		GeomOverlapCallback_NotSupported,		//PxGeometryType::ePARTICLESYSTEM
+		GeomOverlapCallback_NotSupported,		//PxGeometryType::eTETRAHEDRONMESH
 		GeomOverlapCallback_NotSupported,		//PxGeometryType::eTRIANGLEMESH
 		GeomOverlapCallback_NotSupported,		//PxGeometryType::eHEIGHTFIELD
+		GeomOverlapCallback_CustomGeometry,		//PxGeometryType::eCUSTOM
 	},
 
 	//PxGeometryType::eCAPSULE
@@ -626,9 +766,13 @@ GeomOverlapTable gGeomOverlapMethodTable[] =
 		0,										//PxGeometryType::ePLANE
 		GeomOverlapCallback_CapsuleCapsule,		//PxGeometryType::eCAPSULE
 		GeomOverlapCallback_CapsuleBox,			//PxGeometryType::eBOX
+		GeomOverlapCallback_ConvexCoreGeometry,	//PxGeometryType::eCONVEXCORE
 		GeomOverlapCallback_CapsuleConvex,		//PxGeometryType::eCONVEXMESH
+		GeomOverlapCallback_NotSupported,		//PxGeometryType::ePARTICLESYSTEM
+		GeomOverlapCallback_NotSupported,		//PxGeometryType::eTETRAHEDRONMESH
 		GeomOverlapCallback_CapsuleMesh,		//PxGeometryType::eTRIANGLEMESH
-		GeomOverlapCallback_HeightfieldUnregistered,	//PxGeometryType::eHEIGHTFIELD
+		GeomOverlapCallback_CapsuleHeightfield,	//PxGeometryType::eHEIGHTFIELD
+		GeomOverlapCallback_CustomGeometry,		//PxGeometryType::eCUSTOM
 	},
 
 	//PxGeometryType::eBOX
@@ -637,9 +781,28 @@ GeomOverlapTable gGeomOverlapMethodTable[] =
 		0,										//PxGeometryType::ePLANE
 		0,										//PxGeometryType::eCAPSULE
 		GeomOverlapCallback_BoxBox,				//PxGeometryType::eBOX
+		GeomOverlapCallback_ConvexCoreGeometry,	//PxGeometryType::eCONVEXCORE
 		GeomOverlapCallback_BoxConvex,			//PxGeometryType::eCONVEXMESH
+		GeomOverlapCallback_NotSupported,		//PxGeometryType::ePARTICLESYSTEM
+		GeomOverlapCallback_NotSupported,		//PxGeometryType::eTETRAHEDRONMESH
 		GeomOverlapCallback_BoxMesh,			//PxGeometryType::eTRIANGLEMESH
-		GeomOverlapCallback_HeightfieldUnregistered,		//PxGeometryType::eHEIGHTFIELD
+		GeomOverlapCallback_BoxHeightfield,		//PxGeometryType::eHEIGHTFIELD
+		GeomOverlapCallback_CustomGeometry,		//PxGeometryType::eCUSTOM
+	},
+
+	//PxGeometryType::eCONVEXCORE
+	{
+		0,										//PxGeometryType::eSPHERE
+		0,										//PxGeometryType::ePLANE
+		0,										//PxGeometryType::eCAPSULE
+		0,										//PxGeometryType::eBOX
+		GeomOverlapCallback_ConvexCoreGeometry,	//PxGeometryType::eCONVEXCORE
+		GeomOverlapCallback_ConvexCoreGeometry,	//PxGeometryType::eCONVEXMESH
+		GeomOverlapCallback_NotSupported,		//PxGeometryType::ePARTICLESYSTEM
+		GeomOverlapCallback_NotSupported,		//PxGeometryType::eTETRAHEDRONMESH
+		GeomOverlapCallback_ConvexCoreMesh,		//PxGeometryType::eTRIANGLEMESH
+		GeomOverlapCallback_ConvexCoreHeightfield,//PxGeometryType::eHEIGHTFIELD
+		GeomOverlapCallback_CustomGeometry,		//PxGeometryType::eCUSTOM
 	},
 
 	//PxGeometryType::eCONVEXMESH
@@ -648,9 +811,43 @@ GeomOverlapTable gGeomOverlapMethodTable[] =
 		0,										//PxGeometryType::ePLANE
 		0,										//PxGeometryType::eCAPSULE
 		0,										//PxGeometryType::eBOX
+		0,										//PxGeometryType::eCONVEXCORE
 		GeomOverlapCallback_ConvexConvex,		//PxGeometryType::eCONVEXMESH
+		GeomOverlapCallback_NotSupported,		//PxGeometryType::ePARTICLESYSTEM
+		GeomOverlapCallback_NotSupported,		//PxGeometryType::eTETRAHEDRONMESH
 		GeomOverlapCallback_ConvexMesh,			//PxGeometryType::eTRIANGLEMESH		//not used: mesh always uses swept method for midphase.
-		GeomOverlapCallback_HeightfieldUnregistered,	//PxGeometryType::eHEIGHTFIELD		//TODO: make HF midphase that will mask this
+		GeomOverlapCallback_ConvexHeightfield,	//PxGeometryType::eHEIGHTFIELD		//TODO: make HF midphase that will mask this
+		GeomOverlapCallback_CustomGeometry,		//PxGeometryType::eCUSTOM
+	},
+
+	//PxGeometryType::ePARTICLESYSTEM
+	{
+		0,										//PxGeometryType::eSPHERE
+		0,										//PxGeometryType::ePLANE
+		0,										//PxGeometryType::eCAPSULE
+		0,										//PxGeometryType::eBOX
+		0,										//PxGeometryType::eCONVEXCORE
+		0,										//PxGeometryType::eCONVEXMESH
+		GeomOverlapCallback_NotSupported,		//PxGeometryType::ePARTICLESYSTEM
+		GeomOverlapCallback_NotSupported,		//PxGeometryType::eTETRAHEDRONMESH
+		GeomOverlapCallback_NotSupported,		//PxGeometryType::eTRIANGLEMESH
+		GeomOverlapCallback_NotSupported,		//PxGeometryType::eHEIGHTFIELD
+		GeomOverlapCallback_NotSupported,		//PxGeometryType::eCUSTOM
+	},
+
+	//PxGeometryType::eTETRAHEDRONMESH
+	{
+		0,										//PxGeometryType::eSPHERE
+		0,										//PxGeometryType::ePLANE
+		0,										//PxGeometryType::eCAPSULE
+		0,										//PxGeometryType::eBOX
+		0,										//PxGeometryType::eCONVEXCORE
+		0,										//PxGeometryType::eCONVEXMESH
+		0,										//PxGeometryType::ePARTICLESYSTEM
+		GeomOverlapCallback_NotSupported,		//PxGeometryType::eTETRAHEDRONMESH
+		GeomOverlapCallback_NotSupported,		//PxGeometryType::eTRIANGLEMESH
+		GeomOverlapCallback_NotSupported,		//PxGeometryType::eHEIGHTFIELD
+		GeomOverlapCallback_NotSupported,		//PxGeometryType::eCUSTOM
 	},
 
 	//PxGeometryType::eTRIANGLEMESH
@@ -659,9 +856,13 @@ GeomOverlapTable gGeomOverlapMethodTable[] =
 		0,										//PxGeometryType::ePLANE
 		0,										//PxGeometryType::eCAPSULE
 		0,										//PxGeometryType::eBOX
+		0,										//PxGeometryType::eCONVEXCORE
 		0,										//PxGeometryType::eCONVEXMESH
-		GeomOverlapCallback_NotSupported,		//PxGeometryType::eTRIANGLEMESH
+		0,										//PxGeometryType::ePARTICLESYSTEM
+		0,										//PxGeometryType::eTETRAHEDRONMESH
+		GeomOverlapCallback_MeshMesh,			//PxGeometryType::eTRIANGLEMESH
 		GeomOverlapCallback_NotSupported,		//PxGeometryType::eHEIGHTFIELD
+		GeomOverlapCallback_CustomGeometry,		//PxGeometryType::eCUSTOM
 	},
 
 	//PxGeometryType::eHEIGHTFIELD
@@ -670,26 +871,34 @@ GeomOverlapTable gGeomOverlapMethodTable[] =
 		0,										//PxGeometryType::ePLANE
 		0,										//PxGeometryType::eCAPSULE
 		0,										//PxGeometryType::eBOX
+		0,										//PxGeometryType::eCONVEXCORE
 		0,										//PxGeometryType::eCONVEXMESH
+		0,										//PxGeometryType::ePARTICLESYSTEM
+		0,										//PxGeometryType::eTETRAHEDRONMESH
 		0,										//PxGeometryType::eTRIANGLEMESH
 		GeomOverlapCallback_NotSupported,		//PxGeometryType::eHEIGHTFIELD
+		GeomOverlapCallback_CustomGeometry,		//PxGeometryType::eCUSTOM
+	},
+
+	//PxGeometryType::eCUSTOM
+	{
+		0,										//PxGeometryType::eSPHERE
+		0,										//PxGeometryType::ePLANE
+		0,										//PxGeometryType::eCAPSULE
+		0,										//PxGeometryType::eBOX
+		0,										//PxGeometryType::eCONVEXCORE
+		0,										//PxGeometryType::eCONVEXMESH
+		0,										//PxGeometryType::ePARTICLESYSTEM
+		0,										//PxGeometryType::eTETRAHEDRONMESH
+		0,										//PxGeometryType::eTRIANGLEMESH
+		0,										//PxGeometryType::eHEIGHTFIELD
+		GeomOverlapCallback_CustomGeometry,		//PxGeometryType::eCUSTOM
 	},
 };
+PX_COMPILE_TIME_ASSERT(sizeof(gGeomOverlapMethodTable) / sizeof(gGeomOverlapMethodTable[0]) == PxGeometryType::eGEOMETRY_COUNT);
 
 const GeomOverlapTable* Gu::getOverlapFuncTable()
 {
 	return gGeomOverlapMethodTable;
 }
 
-void registerHeightFields_Raycasts();
-void registerHeightFields_Sweeps();
-void Gu::registerHeightFields()
-{
-	registerHeightFields_Raycasts();
-	registerHeightFields_Sweeps();
-
-	gGeomOverlapMethodTable[PxGeometryType::eSPHERE][PxGeometryType::eHEIGHTFIELD] = GeomOverlapCallback_SphereHeightfield;
-	gGeomOverlapMethodTable[PxGeometryType::eCAPSULE][PxGeometryType::eHEIGHTFIELD] = GeomOverlapCallback_CapsuleHeightfield;
-	gGeomOverlapMethodTable[PxGeometryType::eBOX][PxGeometryType::eHEIGHTFIELD] = GeomOverlapCallback_BoxHeightfield;
-	gGeomOverlapMethodTable[PxGeometryType::eCONVEXMESH][PxGeometryType::eHEIGHTFIELD] = GeomOverlapCallback_ConvexHeightfield;
-}

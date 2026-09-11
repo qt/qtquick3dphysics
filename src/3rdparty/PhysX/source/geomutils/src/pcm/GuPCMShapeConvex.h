@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -34,14 +33,12 @@
 #include "GuPersistentContactManifold.h"
 #include "GuShapeConvex.h"
 
-
 namespace physx
 {
+	class PxConvexMeshGeometry;
 
 namespace Gu
 {
-	class GeometryUnion;
-
 	extern const PxU8 gPCMBoxPolygonData[24];
 	
 	class PCMPolygonalBox
@@ -49,7 +46,7 @@ namespace Gu
 	public:
 									PCMPolygonalBox(const PxVec3& halfSide);
 
-									void					getPolygonalData(Gu::PolygonalData* PX_RESTRICT dst)	const;
+			void					getPolygonalData(Gu::PolygonalData* PX_RESTRICT dst)	const;
 
 			const PxVec3&			mHalfSide;
 			PxVec3					mVertices[8];
@@ -58,10 +55,8 @@ namespace Gu
 			PCMPolygonalBox& operator=(const PCMPolygonalBox&);
 	};
 
-
-	void getPCMConvexData(const Gu::ConvexHullV& convexHull,  const bool idtScale, Gu::PolygonalData& polyData);  
-	bool getPCMConvexData(const Gu::GeometryUnion& shape, Cm::FastVertex2ShapeScaling& scaling, PxBounds3& bounds, Gu::PolygonalData& polyData);
-
+	void getPCMConvexData(const Gu::ConvexHullV& convexHull, bool idtScale, Gu::PolygonalData& polyData);
+	bool getPCMConvexData(const PxConvexMeshGeometry& shapeConvex, Cm::FastVertex2ShapeScaling& scaling, PxBounds3& bounds, Gu::PolygonalData& polyData);
 }
 }
 

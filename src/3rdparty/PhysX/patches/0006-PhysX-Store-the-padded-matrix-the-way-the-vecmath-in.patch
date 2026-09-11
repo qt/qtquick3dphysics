@@ -1,0 +1,36 @@
+From: Jonas Karlsson <jonas.karlsson@qt.io>
+Subject: [PATCH] PhysX: Store the padded matrix the way the vecmath in use
+ wants
+
+PxMat33Padded picks between V3StoreU() and V4StoreU() from a list of
+platforms rather than from the vecmath it is compiled against, and the
+list leaves out arm64 macOS: PhysX 5 only turns COMPILE_VECTOR_INTRINSICS
+on for the Intel family and for Switch, so every other architecture,
+Apple silicon included, gets the scalar vecmath, where Vec3V is a struct
+of three floats and V4StoreU() only takes a Vec4V. The store does not
+compile there, and it is in a header, so it takes with it every
+translation unit that reaches PxSIMDHelpers.h, which CmScaling.h includes
+for all of geomutils.
+
+Ask COMPILE_VECTOR_INTRINSICS, which is what decides whether Vec3V and
+Vec4V are the same four wide register, instead of naming the platforms
+where it happens to be off: that is the condition the two stores actually
+differ on. It keeps the two the list did name, PX_SIMD_DISABLED and Linux
+on arm, and takes in the ones it did not, arm64 macOS and WebAssembly
+with the SIMD extension off.
+---
+ src/3rdparty/PhysX/include/foundation/PxSIMDHelpers.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/3rdparty/PhysX/include/foundation/PxSIMDHelpers.h b/src/3rdparty/PhysX/include/foundation/PxSIMDHelpers.h
+--- a/src/3rdparty/PhysX/include/foundation/PxSIMDHelpers.h
++++ b/src/3rdparty/PhysX/include/foundation/PxSIMDHelpers.h
+@@ -48,7 +48,7 @@ namespace physx
+ 			const QuatV qV = V4LoadU(&q.x);
+ 			Vec3V column0V, column1V, column2V;
+ 			QuatGetMat33V(qV, column0V, column1V, column2V);
+-#if defined(PX_SIMD_DISABLED) || (PX_LINUX && (PX_ARM || PX_A64))
++#if !COMPILE_VECTOR_INTRINSICS
+ 			V3StoreU(column0V, column0);
+ 			V3StoreU(column1V, column1);
+ 			V3StoreU(column2V, column2);

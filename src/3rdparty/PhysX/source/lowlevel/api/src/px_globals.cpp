@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,20 +22,15 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
 #include "PxvGlobals.h"
-#include "PxsContext.h"
-#include "PxcContactMethodImpl.h"
-#include "GuContactMethodImpl.h"
-
 
 #if PX_SUPPORT_GPU_PHYSX
-#include "PxPhysXGpu.h"
-
-physx::PxPhysXGpu* gPxPhysXGpu;
+	#include "PxPhysXGpu.h"
+	static physx::PxPhysXGpu* gPxPhysXGpu = NULL;
 #endif
 
 namespace physx
@@ -55,11 +49,7 @@ void PxvInit(const PxvOffsetTable& offsetTable)
 void PxvTerm()
 {
 #if PX_SUPPORT_GPU_PHYSX
-	if (gPxPhysXGpu)
-	{
-		gPxPhysXGpu->release();
-		gPxPhysXGpu = NULL;
-	}
+	PX_RELEASE(gPxPhysXGpu);
 #endif
 }
 
@@ -70,6 +60,7 @@ namespace physx
 {
 	//forward declare stuff from PxPhysXGpuModuleLoader.cpp
 	void PxLoadPhysxGPUModule(const char* appGUID);
+	void PxUnloadPhysxGPUModule();
 	typedef physx::PxPhysXGpu* (PxCreatePhysXGpu_FUNC)();
 	extern PxCreatePhysXGpu_FUNC* g_PxCreatePhysXGpu_Func;
 
@@ -89,6 +80,15 @@ namespace physx
 		}
 		
 		return gPxPhysXGpu;
+	}
+
+	// PT: added for the standalone GPU BP but we may want to revisit this
+	void PxvReleasePhysXGpu(PxPhysXGpu* gpu)
+	{
+		PX_ASSERT(gpu==gPxPhysXGpu);
+		PxUnloadPhysxGPUModule();
+		PX_RELEASE(gpu);
+		gPxPhysXGpu = NULL;
 	}
 }
 #endif

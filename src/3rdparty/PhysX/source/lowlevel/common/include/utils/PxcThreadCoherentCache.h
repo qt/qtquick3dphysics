@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,17 +22,16 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
+#ifndef PXC_THREAD_COHERENT_CACHE_H
+#define PXC_THREAD_COHERENT_CACHE_H
 
-#ifndef PXC_THREADCOHERENTCACHE_H
-#define PXC_THREADCOHERENTCACHE_H
-
-#include "PsMutex.h"
-#include "PsAllocator.h"
-#include "PsSList.h"
+#include "foundation/PxMutex.h"
+#include "foundation/PxAllocator.h"
+#include "foundation/PxSList.h"
 
 namespace physx
 {
@@ -50,13 +48,13 @@ an object is requested, which may be expensive).
 TODO: add thread coherancy.
 */
 template<class T, class Params>
-class PxcThreadCoherentCache : public Ps::AlignedAllocator<16, Ps::ReflectionAllocator<T> >
+class PxcThreadCoherentCache : public PxAlignedAllocator<16, PxReflectionAllocator<T> >
 {
-	typedef Ps::AlignedAllocator<16, Ps::ReflectionAllocator<T> > Allocator;
+	typedef PxAlignedAllocator<16, PxReflectionAllocator<T> > Allocator;
 	PX_NOCOPY(PxcThreadCoherentCache)
 public:
 
-	typedef Ps::SListEntry EntryBase;
+	typedef PxSListEntry EntryBase;
 
 	PX_INLINE PxcThreadCoherentCache(Params* params, const Allocator& alloc = Allocator()) : Allocator(alloc), mParams(params)
 	{
@@ -79,8 +77,8 @@ public:
 		T* rv = static_cast<T*>(root.pop());
 		if(rv==NULL)
 		{
-			rv = reinterpret_cast<T*>(Allocator::allocate(sizeof(T), __FILE__, __LINE__));
-			new (rv) T(mParams);
+			rv = reinterpret_cast<T*>(Allocator::allocate(sizeof(T), PX_FL));
+			PX_PLACEMENT_NEW(rv, T(mParams));
 		}
 
 		return rv;
@@ -93,7 +91,7 @@ public:
 
 
 private:
-	Ps::SList root;
+	PxSList root;
 	Params* mParams;
 
 	template<class T2, class P2>
@@ -117,10 +115,10 @@ public:
 	}
 	~PxcThreadCoherentCacheIterator()
 	{
-		Ps::SListEntry* np = mFirst;
+		PxSListEntry* np = mFirst;
 		while(np != NULL)
 		{
-			Ps::SListEntry* npNext = np->next();
+			PxSListEntry* npNext = np->next();
 			mCache.root.push(*np);
 			np = npNext;
 		}
@@ -140,8 +138,8 @@ private:
 
 	PxcThreadCoherentCacheIterator<T, Params>& operator=(const PxcThreadCoherentCacheIterator<T, Params>&);
 	PxcThreadCoherentCache<T, Params> &mCache;
-	Ps::SListEntry* mNext;
-	Ps::SListEntry* mFirst;
+	PxSListEntry* mNext;
+	PxSListEntry* mFirst;
 	
 };
 

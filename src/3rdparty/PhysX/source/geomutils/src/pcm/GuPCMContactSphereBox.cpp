@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,32 +22,27 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
-#include "geomutils/GuContactBuffer.h"
+#include "geomutils/PxContactBuffer.h"
 #include "GuVecBox.h"
 #include "GuVecSphere.h"
-#include "GuGeometryUnion.h"
 #include "GuContactMethodImpl.h"
+#include "GuPCMContactGenUtil.h"
 
+using namespace physx;
 
-namespace physx
-{
-
-namespace Gu
-{
-bool pcmContactSphereBox(GU_CONTACT_METHOD_ARGS)
+bool Gu::pcmContactSphereBox(GU_CONTACT_METHOD_ARGS)
 {
 	PX_UNUSED(renderOutput);
 	PX_UNUSED(cache);
 
-	using namespace Ps::aos;
+	using namespace aos;
 	// Get actual shape data
-	const PxSphereGeometry& shapeSphere = shape0.get<const PxSphereGeometry>();
-	const PxBoxGeometry& shapeBox = shape1.get<const PxBoxGeometry>();
-	//
+	const PxSphereGeometry& shapeSphere = checkedCast<PxSphereGeometry>(shape0);
+	const PxBoxGeometry& shapeBox = checkedCast<PxBoxGeometry>(shape1);
 
 	//const PsTransformV transf0(transform0);
 	const Vec3V sphereOrigin = V3LoadA(&transform0.p.x);
@@ -59,7 +53,7 @@ bool pcmContactSphereBox(GU_CONTACT_METHOD_ARGS)
 
 	const FloatV radius = FLoad(shapeSphere.radius);
 	
-	const PsTransformV transf1(p1, q1);
+	const PxTransformV transf1(p1, q1);
 	
 	const FloatV cDist = FLoad(params.mContactDistance);
 
@@ -79,7 +73,7 @@ bool pcmContactSphereBox(GU_CONTACT_METHOD_ARGS)
 	const Vec3V v = V3Sub(sphereCenter, p);
 	const FloatV lengthSq = V3Dot(v, v);
 
-	PX_ASSERT(contactBuffer.count < ContactBuffer::MAX_CONTACTS);
+	PX_ASSERT(contactBuffer.count < PxContactBuffer::MAX_CONTACTS);
 
 	if(FAllGrtr(sqInflatedSum, lengthSq))//intersect
 	{
@@ -108,7 +102,7 @@ bool pcmContactSphereBox(GU_CONTACT_METHOD_ARGS)
 			const Vec3V tmpY = V3Mul(V3UnitY(), sign);
 			const Vec3V tmpZ = V3Mul(V3UnitZ(), sign);
 			
-			const Vec3V locNorm= V3Sel(con0, tmpZ, V3Sel(con1, tmpX, tmpY));////local coords contact normal
+			const Vec3V locNorm = V3Sel(con0, tmpZ, V3Sel(con1, tmpX, tmpY));////local coords contact normal
 			const FloatV dist = FNeg(FSel(con0, z, FSel(con1, x, y)));
 
 			//separation so far is just the embedding of the center point; we still have to push out all of the radius.
@@ -116,13 +110,7 @@ bool pcmContactSphereBox(GU_CONTACT_METHOD_ARGS)
 			const FloatV penetration = FSub(dist, radius);
 			const Vec3V point = V3Sub(sphereOrigin , V3Scale(normal, dist));
 
-			Gu::ContactPoint& contact = contactBuffer.contacts[contactBuffer.count++];
-			V4StoreA(Vec4V_From_Vec3V(normal), &contact.normal.x);
-			V4StoreA(Vec4V_From_Vec3V(point), &contact.point.x);
-			FStore(penetration, &contact.separation);
-
-			contact.internalFaceIndex1 = PXC_CONTACT_NO_FACE_INDEX;
-			//context.mContactBuffer.contact(point, normal, penetration);
+			outputSimplePCMContact(contactBuffer, point, normal, penetration);
 		}
 		else
 		{
@@ -134,20 +122,10 @@ bool pcmContactSphereBox(GU_CONTACT_METHOD_ARGS)
 			const Vec3V normal = transf1.rotate(locNorm);
 			const Vec3V point = transf1.transform(p);
 
-			PX_ASSERT(contactBuffer.count < ContactBuffer::MAX_CONTACTS);
-			Gu::ContactPoint& contact = contactBuffer.contacts[contactBuffer.count++];
-			V4StoreA(Vec4V_From_Vec3V(normal), &contact.normal.x);
-			V4StoreA(Vec4V_From_Vec3V(point), &contact.point.x);
-			FStore(penetration, &contact.separation);
-
-			contact.internalFaceIndex1 = PXC_CONTACT_NO_FACE_INDEX;
-
-			//context.mContactBuffer.contact(point, normal, penetration);
+			outputSimplePCMContact(contactBuffer, point, normal, penetration);
 		}
 		return true;
 	}
 	return false;
 }
 
-}//Gu
-}//physx

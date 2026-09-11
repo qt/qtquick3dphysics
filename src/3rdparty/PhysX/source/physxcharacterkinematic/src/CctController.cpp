@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -38,8 +37,7 @@
 #include "CctController.h"
 #include "CctBoxController.h"
 #include "CctCharacterControllerManager.h"
-#include "PsUtilities.h"
-#include "PsFoundation.h"
+#include "foundation/PxUtilities.h"
 
 using namespace physx;
 using namespace Cct;
@@ -100,7 +98,7 @@ Controller::~Controller()
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void Controller::onRelease(const PxBase& observed)
-{	
+{
 	mCctModule.onRelease(observed);
 }
 
@@ -108,7 +106,7 @@ void Controller::onRelease(const PxBase& observed)
 
 void Controller::onOriginShift(const PxVec3& shift)
 {
-	mPosition -= shift;
+	sub(mPosition, shift);
 	
 	if(mManager && mManager->mLockingEnabled)
 		mWriteLock.lock();
@@ -198,7 +196,7 @@ bool Controller::setPos(const PxExtendedVec3& pos)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool Controller::createProxyActor(PxPhysics& sdk, const PxGeometry& geometry, const PxMaterial& material)
+bool Controller::createProxyActor(PxPhysics& sdk, const PxGeometry& geometry, const PxMaterial& material, PxClientID clientID)
 {
 	// PT: we don't disable raycasting or CD because:
 	// - raycasting is needed for visibility queries (the SDK otherwise doesn't know about the CCTS)
@@ -219,6 +217,10 @@ bool Controller::createProxyActor(PxPhysics& sdk, const PxGeometry& geometry, co
 	mKineActor->setRigidBodyFlag(PxRigidBodyFlag::eKINEMATIC, true);
 
 	PxRigidBodyExt::updateMassAndInertia(*mKineActor, mProxyDensity);
+
+	if(clientID!=PX_DEFAULT_CLIENT)
+		mKineActor->setOwnerClient(clientID);
+
 	mScene->addActor(*mKineActor);
 	return true;
 }

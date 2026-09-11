@@ -830,10 +830,11 @@ void QPhysicsWorld::updateDebugDraw()
             const auto physXShape = node->shapes[idx];
             auto localPose = physXShape->getLocalPose();
 
-            switch (physXShape->getGeometryType()) {
+            const physx::PxGeometry &geometry = physXShape->getGeometry();
+
+            switch (geometry.getType()) {
             case physx::PxGeometryType::eBOX: {
-                physx::PxBoxGeometry boxGeometry;
-                physXShape->getBoxGeometry(boxGeometry);
+                const auto &boxGeometry = static_cast<const physx::PxBoxGeometry &>(geometry);
                 const auto &halfExtentsOld = holder.halfExtents();
                 const auto halfExtents = QPhysicsUtils::toQtType(boxGeometry.halfExtents);
                 if (!qFuzzyCompare(halfExtentsOld, halfExtents)) {
@@ -847,8 +848,7 @@ void QPhysicsWorld::updateDebugDraw()
                 break;
 
             case physx::PxGeometryType::eSPHERE: {
-                physx::PxSphereGeometry sphereGeometry;
-                physXShape->getSphereGeometry(sphereGeometry);
+                const auto &sphereGeometry = static_cast<const physx::PxSphereGeometry &>(geometry);
                 const float radius = holder.radius();
                 if (!qFuzzyCompare(sphereGeometry.radius, radius)) {
                     auto geom = QDebugDrawHelper::generateSphereGeometry(sphereGeometry.radius);
@@ -860,8 +860,8 @@ void QPhysicsWorld::updateDebugDraw()
                 break;
 
             case physx::PxGeometryType::eCAPSULE: {
-                physx::PxCapsuleGeometry capsuleGeometry;
-                physXShape->getCapsuleGeometry(capsuleGeometry);
+                const auto &capsuleGeometry =
+                        static_cast<const physx::PxCapsuleGeometry &>(geometry);
                 const float radius = holder.radius();
                 const float halfHeight = holder.halfHeight();
 
@@ -878,8 +878,6 @@ void QPhysicsWorld::updateDebugDraw()
                 break;
 
             case physx::PxGeometryType::ePLANE:{
-                physx::PxPlaneGeometry planeGeometry;
-                physXShape->getPlaneGeometry(planeGeometry);
                 // Special rotation
                 const QQuaternion rotation =
                         QPhysicsUtils::kMinus90YawRotation * QPhysicsUtils::toQtType(localPose.q);
@@ -897,9 +895,8 @@ void QPhysicsWorld::updateDebugDraw()
             // to make sure it does not get dereferenced and deleted so that the new mesh will
             // have another memory address so we know when it has changed.
             case physx::PxGeometryType::eHEIGHTFIELD: {
-                physx::PxHeightFieldGeometry heightFieldGeometry;
-                bool success = physXShape->getHeightFieldGeometry(heightFieldGeometry);
-                Q_ASSERT(success);
+                const auto &heightFieldGeometry =
+                        static_cast<const physx::PxHeightFieldGeometry &>(geometry);
                 const float heightScale = holder.heightScale();
                 const float rowScale = holder.rowScale();
                 const float columnScale = holder.columnScale();
@@ -931,9 +928,8 @@ void QPhysicsWorld::updateDebugDraw()
                 break;
 
             case physx::PxGeometryType::eCONVEXMESH: {
-                physx::PxConvexMeshGeometry convexMeshGeometry;
-                const bool success = physXShape->getConvexMeshGeometry(convexMeshGeometry);
-                Q_ASSERT(success);
+                const auto &convexMeshGeometry =
+                        static_cast<const physx::PxConvexMeshGeometry &>(geometry);
                 const auto rotation = convexMeshGeometry.scale.rotation * localPose.q;
                 localPose = physx::PxTransform(localPose.p, rotation);
                 model->setScale(QPhysicsUtils::toQtType(convexMeshGeometry.scale.scale));
@@ -958,9 +954,8 @@ void QPhysicsWorld::updateDebugDraw()
                 break;
 
             case physx::PxGeometryType::eTRIANGLEMESH: {
-                physx::PxTriangleMeshGeometry triangleMeshGeometry;
-                const bool success = physXShape->getTriangleMeshGeometry(triangleMeshGeometry);
-                Q_ASSERT(success);
+                const auto &triangleMeshGeometry =
+                        static_cast<const physx::PxTriangleMeshGeometry &>(geometry);
                 const auto rotation = triangleMeshGeometry.scale.rotation * localPose.q;
                 localPose = physx::PxTransform(localPose.p, rotation);
                 model->setScale(QPhysicsUtils::toQtType(triangleMeshGeometry.scale.scale));
@@ -984,6 +979,11 @@ void QPhysicsWorld::updateDebugDraw()
             }
                 break;
 
+            // Geometry types that no shape in Qt Quick 3D Physics can have
+            case physx::PxGeometryType::eCONVEXCORE:
+            case physx::PxGeometryType::ePARTICLESYSTEM:
+            case physx::PxGeometryType::eTETRAHEDRONMESH:
+            case physx::PxGeometryType::eCUSTOM:
             case physx::PxGeometryType::eINVALID:
             case physx::PxGeometryType::eGEOMETRY_COUNT:
                 // should not happen
@@ -1635,9 +1635,17 @@ physx::PxPhysics *QPhysicsWorld::getPhysics()
     return StaticPhysXObjects::getReference().physics;
 }
 
-physx::PxCooking *QPhysicsWorld::getCooking()
+const physx::PxCookingParams *QPhysicsWorld::getCookingParams()
 {
-    return StaticPhysXObjects::getReference().cooking;
+    // PhysX cooks meshes through free functions taking the parameters, instead of through a
+    // cooking object, but they still need the foundation for allocation and error reporting,
+    // so there is nothing to cook with until it has been created.
+    if (!StaticPhysXObjects::getReference().foundationCreated)
+        return nullptr;
+
+    // FIXME: does the tolerance matter?
+    static const physx::PxCookingParams params { physx::PxTolerancesScale() };
+    return &params;
 }
 
 physx::PxControllerManager *QPhysicsWorld::controllerManager()

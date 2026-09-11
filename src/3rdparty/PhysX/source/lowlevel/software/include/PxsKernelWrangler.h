@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,26 +22,28 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
-
 
 #ifndef PXS_KERNEL_WRANGLER_H
 #define PXS_KERNEL_WRANGLER_H
 
-#include "foundation/PxSimpleTypes.h"
+#include "foundation/PxUserAllocated.h"
 
 namespace physx
 {
+	class PxCudaContextManager;
 	class KernelWrangler;
-	class PxErrorCallback;
 
-	class PxsKernelWranglerManager
+	class PxsKernelWranglerManager : public PxUserAllocated
 	{
 	public:
-		virtual ~PxsKernelWranglerManager(){}
-		virtual KernelWrangler* getKernelWrangler() = 0;
+		PX_FORCE_INLINE	KernelWrangler*			getKernelWrangler()		{ return mKernelWrangler;		}
+		PX_FORCE_INLINE	PxCudaContextManager*	getCudaContextManager()	{ return mCudaContextManager;	}
+
+						KernelWrangler*			mKernelWrangler;
+						PxCudaContextManager*	mCudaContextManager;
 	};
 }
 #endif

@@ -1,0 +1,29 @@
+From: Jonas Karlsson <jonas.karlsson@qt.io>
+Subject: [PATCH] PhysX: Fix uninitialized variable in the RTree midphase
+
+The two argument processResults() passes an uninitialized float as the
+newMaxT in/out parameter of the three argument one, which reads it before
+writing it, both to shrink the ray distance and to clamp what a hit
+callback returns. Whether that garbage is smaller than a real hit
+distance decides whether the raycast keeps looking, so the results depend
+on the stack contents.
+
+This is the RTree half of the PhysX 4.1 patch "Fix Uninitialized
+Variables", forward ported to 5.9.0. Its other half, the uninitialized
+bool array in GuPCMTriangleContactGen.cpp, has been fixed upstream.
+---
+ src/3rdparty/PhysX/source/geomutils/src/mesh/GuMidphaseRTree.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/3rdparty/PhysX/source/geomutils/src/mesh/GuMidphaseRTree.cpp b/src/3rdparty/PhysX/source/geomutils/src/mesh/GuMidphaseRTree.cpp
+--- a/src/3rdparty/PhysX/source/geomutils/src/mesh/GuMidphaseRTree.cpp
++++ b/src/3rdparty/PhysX/source/geomutils/src/mesh/GuMidphaseRTree.cpp
+@@ -234,7 +234,7 @@ struct RayRTreeCallback : RTree::CallbackRaycast, RTree::Callback
+ 
+ 	virtual bool processResults(PxU32 numTouched, PxU32* touched) PX_OVERRIDE
+ 	{
+-		PxF32 dummy;
++		PxF32 dummy = 0;
+ 		return RayRTreeCallback::processResults(numTouched, touched, dummy);
+ 	}
+ 

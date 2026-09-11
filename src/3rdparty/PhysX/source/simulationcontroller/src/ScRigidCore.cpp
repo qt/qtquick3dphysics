@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,37 +22,51 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
-#include "ScBodyCore.h"
-#include "ScStaticCore.h"
+#include "ScRigidCore.h"
 #include "ScRigidSim.h"
 #include "ScShapeSim.h"
 #include "ScScene.h"
-#include "ScPhysics.h"
 
 using namespace physx;
 using namespace Sc;
 
-static ShapeSim& getSimForShape(const ShapeCore& core, const ActorSim& actorSim)
+PX_IMPLEMENT_OUTPUT_ERROR
+
+static ShapeSim* getSimForShape(const ShapeCore& core, const ActorSim& actorSim)
 {
-	const ElementSim* current = actorSim.getElements_();
-	while(current)
+	if(core.getExclusiveSim())
 	{
-		const ShapeSim* sim = static_cast<const ShapeSim*>(current);
-		if(&sim->getCore() == &core)
-			return *const_cast<ShapeSim*>(sim);
-		current = current->mNextInActor;
+		return core.getExclusiveSim();
 	}
 
+	//Must be a shared shape.
+	//Search backwards to emulate the behaviour of the previous linked list.
+	PxU32 nbElems = actorSim.getNbElements();
+	ElementSim*const* elems = actorSim.getElements() + (nbElems - 1);
+	while (nbElems--)
+	{
+		ShapeSim* sim = static_cast<ShapeSim*>(*elems--);
+		if (&sim->getCore() == &core)
+			return sim;
+	}
+
+	// Defensive coding added for OM-118444.
+	// Switched this function to return a pointer rather than a reference.
+	// This allows callers to avoid a crash in case the ShapeSim is not found.
+	// The original use of a reference implies that this should never happen yet the crash in this ticket suggests that it's possible.
+	// We could/should revert this eventually and remove the checks for NULL pointers in all callers in this file.
+	// ### DEFENSIVE
+	outputError<PxErrorCode::eINTERNAL_ERROR>(__LINE__, "ScRigidCore::getSimForShape: ShapeSim not found!");
+
 	PX_ASSERT(0); // should never fail
-	return *reinterpret_cast<ShapeSim*>(1);
+	return NULL;
 }
 
-RigidCore::RigidCore(const PxActorType::Enum type) 
-: ActorCore(type, PxActorFlag::eVISUALIZATION, PX_DEFAULT_CLIENT, 0)
+RigidCore::RigidCore(const PxActorType::Enum type) : ActorCore(type, PxActorFlag::eVISUALIZATION, PX_DEFAULT_CLIENT, 0)
 {
 }
 
@@ -75,37 +88,71 @@ void RigidCore::removeShapeFromScene(ShapeCore& shapeCore, bool wakeOnLostTouch)
 	RigidSim* sim = getSim();
 	if(!sim)
 		return;
-	ShapeSim& s = getSimForShape(shapeCore, *sim);
-	sim->getScene().removeShape_(s, wakeOnLostTouch);
+
+	ShapeSim* s = getSimForShape(shapeCore, *sim);
+	if(s)
+		sim->getScene().removeShape_(*s, wakeOnLostTouch);
 }
 
-void RigidCore::onShapeChange(ShapeCore& shape, ShapeChangeNotifyFlags notifyFlags, PxShapeFlags oldShapeFlags, bool forceBoundsUpdate)
+void RigidCore::unregisterShapeFromNphase(Sc::ShapeCore& shapeCore)
 {
-	// DS: We pass flags to avoid searching multiple times or exposing RigidSim outside SC, and this form is
-	// more convenient for the Scb::Shape::syncState method. If we start hitting this a lot we should do it
+	RigidSim* sim = getSim();
+	if (!sim)
+		return;
+
+	ShapeSim* s = getSimForShape(shapeCore, *sim);
+	if(s)
+		s->getScene().unregisterShapeFromNphase(shapeCore, s->getElementID());
+}
+
+void RigidCore::registerShapeInNphase(Sc::ShapeCore& shapeCore)
+{
+	RigidSim* sim = getSim();
+	if (!sim)
+		return;
+
+	ShapeSim* s = getSimForShape(shapeCore, *sim);
+	if(s)
+		s->getScene().registerShapeInNphase(this, shapeCore, s->getElementID());
+}
+
+void RigidCore::onShapeChange(ShapeCore& shape, ShapeChangeNotifyFlags notifyFlags)
+{
+	RigidSim* sim = getSim();
+	if(!sim)
+		return;
+
+	ShapeSim* s = getSimForShape(shape, *sim);
+	if(!s)
+		return;
+
+	if(notifyFlags & ShapeChangeNotifyFlag::eGEOMETRY)
+		s->onVolumeOrTransformChange();
+	if(notifyFlags & ShapeChangeNotifyFlag::eRESET_FILTERING)
+		s->onResetFiltering();
+	if(notifyFlags & ShapeChangeNotifyFlag::eSHAPE2BODY)
+		s->onVolumeOrTransformChange();
+	if(notifyFlags & ShapeChangeNotifyFlag::eFILTERDATA)
+		s->onFilterDataChange();
+	if(notifyFlags & ShapeChangeNotifyFlag::eCONTACTOFFSET)
+		s->onContactOffsetChange();
+	if(notifyFlags & ShapeChangeNotifyFlag::eRESTOFFSET)
+		s->onRestOffsetChange();
+}
+
+void RigidCore::onShapeFlagsChange(ShapeCore& shape, PxShapeFlags oldShapeFlags)
+{
+	// DS: We pass flags to avoid searching multiple times or exposing RigidSim outside SC.
+	//If we start hitting this a lot we should do it
 	// a different way, but shape modification after insertion is rare. 
 
 	RigidSim* sim = getSim();
 	if(!sim)
 		return;
-	ShapeSim& s = getSimForShape(shape, *sim);
 
-	if(notifyFlags & ShapeChangeNotifyFlag::eGEOMETRY)
-		s.onVolumeOrTransformChange(forceBoundsUpdate);
-	if(notifyFlags & ShapeChangeNotifyFlag::eMATERIAL)
-		s.onMaterialChange();
-	if(notifyFlags & ShapeChangeNotifyFlag::eRESET_FILTERING)
-		s.onResetFiltering();
-	if(notifyFlags & ShapeChangeNotifyFlag::eSHAPE2BODY)
-		s.onVolumeOrTransformChange(forceBoundsUpdate);
-	if(notifyFlags & ShapeChangeNotifyFlag::eFILTERDATA)
-		s.onFilterDataChange();
-	if(notifyFlags & ShapeChangeNotifyFlag::eFLAGS)
-		s.onFlagChange(oldShapeFlags);
-	if(notifyFlags & ShapeChangeNotifyFlag::eCONTACTOFFSET)
-		s.onContactOffsetChange();
-	if(notifyFlags & ShapeChangeNotifyFlag::eRESTOFFSET)
-		s.onRestOffsetChange();
+	ShapeSim* s = getSimForShape(shape, *sim);
+	if(s)
+		s->onFlagChange(oldShapeFlags);
 }
 
 RigidSim* RigidCore::getSim() const
@@ -115,11 +162,6 @@ RigidSim* RigidCore::getSim() const
 
 PxU32 RigidCore::getRigidID() const
 {
-	return static_cast<RigidSim*>(ActorCore::getSim())->getRigidID();
-}
-
-PxActor* RigidCore::getPxActor() const
-{
-	return Ps::pointerOffset<PxActor*>(const_cast<RigidCore*>(this), gOffsetTable.scCore2PxActor[getActorCoreType()]);
+	return static_cast<RigidSim*>(ActorCore::getSim())->getActorID();
 }
 

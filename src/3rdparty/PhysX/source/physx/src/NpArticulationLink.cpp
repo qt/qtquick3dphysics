@@ -1,4 +1,3 @@
-//
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
 // are met:
@@ -23,21 +22,17 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2021 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
-#include "NpArticulationLink.h"
-#include "NpArticulationJoint.h"
-#include "NpWriteCheck.h"
-#include "NpReadCheck.h"
-#include "ScbArticulation.h"
-#include "CmVisualization.h"
-#include "CmConeLimitHelper.h"
-#include "CmUtils.h"
-#include "NpArticulation.h"
+#include "NpArticulationReducedCoordinate.h"
+#include "NpRigidActorTemplateInternal.h"
+
+#include "omnipvd/NpOmniPvdSetData.h"
 
 using namespace physx;
+using namespace Cm;
 
 // PX_SERIALIZATION
 void NpArticulationLink::requiresObjects(PxProcessPxBaseCallback& c)
@@ -51,17 +46,17 @@ void NpArticulationLink::requiresObjects(PxProcessPxBaseCallback& c)
 void NpArticulationLink::exportExtraData(PxSerializationContext& stream)
 {
 	NpArticulationLinkT::exportExtraData(stream);
-	Cm::exportInlineArray(mChildLinks, stream);
+	exportInlineArray(mChildLinks, stream);
 }
 
 void NpArticulationLink::importExtraData(PxDeserializationContext& context)
 {
 	NpArticulationLinkT::importExtraData(context);
-	Cm::importInlineArray(mChildLinks, context);
+	importInlineArray(mChildLinks, context);
 }
 
 void NpArticulationLink::resolveReferences(PxDeserializationContext& context)
-{	
+{
     context.translatePxBase(mRoot);
     context.translatePxBase(mInboundJoint);
     context.translatePxBase(mParent);
@@ -75,7 +70,7 @@ void NpArticulationLink::resolveReferences(PxDeserializationContext& context)
 
 NpArticulationLink* NpArticulationLink::createObject(PxU8*& address, PxDeserializationContext& context)
 {
-	NpArticulationLink* obj = new (address) NpArticulationLink(PxBaseFlags(0));
+	NpArticulationLink* obj = PX_PLACEMENT_NEW(address, NpArticulationLink(PxBaseFlags(0)));
 	address += sizeof(NpArticulationLink);	
 	obj->importExtraData(context);
 	obj->resolveReferences(context);
@@ -83,17 +78,14 @@ NpArticulationLink* NpArticulationLink::createObject(PxU8*& address, PxDeseriali
 }
 //~PX_SERIALIZATION
 
-NpArticulationLink::NpArticulationLink(const PxTransform& bodyPose, PxArticulationBase& root, NpArticulationLink* parent) :
-	NpArticulationLinkT	(PxConcreteType::eARTICULATION_LINK, PxBaseFlag::eOWNS_MEMORY, PxActorType::eARTICULATION_LINK, bodyPose),
+NpArticulationLink::NpArticulationLink(const PxTransform& bodyPose, PxArticulationReducedCoordinate& root, NpArticulationLink* parent) :
+	NpArticulationLinkT	(PxConcreteType::eARTICULATION_LINK, PxBaseFlag::eOWNS_MEMORY, PxActorType::eARTICULATION_LINK, NpType::eBODY_FROM_ARTICULATION_LINK, bodyPose),
 	mRoot				(&root),
 	mInboundJoint		(NULL),
 	mParent				(parent),
 	mLLIndex			(0xffffffff),
 	mInboundJointDof	(0xffffffff)
 {
-	PX_ASSERT(mBody.getScbType() == ScbType::eBODY);
-	mBody.setScbType(ScbType::eBODY_FROM_ARTICULATION_LINK);
-
 	if (parent)
 		parent->addToChildList(*this);
 }
@@ -106,10 +98,8 @@ void NpArticulationLink::releaseInternal()
 {
 	NpPhysics::getInstance().notifyDeletionListenersUserRelease(this, userData);
 
-	NpArticulationLinkT::release();
-
-	PxArticulationImpl* impl = reinterpret_cast<PxArticulationImpl*>(mRoot->getImpl());
-	impl->removeLinkFromList(*this);
+	NpArticulationReducedCoordinate* npArticulation = static_cast<NpArticulationReducedCoordinate*>(mRoot);
+	npArticulation->removeLinkFromList(*this);
 
 	if (mParent)
 		mParent->removeFromChildList(*this);
@@ -117,28 +107,18 @@ void NpArticulationLink::releaseInternal()
 	if (mInboundJoint)
 		mInboundJoint->release();
 
-	NpScene* npScene = NpActor::getAPIScene(*this);
-	if (npScene)
-	{
-		npScene->getScene().removeActor(mBody, true, false);
-		//Removing this link may displace the link IDs for the other links in the articulation, so recompute them all
-		impl->recomputeLinkIDs();
-	}
+	//Remove constraints, aggregates, scene, shapes. 
+	removeRigidActorT<PxArticulationLink>(*this);
 
-	mBody.destroy();
+	PX_ASSERT(!isAPIWriteForbidden());
+	NpDestroyArticulationLink(this);
 }
 
 void NpArticulationLink::release()
 {
-	NP_WRITE_CHECK(NpActor::getOwnerScene(*this));
-
-	PxArticulationImpl* impl = reinterpret_cast<PxArticulationImpl*>(mRoot->getImpl());
-
-	PX_UNUSED(impl);
-
-	if (impl->getRoot() == this && NpActor::getOwnerScene(*this) != NULL)
+	if(getNpScene())
 	{
-		Ps::getFoundation().error(PxErrorCode::eINVALID_OPERATION, __FILE__, __LINE__, "PxArticulationLink::release(): root link may not be released while articulation is in a scene");
+		PxGetFoundation().error(PxErrorCode::eINVALID_OPERATION, PX_FL, "PxArticulationLink::release() not allowed while the articulation link is in a scene. Call will be ignored.");
 		return;
 	}
 
@@ -151,458 +131,265 @@ void NpArticulationLink::release()
 	}
 	else
 	{
-		Ps::getFoundation().error(PxErrorCode::eINVALID_OPERATION, __FILE__, __LINE__, "PxArticulationLink::release(): Only leaf articulation links can be released. Release call failed");
+		PxGetFoundation().error(PxErrorCode::eINVALID_OPERATION, PX_FL, "PxArticulationLink::release(): Only leaf articulation links can be released. Call will be ignored.");
 	}
 }
 
 PxTransform NpArticulationLink::getGlobalPose() const
 {
-	NP_READ_CHECK(NpActor::getOwnerScene(*this));
+	NP_READ_CHECK(getNpScene());
 
-	//!!!AL TODO: Need to start from root and compute along the branch to reflect double buffered state of root link
-	return getScbBodyFast().getBody2World() * getScbBodyFast().getBody2Actor().getInverse();
+	PX_CHECK_SCENE_API_READ_FORBIDDEN_EXCEPT_COLLIDE_AND_RETURN_VAL(getNpScene(), "PxArticulationLink::getGlobalPose() not allowed while simulation is running (except during PxScene::collide()).", PxTransform(PxIdentity));
+
+	// PT:: tag: scalar transform*transform
+	return mCore.getBody2World() * mCore.getBody2Actor().getInverse();
 }
 
-void NpArticulationLink::setLinearDamping(PxReal linearDamping)
+bool NpArticulationLink::attachShape(PxShape& shape)
 {
-	NP_WRITE_CHECK(NpActor::getOwnerScene(*this));
-	PX_CHECK_AND_RETURN(PxIsFinite(linearDamping), "NpArticulationLink::setLinearDamping: invalid float");
-	PX_CHECK_AND_RETURN(linearDamping >= 0, "NpArticulationLink::setLinearDamping: The linear damping must be nonnegative!");
-
-	getScbBodyFast().setLinearDamping(linearDamping);
+	static_cast<NpArticulationReducedCoordinate*>(mRoot)->incrementShapeCount();
+	return NpRigidActorTemplate::attachShape(shape);
 }
 
-PxReal NpArticulationLink::getLinearDamping() const
+void NpArticulationLink::detachShape(PxShape& shape, bool wakeOnLostTouch)
 {
-	NP_READ_CHECK(NpActor::getOwnerScene(*this));
-
-	return getScbBodyFast().getLinearDamping();
+	static_cast<NpArticulationReducedCoordinate*>(mRoot)->decrementShapeCount();
+	NpRigidActorTemplate::detachShape(shape, wakeOnLostTouch);
 }
 
-void NpArticulationLink::setAngularDamping(PxReal angularDamping)
+PxArticulationReducedCoordinate& NpArticulationLink::getArticulation() const
 {
-	NP_WRITE_CHECK(NpActor::getOwnerScene(*this));
-	PX_CHECK_AND_RETURN(PxIsFinite(angularDamping), "NpArticulationLink::setAngularDamping: invalid float");
-	PX_CHECK_AND_RETURN(angularDamping >= 0, "NpArticulationLink::setAngularDamping: The angular damping must be nonnegative!")
-
-	getScbBodyFast().setAngularDamping(angularDamping);
-}
-
-PxReal NpArticulationLink::getAngularDamping() const
-{
-	NP_READ_CHECK(NpActor::getOwnerScene(*this));
-
-	return getScbBodyFast().getAngularDamping();
-}
-
-PxArticulationBase& NpArticulationLink::getArticulation() const
-{
-	NP_READ_CHECK(NpActor::getOwnerScene(*this));
+	NP_READ_CHECK(getNpScene());
 	return *mRoot;
 }
 
-PxArticulationJointBase* NpArticulationLink::getInboundJoint() const
+PxArticulationJointReducedCoordinate* NpArticulationLink::getInboundJoint() const
 {
-	NP_READ_CHECK(NpActor::getOwnerScene(*this));
+	NP_READ_CHECK(getNpScene());
 	return mInboundJoint;
 }
 
 PxU32 NpArticulationLink::getInboundJointDof() const
 {
-	NP_READ_CHECK(NpActor::getOwnerScene(*this));
-	return mInboundJointDof;
+	NP_READ_CHECK(getNpScene());
+
+	return getNpScene() ? mInboundJointDof : 0xffffffffu;
 }
 
 PxU32 NpArticulationLink::getNbChildren() const
 {
-	NP_READ_CHECK(NpActor::getOwnerScene(*this));
+	NP_READ_CHECK(getNpScene());
 	return mChildLinks.size();
 }
 
 PxU32 NpArticulationLink::getChildren(PxArticulationLink** userBuffer, PxU32 bufferSize, PxU32 startIndex) const
 {
-	NP_READ_CHECK(NpActor::getOwnerScene(*this));
-	return Cm::getArrayOfPointers(userBuffer, bufferSize, startIndex, mChildLinks.begin(), mChildLinks.size());
+	NP_READ_CHECK(getNpScene());
+	return getArrayOfPointers(userBuffer, bufferSize, startIndex, mChildLinks.begin(), mChildLinks.size());
 }
 
 PxU32 NpArticulationLink::getLinkIndex() const
 {
-	NP_READ_CHECK(NpActor::getOwnerScene(*this));
-	return mLLIndex;
+	NP_READ_CHECK(getNpScene());
+	return getNpScene() ? mLLIndex : 0xffffffffu;
 }
 
 void NpArticulationLink::setCMassLocalPose(const PxTransform& pose)
 {
-	NP_WRITE_CHECK(NpActor::getOwnerScene(*this));
+	NpScene* npScene = getNpScene();
+	NP_WRITE_CHECK(npScene);
 	PX_CHECK_AND_RETURN(pose.isSane(), "PxArticulationLink::setCMassLocalPose: invalid parameter");
 
+	PX_CHECK_SCENE_API_WRITE_FORBIDDEN(npScene, "PxArticulationLink::setCMassLocalPose() not allowed while simulation is running. Call will be ignored.")
+
 	const PxTransform p = pose.getNormalized();
-	const PxTransform oldpose = getScbBodyFast().getBody2Actor();
+	const PxTransform oldpose = mCore.getBody2Actor();
 	const PxTransform comShift = p.transformInv(oldpose);
 
 	NpArticulationLinkT::setCMassLocalPoseInternal(p);
 
 	if(mInboundJoint)
 	{
-		Scb::ArticulationJoint &j = mInboundJoint->getImpl()->getScbArticulationJoint();
-		j.setChildPose(comShift.transform(j.getChildPose()));
+		NpArticulationJointReducedCoordinate* j = static_cast<NpArticulationJointReducedCoordinate*>(mInboundJoint);
+		// PT:: tag: scalar transform*transform
+		j->scSetChildPose(comShift.transform(j->getCore().getChildPose()));
 	}
 
 	for(PxU32 i=0; i<mChildLinks.size(); i++)
 	{
-		Scb::ArticulationJoint &j = static_cast<NpArticulationJoint*>(mChildLinks[i]->getInboundJoint())->getScbArticulationJoint();
-		j.setParentPose(comShift.transform(j.getParentPose()));
+		NpArticulationJointReducedCoordinate* j = static_cast<NpArticulationJointReducedCoordinate*>(mChildLinks[i]->getInboundJoint());
+		// PT:: tag: scalar transform*transform
+		j->scSetParentPose(comShift.transform(j->getCore().getParentPose()));
 	}
+}
+
+PxVec3 NpArticulationLink::getLinearAcceleration() const
+{
+	return mRoot ? mRoot->getLinkAcceleration(getLinkIndex()).linear : PxVec3(0.0f);
+}
+
+PxVec3 NpArticulationLink::getAngularAcceleration() const
+{
+	return mRoot ? mRoot->getLinkAcceleration(getLinkIndex()).angular : PxVec3(0.0f);
 }
 
 void NpArticulationLink::addForce(const PxVec3& force, PxForceMode::Enum mode, bool autowake)
 {
-	NpScene* scene = NpActor::getOwnerScene(*this);
-	PX_UNUSED(scene);
+	NpScene* npScene = getNpScene();
+	NP_WRITE_CHECK(npScene);
+	PX_CHECK_AND_RETURN(force.isFinite(), "PxArticulationLink::addForce: force is not valid.");
+	PX_CHECK_AND_RETURN(npScene, "PxArticulationLink::addForce: Articulation link must be in a scene.");
 
-	PX_CHECK_AND_RETURN(force.isFinite(), "NpArticulationLink::addForce: force is not valid.");
-	NP_WRITE_CHECK(scene);
-	PX_CHECK_AND_RETURN(scene, "NpArticulationLink::addForce: articulation link must be in a scene!");
+	PX_CHECK_SCENE_API_WRITE_FORBIDDEN_EXCEPT_SPLIT_SIM(npScene, "PxArticulationLink::addForce() not allowed while simulation is running, except in a split simulation in-between PxScene::fetchCollision() and PxScene::advance().Call will be ignored.")
 
-	addSpatialForce(&force, 0, mode);
+	if (npScene && (npScene->getFlags() & PxSceneFlag::eENABLE_DIRECT_GPU_API) && npScene->isDirectGPUAPIInitialized())
+	{
+		PxGetFoundation().error(PxErrorCode::eINVALID_OPERATION, PX_FL, "PxArticulationLink::addForce(): it is illegal to call this method if PxSceneFlag::eENABLE_DIRECT_GPU_API is enabled!");
+	}
 
-	reinterpret_cast<PxArticulationImpl*>(mRoot->getImpl())->wakeUpInternal((!force.isZero()), autowake);
+	addSpatialForce(&force, NULL, mode);
+
+	static_cast<NpArticulationReducedCoordinate*>(mRoot)->wakeUpInternal((!force.isZero()), autowake);
 }
 
 void NpArticulationLink::addTorque(const PxVec3& torque, PxForceMode::Enum mode, bool autowake)
 {
-	NpScene* scene = NpActor::getOwnerScene(*this);
-	PX_UNUSED(scene);
+	NpScene* npScene = getNpScene();
+	NP_WRITE_CHECK(npScene);
+	PX_CHECK_AND_RETURN(torque.isFinite(), "PxArticulationLink::addTorque: force is not valid.");
+	PX_CHECK_AND_RETURN(npScene, "PxArticulationLink::addTorque: Articulation link must be in a scene.");
 
-	PX_CHECK_AND_RETURN(torque.isFinite(), "NpArticulationLink::addTorque: force is not valid.");
-	NP_WRITE_CHECK(scene);
-	PX_CHECK_AND_RETURN(scene, "NpArticulationLink::addTorque: articulation link must be in a scene!");
+	PX_CHECK_SCENE_API_WRITE_FORBIDDEN_EXCEPT_SPLIT_SIM(npScene, "PxArticulationLink::addTorque() not allowed while simulation is running, except in a split simulation in-between PxScene::fetchCollision() and PxScene::advance().Call will be ignored.")
 
-	addSpatialForce(0, &torque, mode);
+	if (npScene && (npScene->getFlags() & PxSceneFlag::eENABLE_DIRECT_GPU_API) && npScene->isDirectGPUAPIInitialized())
+	{
+		PxGetFoundation().error(PxErrorCode::eINVALID_OPERATION, PX_FL, "PxArticulationLink::addTorque(): it is illegal to call this method if PxSceneFlag::eENABLE_DIRECT_GPU_API is enabled!");
+	}
 
-	reinterpret_cast<PxArticulationImpl*>(mRoot->getImpl())->wakeUpInternal((!torque.isZero()), autowake);
+	addSpatialForce(NULL, &torque, mode);
+
+	static_cast<NpArticulationReducedCoordinate*>(mRoot)->wakeUpInternal((!torque.isZero()), autowake);
 }
 
 void NpArticulationLink::setForceAndTorque(const PxVec3& force, const PxVec3& torque, PxForceMode::Enum mode)
 {
-	NpScene* scene = NpActor::getOwnerScene(*this);
-	PX_UNUSED(scene);
+	NpScene* npScene = getNpScene();
+	NP_WRITE_CHECK(npScene);
+	PX_CHECK_AND_RETURN(torque.isFinite(), "PxArticulationLink::setForceAndTorque: torque is not valid.");
+	PX_CHECK_AND_RETURN(force.isFinite(), "PxArticulationLink::setForceAndTorque: force is not valid.");
+	PX_CHECK_AND_RETURN(npScene, "PxArticulationLink::addTorque: Articulation link must be in a scene.");
 
-	PX_CHECK_AND_RETURN(torque.isFinite(), "NpArticulationLink::setForceAndTorque: torque is not valid.");
-	PX_CHECK_AND_RETURN(force.isFinite(), "NpArticulationLink::setForceAndTorque: force is not valid.");
-	NP_WRITE_CHECK(scene);
-	PX_CHECK_AND_RETURN(scene, "NpArticulationLink::addTorque: articulation link must be in a scene!");
+	PX_CHECK_SCENE_API_WRITE_FORBIDDEN_EXCEPT_SPLIT_SIM(npScene, "PxArticulationLink::setForceAndTorque() not allowed while simulation is running, except in a split simulation in-between PxScene::fetchCollision() and PxScene::advance().Call will be ignored.");
+
+	if (npScene && (npScene->getFlags() & PxSceneFlag::eENABLE_DIRECT_GPU_API) && npScene->isDirectGPUAPIInitialized())
+	{
+		PxGetFoundation().error(PxErrorCode::eINVALID_OPERATION, PX_FL, "PxArticulationLink::setForceAndTorque(): it is illegal to call this method if PxSceneFlag::eENABLE_DIRECT_GPU_API is enabled!");
+	}
 
 	setSpatialForce(&force, &torque, mode);
 
-	reinterpret_cast<PxArticulationImpl*>(mRoot->getImpl())->wakeUpInternal((!torque.isZero()), true);
+	static_cast<NpArticulationReducedCoordinate*>(mRoot)->wakeUpInternal((!torque.isZero()), true);
 }
 
 void NpArticulationLink::clearForce(PxForceMode::Enum mode)
 {
-	NpScene* scene = NpActor::getOwnerScene(*this);
-	PX_UNUSED(scene);
-	NP_WRITE_CHECK(scene);
-	PX_CHECK_AND_RETURN(scene, "NpArticulationLink::clearForce: articulation link must be in a scene!");
+	NpScene* npScene = getNpScene();
+	NP_WRITE_CHECK(npScene);
+	PX_CHECK_AND_RETURN(npScene, "PxArticulationLink::clearForce: Articulation link must be in a scene.");
+
+	PX_CHECK_SCENE_API_WRITE_FORBIDDEN_EXCEPT_SPLIT_SIM(npScene, "PxArticulationLink::clearForce() not allowed while simulation is running, except in a split simulation in-between PxScene::fetchCollision() and PxScene::advance().Call will be ignored.");
+
+	if (npScene && (npScene->getFlags() & PxSceneFlag::eENABLE_DIRECT_GPU_API) && npScene->isDirectGPUAPIInitialized())
+	{
+		PxGetFoundation().error(PxErrorCode::eINVALID_OPERATION, PX_FL, "PxArticulationLink::clearForce(): it is illegal to call this method if PxSceneFlag::eENABLE_DIRECT_GPU_API is enabled!");
+	}
 
 	clearSpatialForce(mode, true, false);
 }
 
 void NpArticulationLink::clearTorque(PxForceMode::Enum mode)
 {
-	NpScene* scene = NpActor::getOwnerScene(*this);
-	PX_UNUSED(scene);
-	NP_WRITE_CHECK(scene);
-	PX_CHECK_AND_RETURN(scene, "NpArticulationLink::clearTorque: articulation link must be in a scene!");
+	NpScene* npScene = getNpScene();
+	NP_WRITE_CHECK(npScene);
+	PX_CHECK_AND_RETURN(npScene, "PxArticulationLink::clearTorque: Articulation link must be in a scene.");
+
+	PX_CHECK_SCENE_API_WRITE_FORBIDDEN_EXCEPT_SPLIT_SIM(npScene, "PxArticulationLink::clearTorque() not allowed while simulation is running, except in a split simulation in-between PxScene::fetchCollision() and PxScene::advance().Call will be ignored.");
+
+	if (npScene && (npScene->getFlags() & PxSceneFlag::eENABLE_DIRECT_GPU_API) && npScene->isDirectGPUAPIInitialized())
+	{
+		PxGetFoundation().error(PxErrorCode::eINVALID_OPERATION, PX_FL, "PxArticulationLink::clearTorque(): it is illegal to call this method if PxSceneFlag::eENABLE_DIRECT_GPU_API is enabled!");
+	}
 
 	clearSpatialForce(mode, false, true);
 }
 
+void NpArticulationLink::setCfmScale(const PxReal cfmScale) 
+{
+	NP_WRITE_CHECK(getNpScene());
+	PX_CHECK_AND_RETURN(cfmScale >= 0.f  && cfmScale <= 1.f, "PxArticulationLink::setCfmScale: cfm is not valid.");
+
+	PX_CHECK_SCENE_API_WRITE_FORBIDDEN(getNpScene(), "PxArticulationLink::setCfmScale() not allowed while simulation is running. Call will be ignored.")
+
+	mCore.getCore().cfmScale = cfmScale;
+	OMNI_PVD_SET(OMNI_PVD_CONTEXT_HANDLE, PxArticulationLink, CFMScale, static_cast<PxArticulationLink&>(*this), cfmScale); // @@@
+}
+
+PxReal NpArticulationLink::getCfmScale() const
+{
+	NP_READ_CHECK(getNpScene());
+	return mCore.getCore().cfmScale;
+}
+
 void NpArticulationLink::setGlobalPoseInternal(const PxTransform& pose, bool autowake)
 {
-	NpScene* scene = NpActor::getOwnerScene(*this);
+	NpScene* npScene = getNpScene();
+	NP_WRITE_CHECK(npScene);
+	PX_CHECK_AND_RETURN(pose.isSane(), "PxArticulationLink::setGlobalPose: pose is not valid.");
 
-	PX_CHECK_AND_RETURN(pose.isValid(), "NpArticulationLink::setGlobalPose pose is not valid.");
+	PX_CHECK_SCENE_API_WRITE_FORBIDDEN(npScene, "PxArticulationLink::setGlobalPose() not allowed while simulation is running. Call will be ignored.")
 
-	NP_WRITE_CHECK(scene);
+	if (npScene && (npScene->getFlags() & PxSceneFlag::eENABLE_DIRECT_GPU_API) && npScene->isDirectGPUAPIInitialized())
+	{
+		PxGetFoundation().error(PxErrorCode::eINVALID_OPERATION, PX_FL, "PxArticulationLink::setGlobalPose(): it is illegal to call this method if PxSceneFlag::eENABLE_DIRECT_GPU_API is enabled!");
+	}
 
 #if PX_CHECKED
-	if (scene)
-		scene->checkPositionSanity(*this, pose, "PxArticulationLink::setGlobalPose");
+	if (npScene)
+		npScene->checkPositionSanity(*this, pose, "PxArticulationLink::setGlobalPose");
 #endif
 
-	PxTransform body2World = pose * getScbBodyFast().getBody2Actor();
-	getScbBodyFast().setBody2World(body2World, false);
+	const PxTransform newPose = pose.getNormalized();	//AM: added to fix 1461 where users read and write orientations for no reason.
 
-	if (scene && autowake)
-		reinterpret_cast<PxArticulationImpl*>(mRoot->getImpl())->wakeUpInternal(false, true);
+	// PT:: tag: scalar transform*transform
+	const PxTransform body2World = newPose * mCore.getBody2Actor();
+	scSetBody2World(body2World);
 
-	if (scene)
-		reinterpret_cast<PxArticulationImpl*>(mRoot->getImpl())->setGlobalPose();
+	if (npScene && autowake)
+		static_cast<NpArticulationReducedCoordinate*>(mRoot)->wakeUpInternal(false, true);
+
+	if (npScene)
+		static_cast<NpArticulationReducedCoordinate*>(mRoot)->setGlobalPose();
 }
 
-void NpArticulationLink::setGlobalPose(const PxTransform& pose)
+void NpArticulationLink::setInboundJointDof(const PxU32 index)
 {
-	// clow: no need to test inputs here, it's done in the setGlobalPose function already
-	setGlobalPose(pose, true);
+	mInboundJointDof = index;
+	OMNI_PVD_SET(OMNI_PVD_CONTEXT_HANDLE, PxArticulationLink, inboundJointDOF, static_cast<PxArticulationLink&>(*this), mInboundJointDof);
 }
 
-void NpArticulationLink::setGlobalPose(const PxTransform& pose, bool autowake)
+void NpArticulationLink::setFixedBaseLink(bool value)
 {
-	PX_CHECK_AND_RETURN(mRoot->getConcreteType() == PxConcreteType::eARTICULATION, "NpArticulationLink::setGlobalPose teleport isn't allowed in the reduced coordinate system.");
-	setGlobalPoseInternal(pose, autowake);
+	NP_WRITE_CHECK(getNpScene());
+
+	mCore.setFixedBaseLink(value);
 }
 
-void NpArticulationLink::setLinearVelocity(const PxVec3& velocity, bool autowake)
+PxU32 physx::NpArticulationGetShapes(NpArticulationLink& actor, NpShape* const*& shapes, bool* isCompound)
 {
-	NpScene* scene = NpActor::getOwnerScene(*this);
-
-	PX_CHECK_AND_RETURN(velocity.isFinite(), "NpArticulationLink::setLinearVelocity velocity is not valid.");
-
-	NP_WRITE_CHECK(scene);
-	
-	getScbBodyFast().setLinearVelocity(velocity);
-
-	if (scene)
-		reinterpret_cast<PxArticulationImpl*>(mRoot->getImpl())->wakeUpInternal((!velocity.isZero()), autowake);
+	NpShapeManager& sm = actor.getShapeManager();
+	shapes = sm.getShapes();
+	if (isCompound)
+		*isCompound = sm.isSqCompound();
+	return sm.getNbShapes();
 }
 
-void NpArticulationLink::setAngularVelocity(const PxVec3& velocity, bool autowake)
-{
-	NpScene* scene = NpActor::getOwnerScene(*this);
-
-	PX_CHECK_AND_RETURN(velocity.isFinite(), "NpArticulationLink::setAngularVelocity velocity is not valid.");
-
-	NP_WRITE_CHECK(scene);
-
-	getScbBodyFast().setAngularVelocity(velocity);
-
-	if (scene)
-		reinterpret_cast<PxArticulationImpl*>(mRoot->getImpl())->wakeUpInternal((!velocity.isZero()), autowake);
-}
-
-void NpArticulationLink::setMaxAngularVelocity(PxReal maxAngularVelocity)
-{
-	NP_WRITE_CHECK(NpActor::getOwnerScene(*this));
-	PX_CHECK_AND_RETURN(PxIsFinite(maxAngularVelocity), "NpArticulationLink::setMaxAngularVelocity: invalid float");
-	PX_CHECK_AND_RETURN(maxAngularVelocity >= 0.0f, "NpArticulationLink::setMaxAngularVelocity: threshold must be non-negative!");
-
-	getScbBodyFast().setMaxAngVelSq(maxAngularVelocity * maxAngularVelocity);
-}
-
-PxReal NpArticulationLink::getMaxAngularVelocity() const
-{
-	NP_READ_CHECK(NpActor::getOwnerScene(*this));
-
-	return PxSqrt(getScbBodyFast().getMaxAngVelSq());
-}
-
-void NpArticulationLink::setMaxLinearVelocity(PxReal maxLinearVelocity)
-{
-	NP_WRITE_CHECK(NpActor::getOwnerScene(*this));
-	PX_CHECK_AND_RETURN(PxIsFinite(maxLinearVelocity), "NpArticulationLink::setMaxAngularVelocity: invalid float");
-	PX_CHECK_AND_RETURN(maxLinearVelocity >= 0.0f, "NpArticulationLink::setMaxAngularVelocity: threshold must be non-negative!");
-
-	getScbBodyFast().setMaxLinVelSq(maxLinearVelocity * maxLinearVelocity);
-}
-
-PxReal NpArticulationLink::getMaxLinearVelocity() const
-{
-	NP_READ_CHECK(NpActor::getOwnerScene(*this));
-
-	return PxSqrt(getScbBodyFast().getMaxLinVelSq());
-}
-
-#if PX_ENABLE_DEBUG_VISUALIZATION
-void NpArticulationLink::visualize(Cm::RenderOutput& out, NpScene* scene)
-{
-	NpArticulationLinkT::visualize(out, scene);
-
-	if (getScbBodyFast().getActorFlags() & PxActorFlag::eVISUALIZATION)
-	{
-		PX_ASSERT(getScene());
-		PxReal scale = getScene()->getVisualizationParameter(PxVisualizationParameter::eSCALE);
-
-		PxReal massAxes = scale * getScene()->getVisualizationParameter(PxVisualizationParameter::eBODY_MASS_AXES);
-		if (massAxes != 0)
-		{
-			PxU32 color = 0xff;
-			color = (color<<16 | color<<8 | color);
-			PxVec3 dims = invertDiagInertia(getScbBodyFast().getInverseInertia());
-			dims = getDimsFromBodyInertia(dims, 1.0f / getScbBodyFast().getInverseMass());
-
-			out << color << getScbBodyFast().getBody2World() << Cm::DebugBox(dims * 0.5f);
-		}	
-		PxReal frameScale = scale * getScene()->getVisualizationParameter(PxVisualizationParameter::eJOINT_LOCAL_FRAMES);
-		PxReal limitScale = scale * getScene()->getVisualizationParameter(PxVisualizationParameter::eJOINT_LIMITS);
-		if ( frameScale != 0.0f || limitScale != 0.0f )
-		{
-			Cm::ConstraintImmediateVisualizer viz( frameScale, limitScale, out );
-			visualizeJoint( viz );
-		}
-	}
-}
-
-static PX_FORCE_INLINE PxReal computePhi(const PxQuat& q)
-{
-	PxQuat twist = q;
-	twist.normalize();
-
-	PxReal angle = twist.getAngle();
-	if (twist.x<0.0f)
-		angle = -angle;
-	return angle;
-}
-
-// PT: TODO: don't duplicate this, it should be available in MathUtils or something
-static PX_FORCE_INLINE float computeSwingAngle(float swingYZ, float swingW)
-{
-	return 4.0f * PxAtan2(swingYZ, 1.0f + swingW);	// tan (t/2) = sin(t)/(1+cos t), so this is the quarter angle
-}
-
-static PX_FORCE_INLINE void separateSwingTwist(const PxQuat& q, PxQuat& twist, PxQuat& swing1, PxQuat& swing2)
-{
-	twist = q.x != 0.0f ? PxQuat(q.x, 0, 0, q.w).getNormalized() : PxQuat(PxIdentity);
-	PxQuat swing = q * twist.getConjugate();
-	swing1 = swing.y != 0.f ? PxQuat(0.f, swing.y, 0.f, swing.w).getNormalized() : PxQuat(PxIdentity);
-	swing = swing * swing1.getConjugate();
-	swing2 = swing.z != 0.f ? PxQuat(0.f, 0.f, swing.z, swing.w).getNormalized() : PxQuat(PxIdentity);
-}
-
-void NpArticulationLink::setKinematicLink(const bool value)
-{
-	NP_WRITE_CHECK(NpActor::getOwnerScene(*this));
-
-	getScbBodyFast().getScBody().setKinematicLink(value);
-
-}
-
-void NpArticulationLink::visualizeJoint(PxConstraintVisualizer& jointViz)
-{
-	NpArticulationLink* parent = getParent();
-	if(parent)
-	{
-		PxTransform cA2w = getGlobalPose().transform(mInboundJoint->getChildPose());
-		PxTransform cB2w = parent->getGlobalPose().transform(mInboundJoint->getParentPose());
-	
-		jointViz.visualizeJointFrames(cA2w, cB2w);
-
-		PxArticulationJointImpl* impl = mInboundJoint->getImpl();
-
-		if (getArticulation().getConcreteType() == PxConcreteType::eARTICULATION)
-		{
-			PxTransform parentFrame = cB2w;
-
-			if (cA2w.q.dot(cB2w.q) < 0)
-				cB2w.q = -cB2w.q;
-
-			PxTransform cB2cA = cA2w.transformInv(cB2w);
-
-			PxQuat swing, twist;
-			Ps::separateSwingTwist(cB2cA.q, swing, twist);
-
-			PxMat33 cA2w_m(cA2w.q), cB2w_m(cB2w.q);
-
-			PxReal tqPhi = Ps::tanHalf(twist.x, twist.w);		// always support (-pi, +pi)
-
-			PxReal lower, upper, yLimit, zLimit;
-
-			impl->getScbArticulationJoint().getTwistLimit(lower, upper);
-			impl->getScbArticulationJoint().getSwingLimit(yLimit, zLimit);
-			PxReal swingPad = impl->getScbArticulationJoint().getSwingLimitContactDistance(), twistPad = impl->getScbArticulationJoint().getTwistLimitContactDistance();
-			jointViz.visualizeAngularLimit(parentFrame, lower, upper, PxAbs(tqPhi) > PxTan(upper - twistPad));
-
-			PxVec3 tanQSwing = PxVec3(0, Ps::tanHalf(swing.z, swing.w), -Ps::tanHalf(swing.y, swing.w));
-			Cm::ConeLimitHelper coneHelper(PxTan(yLimit / 4), PxTan(zLimit / 4), PxTan(swingPad / 4));
-			jointViz.visualizeLimitCone(parentFrame, PxTan(yLimit / 4), PxTan(zLimit / 4), !coneHelper.contains(tanQSwing));
-		}
-		else
-		{
-			PX_ASSERT(getArticulation().getConcreteType() == PxConcreteType::eARTICULATION_REDUCED_COORDINATE);
-			//(1) visualize any angular dofs/limits...
-
-			const PxMat33 cA2w_m(cA2w.q), cB2w_m(cB2w.q);
-
-			PxTransform parentFrame = cB2w;
-
-			if (cA2w.q.dot(cB2w.q) < 0)
-				cB2w.q = -cB2w.q;
-
-			//const PxTransform cB2cA = cA2w.transformInv(cB2w);
-
-			const PxTransform cA2cB = cB2w.transformInv(cA2w);
-
-			Sc::ArticulationJointCore& joint = impl->getScbArticulationJoint().getScArticulationJoint();
-
-			PxQuat swing1, swing2, twist;
-			separateSwingTwist(cA2cB.q, twist, swing1, swing2);
-
-			const PxReal pad = 0.01f;
-
-			if(joint.getMotion(PxArticulationAxis::eTWIST))
-			{
-				PxReal lowLimit, highLimit;
-
-				const PxReal angle = computePhi(twist);
-				joint.getLimit(PxArticulationAxis::Enum(PxArticulationAxis::eTWIST), lowLimit, highLimit);
-
-				bool active = (angle-pad) < lowLimit || (angle+pad) > highLimit;
-
-				PxTransform tmp = parentFrame;
-
-				jointViz.visualizeAngularLimit(tmp, lowLimit, highLimit, active);
-			}
-
-			if (joint.getMotion(PxArticulationAxis::eSWING1))
-			{
-				PxReal lowLimit, highLimit;
-
-				joint.getLimit(PxArticulationAxis::Enum(PxArticulationAxis::eSWING1), lowLimit, highLimit);
-
-				const PxReal angle = computeSwingAngle(swing1.y, swing1.w);
-
-				bool active = (angle - pad) < lowLimit || (angle + pad) > highLimit;
-
-				PxTransform tmp = parentFrame;
-				tmp.q = tmp.q * PxQuat(-PxPiDivTwo, PxVec3(0.f, 0.f, 1.f));
-
-				
-				jointViz.visualizeAngularLimit(tmp, -highLimit, -lowLimit, active);
-			}
-
-			if (joint.getMotion(PxArticulationAxis::eSWING2))
-			{
-				PxReal lowLimit, highLimit;
-
-				joint.getLimit(PxArticulationAxis::Enum(PxArticulationAxis::eSWING2), lowLimit, highLimit);
-
-				const PxReal angle = computeSwingAngle(swing2.z, swing2.w);
-
-				bool active = (angle - pad) < lowLimit || (angle + pad) > highLimit;
-
-				PxTransform tmp = parentFrame;
-				tmp.q = tmp.q * PxQuat(PxPiDivTwo, PxVec3(0.f, 1.f, 0.f));
-
-				jointViz.visualizeAngularLimit(tmp, -highLimit, -lowLimit, active);
-			}
-
-			for (PxU32 i = PxArticulationAxis::eX; i <= PxArticulationAxis::eZ; ++i)
-			{
-				if (joint.getMotion(PxArticulationAxis::Enum(i)) == PxArticulationMotion::eLIMITED)
-				{
-					PxU32 index = i - PxArticulationAxis::eX;
-					PxReal lowLimit, highLimit;
-					joint.getLimit(PxArticulationAxis::Enum(i), lowLimit, highLimit);
-					PxReal ordinate = cA2cB.p[index];
-					PxVec3 origin = cB2w.p;
-					PxVec3 axis = cA2w_m[index];
-					const bool active = ordinate < lowLimit || ordinate > highLimit;
-					const PxVec3 p0 = origin + axis * lowLimit;
-					const PxVec3 p1 = origin + axis * highLimit;
-					jointViz.visualizeLine(p0, p1, active ? 0xff0000u : 0xffffffu);
-				}
-			}
-		}
-	}	
-}
-#endif  // PX_ENABLE_DEBUG_VISUALIZATION
