@@ -142,7 +142,15 @@ void QPhysXDynamicBody::sync(float deltaTime, QHash<QQuick3DNode *, QMatrix4x4> 
 
     auto *dynamicActor = static_cast<physx::PxRigidDynamic *>(actor);
     processCommandQueue(dynamicRigidBody->commandQueue(), *dynamicRigidBody, *dynamicActor);
-    if (dynamicRigidBody->isKinematic()) {
+
+    const bool disabledPrevious = actor->getActorFlags() & physx::PxActorFlag::eDISABLE_SIMULATION;
+    const bool disabled = !dynamicRigidBody->simulationEnabled();
+
+    // A body whose simulation is disabled has no simulation object behind it, and
+    // PxRigidDynamic::setKinematicTarget() dereferences that object without checking, so it
+    // must not be called for such a body. Nothing is lost by skipping it: the target is
+    // recomputed and set again on the first frame the body takes part in the simulation.
+    if (dynamicRigidBody->isKinematic() && !disabled && !disabledPrevious) {
         // Since this is a kinematic body we need to calculate the transform by hand and since
         // bodies can occur in other bodies we need to calculate the tranform recursively for all
         // parents. To save some computation we cache these transforms in 'transformCache'.
@@ -154,12 +162,10 @@ void QPhysXDynamicBody::sync(float deltaTime, QHash<QQuick3DNode *, QMatrix4x4> 
             qWarning() << "DynamicRigidBody: kinematic transform is not finite, keeping "
                           "previous target.";
         }
-    } else {
+    } else if (!dynamicRigidBody->isKinematic()) {
         dynamicActor->setRigidDynamicLockFlags(getLockFlags(dynamicRigidBody));
     }
 
-    const bool disabledPrevious = actor->getActorFlags() & physx::PxActorFlag::eDISABLE_SIMULATION;
-    const bool disabled = !dynamicRigidBody->simulationEnabled();
     if (disabled != disabledPrevious) {
         actor->setActorFlag(physx::PxActorFlag::eDISABLE_SIMULATION, disabled);
         if (!disabled && !dynamicRigidBody->isKinematic())
