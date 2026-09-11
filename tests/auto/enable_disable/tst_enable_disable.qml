@@ -231,6 +231,34 @@ Item {
                 }
             }
         }
+
+        Node {
+            id: disabledNode
+            x: 10
+
+            // PhysX only rejects forces and impulses on a body with its simulation disabled
+            // in checked builds, and dereferences the simulation object such a body does not
+            // have in release ones, so make sure we never pass them on.
+            DynamicRigidBody {
+                id: disabledBody
+                simulationEnabled: false
+                position: Qt.vector3d(0, 6, 0)
+                collisionShapes: SphereShape {
+                    diameter: 1
+                }
+                property bool commandsSent: false
+
+                function sendCommands() {
+                    applyCentralForce(Qt.vector3d(0, 1000, 0));
+                    applyForce(Qt.vector3d(0, 1000, 0), Qt.vector3d(0.1, 0, 0));
+                    applyTorque(Qt.vector3d(0, 1000, 0));
+                    applyCentralImpulse(Qt.vector3d(0, 1000, 0));
+                    applyImpulse(Qt.vector3d(0, 1000, 0), Qt.vector3d(0.1, 0, 0));
+                    applyTorqueImpulse(Qt.vector3d(0, 1000, 0));
+                    commandsSent = true;
+                }
+            }
+        }
     }
 
     PhysicsTestCase {
@@ -256,5 +284,19 @@ Item {
     PhysicsTestCase {
         name: "trigger center low box"
         goalReached: boxCentreLow.hasCollided
+    }
+
+    Timer {
+        interval: 100
+        running: true
+        onTriggered: disabledBody.sendCommands()
+    }
+
+    PhysicsTestCase {
+        name: "disabled body ignores commands"
+        // The body must still be where it started: not simulated, and not moved by any of
+        // the forces and impulses applied to it.
+        goalReached: disabledBody.commandsSent && world.elapsedTime > 500
+                     && disabledBody.position.y === 6
     }
 }
