@@ -59,6 +59,7 @@ class QQuick3DPrincipledMaterial;
 class QPhysXWorld;
 class FrameAnimator;
 class QPhysicsJoint;
+class QRaycaster;
 
 class Q_QUICK3DPHYSICS_EXPORT QPhysicsWorld : public QObject, public QQmlParserStatus
 {
@@ -238,6 +239,14 @@ signals:
     Q_REVISION(6, 13) void dynamicQueryStructureChanged();
 
 private:
+    static void registerRaycaster(QRaycaster *raycaster);
+    static void deregisterRaycaster(QRaycaster *raycaster);
+
+    QQuick3DPhysicsLocationHit
+    closestRaycastHit(const QVector3D &origin, const QVector3D &direction, float maxDistance,
+                      bool includeStatic, bool includeDynamic,
+                      QSpan<const QAbstractPhysicsNode *const> excludedBodies) const;
+
     void simulateFrame();
     void frameFinished(float deltaTime);
     void frameFinishedDesignStudio();
@@ -251,6 +260,7 @@ private:
     void disableDebugDraw();
     void matchOrphanNodes();
     void matchOrphanJoints();
+    void matchOrphanRaycasters();
     void findPhysicsNodes();
     void emitContactCallbacks();
 
@@ -302,6 +312,7 @@ private:
 
     QList<QAbstractPhysXNode *> m_physXBodies;
     QList<QPhysicsJoint *> m_joints;
+    QList<QRaycaster *> m_raycasters;
     QList<QAbstractPhysicsNode *> m_newPhysicsNodes;
     QHash<QPair<QAbstractCollisionShape *, QAbstractPhysicsNode *>, DebugModelHolder>
             m_DesignStudioDebugModels;
@@ -353,6 +364,8 @@ private:
     bool m_frameFetched = false;
     QueryStructure m_staticQueryStructure = QueryStructure::DynamicTree;
     QueryStructure m_dynamicQueryStructure = QueryStructure::DynamicTree;
+
+    friend class QRaycaster;
 };
 
 QT_END_NAMESPACE

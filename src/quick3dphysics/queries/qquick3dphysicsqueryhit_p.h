@@ -17,6 +17,7 @@
 //
 
 #include <QtCore/QObject>
+#include <QtCore/QPointer>
 #include <QtGui/QVector3D>
 #include <QtQml/qqmlregistration.h>
 #include <QtQuick3DPhysics/qtquick3dphysicsglobal.h>
@@ -52,8 +53,8 @@ public:
     Q_REVISION(6, 13) QAbstractCollisionShape *shape() const;
 
 private:
-    QAbstractPhysicsNode *m_body = nullptr;
-    QAbstractCollisionShape *m_shape = nullptr;
+    QPointer<QAbstractPhysicsNode> m_body;
+    QPointer<QAbstractCollisionShape> m_shape;
 };
 
 QT_END_NAMESPACE

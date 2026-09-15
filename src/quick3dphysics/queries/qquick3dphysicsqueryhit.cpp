@@ -3,6 +3,10 @@
 // Qt-Security score:significant reason:default
 
 #include "qquick3dphysicsqueryhit_p.h"
+
+#include "qabstractcollisionshape_p.h"
+#include "qabstractphysicsnode_p.h"
+
 #include <PxQueryReport.h>
 #include <PxRigidActor.h>
 
@@ -52,12 +56,12 @@ QQuick3DPhysicsQueryHit::QQuick3DPhysicsQueryHit(const physx::PxQueryHit &/*hit*
 
 QAbstractPhysicsNode *QQuick3DPhysicsQueryHit::body() const
 {
-    return m_body;
+    return m_body.data();
 }
 
 QAbstractCollisionShape *QQuick3DPhysicsQueryHit::shape() const
 {
-    return m_shape;
+    return m_shape.data();
 }
 
 QT_END_NAMESPACE

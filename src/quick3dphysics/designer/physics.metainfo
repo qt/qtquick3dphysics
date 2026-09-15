@@ -260,6 +260,26 @@ MetaInfo {
     }
 
     Type {
+        name: "QtQuick3D.Physics.Raycaster"
+        icon: "images/raycaster16.png"
+
+        Hints {
+            visibleInNavigator: true
+            canBeDroppedInNavigator: true
+            canBeDroppedInFormEditor: false
+            canBeDroppedInView3D: true
+        }
+
+        ItemLibraryEntry {
+            name: "Raycaster"
+            category: "Components"
+            libraryIcon: "images/raycaster.png"
+            version: "6.13"
+            requiredImport: "QtQuick3D.Physics"
+        }
+    }
+
+    Type {
         name: "QtQuick3D.Physics.DistanceJoint"
         icon: "images/joint16.png"
 

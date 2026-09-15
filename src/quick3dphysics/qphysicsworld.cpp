@@ -18,6 +18,7 @@
 #include "qcharactercontroller_p.h"
 #include "qcapsuleshape_p.h"
 #include "qplaneshape_p.h"
+#include "qraycaster_p.h"
 #include "qheightfieldshape_p.h"
 #include "qtriggerbody_p.h"
 
@@ -610,7 +611,8 @@ static bool raycastImpl(const physx::PxScene *scene,
                  bool includeDynamic,
                  physx::PxRaycastCallback &hitCallback,
                  physx::PxHitFlags hitFlags,
-                 physx::PxQueryFlags extraQueryFlags = {})
+                 physx::PxQueryFlags extraQueryFlags = {},
+                 physx::PxQueryFilterCallback *filterCall = nullptr)
 {
     if (!validateQuery(scene, includeStatic, includeDynamic))
         return false;
@@ -641,7 +643,7 @@ static bool raycastImpl(const physx::PxScene *scene,
 
     // Execute PhysX scene raycast
     return scene->raycast(pxOrigin, pxDirection, maxDistance, hitCallback, hitFlags,
-                          physx::PxQueryFilterData(filter));
+                          physx::PxQueryFilterData(filter), filterCall);
 }
 
 static const physx::PxGeometry *validateQueryShape(const physx::PxScene *scene,
@@ -767,6 +769,43 @@ public:
 
 namespace {
 
+// Passes over the actors a Raycaster must not report: the bodies it excludes, and any actor
+// whose body was deleted earlier in this frame, which stays in the scene until the next one
+// with nothing behind it. Filtering before a hit is recorded keeps the query blocking, so
+// PhysX still shortens the ray at the first surface that is kept.
+class ExcludedBodiesFilter : public physx::PxQueryFilterCallback
+{
+public:
+    explicit ExcludedBodiesFilter(QSpan<const QAbstractPhysicsNode *const> excludedBodies)
+        : m_excludedBodies(excludedBodies)
+    {
+    }
+
+    physx::PxQueryHitType::Enum preFilter(const physx::PxFilterData & /*filterData*/,
+                                          const physx::PxShape * /*shape*/,
+                                          const physx::PxRigidActor *actor,
+                                          physx::PxHitFlags & /*queryFlags*/) override
+    {
+        const auto *body = static_cast<const QAbstractPhysicsNode *>(actor->userData);
+        if (!body)
+            return physx::PxQueryHitType::eNONE;
+        const bool excluded = std::find(m_excludedBodies.begin(), m_excludedBodies.end(), body)
+                != m_excludedBodies.end();
+        return excluded ? physx::PxQueryHitType::eNONE : physx::PxQueryHitType::eBLOCK;
+    }
+
+    physx::PxQueryHitType::Enum postFilter(const physx::PxFilterData & /*filterData*/,
+                                           const physx::PxQueryHit & /*hit*/,
+                                           const physx::PxShape * /*shape*/,
+                                           const physx::PxRigidActor * /*actor*/) override
+    {
+        return physx::PxQueryHitType::eBLOCK;
+    }
+
+private:
+    QSpan<const QAbstractPhysicsNode *const> m_excludedBodies;
+};
+
 // Collects every touching hit from a scene query. PhysX needs a caller-owned buffer to sort
 // into, and hands the hits over in batches of at most BufferSize once it fills up, so the
 // buffer stays and processTouches() appends each batch to hits.
@@ -879,6 +918,7 @@ struct QWorldManager
     QVector<QPhysicsWorld *> worlds;
     QVector<QAbstractPhysicsNode *> orphanNodes;
     QVector<QPhysicsJoint *> orphanJoints;
+    QVector<QRaycaster *> orphanRaycasters;
 };
 
 static QWorldManager worldManager = QWorldManager {};
@@ -934,6 +974,21 @@ void QPhysicsWorld::deregisterJoint(QPhysicsJoint *joint)
     worldManager.orphanJoints.removeAll(joint);
 }
 
+void QPhysicsWorld::registerRaycaster(QRaycaster *raycaster)
+{
+    if (auto *world = getWorld(raycaster))
+        world->m_raycasters.push_back(raycaster);
+    else
+        worldManager.orphanRaycasters.push_back(raycaster);
+}
+
+void QPhysicsWorld::deregisterRaycaster(QRaycaster *raycaster)
+{
+    for (auto *world : std::as_const(worldManager.worlds))
+        world->m_raycasters.removeAll(raycaster);
+    worldManager.orphanRaycasters.removeAll(raycaster);
+}
+
 void QPhysicsWorld::registerContact(QAbstractPhysicsNode *sender, QAbstractPhysicsNode *receiver,
                                     const QVector<QVector3D> &positions,
                                     const QVector<QVector3D> &impulses,
@@ -963,6 +1018,7 @@ QPhysicsWorld::QPhysicsWorld(QObject *parent) : QObject(parent)
     worldManager.worlds.push_back(this);
     matchOrphanNodes();
     matchOrphanJoints();
+    matchOrphanRaycasters();
 
     m_frameAnimator = new FrameAnimator;
     connect(m_frameAnimator, &QQuickFrameAnimation::triggered, this,
@@ -987,6 +1043,12 @@ QPhysicsWorld::~QPhysicsWorld()
     m_physx->deleteWorld();
     delete m_physx;
     worldManager.worlds.removeAll(this);
+
+    // A raycaster can outlive the world it was matched to, since it lives in the scene and
+    // not in this list. Back to the orphans, so a later world over the same scene picks it
+    // up again.
+    worldManager.orphanRaycasters += m_raycasters;
+    m_raycasters.clear();
 
     if (!qtPhysicsTimingsFile.isEmpty()) {
         if (m_frameTimings.isEmpty()) {
@@ -1894,6 +1956,7 @@ void QPhysicsWorld::frameFinished(float deltaTime)
 {
     matchOrphanNodes();
     matchOrphanJoints();
+    matchOrphanRaycasters();
 
     // One round of reports has been fetched since the shapes rebuilt below were
     // replaced, so whatever it did not mention is no longer overlapping. Kept
@@ -1947,6 +2010,12 @@ void QPhysicsWorld::frameFinished(float deltaTime)
         joint->updatePhysXBackend();
     }
 
+    const QList<QRaycaster *> raycasters = m_raycasters;
+    for (QRaycaster *raycaster : raycasters) {
+        if (m_raycasters.contains(raycaster))
+            raycaster->updateRaycast(this);
+    }
+
     updateDebugDraw();
     emit frameDone(deltaTime * 1000);
 }
@@ -1956,6 +2025,9 @@ void QPhysicsWorld::frameFinishedDesignStudio()
     // Note sure if this is needed but do it anyway
     matchOrphanNodes();
     matchOrphanJoints();
+    // Matched but never cast: no backends are created here, so the PhysX scene has no
+    // bodies for a ray to hit.
+    matchOrphanRaycasters();
     emitContactCallbacks();
     cleanupRemovedNodes();
     // Ignore new physics nodes, we find them from the scene node anyway
@@ -2058,6 +2130,20 @@ void QPhysicsWorld::matchOrphanJoints()
     }
 }
 
+void QPhysicsWorld::matchOrphanRaycasters()
+{
+    qsizetype idx = 0;
+    while (idx < worldManager.orphanRaycasters.size()) {
+        QRaycaster *raycaster = worldManager.orphanRaycasters.at(idx);
+        if (getWorld(raycaster) == this) {
+            m_raycasters.push_back(raycaster);
+            worldManager.orphanRaycasters.removeAt(idx);
+        } else {
+            ++idx;
+        }
+    }
+}
+
 void QPhysicsWorld::findPhysicsNodes()
 {
     // This method finds the physics nodes inside the scene pointed to by the
@@ -2144,6 +2230,16 @@ void QPhysicsWorld::setScene(QQuick3DNode *newScene)
             deregisterNode(body->frontendNode);
     }
 
+    // Raycasters are not physics nodes and have no backend to tear down, so hand them back
+    // to be matched against the new scene below, without a hit from the old one. Clearing
+    // reports to QML, where a handler can delete a raycaster, hence the check.
+    const QList<QRaycaster *> raycasters = std::exchange(m_raycasters, {});
+    worldManager.orphanRaycasters += raycasters;
+    for (QRaycaster *raycaster : raycasters) {
+        if (worldManager.orphanRaycasters.contains(raycaster))
+            raycaster->clearHit();
+    }
+
     // Check if scene is already used by another world
     bool sceneOK = true;
     for (QPhysicsWorld *world : std::as_const(worldManager.worlds)) {
@@ -2153,8 +2249,10 @@ void QPhysicsWorld::setScene(QQuick3DNode *newScene)
         }
     }
 
-    if (sceneOK)
+    if (sceneOK) {
         findPhysicsNodes();
+        matchOrphanRaycasters();
+    }
     emit sceneChanged();
 }
 
@@ -2299,6 +2397,23 @@ QList<QQuick3DPhysicsLocationHit> QPhysicsWorld::multiRaycastQuery(const QVector
 
         return hitBuffer.hits;
     }
+
+    return {};
+}
+
+QQuick3DPhysicsLocationHit
+QPhysicsWorld::closestRaycastHit(const QVector3D &origin, const QVector3D &direction,
+                                 float maxDistance, bool includeStatic, bool includeDynamic,
+                                 QSpan<const QAbstractPhysicsNode *const> excludedBodies) const
+{
+    ExcludedBodiesFilter filter(excludedBodies);
+    physx::PxRaycastBuffer hitBuffer;
+    const bool status = raycastImpl(m_physx->scene, origin, direction, maxDistance, includeStatic,
+                                    includeDynamic, hitBuffer, physx::PxHitFlag::eDEFAULT,
+                                    physx::PxQueryFlag::ePREFILTER, &filter);
+
+    if (status && hitBuffer.hasBlock)
+        return QQuick3DPhysicsLocationHit(hitBuffer.block, hitBuffer.block);
 
     return {};
 }

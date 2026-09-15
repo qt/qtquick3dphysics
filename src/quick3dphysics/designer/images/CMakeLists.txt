@@ -46,5 +46,8 @@ qt_copy_or_install(
         joint.png
         joint16.png
         joint@2x.png
+        raycaster.png
+        raycaster16.png
+        raycaster@2x.png
     DESTINATION "${destination}"
 )

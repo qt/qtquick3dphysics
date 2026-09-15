@@ -30,6 +30,8 @@ qt_copy_or_install(
         PhysicsWorldSpecifics.qml
         PlaneShapeSpecifics.qml
         PrismaticJointSpecifics.qml
+        RaycasterSection.qml
+        RaycasterSpecifics.qml
         RevoluteJointSpecifics.qml
         SphereShapeSection.qml
         SphereShapeSpecifics.qml

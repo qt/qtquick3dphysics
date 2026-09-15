@@ -1,0 +1,32 @@
+// Copyright (C) 2026 The Qt Company Ltd.
+// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR GFDL-1.3-no-invariants-only
+
+/*!
+    \example raycaster
+    \ingroup quick3dphysics-examples
+    \title Qt Quick 3D Physics - Raycaster Example
+    \examplecategory {3D}
+    \brief Demonstrates continuous ray intersection queries using Raycaster.
+    \image raycaster-example.webp {Raycaster intersecting physics bodies}
+
+    The example sweeps a \l Raycaster across a static box, a dynamic sphere, and
+    the floor. The ray changes color when it reports an intersection, and a yellow
+    marker shows the scene-space \l {locationHit::position}{hit position}.
+
+    \section1 Configuring the Ray
+
+    The Raycaster is a child of a semi-transparent dynamic body. Its
+    \l {Raycaster::excludeParentBody}{excludeParentBody} property determines
+    whether that body can be reported as the closest hit:
+
+    \snippet raycaster/Main.qml raycast
+
+    The control panel enables or disables the ray, selects static and dynamic
+    bodies, and changes the maximum query distance. Two controls leave bodies
+    out of the result: one toggles parent exclusion, and one names the blue
+    sphere in \l {Raycaster::excludedBodies}{excludedBodies}, so the ray passes
+    through it and reports the floor instead. The sweep can also be paused to
+    set the ray angle manually:
+
+    \snippet raycaster/Main.qml controls
+*/

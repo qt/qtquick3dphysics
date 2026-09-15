@@ -58,6 +58,18 @@ level required:
   path or volume.
 \endlist
 
+\section2 Casting a Ray on Every Frame
+
+The query methods run once, when they are called. For a ray that has to be
+checked on every frame, such as a ground probe, a suspension ray or a line of
+sight, use a \l Raycaster instead. It is a node, so the ray follows its own
+transform, and it is cast once per physics frame, before
+\l {PhysicsWorld::frameDone}{frameDone}, with the closest hit kept in its
+\l {Raycaster::hit}{hit} property for bindings to use. A Raycaster follows the
+same rules as a single raycast query, and can also leave out the body it is
+mounted on and any bodies listed in its
+\l {Raycaster::excludedBodies}{excludedBodies}.
+
 \section1 Query Mechanics and Key Nuances
 
 When using scene queries, several system behaviors should be taken
@@ -76,7 +88,8 @@ The \l {PhysicsNode::filterGroup} {filterGroup} and
 collide with each other during simulation. They have no effect on scene queries: a query
 evaluates every collider matching its \c includeStatic and \c includeDynamic arguments,
 regardless of the filter groups involved. If a query needs to ignore specific bodies,
-filter the results after the query returns.
+filter the results after the query returns. A \l Raycaster, which keeps only its closest
+hit, takes the bodies to ignore in \l {Raycaster::excludedBodies}{excludedBodies} instead.
 
 \section2 Query Shape Transforms
 

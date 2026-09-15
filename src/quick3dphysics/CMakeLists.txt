@@ -51,6 +51,7 @@ qt_internal_add_qml_module(Quick3DPhysics
         qphysicsutils_p.h
         qphysicsworld.cpp qphysicsworld_p.h
         qplaneshape.cpp qplaneshape_p.h
+        qraycaster.cpp qraycaster_p.h
         qsphereshape.cpp qsphereshape_p.h
         qtquick3dphysicsglobal_p.h
         qtquick3dphysicsglobal.h

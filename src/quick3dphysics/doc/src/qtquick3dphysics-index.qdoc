@@ -46,6 +46,7 @@ The best way to see what Qt Quick 3D Physics can do is to check out the examples
     \li \l{Qt Quick 3D Physics - CharacterController Example}{Character Controller}
     \li \l{Qt Quick 3D Physics - Joints Example}{Joints}
     \li \l{Qt Quick 3D Physics - Queries Example}{Queries}
+    \li \l{Qt Quick 3D Physics - Raycaster Example}{Raycaster}
 \endlist
 
 \section1 Reference
