@@ -291,6 +291,51 @@ QT_BEGIN_NAMESPACE
 */
 
 /*!
+    \qmlproperty vector3d DynamicRigidBody::linearVelocity
+    \readonly
+    \since 6.13
+
+    The linear velocity of the body in scene units per second. The value is updated after each
+    physics frame, making the simulated velocity directly available to physics calculations in
+    QML.
+
+    The value is computed by the simulation, so it changes in response to gravity, contacts and
+    joints as well as to any applied force or impulse.
+    \l setLinearVelocity() overrides it directly, but like the other imperative calls it is
+    queued and applied on the next physics frame, so this property keeps its old value
+    until then.
+
+    For a kinematic body this is the velocity implied by its kinematic target. It is zero
+    while the body is sleeping, and a body whose \l {PhysicsBody::}{simulationEnabled} is
+    \c false counts as sleeping.
+
+    \sa setLinearVelocity(), applyCentralForce(), applyCentralImpulse(), angularVelocity
+*/
+
+/*!
+    \qmlproperty vector3d DynamicRigidBody::angularVelocity
+    \readonly
+    \since 6.13
+
+    The angular velocity of the body in radians per second. The value is updated after each
+    physics frame, making the simulated velocity directly available to physics calculations
+    in QML.
+
+    The value is computed by the simulation, so it changes in response to contacts, joints
+    and damping as well as to any applied torque or impulse.
+    \l setAngularVelocity() overrides it directly, but like the other imperative calls it
+    is queued and applied on the next physics frame, so this property keeps its old value
+    until then. Note that the underlying engine damps angular motion by default, so a
+    freely spinning body slows down even without contacts.
+
+    For a kinematic body this is the velocity implied by its kinematic target. It is zero
+    while the body is sleeping, and a body whose \l {PhysicsBody::}{simulationEnabled} is
+    \c false counts as sleeping.
+
+    \sa setAngularVelocity(), applyTorque(), applyTorqueImpulse(), linearVelocity
+*/
+
+/*!
     \qmlmethod void DynamicRigidBody::applyCentralForce(vector3d force)
 
     Applies  a \a force on the center of the body.
@@ -330,12 +375,16 @@ QT_BEGIN_NAMESPACE
     \qmlmethod void DynamicRigidBody::setAngularVelocity(vector3d angularVelocity)
 
     Sets the \a angularVelocity of the body.
+
+    \sa angularVelocity
 */
 
 /*!
     \qmlmethod void DynamicRigidBody::setLinearVelocity(vector3d linearVelocity)
 
     Sets the \a linearVelocity of the body.
+
+    \sa linearVelocity
 */
 
 /*!
@@ -802,6 +851,32 @@ QVector3D QDynamicRigidBody::kinematicPivot() const
 bool QDynamicRigidBody::isSleeping() const
 {
     return m_isSleeping;
+}
+
+QVector3D QDynamicRigidBody::linearVelocity() const
+{
+    return m_linearVelocity;
+}
+
+QVector3D QDynamicRigidBody::angularVelocity() const
+{
+    return m_angularVelocity;
+}
+
+void QDynamicRigidBody::updateLinearVelocity(const QVector3D &velocity)
+{
+    if (m_linearVelocity == velocity)
+        return;
+    m_linearVelocity = velocity;
+    emit linearVelocityChanged(m_linearVelocity);
+}
+
+void QDynamicRigidBody::updateAngularVelocity(const QVector3D &velocity)
+{
+    if (m_angularVelocity == velocity)
+        return;
+    m_angularVelocity = velocity;
+    emit angularVelocityChanged(m_angularVelocity);
 }
 
 void QDynamicRigidBody::setIsSleeping(bool newIsSleeping)

@@ -293,6 +293,30 @@ Item {
                     simulationSteps++
                 }
             }
+
+            DynamicRigidBody {
+                id: velocityBody
+                position: Qt.vector3d(1000, 1000, 1000)
+                gravityEnabled: false
+                collisionShapes: SphereShape {
+                    diameter: 0.1
+                }
+                Component.onCompleted: {
+                    setLinearVelocity(Qt.vector3d(100, 0, 0))
+                    setAngularVelocity(Qt.vector3d(0, 1, 0))
+                }
+
+                // The velocities as they were when the body started to report sleeping,
+                // which it only does once its simulation is disabled.
+                property vector3d linearVelocityWhenAsleep: Qt.vector3d(-1, -1, -1)
+                property vector3d angularVelocityWhenAsleep: Qt.vector3d(-1, -1, -1)
+                onIsSleepingChanged: {
+                    if (velocityBody.isSleeping) {
+                        velocityBody.linearVelocityWhenAsleep = velocityBody.linearVelocity
+                        velocityBody.angularVelocityWhenAsleep = velocityBody.angularVelocity
+                    }
+                }
+            }
         }
     }
 
@@ -312,6 +336,34 @@ Item {
             var obj = spawnComponent.createObject(dynamicCreationNode)
             verify(obj.y === 1)
             dynamicCreationNode.createdObject = obj
+        }
+        function test_velocity_properties() {
+            fuzzyCompare(velocityBody.linearVelocity.x, 100, 0.1)
+            fuzzyCompare(velocityBody.linearVelocity.y, 0, 0.001)
+            fuzzyCompare(velocityBody.linearVelocity.z, 0, 0.001)
+            fuzzyCompare(velocityBody.angularVelocity.x, 0, 0.001)
+            verify(velocityBody.angularVelocity.y > 0)
+            fuzzyCompare(velocityBody.angularVelocity.z, 0, 0.001)
+            verify(linearVelocitySpy.count > 0)
+            verify(angularVelocitySpy.count > 0)
+        }
+        function test_velocity_when_disabled() {
+            velocityBody.simulationEnabled = false
+            tryCompare(velocityBody, "isSleeping", true)
+            compare(velocityBody.linearVelocityWhenAsleep, Qt.vector3d(0, 0, 0))
+            compare(velocityBody.angularVelocityWhenAsleep, Qt.vector3d(0, 0, 0))
+        }
+
+        SignalSpy {
+            id: linearVelocitySpy
+            target: velocityBody
+            signalName: "linearVelocityChanged"
+        }
+
+        SignalSpy {
+            id: angularVelocitySpy
+            target: velocityBody
+            signalName: "angularVelocityChanged"
         }
     }
 

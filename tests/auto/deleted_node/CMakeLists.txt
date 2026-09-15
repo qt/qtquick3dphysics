@@ -16,6 +16,7 @@ qt_internal_add_test(${PROJECT_NAME}
         tst_deleted_node.qml
         tst_scene_changed_mid_sync.qml
         tst_scene_changed_mid_trigger.qml
+        tst_scene_changed_mid_velocity_update.qml
     BUILTIN_TESTDATA
 )
 

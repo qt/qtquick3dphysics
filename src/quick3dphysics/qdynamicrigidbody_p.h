@@ -92,6 +92,10 @@ public:
 
     Q_PROPERTY(bool isSleeping READ isSleeping WRITE setIsSleeping NOTIFY isSleepingChanged
                        REVISION(6, 9));
+    Q_PROPERTY(QVector3D linearVelocity READ linearVelocity NOTIFY linearVelocityChanged
+                       REVISION(6, 13))
+    Q_PROPERTY(QVector3D angularVelocity READ angularVelocity NOTIFY angularVelocityChanged
+                       REVISION(6, 13))
 
     // clang-format off
 //    // ??? separate simulation control object? --- some of these have default values in the engine, so we need tristate
@@ -177,6 +181,12 @@ public:
     Q_REVISION(6, 9) void setIsSleeping(bool newIsSleeping);
     Q_REVISION(6, 9) bool isSleeping() const;
 
+    Q_REVISION(6, 13) QVector3D linearVelocity() const;
+    Q_REVISION(6, 13) QVector3D angularVelocity() const;
+
+    void updateLinearVelocity(const QVector3D &velocity);
+    void updateAngularVelocity(const QVector3D &velocity);
+
     QAbstractPhysXNode *createPhysXBackend() final;
 
 Q_SIGNALS:
@@ -198,6 +208,8 @@ Q_SIGNALS:
     Q_REVISION(6, 5) void kinematicEulerRotationChanged(const QVector3D &kinematicEulerRotation);
     Q_REVISION(6, 5) void kinematicPivotChanged(const QVector3D &kinematicPivot);
     Q_REVISION(6, 9) void isSleepingChanged(bool isSleeping);
+    Q_REVISION(6, 13) void linearVelocityChanged(const QVector3D &linearVelocity);
+    Q_REVISION(6, 13) void angularVelocityChanged(const QVector3D &angularVelocity);
 
 private:
     float m_mass = 1.f;
@@ -220,6 +232,8 @@ private:
     RotationData m_kinematicRotation;
     QVector3D m_kinematicPivot;
     bool m_isSleeping = false;
+    QVector3D m_linearVelocity;
+    QVector3D m_angularVelocity;
 };
 
 QT_END_NAMESPACE

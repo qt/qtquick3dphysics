@@ -177,9 +177,16 @@ void QPhysXDynamicBody::sync(float deltaTime, QHash<QQuick3DNode *, QMatrix4x4> 
             dynamicActor->wakeUp();
     }
 
+    // Read once the queued commands and the simulation flag are applied, so that a velocity set
+    // for this frame is reported in it, and a body disabled in it reads zero, as it also reads
+    // as sleeping.
+    dynamicRigidBody->updateLinearVelocity(
+            QPhysicsUtils::toQtType(dynamicActor->getLinearVelocity()));
+    dynamicRigidBody->updateAngularVelocity(
+            QPhysicsUtils::toQtType(dynamicActor->getAngularVelocity()));
     dynamicRigidBody->setIsSleeping(dynamicActor->isSleeping());
 
-    // setIsSleeping() ran the body's bindings, which can delete the body.
+    // The velocity and sleeping updates ran the body's bindings, which can delete the body.
     if (!frontendNode)
         return;
 
