@@ -543,6 +543,13 @@ static void setEmpty(CenterExtents& box)
 
 #define PX_INVALID_U64	0xffffffffffffffff
 
+// PT: BVData::mData64 holds either a node pointer or an encoded primitive index, so it is a
+// size_t and the marker for an unused child has to be one too. Assigning PX_INVALID_U64 to it
+// truncates where size_t is 32 bits wide, and comparing it back widens it to 0x00000000ffffffff,
+// which never matches: every unused child then passes for a leaf holding primitive index
+// 0x07ffffff and the cooked tree sends the traversal out of bounds.
+#define PX_INVALID_SIZE_T	(~size_t(0))
+
 // Data:
 // 1 bit for leaf/no leaf
 // 2 bits for child-node type
@@ -570,7 +577,7 @@ struct BVData : public physx::PxUserAllocated
 };
 //#pragma pack()
 
-BVData::BVData() : mData64(PX_INVALID_U64)
+BVData::BVData() : mData64(PX_INVALID_SIZE_T)
 {
 	setEmpty(mAABB);
 #ifdef GU_BV4_PRECOMPUTED_NODE_SORT
@@ -594,7 +601,7 @@ struct BV4Node : public physx::PxUserAllocated
 		PxU32 Nb=0;
 		for(PxU32 i=0;i<4;i++)
 		{
-			if(mBVData[i].mData64!=PX_INVALID_U64)
+			if(mBVData[i].mData64!=PX_INVALID_SIZE_T)
 				Nb++;
 		}
 		return Nb;
@@ -1097,7 +1104,7 @@ static void computeMaxValues(const BV4Node* current, PxVec3& CMax, PxVec3& EMax)
 {
 	for(PxU32 i=0; i<4; i++)
 	{
-		if(current->mBVData[i].mData64 != PX_INVALID_U64)
+		if(current->mBVData[i].mData64 != PX_INVALID_SIZE_T)
 		{
 			const CenterExtents& Box = current->mBVData[i].mAABB;
 #ifdef GU_BV4_USE_SLABS
@@ -1305,7 +1312,7 @@ static bool flattenQ(const flattenQParams& params, BVDataPackedQ* const dest, co
 	BVDataPackedQ* data = dest + box_id;
 	for(PxU32 i=0; i<4; i++)
 	{
-		if(current->mBVData[i].mData64 != PX_INVALID_U64 && !current->isLeaf(i))
+		if(current->mBVData[i].mData64 != PX_INVALID_SIZE_T && !current->isLeaf(i))
 		{
 			if(!processNode(data, current, NextIDs, ChildNodes, i, current_id, NbToGo))
 				return false;
@@ -1318,7 +1325,7 @@ static bool flattenQ(const flattenQParams& params, BVDataPackedQ* const dest, co
 #endif
 		}
 #ifdef GU_BV4_USE_SLABS
-		if (current->mBVData[i].mData64 == PX_INVALID_U64)
+		if (current->mBVData[i].mData64 == PX_INVALID_SIZE_T)
 		{
 			data[i].mAABB.mData[0].mExtents = 0;
 			data[i].mAABB.mData[1].mExtents = 0;
@@ -1377,7 +1384,7 @@ static bool flattenNQ(BVDataPackedNQ* const dest, const PxU64 box_id, PxU64& cur
 	BVDataPackedNQ* data = dest + box_id;
 	for(PxU32 i=0; i<4; i++)
 	{
-		if(current->mBVData[i].mData64 != PX_INVALID_U64 && !current->isLeaf(i))
+		if(current->mBVData[i].mData64 != PX_INVALID_SIZE_T && !current->isLeaf(i))
 		{
 			if(!processNode(data, current, NextIDs, ChildNodes, i, current_id, NbToGo))
 				return false;
@@ -1390,7 +1397,7 @@ static bool flattenNQ(BVDataPackedNQ* const dest, const PxU64 box_id, PxU64& cur
 #endif
 		}
 #ifdef GU_BV4_USE_SLABS
-		if (current->mBVData[i].mData64 == PX_INVALID_U64)
+		if (current->mBVData[i].mData64 == PX_INVALID_SIZE_T)
 		{
 			data[i].mAABB.mCenter = PxVec3(0.0f);
 			data[i].mAABB.mExtents = PxVec3(0.0f);
