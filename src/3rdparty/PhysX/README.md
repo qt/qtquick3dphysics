@@ -1,7 +1,7 @@
 # PhysX
 
 This is the PhysX project used by Qt Quick 3D Physics. It is a copy of the parts of https://github.com/NVIDIA-Omniverse/PhysX that we build, with an added CMake project.
-It is using a clean checkout of version 5.9.0 with some minor patches applied and stored as .patch files in the patches directory for reference.
+It is using a clean checkout of version 5.11.0 with some minor patches applied and stored as .patch files in the patches directory for reference.
 
 Updating it to a new version means, in this directory:
 

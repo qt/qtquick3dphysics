@@ -1,30 +1,7 @@
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions
-// are met:
-//  * Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-//  * Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-//  * Neither the name of NVIDIA CORPORATION nor the names of its
-//    contributors may be used to endorse or promote products derived
-//    from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-// PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
-// CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-// EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-// PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-// PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
-// OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-//
-// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2001-2004 NovodeX AG. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
-// Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
+// SPDX-FileCopyrightText: Copyright (c) 2008-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-License-Identifier: Apache-2.0
 
 #include "NpPhysics.h"
 
@@ -100,9 +77,6 @@ NpPhysics::NpPhysics(const PxTolerancesScale& scale, const PxvOffsetTable& pxvOf
 	mPhysics					(scale, pxvOffsetTable),
 	mDeletionListenersExist		(false),
 	mFoundation					(foundation)
-#if PX_SUPPORT_GPU_PHYSX && !PX_PUBLIC_RELEASE
-	, mNbRegisteredGpuClients	(0)
-#endif	
 {
 	PX_UNUSED(trackOutstandingAllocations);
 
@@ -154,8 +128,14 @@ NpPhysics::NpPhysics(const PxTolerancesScale& scale, const PxvOffsetTable& pxvOf
 	mOmniPvd = NULL;
 	if (omniPvd)
 	{
+		// Create the sampler whenever a writer is available, regardless of
+		// whether a write stream is already bound. Binding the OmniPvd sets up the
+		// sampler + factory listener, but recording (the full-state snapshot plus
+		// per-frame sampling) stays OFF until the user calls startSampling(): the
+		// sampler's mIsSampling flag defaults to false, so construction never
+		// implicitly samples or emits. Recording is opt-in via startSampling().
 		OmniPvdWriter* omniWriter = omniPvd->getWriter();
-		if (omniWriter && omniWriter->getWriteStream())
+		if (omniWriter)
 		{
 			mOmniPvdSampler = PX_NEW(::OmniPvdPxSampler)();
 			mOmniPvd = omniPvd;
@@ -222,6 +202,10 @@ NpPhysics::~NpPhysics()
 	OMNI_PVD_DESTROY(OMNI_PVD_CONTEXT_HANDLE, PxPhysics, static_cast<PxPhysics&>(*this))
 	if (mOmniPvd)
 	{
+		// The ctor stashed mOmniPvdSampler into the (ref-counted) PxOmniPvd singleton, which
+		// can outlive this PxPhysics. Clear that pointer before deleting the sampler so a
+		// later PxOmniPvd::startSampling()/stopSampling() cannot dereference a freed sampler.
+		static_cast<NpOmniPvd*>(mOmniPvd)->mPhysXSampler = NULL;
 		mFoundation.deregisterErrorCallback(*mOmniPvdSampler);
 		NpOmniPvd::decRefCount();
 	}
@@ -540,6 +524,11 @@ PxConstraint* NpPhysics::createConstraint(PxRigidActor* actor0, PxRigidActor* ac
 PxU32 NpPhysics::getNbConstraints() const
 {
 	return NpFactory::getInstance().getNbConstraints();
+}
+
+PxU32 NpPhysics::getConstraints(PxConstraint** userBuffer, PxU32 bufferSize, PxU32 startIndex) const
+{
+	return NpFactory::getInstance().getConstraints(userBuffer, bufferSize, startIndex);
 }
 
 PxArticulationReducedCoordinate* NpPhysics::createArticulationReducedCoordinate()
@@ -998,29 +987,6 @@ PxPruningStructure* NpPhysics::createPruningStructure(PxRigidActor*const* actors
 	}
 	return ps;
 }
-
-///////////////////////////////////////////////////////////////////////////////
-
-#if PX_SUPPORT_GPU_PHYSX && !PX_PUBLIC_RELEASE
-void NpPhysics::registerPhysXIndicatorGpuClient()
-{
-	PxMutex::ScopedLock lock(mPhysXIndicatorMutex);
-
-	++mNbRegisteredGpuClients;
-
-	mPhysXIndicator.setIsGpu(mNbRegisteredGpuClients>0);
-}
-
-void NpPhysics::unregisterPhysXIndicatorGpuClient()
-{
-	PxMutex::ScopedLock lock(mPhysXIndicatorMutex);
-
-	if (mNbRegisteredGpuClients)
-		--mNbRegisteredGpuClients;
-
-	mPhysXIndicator.setIsGpu(mNbRegisteredGpuClients>0);
-}
-#endif
 
 ///////////////////////////////////////////////////////////////////////////////
 

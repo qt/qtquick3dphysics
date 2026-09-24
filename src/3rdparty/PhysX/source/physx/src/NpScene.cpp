@@ -1,30 +1,7 @@
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions
-// are met:
-//  * Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-//  * Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-//  * Neither the name of NVIDIA CORPORATION nor the names of its
-//    contributors may be used to endorse or promote products derived
-//    from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-// PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
-// CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-// EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-// PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-// PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
-// OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-//
-// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2001-2004 NovodeX AG. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
-// Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
+// SPDX-FileCopyrightText: Copyright (c) 2008-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-License-Identifier: Apache-2.0
 
 #include "NpScene.h"
 #include "NpRigidStatic.h"
@@ -189,6 +166,12 @@ NpScene::NpScene(const PxSceneDesc& desc, NpPhysics& physics) :
 	mName						(NULL)
 {
 	mGpuDynamicsConfig = desc.gpuDynamicsConfig;
+#if PX_SUPPORT_OMNI_PVD
+	mOvdGpuMaxNumPartitions       = desc.gpuMaxNumPartitions;
+	mOvdGpuMaxNumStaticPartitions = desc.gpuMaxNumStaticPartitions;
+	mOvdGpuComputeVersion         = desc.gpuComputeVersion;
+	mOvdContactPairSlabSize       = desc.contactPairSlabSize;
+#endif
 	mSceneQueriesStaticPrunerUpdate.setObject(this);
 	mSceneQueriesDynamicPrunerUpdate.setObject(this);
 
@@ -209,7 +192,7 @@ NpScene::NpScene(const PxSceneDesc& desc, NpPhysics& physics) :
 	mThreadReadWriteDepth = PxTlsAlloc();
 
 #if PX_SUPPORT_OMNI_PVD
-	createInOmniPVD(desc);
+	emitSceneStateToOmniPvd();
 	OmniPvdPxSampler* sampler = NpPhysics::getInstance().mOmniPvdSampler;
 	if (sampler) 
 	{
@@ -3265,17 +3248,6 @@ PxDominanceGroupPair NpScene::getDominanceGroupPair(PxDominanceGroup group1, PxD
 
 ///////////////////////////////////////////////////////////////////////////////
 
-#if PX_SUPPORT_GPU_PHYSX && !PX_PUBLIC_RELEASE
-void NpScene::updatePhysXIndicator()
-{
-	PxIntBool isGpu = mScene.isUsingGpuDynamicsOrBp();
-
-	mPhysXIndicator.setIsGpu(isGpu != 0);
-}
-#endif
-
-///////////////////////////////////////////////////////////////////////////////
-
 void NpScene::setSolverBatchSize(PxU32 solverBatchSize)
 {
 	NP_WRITE_CHECK(this);
@@ -4894,27 +4866,37 @@ void NpScene::scRemoveArticulationMimicJoint(NpArticulationMimicJoint& mimicJoin
 }
 
 #if PX_SUPPORT_OMNI_PVD
-void NpScene::createInOmniPVD(const PxSceneDesc& desc)
+void NpScene::emitSceneStateToOmniPvd()
 {
+	// NOTE: sourced entirely from live getters + cached members (no PxSceneDesc), so
+	// this is safe to call both at construction and from a full-state OVD snapshot.
+	// mScene.getLimits() is used instead of getLimits() to avoid the NP_READ_CHECK.
+	const PxSceneLimits limits = mScene.getLimits();
+
 	OMNI_PVD_WRITE_SCOPE_BEGIN(pvdWriter, pvdRegData)
 
 	OMNI_PVD_CREATE_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxScene, static_cast<PxScene &>(*this))
 
+	// Re-emit the scene name (recorded live only via setName(), not at create), so a late-attach
+	// snapshot carries it. mName avoids the NP_READ_CHECK that getName() would do.
+	streamSceneName(pvdWriter, pvdRegData, static_cast<PxScene &>(*this), mName);
+
 	getSceneOvdClientInternal().startFirstFrame(*pvdWriter); // Needs to have the PxScene pointer object set before the first startFrame
 
-	// Create the PxGpuDynamicsMemoryConfig object
-	OMNI_PVD_CREATE_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxGpuDynamicsMemoryConfig, desc.gpuDynamicsConfig)
-	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxGpuDynamicsMemoryConfig, tempBufferCapacity, desc.gpuDynamicsConfig, desc.gpuDynamicsConfig.tempBufferCapacity)
-	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxGpuDynamicsMemoryConfig, maxRigidContactCount, desc.gpuDynamicsConfig, desc.gpuDynamicsConfig.maxRigidContactCount)
-	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxGpuDynamicsMemoryConfig, maxRigidPatchCount, desc.gpuDynamicsConfig, desc.gpuDynamicsConfig.maxRigidPatchCount)
-	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxGpuDynamicsMemoryConfig, heapCapacity, desc.gpuDynamicsConfig, desc.gpuDynamicsConfig.heapCapacity)
-	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxGpuDynamicsMemoryConfig, foundLostPairsCapacity, desc.gpuDynamicsConfig, desc.gpuDynamicsConfig.foundLostPairsCapacity)
-	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxGpuDynamicsMemoryConfig, foundLostAggregatePairsCapacity, desc.gpuDynamicsConfig, desc.gpuDynamicsConfig.foundLostAggregatePairsCapacity)
-	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxGpuDynamicsMemoryConfig, totalAggregatePairsCapacity, desc.gpuDynamicsConfig, desc.gpuDynamicsConfig.totalAggregatePairsCapacity)
-	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxGpuDynamicsMemoryConfig, maxDeformableSurfaceContacts, desc.gpuDynamicsConfig, desc.gpuDynamicsConfig.maxDeformableSurfaceContacts)
-	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxGpuDynamicsMemoryConfig, maxDeformableVolumeContacts, desc.gpuDynamicsConfig, desc.gpuDynamicsConfig.maxDeformableVolumeContacts)
-	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxGpuDynamicsMemoryConfig, maxParticleContacts, desc.gpuDynamicsConfig, desc.gpuDynamicsConfig.maxParticleContacts)
-	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxGpuDynamicsMemoryConfig, collisionStackSize, desc.gpuDynamicsConfig, desc.gpuDynamicsConfig.collisionStackSize)
+	// Create the PxGpuDynamicsMemoryConfig object (use the cached config so the
+	// created object handle and the PxScene.gpuDynamicsConfig reference below agree)
+	OMNI_PVD_CREATE_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxGpuDynamicsMemoryConfig, mGpuDynamicsConfig)
+	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxGpuDynamicsMemoryConfig, tempBufferCapacity, mGpuDynamicsConfig, mGpuDynamicsConfig.tempBufferCapacity)
+	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxGpuDynamicsMemoryConfig, maxRigidContactCount, mGpuDynamicsConfig, mGpuDynamicsConfig.maxRigidContactCount)
+	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxGpuDynamicsMemoryConfig, maxRigidPatchCount, mGpuDynamicsConfig, mGpuDynamicsConfig.maxRigidPatchCount)
+	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxGpuDynamicsMemoryConfig, heapCapacity, mGpuDynamicsConfig, mGpuDynamicsConfig.heapCapacity)
+	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxGpuDynamicsMemoryConfig, foundLostPairsCapacity, mGpuDynamicsConfig, mGpuDynamicsConfig.foundLostPairsCapacity)
+	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxGpuDynamicsMemoryConfig, foundLostAggregatePairsCapacity, mGpuDynamicsConfig, mGpuDynamicsConfig.foundLostAggregatePairsCapacity)
+	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxGpuDynamicsMemoryConfig, totalAggregatePairsCapacity, mGpuDynamicsConfig, mGpuDynamicsConfig.totalAggregatePairsCapacity)
+	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxGpuDynamicsMemoryConfig, maxDeformableSurfaceContacts, mGpuDynamicsConfig, mGpuDynamicsConfig.maxDeformableSurfaceContacts)
+	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxGpuDynamicsMemoryConfig, maxDeformableVolumeContacts, mGpuDynamicsConfig, mGpuDynamicsConfig.maxDeformableVolumeContacts)
+	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxGpuDynamicsMemoryConfig, maxParticleContacts, mGpuDynamicsConfig, mGpuDynamicsConfig.maxParticleContacts)
+	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxGpuDynamicsMemoryConfig, collisionStackSize, mGpuDynamicsConfig, mGpuDynamicsConfig.collisionStackSize)
 
 
 	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxScene, gravity, static_cast<PxScene &>(*this), getGravity())
@@ -4939,14 +4921,14 @@ void NpScene::createInOmniPVD(const PxSceneDesc& desc)
 	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxScene, ccdMaxSeparation, static_cast<PxScene&>(*this), getCCDMaxSeparation())
 	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxScene, wakeCounterResetValue, static_cast<PxScene&>(*this), getWakeCounterResetValue())
 	
-	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxScene, limitsMaxNbActors, static_cast<PxScene&>(*this), desc.limits.maxNbActors)
-	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxScene, limitsMaxNbBodies, static_cast<PxScene&>(*this), desc.limits.maxNbBodies)
-	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxScene, limitsMaxNbStaticShapes, static_cast<PxScene&>(*this), desc.limits.maxNbStaticShapes)
-	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxScene, limitsMaxNbDynamicShapes, static_cast<PxScene&>(*this), desc.limits.maxNbDynamicShapes)
-	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxScene, limitsMaxNbAggregates, static_cast<PxScene&>(*this), desc.limits.maxNbAggregates)
-	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxScene, limitsMaxNbConstraints, static_cast<PxScene&>(*this), desc.limits.maxNbConstraints)
-	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxScene, limitsMaxNbRegions, static_cast<PxScene&>(*this), desc.limits.maxNbRegions)
-	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxScene, limitsMaxNbBroadPhaseOverlaps, static_cast<PxScene&>(*this), desc.limits.maxNbBroadPhaseOverlaps)
+	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxScene, limitsMaxNbActors, static_cast<PxScene&>(*this), limits.maxNbActors)
+	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxScene, limitsMaxNbBodies, static_cast<PxScene&>(*this), limits.maxNbBodies)
+	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxScene, limitsMaxNbStaticShapes, static_cast<PxScene&>(*this), limits.maxNbStaticShapes)
+	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxScene, limitsMaxNbDynamicShapes, static_cast<PxScene&>(*this), limits.maxNbDynamicShapes)
+	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxScene, limitsMaxNbAggregates, static_cast<PxScene&>(*this), limits.maxNbAggregates)
+	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxScene, limitsMaxNbConstraints, static_cast<PxScene&>(*this), limits.maxNbConstraints)
+	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxScene, limitsMaxNbRegions, static_cast<PxScene&>(*this), limits.maxNbRegions)
+	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxScene, limitsMaxNbBroadPhaseOverlaps, static_cast<PxScene&>(*this), limits.maxNbBroadPhaseOverlaps)
 
 	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxScene, hasCPUDispatcher, static_cast<PxScene&>(*this), getCpuDispatcher() ? true : false)
 	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxScene, hasCUDAContextManager, static_cast<PxScene&>(*this), getCudaContextManager()  ? true : false)
@@ -4956,18 +4938,169 @@ void NpScene::createInOmniPVD(const PxSceneDesc& desc)
 	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxScene, hasBroadPhaseCallback, static_cast<PxScene&>(*this), getBroadPhaseCallback() ? true : false)
 	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxScene, hasFilterCallback, static_cast<PxScene&>(*this), getFilterCallback() ? true : false)
 	
-	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxScene, sanityBounds, static_cast<PxScene&>(*this), desc.sanityBounds)
+	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxScene, sanityBounds, static_cast<PxScene&>(*this), mSanityBounds)
 
 	// Point to the PxGpuDynamicsMemoryConfig object
 	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxScene, gpuDynamicsConfig, static_cast<PxScene&>(*this), static_cast<PxGpuDynamicsMemoryConfig const*>(&this->mGpuDynamicsConfig))
-	
-	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxScene, gpuMaxNumPartitions, static_cast<PxScene&>(*this), desc.gpuMaxNumPartitions)
-	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxScene, gpuMaxNumStaticPartitions, static_cast<PxScene&>(*this), desc.gpuMaxNumStaticPartitions)
-	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxScene, gpuComputeVersion, static_cast<PxScene&>(*this), desc.gpuComputeVersion)
-	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxScene, contactPairSlabSize, static_cast<PxScene&>(*this), desc.contactPairSlabSize)
-	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxScene, tolerancesScale, static_cast<PxScene&>(*this), desc.getTolerancesScale())
+
+	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxScene, gpuMaxNumPartitions, static_cast<PxScene&>(*this), mOvdGpuMaxNumPartitions)
+	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxScene, gpuMaxNumStaticPartitions, static_cast<PxScene&>(*this), mOvdGpuMaxNumStaticPartitions)
+	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxScene, gpuComputeVersion, static_cast<PxScene&>(*this), mOvdGpuComputeVersion)
+	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxScene, contactPairSlabSize, static_cast<PxScene&>(*this), mOvdContactPairSlabSize)
+	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxScene, tolerancesScale, static_cast<PxScene&>(*this), mPhysics.getTolerancesScale())
 
 	OMNI_PVD_WRITE_SCOPE_END
+}
+
+void NpScene::emitSceneObjectListsToOmniPvd()
+{
+	// Re-emit the scene's object-list memberships from the scene's live contents. The
+	// referenced actor/articulation/aggregate objects must already have been emitted
+	// (the snapshot walks shared resources -> objects -> scenes). In the normal flow
+	// these are added incrementally at add time, so this is snapshot-only.
+	OMNI_PVD_WRITE_SCOPE_BEGIN(pvdWriter, pvdRegData)
+
+	PxScene& sceneRef = static_cast<PxScene&>(*this);
+
+	for (PxU32 i = 0; i < mRigidStatics.size(); ++i)
+	{
+		OMNI_PVD_ADD_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxScene, actors, sceneRef, static_cast<PxActor&>(*mRigidStatics[i]))
+	}
+	for (PxU32 i = 0; i < mRigidDynamics.size(); ++i)
+	{
+		OMNI_PVD_ADD_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxScene, actors, sceneRef, static_cast<PxActor&>(*mRigidDynamics[i]))
+	}
+
+	PxArticulationReducedCoordinate* const* articulations = mArticulations.getEntries();
+	for (PxU32 i = 0; i < mArticulations.size(); ++i)
+	{
+		OMNI_PVD_ADD_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxScene, articulations, sceneRef, static_cast<PxArticulationReducedCoordinate&>(*articulations[i]))
+	}
+
+	PxAggregate* const* aggregates = mAggregates.getEntries();
+	for (PxU32 i = 0; i < mAggregates.size(); ++i)
+	{
+		OMNI_PVD_ADD_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxScene, aggregates, sceneRef, *aggregates[i])
+	}
+
+	// PxScene.constraints: re-add each constraint (joints etc.) to the scene's constraint list,
+	// matching the add done incrementally in ScSceneFns<NpConstraint>::insert. Fetched in fixed-size
+	// batches to avoid a heap allocation. Snapshot-only.
+	{
+		const PxU32 nbConstraints = getNbConstraints();
+		PxConstraint* constraintBatch[64];
+		for (PxU32 off = 0; off < nbConstraints; off += 64)
+		{
+			const PxU32 got = getConstraints(constraintBatch, 64, off);
+			for (PxU32 i = 0; i < got; ++i)
+			{
+				OMNI_PVD_ADD_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxScene, constraints, sceneRef, *constraintBatch[i])
+			}
+		}
+	}
+
+#if PX_SUPPORT_GPU_PHYSX
+	// GPU actors (deformables / particle systems) are PxScene.actors too. In the
+	// normal flow add{DeformableSurface,DeformableVolume,ParticleSystem} emit this
+	// same membership incrementally, so this only fills the snapshot gap for actors that
+	// existed before the listener attached.
+	PxDeformableSurface* const* deformableSurfaces = mDeformableSurfaces.getEntries();
+	for (PxU32 i = 0; i < mDeformableSurfaces.size(); ++i)
+	{
+		OMNI_PVD_ADD_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxScene, actors, sceneRef, static_cast<PxActor&>(*deformableSurfaces[i]))
+	}
+
+	PxDeformableVolume* const* deformableVolumes = mDeformableVolumes.getEntries();
+	for (PxU32 i = 0; i < mDeformableVolumes.size(); ++i)
+	{
+		OMNI_PVD_ADD_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxScene, actors, sceneRef, static_cast<PxActor&>(*deformableVolumes[i]))
+	}
+
+	PxPBDParticleSystem* const* pbdParticleSystems = mPBDParticleSystems.getEntries();
+	for (PxU32 i = 0; i < mPBDParticleSystems.size(); ++i)
+	{
+		OMNI_PVD_ADD_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxScene, actors, sceneRef, static_cast<PxActor&>(*pbdParticleSystems[i]))
+	}
+#endif
+
+	OMNI_PVD_WRITE_SCOPE_END
+}
+
+namespace
+{
+	// Shared gather for the two direct-GPU-API force snapshots below: pull each actor's GPU index, drop
+	// the not-resident sentinel (0xffffffff), and hand the compacted list to the controller, which clamps
+	// the indices to its resident pool before the readback kernel. Reuses the caller's scratch buffer so
+	// the snapshot does not heap-allocate per call. Both GPU index types are PxU32.
+	template <typename ActorT, typename ExtractFn, typename EmitFn>
+	static void gatherGpuIndicesAndSnapshot(PxArray<PxU32>& scratch, ActorT* const* actors, PxU32 nb, ExtractFn extract, EmitFn emit)
+	{
+		scratch.forceSize_Unsafe(0);
+		scratch.reserve(nb);
+		for (PxU32 i = 0; i < nb; ++i)
+		{
+			const PxU32 gpuIndex = extract(actors[i]);
+			if (gpuIndex != 0xffffffffu)
+				scratch.pushBack(gpuIndex);
+		}
+		if (scratch.size())
+			emit(scratch.begin(), scratch.size());
+	}
+}
+
+void NpScene::streamRigidDynamicGPUForcesToOmniPvd()
+{
+	// Forces/torques applied through the direct-GPU API live in device state and are emitted live via the
+	// direct-GPU write callback, but a late attach missed that, so reconstruct them from the device for the
+	// snapshot. Only for direct-GPU-API scenes, where these device-resident forces exist. The readback
+	// emits force/torque only for the bodies that carry one (with eRETAIN_ACCELERATIONS they persist across
+	// steps).
+	if (!(getFlags() & PxSceneFlag::eENABLE_DIRECT_GPU_API))
+		return;
+
+	PxsSimulationController* sc = getSimulationController();
+	if (!sc || !sc->getEnableOVDReadback())
+		return;
+
+	const PxU32 nbRigidDynamics = mRigidDynamics.size();
+	if (nbRigidDynamics == 0)
+		return;
+
+	gatherGpuIndicesAndSnapshot(mOvdSnapshotGpuIndices, mRigidDynamics.begin(), nbRigidDynamics,
+		[](NpRigidDynamic* a) -> PxU32 {
+			const PxNodeIndex nodeIndex = a->getCore().getInternalIslandNodeIndex();
+			return nodeIndex.isValid() ? nodeIndex.index() : 0xffffffffu;
+		},
+		[sc](const PxU32* indices, PxU32 n) { sc->ovdSnapshotRigidDynamicForces(indices, n); });
+}
+
+void NpScene::streamArticulationGPUForcesToOmniPvd()
+{
+	// Articulation link forces set through the direct-GPU articulation API live in device state and are
+	// emitted live via the direct-GPU write callback; a late attach missed that, so reconstruct them from
+	// the device for the snapshot. Only for direct-GPU-API scenes; no-op without OVD readback. The readback
+	// emits force/torque for every link of the selected articulations; links with no retained value read
+	// back zero, matching the live direct-GPU path.
+	if (!(getFlags() & PxSceneFlag::eENABLE_DIRECT_GPU_API))
+		return;
+
+	PxsSimulationController* sc = getSimulationController();
+	if (!sc || !sc->getEnableOVDReadback())
+		return;
+
+	const PxU32 nbArts = mArticulations.size();
+	if (nbArts == 0)
+		return;
+
+	// getCore().getGpuArticulationIndex() is const and check-free (bypasses NP_READ_CHECK), like the
+	// rigid path; returns 0xffffffff when the articulation is not GPU-resident. A non-sentinel index can
+	// still be past the device pool (assigned but not simulated yet); ovdSnapshotArticulationForces drops
+	// those against the resident articulation count, so the kernel never indexes out of bounds.
+	gatherGpuIndicesAndSnapshot(mOvdSnapshotGpuIndices, mArticulations.getEntries(), nbArts,
+		[](PxArticulationReducedCoordinate* a) -> PxU32 {
+			return static_cast<NpArticulationReducedCoordinate*>(a)->getCore().getGpuArticulationIndex();
+		},
+		[sc](const PxU32* indices, PxU32 n) { sc->ovdSnapshotArticulationForces(indices, n); });
 }
 
 #endif

@@ -1,30 +1,7 @@
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions
-// are met:
-//  * Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-//  * Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-//  * Neither the name of NVIDIA CORPORATION nor the names of its
-//    contributors may be used to endorse or promote products derived
-//    from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-// PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
-// CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-// EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-// PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-// PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
-// OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-//
-// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2001-2004 NovodeX AG. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
-// Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
+// SPDX-FileCopyrightText: Copyright (c) 2008-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-License-Identifier: Apache-2.0
 
 #include "extensions/PxCustomGeometryExt.h"
 
@@ -522,6 +499,30 @@ void PxCustomGeometryExt::BaseConvexCallbacks::setMargin(float m)
 
 ///////////////////////////////////////////////////////////////////////////////
 
+#if PX_SUPPORT_OMNI_PVD
+// Shared OVD emit for one custom-geometry-ext callbacks object, used by the live constructor and by the
+// full-state snapshot (mirrors how omniPvdInitJoint is shared between joint constructors and the
+// snapshot). Explicit form: the caller already holds a write scope. Keep in sync with the schema.
+namespace physx { namespace Ext {
+void omniPvdInitCustomGeometryExt(OmniPvdWriter* pvdWriter, const OmniPvdPxExtensionsRegistrationData* pvdRegData, const PxCustomGeometryExt::CylinderCallbacks& c)
+{
+	OMNI_PVD_CREATE_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxCustomGeometryExtCylinderCallbacks, c);
+	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxCustomGeometryExtBaseConvexCallbacks, margin, static_cast<const PxCustomGeometryExt::BaseConvexCallbacks&>(c), c.getMargin());
+	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxCustomGeometryExtCylinderCallbacks, height, c, c.getHeight());
+	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxCustomGeometryExtCylinderCallbacks, radius, c, c.getRadius());
+	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxCustomGeometryExtCylinderCallbacks, axis, c, c.getAxis());
+}
+void omniPvdInitCustomGeometryExt(OmniPvdWriter* pvdWriter, const OmniPvdPxExtensionsRegistrationData* pvdRegData, const PxCustomGeometryExt::ConeCallbacks& c)
+{
+	OMNI_PVD_CREATE_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxCustomGeometryExtConeCallbacks, c);
+	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxCustomGeometryExtBaseConvexCallbacks, margin, static_cast<const PxCustomGeometryExt::BaseConvexCallbacks&>(c), c.getMargin());
+	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxCustomGeometryExtConeCallbacks, height, c, c.getHeight());
+	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxCustomGeometryExtConeCallbacks, radius, c, c.getRadius());
+	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxCustomGeometryExtConeCallbacks, axis, c, c.getAxis());
+}
+} }
+#endif
+
 IMPLEMENT_CUSTOM_GEOMETRY_TYPE(PxCustomGeometryExt::CylinderCallbacks)
 
 PxCustomGeometryExt::CylinderCallbacks::CylinderCallbacks(float _height, float _radius, int _axis, float _margin)
@@ -530,11 +531,7 @@ PxCustomGeometryExt::CylinderCallbacks::CylinderCallbacks(float _height, float _
 {
 #if PX_SUPPORT_OMNI_PVD
 	OMNI_PVD_WRITE_SCOPE_BEGIN(pvdWriter, pvdRegData)
-	OMNI_PVD_CREATE_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxCustomGeometryExtCylinderCallbacks, *this);
-	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxCustomGeometryExtBaseConvexCallbacks, margin, *static_cast<BaseConvexCallbacks*>(this), margin);
-	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxCustomGeometryExtCylinderCallbacks, height, *this, height);
-	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxCustomGeometryExtCylinderCallbacks, radius, *this, radius);
-	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxCustomGeometryExtCylinderCallbacks, axis, *this, axis);
+	physx::Ext::omniPvdInitCustomGeometryExt(pvdWriter, pvdRegData, *this);
 	OMNI_PVD_WRITE_SCOPE_END
 #endif
 }
@@ -762,11 +759,7 @@ PxCustomGeometryExt::ConeCallbacks::ConeCallbacks(float _height, float _radius, 
 {
 #if PX_SUPPORT_OMNI_PVD
 	OMNI_PVD_WRITE_SCOPE_BEGIN(pvdWriter, pvdRegData)
-	OMNI_PVD_CREATE_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxCustomGeometryExtConeCallbacks, *this);
-	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxCustomGeometryExtBaseConvexCallbacks, margin, *static_cast<BaseConvexCallbacks*>(this), margin);
-	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxCustomGeometryExtConeCallbacks, height, *this, height);
-	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxCustomGeometryExtConeCallbacks, radius, *this, radius);
-	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxCustomGeometryExtConeCallbacks, axis, *this, axis);
+	physx::Ext::omniPvdInitCustomGeometryExt(pvdWriter, pvdRegData, *this);
 	OMNI_PVD_WRITE_SCOPE_END
 #endif
 }

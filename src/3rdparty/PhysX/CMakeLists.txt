@@ -852,7 +852,6 @@ qt_internal_extend_target(BundledPhysX
         source/lowleveldynamics/src/DySolverConstraint1D4.h
         source/lowleveldynamics/src/DySolverConstraint1DStep.h
         source/lowleveldynamics/src/DySolverConstraintDesc.h
-        source/lowleveldynamics/src/DySolverConstraintExtShared.h
         source/lowleveldynamics/src/DySolverConstraintTypes.h
         source/lowleveldynamics/src/DySolverConstraints.cpp
         source/lowleveldynamics/src/DySolverConstraintsBlock.cpp

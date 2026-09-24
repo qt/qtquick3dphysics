@@ -1,30 +1,7 @@
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions
-// are met:
-//  * Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-//  * Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-//  * Neither the name of NVIDIA CORPORATION nor the names of its
-//    contributors may be used to endorse or promote products derived
-//    from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-// PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
-// CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-// EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-// PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-// PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
-// OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-//
-// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2001-2004 NovodeX AG. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
-// Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
+// SPDX-FileCopyrightText: Copyright (c) 2008-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-License-Identifier: Apache-2.0
 
 #include "geometry/PxGeometryQuery.h"
 #include "NpFactory.h"
@@ -76,15 +53,16 @@ NpFactory::NpFactory() :
 {
 }
 
+// Only the deformable-attachment and element-filter tracking sets (both PX_SUPPORT_GPU_PHYSX) use the
+// plain hash-set form, so guard it; otherwise it is an unused template on cpu-only builds
+// (clang -Werror,-Wunused-template).
+#if PX_SUPPORT_GPU_PHYSX
 template <typename T>
 static void releaseAll(PxHashSet<T*>& container)
 {
 	// a bit tricky: release will call the factory back to remove the object from
 	// the tracking array, immediately invalidating the iterator. Reconstructing the
 	// iterator per delete can be expensive. So, we use a temporary object.
-	//
-	// a coalesced hash would be efficient too, but we only ever iterate over it
-	// here so it's not worth the 2x remove penalty over the normal hash.
 
 	PxArray<T*, PxReflectionAllocator<T*> > tmp;
 	tmp.reserve(container.size());
@@ -94,6 +72,21 @@ static void releaseAll(PxHashSet<T*>& container)
 	PX_ASSERT(tmp.size() == container.size());
 	for(PxU32 i=0;i<tmp.size();i++)
 		tmp[i]->release();
+}
+#endif
+
+// Same idea for a coalesced set, which has no iterator: release from the back of its contiguous
+// entries buffer (release calls back into the factory and erases from the set), so no temporary copy
+// is needed.
+template <typename T>
+static void releaseAll(PxCoalescedHashSet<T*>& container)
+{
+	// Release from the back of the contiguous entries buffer. Each release() calls the factory back to
+	// erase that object, which removes the last entry, so the entries still ahead stay valid and no
+	// temporary copy is needed.
+	T* const* entries = container.getEntries();
+	for(PxU32 i = container.size(); i > 0; i--)
+		entries[i - 1]->release();
 }
 
 NpFactory::~NpFactory()
@@ -106,7 +99,15 @@ void NpFactory::release()
 	releaseAll(mAggregateTracking);
 	releaseAll(mConstraintTracking);
 	releaseAll(mArticulationTracking);
-	releaseAll(mActorTracking);
+	releaseAll(mRigidStaticTracking);
+	releaseAll(mRigidDynamicTracking);
+	// Deformables and PBD particle systems are tracked separately but, like the rigid actors above,
+	// must be released before the shapes they reference.
+#if PX_SUPPORT_GPU_PHYSX
+	releaseAll(mDeformableSurfaceTracking);
+	releaseAll(mDeformableVolumeTracking);
+	releaseAll(mPBDParticleSystemTracking);
+#endif
 	while(mShapeTracking.size())
 		static_cast<NpShape*>(mShapeTracking.getEntries()[0])->releaseInternal();
 
@@ -155,13 +156,13 @@ static void addToTracking(T1& set, T0* element, PxMutex& mutex, bool lock)
 
 void NpFactory::addRigidStatic(PxRigidStatic* npActor, bool lock)
 {
-	addToTracking(mActorTracking, npActor, mTrackingMutex, lock);
+	addToTracking(mRigidStaticTracking, npActor, mTrackingMutex, lock);
 	OMNI_PVD_NOTIFY_ADD(npActor);
 }
 
 void NpFactory::addRigidDynamic(PxRigidDynamic* npBody, bool lock)
 {
-	addToTracking(mActorTracking, npBody, mTrackingMutex, lock);
+	addToTracking(mRigidDynamicTracking, npBody, mTrackingMutex, lock);
 	OMNI_PVD_NOTIFY_ADD(npBody);
 }
 
@@ -175,7 +176,19 @@ void NpFactory::onActorRelease(PxActor* a)
 {
 	OMNI_PVD_NOTIFY_REMOVE(a);
 	PxMutex::ScopedLock lock(mTrackingMutex);
-	mActorTracking.erase(a);
+	// Erase from the single tracking set that matches the concrete type. The PxBase subobject (which
+	// holds the concrete type) outlives ~NpActorTemplate, so getConcreteType() is valid on this path.
+	switch (a->getConcreteType())
+	{
+	case PxConcreteType::eRIGID_STATIC:			mRigidStaticTracking.erase(static_cast<PxRigidStatic*>(a));		break;
+	case PxConcreteType::eRIGID_DYNAMIC:		mRigidDynamicTracking.erase(static_cast<PxRigidDynamic*>(a));	break;
+#if PX_SUPPORT_GPU_PHYSX
+	case PxConcreteType::eDEFORMABLE_SURFACE:	mDeformableSurfaceTracking.erase(a);							break;
+	case PxConcreteType::eDEFORMABLE_VOLUME:	mDeformableVolumeTracking.erase(a);								break;
+	case PxConcreteType::ePBD_PARTICLESYSTEM:	mPBDParticleSystemTracking.erase(a);							break;
+#endif
+	default:																									break;
+	}
 }
 
 void NpFactory::onShapeRelease(PxShape* a)
@@ -330,6 +343,7 @@ PxDeformableSurface* NpFactory::createDeformableSurface(PxCudaContextManager& cu
 	NpDeformableSurface* ds;
 	{	PxMutex::ScopedLock lock(mDeformableSurfacePoolLock);
 	ds = mDeformableSurfacePool.construct(cudaContextManager);	}
+	addToTracking(mDeformableSurfaceTracking, static_cast<PxActor*>(ds), mTrackingMutex, true); // track for the full-state snapshot (scene membership aside); ~NpActorTemplate erases it
 	OMNI_PVD_NOTIFY_ADD(ds);
 	return ds;
 }
@@ -349,6 +363,7 @@ PxDeformableVolume* NpFactory::createDeformableVolume(PxCudaContextManager& cuda
 	NpDeformableVolume* dv;
 	{	PxMutex::ScopedLock lock(mDeformableVolumePoolLock);
 	dv = mDeformableVolumePool.construct(cudaContextManager);	}
+	addToTracking(mDeformableVolumeTracking, static_cast<PxActor*>(dv), mTrackingMutex, true); // track for the full-state snapshot (scene membership aside); ~NpActorTemplate erases it
 	OMNI_PVD_NOTIFY_ADD(dv);
 	return dv;
 }
@@ -449,6 +464,7 @@ PxPBDParticleSystem* NpFactory::createPBDParticleSystem(PxU32 maxNeighborhood, P
 {
 	PxMutex::ScopedLock lock(mPBDParticleSystemPoolLock);
 	PxPBDParticleSystem* ps = mPBDParticleSystemPool.construct(maxNeighborhood, neighborhoodScale, cudaContextManager);
+	addToTracking(mPBDParticleSystemTracking, static_cast<PxActor*>(ps), mTrackingMutex, true); // track for the full-state snapshot (scene membership aside); ~NpActorTemplate erases it
 	OMNI_PVD_NOTIFY_ADD(ps);
 	return ps;
 }
@@ -506,6 +522,18 @@ void NpFactory::onParticleBufferRelease(PxParticleBuffer* buffer)
 	mParticleBufferTracking.erase(buffer);
 }
 
+PxU32 NpFactory::getNbParticleBuffers() const
+{
+	return mParticleBufferTracking.size();
+}
+
+PxU32 NpFactory::getParticleBuffers(PxParticleBuffer** userBuffer, PxU32 bufferSize, PxU32 startIndex) const
+{
+	// Every PxParticleBuffer the factory tracks, whether or not it has been attached to a particle
+	// system, so a full-state snapshot reaches standalone buffers too (see getConstraints).
+	return getArrayOfPointers(userBuffer, bufferSize, startIndex, mParticleBufferTracking.getEntries(), mParticleBufferTracking.size());
+}
+
 #endif
 
 /////////////////////////////////////////////////////////////////////////////// constraint
@@ -513,6 +541,68 @@ void NpFactory::onParticleBufferRelease(PxParticleBuffer* buffer)
 PxU32 NpFactory::getNbConstraints() const
 {
 	return mConstraintTracking.size();
+}
+
+PxU32 NpFactory::getConstraints(PxConstraint** userBuffer, PxU32 bufferSize, PxU32 startIndex) const
+{
+	// Enumerates every constraint the factory tracks, regardless of whether it has been added to a
+	// scene, so a full-state snapshot reaches scene-less constraints too. No lock, matching
+	// getShapes(): the snapshot runs at a safe point with no concurrent creation.
+	return getArrayOfPointers(userBuffer, bufferSize, startIndex, mConstraintTracking.getEntries(), mConstraintTracking.size());
+}
+
+PxU32 NpFactory::getNbRigidStatics() const
+{
+	return mRigidStaticTracking.size();
+}
+
+PxU32 NpFactory::getRigidStatics(PxRigidStatic** userBuffer, PxU32 bufferSize, PxU32 startIndex) const
+{
+	// The rigid statics the factory tracks, regardless of scene membership (see getConstraints).
+	return getArrayOfPointers(userBuffer, bufferSize, startIndex, mRigidStaticTracking.getEntries(), mRigidStaticTracking.size());
+}
+
+PxU32 NpFactory::getNbRigidDynamics() const
+{
+	return mRigidDynamicTracking.size();
+}
+
+PxU32 NpFactory::getRigidDynamics(PxRigidDynamic** userBuffer, PxU32 bufferSize, PxU32 startIndex) const
+{
+	// The rigid dynamics the factory tracks, regardless of scene membership (see getConstraints).
+	return getArrayOfPointers(userBuffer, bufferSize, startIndex, mRigidDynamicTracking.getEntries(), mRigidDynamicTracking.size());
+}
+
+#if PX_SUPPORT_GPU_PHYSX
+PxU32 NpFactory::getNbDeformableSurfaces() const { return mDeformableSurfaceTracking.size(); }
+PxU32 NpFactory::getDeformableSurfaces(PxActor** userBuffer, PxU32 bufferSize, PxU32 startIndex) const
+{
+	return getArrayOfPointers(userBuffer, bufferSize, startIndex, mDeformableSurfaceTracking.getEntries(), mDeformableSurfaceTracking.size());
+}
+
+PxU32 NpFactory::getNbDeformableVolumes() const { return mDeformableVolumeTracking.size(); }
+PxU32 NpFactory::getDeformableVolumes(PxActor** userBuffer, PxU32 bufferSize, PxU32 startIndex) const
+{
+	return getArrayOfPointers(userBuffer, bufferSize, startIndex, mDeformableVolumeTracking.getEntries(), mDeformableVolumeTracking.size());
+}
+
+PxU32 NpFactory::getNbPBDParticleSystems() const { return mPBDParticleSystemTracking.size(); }
+PxU32 NpFactory::getPBDParticleSystems(PxActor** userBuffer, PxU32 bufferSize, PxU32 startIndex) const
+{
+	return getArrayOfPointers(userBuffer, bufferSize, startIndex, mPBDParticleSystemTracking.getEntries(), mPBDParticleSystemTracking.size());
+}
+#endif
+
+PxU32 NpFactory::getArticulations(PxArticulationReducedCoordinate** userBuffer, PxU32 bufferSize, PxU32 startIndex) const
+{
+	// Every PxArticulationReducedCoordinate the factory tracks, regardless of scene membership (see getConstraints).
+	return getArrayOfPointers(userBuffer, bufferSize, startIndex, mArticulationTracking.getEntries(), mArticulationTracking.size());
+}
+
+PxU32 NpFactory::getAggregates(PxAggregate** userBuffer, PxU32 bufferSize, PxU32 startIndex) const
+{
+	// Every PxAggregate the factory tracks, regardless of scene membership (see getConstraints).
+	return getArrayOfPointers(userBuffer, bufferSize, startIndex, mAggregateTracking.getEntries(), mAggregateTracking.size());
 }
 
 void NpFactory::addConstraint(PxConstraint* npConstraint, bool lock)

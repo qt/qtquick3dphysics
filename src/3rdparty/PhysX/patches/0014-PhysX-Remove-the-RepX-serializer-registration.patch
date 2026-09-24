@@ -7,14 +7,13 @@ core types with them. Nothing calls the two registration functions except
 the serialization code itself, so drop them and the includes that only
 they needed.
 ---
- .../source/physxextensions/src/ExtExtensions.cpp   | 68 ----------------------
- 1 file changed, 68 deletions(-)
-
+ .../source/physxextensions/src/ExtExtensions.cpp   | 69 ---------------------------------------------------------------------
+ 1 file changed, 69 deletions(-)
 diff --git a/src/3rdparty/PhysX/source/physxextensions/src/ExtExtensions.cpp b/src/3rdparty/PhysX/source/physxextensions/src/ExtExtensions.cpp
 --- a/src/3rdparty/PhysX/source/physxextensions/src/ExtExtensions.cpp
 +++ b/src/3rdparty/PhysX/source/physxextensions/src/ExtExtensions.cpp
-@@ -27,9 +27,7 @@
- // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
+@@ -4,9 +4,7 @@
+ // SPDX-License-Identifier: Apache-2.0
  
  #include "foundation/PxIO.h"
 -#include "common/PxSerializer.h"
@@ -23,7 +22,7 @@ diff --git a/src/3rdparty/PhysX/source/physxextensions/src/ExtExtensions.cpp b/s
  
  #include "ExtDistanceJoint.h"
  #include "ExtD6Joint.h"
-@@ -39,10 +37,6 @@
+@@ -16,10 +14,6 @@
  #include "ExtSphericalJoint.h"
  #include "ExtGearJoint.h"
  #include "ExtRackAndPinionJoint.h"
@@ -34,10 +33,11 @@ diff --git a/src/3rdparty/PhysX/source/physxextensions/src/ExtExtensions.cpp b/s
  
  #if PX_SUPPORT_PVD
  #include "ExtPvd.h"
-@@ -196,65 +190,3 @@ void PxCloseExtensions()
+@@ -187,66 +181,3 @@ void PxCloseExtensions()
+ 	}
  #endif
  }
- 
+-
 -void Ext::RegisterExtensionsSerializers(PxSerializationRegistry& sr)
 -{
 -	//for repx serialization

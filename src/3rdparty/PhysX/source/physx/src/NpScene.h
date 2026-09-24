@@ -1,30 +1,7 @@
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions
-// are met:
-//  * Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-//  * Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the distribution.
-//  * Neither the name of NVIDIA CORPORATION nor the names of its
-//    contributors may be used to endorse or promote products derived
-//    from this software without specific prior written permission.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ''AS IS'' AND ANY
-// EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-// PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
-// CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-// EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-// PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-// PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
-// OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-//
-// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2001-2004 NovodeX AG. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
-// Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
+// SPDX-FileCopyrightText: Copyright (c) 2008-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// SPDX-License-Identifier: Apache-2.0
 
 #ifndef NP_SCENE_H
 #define NP_SCENE_H
@@ -40,10 +17,6 @@
 
 #include "CmRenderBuffer.h"
 #include "CmIDPool.h"
-
-#if PX_SUPPORT_GPU_PHYSX && !PX_PUBLIC_RELEASE
-	#include "internal/device/PhysXIndicator.h"
-#endif
 
 #include "NpSceneQueries.h"
 #include "NpSceneAccessor.h"
@@ -494,12 +467,6 @@ class NpScene : public NpSceneAccessor, public PxUserAllocated
 					void							checkPositionSanity(const PxRigidActor& a, const PxTransform& pose, const char* fnName) const;
 #endif
 
-#if PX_SUPPORT_GPU_PHYSX && !PX_PUBLIC_RELEASE
-					void							updatePhysXIndicator();
-#else
-	PX_FORCE_INLINE	void							updatePhysXIndicator() {}
-#endif
-
 					void							scAddAggregate(NpAggregate&);
 					void							scRemoveAggregate(NpAggregate&);
 
@@ -589,7 +556,25 @@ class NpScene : public NpSceneAccessor, public PxUserAllocated
 					void							scRemoveArticulationMimicJoint(NpArticulationMimicJoint&);
 
 #if PX_SUPPORT_OMNI_PVD
-					void							createInOmniPVD(const PxSceneDesc& desc);
+					// (Re-)emit the PxScene object + its nested PxGpuDynamicsMemoryConfig + all
+					// scalar/enum properties, plus open the scene's first frame. Sourced entirely
+					// from live getters and cached members (no PxSceneDesc), so it is callable both
+					// at scene construction and from a full-state snapshot onto a freshly-bound stream.
+					void							emitSceneStateToOmniPvd();
+					// Re-emit the scene's object-list memberships (adds each actor / articulation /
+					// aggregate / constraint to the matching PxScene list) from the scene's current live
+					// contents. Used by the snapshot path only; in the normal flow these are added
+					// incrementally as objects are added to the scene.
+					void							emitSceneObjectListsToOmniPvd();
+					// Read back the direct-GPU-API force/torque the scene's rigid dynamics hold on the
+					// device and emit it for the snapshot (the live direct-GPU write callback already emits
+					// it during stepping). No-op unless this is a GPU scene with OVD readback on.
+					void							streamRigidDynamicGPUForcesToOmniPvd();
+					// Same, for articulation link force/torque set through the direct-GPU articulation API.
+					void							streamArticulationGPUForcesToOmniPvd();
+					// Reused gather buffer for the two snapshots above so they do not heap-allocate per call
+					// (both GPU index types are PxU32; the snapshots run one after the other, never concurrently).
+					PxArray<PxU32>					mOvdSnapshotGpuIndices;
 #endif
 
 	PX_FORCE_INLINE	void							updatePvdProperties()
@@ -638,6 +623,9 @@ private:
 
 					void							fetchResultsPreContactCallbacks();
 					void							fetchResultsPostContactCallbacks();
+#if PX_SUPPORT_OMNI_PVD
+					void							fetchResultsOmniPvd();
+#endif
 			virtual	void							fetchResultsParticleSystem() PX_OVERRIDE;
 
 					bool							addSpatialTendonInternal(NpArticulationReducedCoordinate* npaRC, Sc::ArticulationSim* scArtSim);
@@ -677,9 +665,6 @@ private:
 #endif
 
 					PxBounds3						mSanityBounds;
-#if PX_SUPPORT_GPU_PHYSX && !PX_PUBLIC_RELEASE
-					PhysXIndicator					mPhysXIndicator;
-#endif
 
 					PxSync							mPhysicsDone;		// physics thread signals this when update ready
 					PxSync							mCollisionDone;		// physics thread signals this when all collisions ready
@@ -807,6 +792,14 @@ private:
 					const PxReal				mWakeCounterResetValue;
 
 					PxGpuDynamicsMemoryConfig		mGpuDynamicsConfig;
+#if PX_SUPPORT_OMNI_PVD
+					// Cached from PxSceneDesc at construction: these have no live getter, so the
+					// OVD snapshot path needs them retained to re-emit the PxScene properties.
+					PxU32							mOvdGpuMaxNumPartitions;
+					PxU32							mOvdGpuMaxNumStaticPartitions;
+					PxU32							mOvdGpuComputeVersion;
+					PxU32							mOvdContactPairSlabSize;
+#endif
 
 					NpPhysics&					mPhysics;
 					const char*				    mName;
