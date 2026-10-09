@@ -88,7 +88,13 @@ static void setTid(ThreadImpl& threadImpl)
 void* PxThreadStart(void* arg)
 {
 	ThreadImpl* impl = getThread(reinterpret_cast<PxThreadImpl*>(arg));
+#if PX_EMSCRIPTEN
+	// the parent does not wait for us, we wait for it, see start()
+	while(PxAtomicCompareExchange(&(impl->threadStarted), 1, 1) == 0)
+		sched_yield();
+#else
 	impl->state = ePxThreadStarted;
+#endif
 
 	// run setTid in thread's context
 	setTid(*impl);
@@ -163,6 +169,9 @@ void PxThreadImpl::start(uint32_t stackSize, PxRunnable* runnable)
 	}
 #endif
 
+#if PX_EMSCRIPTEN
+	getThread(this)->state = ePxThreadStarted;
+#endif
 	if(runnable && !getThread(this)->arg && !getThread(this)->fn)
 		getThread(this)->arg = runnable;
 
@@ -176,10 +185,17 @@ void PxThreadImpl::start(uint32_t stackSize, PxRunnable* runnable)
 	status = pthread_create(&getThread(this)->thread, &attr, PxThreadStart, this);
 	PX_ASSERT(!status);
 
+#if PX_EMSCRIPTEN
+	// A thread started from the browser's main thread only runs once the main thread returns
+	// to the event loop, unless a worker is free in the pthread pool, so waiting for it here
+	// can deadlock. Let the thread wait for us instead; nothing here needs its TID.
+	PxAtomicCompareExchange(&(getThread(this)->threadStarted), 1, 0);
+#else
 	// wait for thread to startup and write out TID
 	// otherwise TID dependent calls like setAffinity will fail.
 	while(PxAtomicCompareExchange(&(getThread(this)->threadStarted), 1, 1) == 0)
 		yield();
+#endif
 
 	// here we are sure that getThread(this)->state >= ePxThreadStarted
 

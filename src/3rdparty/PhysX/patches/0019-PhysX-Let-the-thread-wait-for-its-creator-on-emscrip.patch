@@ -1,0 +1,66 @@
+From: Jonas Karlsson <jonas.karlsson@qt.io>
+Subject: [PATCH] PhysX: Let the thread wait for its creator on emscripten
+
+PxThreadImpl::start() spins until the new thread has stored its TID.
+With emscripten, a thread started from the browser's main thread only
+runs once a worker is free in the pthread pool, or else once the main
+thread has returned to the event loop. The default CPU dispatcher starts
+as many workers as there are cores, so with more cores than the pool has
+workers the main thread spins forever and the page hangs.
+
+Reverse the wait for emscripten, as the PhysX 4 copy did for
+QTBUG-123888: start() marks the thread as started and releases it, and
+the new thread waits for that before it runs. Nothing on emscripten
+needs the TID, as the affinity calls do nothing there.
+
+The 4.1 patch tested the macro with #ifdef, which PhysX always defines;
+this one tests its value.
+---
+ src/3rdparty/PhysX/source/foundation/unix/FdUnixThread.cpp | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
+
+diff --git a/src/3rdparty/PhysX/source/foundation/unix/FdUnixThread.cpp b/src/3rdparty/PhysX/source/foundation/unix/FdUnixThread.cpp
+--- a/src/3rdparty/PhysX/source/foundation/unix/FdUnixThread.cpp
++++ b/src/3rdparty/PhysX/source/foundation/unix/FdUnixThread.cpp
+@@ -88,7 +88,13 @@ static void setTid(ThreadImpl& threadImpl)
+ void* PxThreadStart(void* arg)
+ {
+ 	ThreadImpl* impl = getThread(reinterpret_cast<PxThreadImpl*>(arg));
++#if PX_EMSCRIPTEN
++	// the parent does not wait for us, we wait for it, see start()
++	while(PxAtomicCompareExchange(&(impl->threadStarted), 1, 1) == 0)
++		sched_yield();
++#else
+ 	impl->state = ePxThreadStarted;
++#endif
+ 
+ 	// run setTid in thread's context
+ 	setTid(*impl);
+@@ -163,6 +169,9 @@ void PxThreadImpl::start(uint32_t stackSize, PxRunnable* runnable)
+ 	}
+ #endif
+ 
++#if PX_EMSCRIPTEN
++	getThread(this)->state = ePxThreadStarted;
++#endif
+ 	if(runnable && !getThread(this)->arg && !getThread(this)->fn)
+ 		getThread(this)->arg = runnable;
+ 
+@@ -176,10 +185,17 @@ void PxThreadImpl::start(uint32_t stackSize, PxRunnable* runnable)
+ 	status = pthread_create(&getThread(this)->thread, &attr, PxThreadStart, this);
+ 	PX_ASSERT(!status);
+ 
++#if PX_EMSCRIPTEN
++	// A thread started from the browser's main thread only runs once the main thread returns
++	// to the event loop, unless a worker is free in the pthread pool, so waiting for it here
++	// can deadlock. Let the thread wait for us instead; nothing here needs its TID.
++	PxAtomicCompareExchange(&(getThread(this)->threadStarted), 1, 0);
++#else
+ 	// wait for thread to startup and write out TID
+ 	// otherwise TID dependent calls like setAffinity will fail.
+ 	while(PxAtomicCompareExchange(&(getThread(this)->threadStarted), 1, 1) == 0)
+ 		yield();
++#endif
+ 
+ 	// here we are sure that getThread(this)->state >= ePxThreadStarted
+ 
