@@ -71,8 +71,9 @@ PxMutexImpl::PxMutexImpl()
 #if PX_LINUX && !defined(__BIONIC__)
 	pthread_mutexattr_setprotocol(&attr, gMutexProtocol);
 #endif
-// the OHOS SDK declares no pthread_mutexattr_setprioceiling()
-#if PX_LINUX && !defined(__BIONIC__) && !defined(__OHOS__)
+// the OHOS SDK declares no pthread_mutexattr_setprioceiling(), and emscripten
+// only defines it when building with pthreads
+#if PX_LINUX && !defined(__BIONIC__) && !defined(__OHOS__) && !defined(__EMSCRIPTEN__)
 	pthread_mutexattr_setprioceiling(&attr, 0);
 #endif
 	pthread_mutex_init(&getMutex(this)->lock, &attr);

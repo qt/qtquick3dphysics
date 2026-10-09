@@ -1,0 +1,32 @@
+From: Jonas Karlsson <jonas.karlsson@qt.io>
+Subject: [PATCH] PhysX: Leave the mutex priority ceiling out for emscripten
+
+Emscripten is PX_LINUX to PhysX, so the mutex constructor calls
+pthread_mutexattr_setprioceiling(). Its musl has no such function, and
+emscripten only defines one in the threaded pthread library, where it
+does nothing but return EPERM. A build without pthreads links the stub
+library instead, which has no definition, so every application linking
+PhysX failed with an undefined symbol for it.
+
+Skip the call for emscripten altogether; it cannot set a ceiling with or
+without threads. pthread_mutexattr_setprotocol() comes from musl itself,
+which the single threaded libc includes, so it stays.
+---
+ src/3rdparty/PhysX/source/foundation/unix/FdUnixMutex.cpp | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/3rdparty/PhysX/source/foundation/unix/FdUnixMutex.cpp b/src/3rdparty/PhysX/source/foundation/unix/FdUnixMutex.cpp
+--- a/src/3rdparty/PhysX/source/foundation/unix/FdUnixMutex.cpp
++++ b/src/3rdparty/PhysX/source/foundation/unix/FdUnixMutex.cpp
+@@ -71,8 +71,9 @@ PxMutexImpl::PxMutexImpl()
+ #if PX_LINUX && !defined(__BIONIC__)
+ 	pthread_mutexattr_setprotocol(&attr, gMutexProtocol);
+ #endif
+-// the OHOS SDK declares no pthread_mutexattr_setprioceiling()
+-#if PX_LINUX && !defined(__BIONIC__) && !defined(__OHOS__)
++// the OHOS SDK declares no pthread_mutexattr_setprioceiling(), and emscripten
++// only defines it when building with pthreads
++#if PX_LINUX && !defined(__BIONIC__) && !defined(__OHOS__) && !defined(__EMSCRIPTEN__)
+ 	pthread_mutexattr_setprioceiling(&attr, 0);
+ #endif
+ 	pthread_mutex_init(&getMutex(this)->lock, &attr);
