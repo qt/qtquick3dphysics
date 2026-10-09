@@ -1900,7 +1900,12 @@ void QPhysicsWorld::initPhysics()
 {
     Q_ASSERT(!m_physicsInitialized);
 
+#if QT_CONFIG(thread)
     const unsigned int numThreads = m_numThreads >= 0 ? m_numThreads : qMax(0, QThread::idealThreadCount());
+#else
+    // PhysX cannot start worker threads, it would wait for them forever
+    const unsigned int numThreads = 0;
+#endif
     m_physx->createScene(m_typicalLength, m_typicalSpeed, m_gravity, this, numThreads);
     m_frameAnimator->start();
     m_physicsInitialized = true;
