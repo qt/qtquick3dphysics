@@ -43,6 +43,7 @@ qt_internal_add_qml_module(Quick3DPhysics
         qconvexmeshshape.cpp qconvexmeshshape_p.h
         qdebugdrawhelper.cpp qdebugdrawhelper_p.h
         qdynamicrigidbody.cpp qdynamicrigidbody_p.h
+        qfilterdata_p.h
         qheightfieldshape.cpp qheightfieldshape_p.h
         qmeshshape.cpp qmeshshape_p.h
         qphysicscommands.cpp qphysicscommands_p.h

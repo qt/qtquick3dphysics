@@ -8,7 +8,10 @@
 #include "PxPhysics.h"
 #include "PxRigidDynamic.h"
 #include "PxRigidActor.h"
+#include "PxRigidStatic.h"
 #include "PxScene.h"
+#include "characterkinematic/PxController.h"
+#include "characterkinematic/PxControllerManager.h"
 
 #include "physxnode/qphysxworld_p.h"
 #include "qabstractphysicsbody_p.h"
@@ -199,12 +202,7 @@ void QPhysXActorBody::buildShapes(QPhysXWorld * /*physX*/)
             physXShape->setFlag(physx::PxShapeFlag::eTRIGGER_SHAPE, true);
         }
 
-        { // Setup filtering
-            physx::PxFilterData filterData;
-            filterData.word0 = frontendNode->filterGroup();
-            filterData.word1 = frontendNode->filterIgnoreGroups();
-            physXShape->setSimulationFilterData(filterData);
-        }
+        physXShape->setSimulationFilterData(QPhysicsUtils::toPhysXType(frontendNode->filterData()));
 
         physx::PxTransform localPose = getPhysXLocalTransform(collisionShape);
         if (!localPose.isSane()) {
@@ -232,18 +230,27 @@ void QPhysXActorBody::buildShapes(QPhysXWorld * /*physX*/)
     setFiltersDirty(false);
 }
 
-void QPhysXActorBody::updateFilters()
+void QPhysXActorBody::updateFilters(QPhysXWorld *physX)
 {
     if (!filtersDirty())
         return;
 
     // Go through all shapes and set the filter group and mask.
     // TODO: What about shared shapes on several actors?
-    for (auto &physXShape : shapes) {
-        physx::PxFilterData filterData;
-        filterData.word0 = frontendNode->filterGroup();
-        filterData.word1 = frontendNode->filterIgnoreGroups();
+    const physx::PxFilterData filterData = QPhysicsUtils::toPhysXType(frontendNode->filterData());
+    for (auto &physXShape : shapes)
         physXShape->setSimulationFilterData(filterData);
+
+    // PxController caches the static shapes near it and reuses that cache
+    // until it moves outside the cached bounds or a static shape is added,
+    // removed or moved. We have to manually invalidate the cache when the
+    // filter data changes; otherwise a controller next to this body would
+    // keep colliding with it (or passing through it) based on the old groups.
+    // Dynamic shapes aren't cached, so only statics need this.
+    if (actor && actor->is<physx::PxRigidStatic>() && physX && physX->controllerManager) {
+        auto *manager = physX->controllerManager;
+        for (physx::PxU32 i = 0; i < manager->getNbControllers(); ++i)
+            manager->getController(i)->invalidateCache();
     }
 
     setFiltersDirty(false);

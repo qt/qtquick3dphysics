@@ -113,7 +113,7 @@ void QAbstractPhysXNode::markDirtyShapes() { }
 
 void QAbstractPhysXNode::rebuildDirtyShapes(QPhysicsWorld *, QPhysXWorld *) { }
 
-void QAbstractPhysXNode::updateFilters() { }
+void QAbstractPhysXNode::updateFilters(QPhysXWorld *) { }
 
 void QAbstractPhysXNode::cleanup(QPhysXWorld *)
 {

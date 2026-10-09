@@ -27,6 +27,7 @@ QT_BEGIN_NAMESPACE
 
 class QCharacterController;
 class ControllerCallback;
+class ControllerFilter;
 
 class QPhysXCharacterController : public QAbstractPhysXNode
 {
@@ -39,10 +40,14 @@ public:
     bool debugGeometryCapability() override;
     DebugDrawBodyType getDebugDrawBodyType() override;
     void detachFrontend() override;
+    void updateFilters(QPhysXWorld *physX) override;
 
 private:
+    void applyFilterData();
+
     physx::PxCapsuleController *controller = nullptr;
     ControllerCallback *reportCallback = nullptr;
+    ControllerFilter *filter = nullptr;
 };
 
 QT_END_NAMESPACE

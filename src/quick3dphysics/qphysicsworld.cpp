@@ -2002,7 +2002,7 @@ void QPhysicsWorld::frameFinished(float deltaTime)
         // of the node, which the triggers holding them need to hear about.
         if (wasDirty && !physXBody->shapesDirty())
             rebuiltBodies.append(physXBody);
-        physXBody->updateFilters();
+        physXBody->updateFilters(m_physx);
 
         // Sync the physics world and the scene
         physXBody->sync(deltaTime, transformCache);

@@ -11,6 +11,7 @@
 #include "characterkinematic/PxCapsuleController.h"
 
 #include "qcapsuleshape_p.h"
+#include "qfilterdata_p.h"
 #include "qphysicsutils_p.h"
 #include "qphysicsworld_p.h"
 #include "qcharactercontroller_p.h"
@@ -59,6 +60,60 @@ private:
     QPhysicsWorld *world = nullptr;
 };
 
+// The one shape a controller's actor is created with, its capsule.
+static physx::PxShape *shapeOf(const physx::PxController &controller)
+{
+    physx::PxShape *shape = nullptr;
+    auto *actor = controller.getActor();
+    if (actor && actor->getShapes(&shape, 1) == 1)
+        return shape;
+    return nullptr;
+}
+
+// Decides what a controller's move() is stopped by. Two bodies are kept apart
+// or not by the simulation filter shader in QPhysXWorld, which reads their
+// groups off the simulation filter data of their shapes. A controller does not
+// move through the simulation but through scene queries of its own, which
+// never reach that shader, so the same question is asked here of every shape
+// it sweeps against and of every other controller it meets, off the same data.
+class ControllerFilter : public physx::PxQueryFilterCallback,
+                         public physx::PxControllerFilterCallback
+{
+public:
+    physx::PxQueryHitType::Enum preFilter(const physx::PxFilterData & /*queryData*/,
+                                          const physx::PxShape *shape,
+                                          const physx::PxRigidActor * /*actor*/,
+                                          physx::PxHitFlags & /*queryFlags*/) override
+    {
+        const QFilterData other = QPhysicsUtils::toQtType(shape->getSimulationFilterData());
+        return QPhysicsUtils::isFilteredOut(self, other) ? physx::PxQueryHitType::eNONE
+                                                         : physx::PxQueryHitType::eBLOCK;
+    }
+
+    // Never called: the controller is given no ePOSTFILTER flag.
+    physx::PxQueryHitType::Enum postFilter(const physx::PxFilterData & /*queryData*/,
+                                           const physx::PxQueryHit & /*hit*/,
+                                           const physx::PxShape * /*shape*/,
+                                           const physx::PxRigidActor * /*actor*/) override
+    {
+        return physx::PxQueryHitType::eBLOCK;
+    }
+
+    bool filter(const physx::PxController &a, const physx::PxController &b) override
+    {
+        const auto dataOf = [](const physx::PxController &controller) {
+            auto *shape = shapeOf(controller);
+            return shape ? QPhysicsUtils::toQtType(shape->getSimulationFilterData())
+                         : QFilterData();
+        };
+        return !QPhysicsUtils::isFilteredOut(dataOf(a), dataOf(b));
+    }
+
+    // This controller's own groups, kept in step with its shape by
+    // QPhysXCharacterController::applyFilterData().
+    QFilterData self;
+};
+
 QPhysXCharacterController::QPhysXCharacterController(QCharacterController *frontEnd)
     : QAbstractPhysXNode(frontEnd)
 {
@@ -69,6 +124,8 @@ void QPhysXCharacterController::cleanup(QPhysXWorld *physX)
     PHYSX_RELEASE(controller);
     delete reportCallback;
     reportCallback = nullptr;
+    delete filter;
+    filter = nullptr;
     QAbstractPhysXNode::cleanup(physX);
 }
 
@@ -102,6 +159,7 @@ void QPhysXCharacterController::init(QPhysicsWorld *world, QPhysXWorld * /*physX
     physx::PxCapsuleControllerDesc desc;
     reportCallback = new ControllerCallback(world);
     desc.reportCallback = reportCallback;
+    filter = new ControllerFilter;
     desc.radius = 0.5f * radiusScale * capsule->diameter();
     desc.height = heightScale * capsule->height();
     desc.stepOffset = 0.25f * desc.height; // TODO: API
@@ -125,6 +183,8 @@ void QPhysXCharacterController::init(QPhysicsWorld *world, QPhysXWorld * /*physX
         actor->userData = characterController;
     else
         qWarning() << "QtQuick3DPhysics internal error: CharacterController created without actor.";
+
+    applyFilterData();
 
     // No collision shape in the userData here, unlike the shapes a body builds,
     // which is how a trigger tells one body's pairs apart. A controller has
@@ -196,8 +256,12 @@ void QPhysXCharacterController::sync(float deltaTime,
     } else if (deltaTime > 0) {
         const auto displacement =
                 QPhysicsUtils::toPhysXType(characterController->getDisplacement(deltaTime));
-        auto collisions =
-                controller->move(displacement, displacement.magnitude() / 100, deltaTime, {});
+        // No filter data on the query itself: PhysX's own query stage would
+        // match it against query filter data the shapes were never given, and
+        // let nothing through. The callback does the filtering instead.
+        const physx::PxControllerFilters filters(nullptr, filter, filter);
+        auto collisions = controller->move(displacement, displacement.magnitude() / 100,
+                                           deltaTime, filters);
         // PxController::move() reports what it hits, and a handler for that
         // can delete the controller.
         if (!frontendNode)
@@ -213,10 +277,7 @@ void QPhysXCharacterController::sync(float deltaTime,
     // node to another material, which the shape of the controller then has to be pointed at.
     // The shape is created exclusive to the actor of the controller, so it stays writable.
     if (updateMaterial() && material) {
-        physx::PxShape *shape = nullptr;
-        auto *actor = controller->getActor();
-        // The controller is created with an actor holding exactly one shape, its capsule
-        if (actor && actor->getShapes(&shape, 1) == 1)
+        if (auto *shape = shapeOf(*controller))
             shape->setMaterials(&material, 1);
     }
 }
@@ -234,6 +295,30 @@ bool QPhysXCharacterController::debugGeometryCapability()
 DebugDrawBodyType QPhysXCharacterController::getDebugDrawBodyType()
 {
     return DebugDrawBodyType::Character;
+}
+
+void QPhysXCharacterController::updateFilters(QPhysXWorld * /*physX*/)
+{
+    if (!controller || !frontendNode || !filtersDirty())
+        return;
+    applyFilterData();
+}
+
+// Writes the frontend's groups to the controller's shape, which is where the
+// simulation filter shader reads them for the bodies and triggers the
+// controller's actor is paired with, and to the filter its own move() asks.
+void QPhysXCharacterController::applyFilterData()
+{
+    auto *shape = shapeOf(*controller);
+    if (!shape)
+        return;
+    const QFilterData data = frontendNode->filterData();
+    shape->setSimulationFilterData(QPhysicsUtils::toPhysXType(data));
+    filter->self = data;
+    // PxController caches the shapes near it, based on the filter settings,
+    // so we must invalidate that cache for the change to take effect.
+    controller->invalidateCache();
+    setFiltersDirty(false);
 }
 
 void QPhysXCharacterController::detachFrontend()

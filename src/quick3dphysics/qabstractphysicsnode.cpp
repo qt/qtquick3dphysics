@@ -316,6 +316,15 @@ void QAbstractPhysicsNode::qmlClearShapes(QQmlListProperty<QAbstractCollisionSha
     self->m_collisionShapes.clear();
 }
 
+QFilterData QAbstractPhysicsNode::filterData() const
+{
+    // Both are kept within 0..31 and 32 bits by their setters.
+    QFilterData data;
+    data.group = quint32(m_filterGroup);
+    data.ignoreGroups = quint32(m_filterIgnoreGroups);
+    return data;
+}
+
 int QAbstractPhysicsNode::filterGroup() const
 {
     return m_filterGroup;

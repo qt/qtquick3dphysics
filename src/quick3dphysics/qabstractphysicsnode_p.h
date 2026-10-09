@@ -21,6 +21,7 @@
 #include <QtQml/QQmlEngine>
 #include <QtQml/QQmlListProperty>
 #include <QtQuick3DPhysics/private/qabstractcollisionshape_p.h>
+#include <QtQuick3DPhysics/private/qfilterdata_p.h>
 
 namespace physx {
 template<class Type>
@@ -87,6 +88,9 @@ public:
 
     Q_REVISION(6, 7) int filterIgnoreGroups() const;
     Q_REVISION(6, 7) void setFilterIgnoreGroups(int newFilterIgnoreGroups);
+
+    // Both of the above as PhysX is told them.
+    QFilterData filterData() const;
 
 private Q_SLOTS:
     void onShapeDestroyed(QObject *object);

@@ -22,6 +22,9 @@
 #include <foundation/PxMat33.h>
 #include <foundation/PxQuat.h>
 #include <foundation/PxVec3.h>
+#include <PxFiltering.h>
+
+#include "qfilterdata_p.h"
 
 namespace physx {
 class PxRigidBody;
@@ -66,6 +69,39 @@ Q_ALWAYS_INLINE bool fuzzyEquals(const physx::PxTransform &a, const physx::PxTra
     return qFuzzyCompare(a.p.x, b.p.x) && qFuzzyCompare(a.p.y, b.p.y) && qFuzzyCompare(a.p.z, b.p.z)
             && qFuzzyCompare(a.q.x, b.q.x) && qFuzzyCompare(a.q.y, b.q.y)
             && qFuzzyCompare(a.q.z, b.q.z) && qFuzzyCompare(a.q.w, b.q.w);
+}
+
+Q_ALWAYS_INLINE QFilterData toQtType(const physx::PxFilterData &data)
+{
+    QFilterData qtData;
+    qtData.group = data.word0;
+    qtData.ignoreGroups = data.word1;
+    return qtData;
+}
+
+Q_ALWAYS_INLINE physx::PxFilterData toPhysXType(const QFilterData &data)
+{
+    physx::PxFilterData pxData;
+    pxData.word0 = data.group;
+    pxData.word1 = data.ignoreGroups;
+    return pxData;
+}
+
+// Whether two nodes are filtered out from each other: either side naming the
+// other's group among the ones it ignores is enough. PhysX asks this in
+// contactReportFilterShader() as it decides what to pair, and a
+// CharacterController, which moves through scene queries rather than pairs,
+// asks it of what it sweeps against, so that the answer is the same either
+// way.
+Q_ALWAYS_INLINE bool isFilteredOut(const QFilterData &a, const QFilterData &b)
+{
+    const auto isBitSet = [](quint32 value, quint32 position) {
+        Q_ASSERT(position < 32);
+        return (value & (1u << position)) != 0u;
+    };
+
+    return a.group < 32 && b.group < 32
+            && (isBitSet(a.ignoreGroups, b.group) || isBitSet(b.ignoreGroups, a.group));
 }
 
 Q_ALWAYS_INLINE bool isFinite(const QVector3D &v)

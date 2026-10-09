@@ -73,7 +73,7 @@ public:
     void releaseMaterial();
     virtual void markDirtyShapes();
     virtual void rebuildDirtyShapes(QPhysicsWorld *, QPhysXWorld *);
-    virtual void updateFilters();
+    virtual void updateFilters(QPhysXWorld *physX);
 
     virtual void sync(float deltaTime, QHash<QQuick3DNode *, QMatrix4x4> &transformCache) = 0;
     virtual void cleanup(QPhysXWorld *);
