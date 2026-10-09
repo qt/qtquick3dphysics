@@ -1,0 +1,29 @@
+From: Jonas Karlsson <jonas.karlsson@qt.io>
+Subject: [PATCH] PhysX: Pin the glibc math symbols on x86-64 only
+
+PhysX binds expf() and powf() to their GLIBC_2.2.5 versions, so that a
+library built against a newer glibc still runs on an older one. That
+version is the oldest glibc of x86-64; 32-bit x86 has the same functions
+as GLIBC_2.0, and has no GLIBC_2.2.5 version of them at all, so every
+link on i686 with glibc fails with undefined references to
+powf@GLIBC_2.2.5. Patch 0012 already took the other architectures off
+this path; the Intel family still has 32-bit x86 in it.
+
+Pin the symbols on x86-64 alone, which also leaves out emscripten, as
+PhysX counts it as 32-bit x86.
+---
+ src/3rdparty/PhysX/include/foundation/PxMath.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/3rdparty/PhysX/include/foundation/PxMath.h b/src/3rdparty/PhysX/include/foundation/PxMath.h
+--- a/src/3rdparty/PhysX/include/foundation/PxMath.h
++++ b/src/3rdparty/PhysX/include/foundation/PxMath.h
+@@ -19,7 +19,7 @@
+ #pragma warning(pop)
+ #endif
+ 
+-#if (PX_LINUX_FAMILY && PX_INTEL_FAMILY && !PX_EMSCRIPTEN && defined(__GLIBC__))
++#if (PX_LINUX_FAMILY && PX_X64 && defined(__GLIBC__))
+ // Force linking against nothing newer than glibc v2.17 to remain compatible with platforms with older glibc versions
+ __asm__(".symver expf,expf@GLIBC_2.2.5");
+ __asm__(".symver powf,powf@GLIBC_2.2.5");
