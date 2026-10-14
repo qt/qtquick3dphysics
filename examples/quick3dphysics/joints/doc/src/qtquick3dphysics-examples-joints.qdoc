@@ -41,9 +41,12 @@
 
     \snippet joints/Revolute.qml full
 
-    Going back to the main scene there is a FrameAnimation object that rotates
-    the kinematic \l{PrismaticJoint}{prismatic} and \l{RevoluteJoint}{revolute}
-    joints.
+    In the main scene, the PhysicsWorld rotates the kinematic
+    \l{PrismaticJoint}{prismatic} and \l{RevoluteJoint}{revolute} joints in its
+    \l{PhysicsWorld::frameDone}{frameDone} handler, by an angle scaled by the
+    timestep. The \l{PhysicsWorld::minimumTimestep}{minimumTimestep} and
+    \l{PhysicsWorld::maximumTimestep}{maximumTimestep} are kept close together so
+    that the joints turn at a steady speed even when frames arrive unevenly.
 
     \snippet joints/main.qml animation
 

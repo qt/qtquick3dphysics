@@ -13,10 +13,20 @@ Window {
     visible: true
     title: qsTr("Qt Quick 3D Physics - Joints")
 
+    //! [animation]
     PhysicsWorld {
         scene: viewport.scene
         running: true
+        // A narrow timestep range keeps the joints turning at a steady speed
+        minimumTimestep: 8
+        maximumTimestep: 20
+        onFrameDone: (timestep) => {
+            // Degrees per millisecond
+            prismatic.jointRotation.z += 0.06 * timestep
+            revolute.jointRotation.x += 0.057 * timestep
+        }
     }
+    //! [animation]
 
     View3D {
         id: viewport
@@ -74,17 +84,6 @@ Window {
                 receivesShadows: true
             }
         }
-
-        //! [animation]
-        FrameAnimation {
-            id: animator
-            running: true
-            onTriggered: {
-                prismatic.jointRotation.z += 1
-                revolute.jointRotation.x += 0.95
-            }
-        }
-        //! [animation]
     }
 }
 //! [full]
