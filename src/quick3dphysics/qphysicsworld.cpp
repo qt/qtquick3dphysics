@@ -49,6 +49,22 @@ QT_BEGIN_NAMESPACE
     The PhysicsWorld type controls the physics simulation. This node is used to create an instance of the physics world as well
     as define its properties. There can only be one physics world. All collision nodes in the qml
     will get added automatically to the physics world.
+
+    \section1 Simulation timestep
+
+    The simulation works in lockstep with the rendering, meaning a new
+    simulation frame will only be started after a rendered frame has completed.
+    This means that at most one simulation frame will run per rendered frame.
+    The timestep of a simulation frame is the time since the previous one, so
+    it follows the frame rate. A simulation frame is skipped if less than
+    \l minimumTimestep has passed, and the timestep is capped at
+    \l maximumTimestep.
+
+    The simulation is sensitive to very small and very large timesteps, and to
+    large variations between them. Uneven frame pacing, for example while the
+    window is being resized, can make the simulation jittery or unstable.
+    Keeping \l minimumTimestep and \l maximumTimestep close together gives a
+    steadier simulation.
 */
 
 /*!
@@ -142,10 +158,7 @@ QT_BEGIN_NAMESPACE
 
     Range: \c{[0, maximumTimestep]}
 
-    \note The simulation timestep works in lockstep with the rendering,
-    meaning a new simulation frame will only be started after a rendered frame
-    has completed. This means that at most one simulation frame will run per
-    rendered frame.
+    \sa {Simulation timestep}
 */
 
 /*!
@@ -155,10 +168,7 @@ QT_BEGIN_NAMESPACE
 
     Range: \c{[0, inf]}
 
-    \note The simulation timestep works in lockstep with the rendering,
-    meaning a new simulation frame will only be started after a rendered frame
-    has completed. This means that at most one simulation frame will run per
-    rendered frame.
+    \sa {Simulation timestep}
 */
 
 /*!
