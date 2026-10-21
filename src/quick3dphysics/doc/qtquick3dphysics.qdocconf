@@ -14,7 +14,6 @@ qhp.projects            = QtQuick3DPhysics
 
 qhp.QtQuick3DPhysics.file                = qtquick3dphysics.qhp
 qhp.QtQuick3DPhysics.namespace           = org.qt-project.qtquick3dphysics.$QT_VERSION_TAG
-qhp.QtQuick3DPhysics.namespace           = org.qt-project.qtquick3dphysics.dev
 qhp.QtQuick3DPhysics.virtualFolder       = qtquick3dphysics
 qhp.QtQuick3DPhysics.indexTitle          = Qt Quick 3D Physics
 qhp.QtQuick3DPhysics.indexRoot           =
