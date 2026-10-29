@@ -84,6 +84,11 @@ struct StaticPhysXObjects
     bool foundationCreated = false;
     bool physicsCreated = false;
 
+    // Incremented whenever 'physics' is released. Releasing it also destroys every mesh and
+    // height field created from it, so objects created in an earlier generation must neither be
+    // used nor released. A counter, since a new PxPhysics may be created at the same address.
+    quint32 physicsGeneration = 0;
+
     static StaticPhysXObjects &getReference();
 };
 

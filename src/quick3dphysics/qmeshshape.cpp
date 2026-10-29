@@ -23,6 +23,7 @@
 #include "qmeshshape_p.h"
 #include "qphysicsworld_p.h"
 #include "qphysicsmeshutils_p_p.h"
+#include "qstaticphysxobjects_p.h"
 
 QT_BEGIN_NAMESPACE
 
@@ -53,8 +54,31 @@ static bool isValidPositionLayout(int offset, int stride, qsizetype bufferSize)
     return true;
 }
 
+QQuick3DPhysicsMesh::~QQuick3DPhysicsMesh()
+{
+    forgetStalePhysXMeshes();
+    if (m_convexMesh)
+        m_convexMesh->release();
+    if (m_triangleMesh)
+        m_triangleMesh->release();
+}
+
+// Drops the PhysX meshes if they were destroyed together with the PxPhysics that created them.
+// That happens when the last PhysicsWorld is destroyed while shapes using this mesh remain, so
+// the destructor must not release the meshes again, and the next world must not get them.
+void QQuick3DPhysicsMesh::forgetStalePhysXMeshes()
+{
+    const auto &s_physx = StaticPhysXObjects::getReference();
+    if (m_physicsGeneration == s_physx.physicsGeneration)
+        return;
+    m_convexMesh = nullptr;
+    m_triangleMesh = nullptr;
+    m_physicsGeneration = s_physx.physicsGeneration;
+}
+
 physx::PxConvexMesh *QQuick3DPhysicsMesh::convexMesh()
 {
+    forgetStalePhysXMeshes();
     if (m_convexMesh != nullptr)
         return m_convexMesh;
 
@@ -71,6 +95,7 @@ physx::PxConvexMesh *QQuick3DPhysicsMesh::convexMesh()
 
 physx::PxTriangleMesh *QQuick3DPhysicsMesh::triangleMesh()
 {
+    forgetStalePhysXMeshes();
     if (m_triangleMesh != nullptr)
         return m_triangleMesh;
 
@@ -443,13 +468,17 @@ QHash<QQuick3DGeometry *, QQuick3DPhysicsMesh *> QQuick3DPhysicsMeshManager::geo
 QMeshShape::~QMeshShape()
 {
     delete m_convexGeometry;
+    delete m_triangleGeometry;
     if (m_mesh)
         QQuick3DPhysicsMeshManager::releaseMesh(m_mesh);
 }
 
 physx::PxGeometry *QMeshShape::getPhysXGeometry()
 {
-    if (m_dirtyPhysx || m_scaleDirty)
+    // The geometry points at a PhysX mesh that dies with the PxPhysics that created it, so a new
+    // world needs a new geometry even when nothing else is dirty.
+    const auto &s_physx = StaticPhysXObjects::getReference();
+    if (m_dirtyPhysx || m_scaleDirty || m_physicsGeneration != s_physx.physicsGeneration)
         updatePhysXGeometry();
     if (shapeType() == MeshType::CONVEX)
         return m_convexGeometry;
@@ -465,6 +494,7 @@ void QMeshShape::updatePhysXGeometry()
     delete m_triangleGeometry;
     m_convexGeometry = nullptr;
     m_triangleGeometry = nullptr;
+    m_physicsGeneration = StaticPhysXObjects::getReference().physicsGeneration;
 
     if (!m_mesh)
         return;

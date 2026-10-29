@@ -82,6 +82,7 @@ private:
     QVector3D m_hfOffset;
     QUrl m_heightMapSource;
     bool m_dirtyPhysx = false;
+    quint32 m_physicsGeneration = 0;
     QVector3D m_extents = { 100, 100, 100 };
     bool m_extentsSetExplicitly = false;
     QQuickImage *m_image = nullptr;
