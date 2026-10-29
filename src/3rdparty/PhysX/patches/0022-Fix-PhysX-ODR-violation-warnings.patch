@@ -1,0 +1,155 @@
+From d8f9378cffa5e4f61194d6f3552d3ff6d3ab423f Mon Sep 17 00:00:00 2001
+From: Thiago Macieira <thiago.macieira@intel.com>
+Date: Thu, 29 Oct 2026 11:59:57 +0100
+Subject: [PATCH] Fix PhysX ODR violation warnings
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Upstream bug, which I have not reported. Real, but harmless.
+
+GCC in LTO mode can detect ODR violations when two structs with the same
+name are different. In this case, they are layout-identical, but
+strictly speaking are different because the member at this particular
+position is in an unnamed namespace.
+
+src/3rdparty/PhysX/source/simulationcontroller/include/ScScene.h:195:15: warning: type ‘struct Scene’ violates the C++ One Definition Rule [-Wodr]
+ScScene.h:961:161: note: the first difference of corresponding definitions is field ‘mOverlapFilterTaskHead’
+ScScene.h:961:161: note: a field of same name but different type is defined in another translation unit
+ScScene.h:40:7: note: type ‘struct OverlapFilterTask’ defined in anonymous namespace cannot match across the translation unit boundary
+
+For the rest, they are simply POD structs with the same name:
+
+GuSDF.cpp:874:16: warning: type ‘struct SortedTriangle’ violates the C++ One Definition Rule [-Wodr]
+GuPCMContactConvexCommon.h:305:8: note: a different type is defined in another translation unit
+
+Pick-to: 6.12
+Change-Id: I29e31a77ad268b25f2cdfffd5fc1da7cdeb83fc6
+---
+ src/3rdparty/PhysX/source/geomutils/src/GuSDF.cpp      |  2 ++
+ .../source/lowleveldynamics/src/DySolverControl.cpp    |  2 ++
+ .../source/lowleveldynamics/src/DyTGSDynamics.cpp      |  2 ++
+ .../source/simulationcontroller/include/ScScene.h      | 10 +++-------
+ .../source/simulationcontroller/src/ScPipeline.cpp     |  6 +++---
+ 5 files changed, 12 insertions(+), 10 deletions(-)
+
+diff --git a/src/3rdparty/PhysX/source/geomutils/src/GuSDF.cpp b/src/3rdparty/PhysX/source/geomutils/src/GuSDF.cpp
+index 1258bc2..3d15ddf 100644
+--- a/src/3rdparty/PhysX/source/geomutils/src/GuSDF.cpp
++++ b/src/3rdparty/PhysX/source/geomutils/src/GuSDF.cpp
+@@ -871,6 +871,7 @@ namespace Gu
+ 			fixSdfForNonClosedGeometry(width, height, depth, sdf, sampler.getActiveCellSize());
+ 	}
+ 	//Helper class to extract surface triangles from a tetmesh
++	namespace {
+ 	struct SortedTriangle
+ 	{
+ 	public:
+@@ -897,6 +898,7 @@ namespace Gu
+ 			return first.mA == second.mA && first.mB == second.mB && first.mC == second.mC;
+ 		}
+ 	};
++	}
+ 
+ 	void analyzeAndFixMesh(const PxVec3* vertices, const PxU32* indicesOrig, PxU32 numTriangleIndices, PxArray<PxU32>& repairedIndices)
+ 	{
+diff --git a/src/3rdparty/PhysX/source/lowleveldynamics/src/DySolverControl.cpp b/src/3rdparty/PhysX/source/lowleveldynamics/src/DySolverControl.cpp
+index 92f5f47..755dbd3 100644
+--- a/src/3rdparty/PhysX/source/lowleveldynamics/src/DySolverControl.cpp
++++ b/src/3rdparty/PhysX/source/lowleveldynamics/src/DySolverControl.cpp
+@@ -89,12 +89,14 @@ SolveBlockMethod gVTableSolveConcludeBlock[] PX_UNUSED_ATTRIBUTE =
+ 	solve1D4Block_Conclude,					// DY_SC_TYPE_BLOCK_1D,
+ };
+ 
++namespace {
+ struct SolverDt
+ {
+ 	PxReal simDt;
+ 	PxReal stepDt;
+ 	PxReal invStepDt; 
+ };
++}
+ 
+ constexpr bool tWriteBackInternalConstraints = true;
+ constexpr bool tIsVelIter = true;
+diff --git a/src/3rdparty/PhysX/source/lowleveldynamics/src/DyTGSDynamics.cpp b/src/3rdparty/PhysX/source/lowleveldynamics/src/DyTGSDynamics.cpp
+index 508c064..95565cb 100644
+--- a/src/3rdparty/PhysX/source/lowleveldynamics/src/DyTGSDynamics.cpp
++++ b/src/3rdparty/PhysX/source/lowleveldynamics/src/DyTGSDynamics.cpp
+@@ -2635,6 +2635,7 @@ static void parallelIntegrateBodiesAndNoWait
+ 	targetIntegrationProgressCount += nbBodies;
+ }
+ 
++namespace {
+ struct SolverDt
+ {
+ 	PxReal totalDt;
+@@ -2642,6 +2643,7 @@ struct SolverDt
+ 	PxReal stepDt;
+ 	PxReal invStepDt;
+ };
++}
+ 
+ template<bool isVelocityIteration, bool updateDeltaMotion, bool saveVelocity>
+ static void parallelSolveInternalConstraintsAndWaitForCompletion
+diff --git a/src/3rdparty/PhysX/source/simulationcontroller/include/ScScene.h b/src/3rdparty/PhysX/source/simulationcontroller/include/ScScene.h
+index aa74d28..a67a418 100644
+--- a/src/3rdparty/PhysX/source/simulationcontroller/include/ScScene.h
++++ b/src/3rdparty/PhysX/source/simulationcontroller/include/ScScene.h
+@@ -35,19 +35,15 @@
+ 
+ #define PX_MAX_DOMINANCE_GROUP 32
+ 
+-namespace
+-{
+-class OverlapFilterTask;
+-class OnOverlapCreatedTask;
+-class IslandInsertionTask;
+-}
+-
+ namespace physx
+ {
+ 	class NpShape;
+ 
+ struct PxTriggerPair;
+ 
++class OverlapFilterTask;
++class OnOverlapCreatedTask;
++class IslandInsertionTask;
+ class PxsSimulationController;
+ class PxsSimulationControllerCallback;
+ class PxsMemoryManager;
+diff --git a/src/3rdparty/PhysX/source/simulationcontroller/src/ScPipeline.cpp b/src/3rdparty/PhysX/source/simulationcontroller/src/ScPipeline.cpp
+index 68aa23b..b0a2bda 100644
+--- a/src/3rdparty/PhysX/source/simulationcontroller/src/ScPipeline.cpp
++++ b/src/3rdparty/PhysX/source/simulationcontroller/src/ScPipeline.cpp
+@@ -405,7 +405,7 @@ void Sc::Scene::postBroadPhase(PxBaseTask* continuation)
+ 
+ ///////////////////////////////////////////////////////////////////////////////
+ 
+-namespace
++namespace physx
+ {
+ 	// PT: design that doesn't use a bitmap and does not require a MaxPairs limit per task. In this version the surviving pairs
+ 	// are moved to the front of the input buffers.
+@@ -587,7 +587,7 @@ static PX_FORCE_INLINE	T*	getUsedPointer(T* ptr)
+ 	return address & 1 ? reinterpret_cast<T*>(address & size_t(~1)) : NULL;
+ }
+ 
+-namespace
++namespace physx
+ {
+ 	class OnOverlapCreatedTask : public Cm::Task
+ 	{
+@@ -885,7 +885,7 @@ void Sc::Scene::processLostTouchPairs()
+ 	mLostTouchPairsDeletedBodyIDs.clear();
+ }
+ 
+-namespace
++namespace physx
+ {
+ 	PX_COMPILE_TIME_ASSERT(sizeof(IG::EdgeIndex) <= sizeof(AABBOverlap));	// PT: because we're going to store EdgeIndex in the previous AABBOverlap buffer
+ 	class IslandInsertionTask : public Cm::Task
+-- 
+2.56.0
+

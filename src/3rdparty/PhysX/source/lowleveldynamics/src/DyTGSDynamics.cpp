@@ -2635,6 +2635,7 @@ static void parallelIntegrateBodiesAndNoWait
 	targetIntegrationProgressCount += nbBodies;
 }
 
+namespace {
 struct SolverDt
 {
 	PxReal totalDt;
@@ -2642,6 +2643,7 @@ struct SolverDt
 	PxReal stepDt;
 	PxReal invStepDt;
 };
+}
 
 template<bool isVelocityIteration, bool updateDeltaMotion, bool saveVelocity>
 static void parallelSolveInternalConstraintsAndWaitForCompletion
