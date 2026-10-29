@@ -36,7 +36,7 @@ class QQuick3DPhysicsMesh
 public:
     QQuick3DPhysicsMesh(const QString &qmlSource) : m_meshPath(qmlSource) { }
     QQuick3DPhysicsMesh(const QQuick3DGeometry *geometrySource) : m_meshGeometry(geometrySource) { }
-    ~QQuick3DPhysicsMesh() { }
+    ~QQuick3DPhysicsMesh();
 
     QList<QVector3D> positions();
 
@@ -59,6 +59,7 @@ public:
     enum MeshType { Convex, Triangle };
 
 private:
+    void forgetStalePhysXMeshes();
     void loadSsgMesh();
     physx::PxConvexMesh *convexMeshQmlSource();
     physx::PxConvexMesh *convexMeshGeometrySource();
@@ -72,6 +73,7 @@ private:
 
     physx::PxConvexMesh *m_convexMesh = nullptr;
     physx::PxTriangleMesh *m_triangleMesh = nullptr;
+    quint32 m_physicsGeneration = 0;
     int refCount = 0;
 };
 

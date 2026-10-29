@@ -68,6 +68,7 @@ private:
     void updatePhysXGeometry();
 
     bool m_dirtyPhysx = false;
+    quint32 m_physicsGeneration = 0;
     physx::PxConvexMeshGeometry *m_convexGeometry = nullptr;
     physx::PxTriangleMeshGeometry *m_triangleGeometry = nullptr;
     QUrl m_meshSource;

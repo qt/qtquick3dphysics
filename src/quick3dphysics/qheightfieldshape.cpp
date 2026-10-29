@@ -29,6 +29,7 @@
 #include "geometry/PxHeightFieldDesc.h"
 
 #include "qphysicsworld_p.h"
+#include "qstaticphysxobjects_p.h"
 
 QT_BEGIN_NAMESPACE
 
@@ -40,6 +41,7 @@ class QQuick3DPhysicsHeightField
 public:
     QQuick3DPhysicsHeightField(const QString &qmlSource);
     QQuick3DPhysicsHeightField(QQuickImage *image);
+    ~QQuick3DPhysicsHeightField();
 
     void ref() { ++refCount; }
     int deref() { return --refCount; }
@@ -50,6 +52,8 @@ public:
     int columns() const;
 
 private:
+    void forgetStalePhysXHeightField();
+
     QString m_sourcePath;
     // This raw pointer is safe to store since when the Image or
     // HeightFieldShape is destroyed, this heightfield will be dereferenced
@@ -57,6 +61,7 @@ private:
     QQuickImage *m_image = nullptr;
     std::vector<physx::PxHeightFieldSample> m_samples;
     physx::PxHeightField *m_heightField = nullptr;
+    quint32 m_physicsGeneration = 0;
     int m_rows = 0;
     int m_columns = 0;
     int refCount = 0;
@@ -130,6 +135,25 @@ QQuick3DPhysicsHeightField::QQuick3DPhysicsHeightField(const QString &qmlSource)
 
 QQuick3DPhysicsHeightField::QQuick3DPhysicsHeightField(QQuickImage *image) : m_image(image) { }
 
+QQuick3DPhysicsHeightField::~QQuick3DPhysicsHeightField()
+{
+    forgetStalePhysXHeightField();
+    if (m_heightField)
+        m_heightField->release();
+}
+
+// Drops the PhysX height field if it was destroyed together with the PxPhysics that created it.
+// That happens when the last PhysicsWorld is destroyed while shapes using this height field
+// remain, so the destructor must not release it again, and the next world must not get it.
+void QQuick3DPhysicsHeightField::forgetStalePhysXHeightField()
+{
+    const auto &s_physx = StaticPhysXObjects::getReference();
+    if (m_physicsGeneration == s_physx.physicsGeneration)
+        return;
+    m_heightField = nullptr;
+    m_physicsGeneration = s_physx.physicsGeneration;
+}
+
 void QQuick3DPhysicsHeightField::writeSamples(const QImage &heightMap)
 {
     if (Q_UNLIKELY(heightMap.isNull())) {
@@ -164,6 +188,7 @@ void QQuick3DPhysicsHeightField::writeSamples(const QImage &heightMap)
 
 physx::PxHeightField *QQuick3DPhysicsHeightField::heightField()
 {
+    forgetStalePhysXHeightField();
     if (m_heightField)
         return m_heightField;
 
@@ -317,7 +342,11 @@ QHeightFieldShape::~QHeightFieldShape()
 
 physx::PxGeometry *QHeightFieldShape::getPhysXGeometry()
 {
-    if (m_dirtyPhysx || m_scaleDirty || !m_heightFieldGeometry) {
+    // The geometry points at a PhysX height field that dies with the PxPhysics that created it,
+    // so a new world needs a new geometry even when nothing else is dirty.
+    const auto &s_physx = StaticPhysXObjects::getReference();
+    if (m_dirtyPhysx || m_scaleDirty || !m_heightFieldGeometry
+        || m_physicsGeneration != s_physx.physicsGeneration) {
         updatePhysXGeometry();
     }
     return m_heightFieldGeometry;
@@ -327,6 +356,7 @@ void QHeightFieldShape::updatePhysXGeometry()
 {
     delete m_heightFieldGeometry;
     m_heightFieldGeometry = nullptr;
+    m_physicsGeneration = StaticPhysXObjects::getReference().physicsGeneration;
     if (!m_heightField)
         return;
 

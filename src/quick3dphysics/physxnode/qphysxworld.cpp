@@ -277,6 +277,7 @@ void QPhysXWorld::deleteWorld()
         Q_ASSERT(s_physx.materials.isEmpty());
         s_physx.materials.clear();
         PHYSX_RELEASE(s_physx.physics);
+        s_physx.physicsGeneration++;
         PHYSX_RELEASE(s_physx.foundation);
 
         delete callback;
