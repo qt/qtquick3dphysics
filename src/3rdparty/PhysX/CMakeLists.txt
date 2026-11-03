@@ -1250,26 +1250,9 @@ endif()
 qt_internal_extend_target(BundledPhysX
     INCLUDE_DIRECTORIES
         include
-        include/characterkinematic
-        include/collision
         include/common
-        include/common/windows
-        include/cooking
-        include/cudamanager
-        include/extensions
-        include/filebuf
-        include/foundation
-        include/geometry
-        include/geomutils
-        include/gpu
-        include/pvd
-        include/solver
-        include/task
-        include/vehicle
         pxshared/include
         pxshared/include/foundation
-        pxshared/include/foundation/unix
-        pxshared/include/foundation/windows
         source/common/include
         source/common/include/windows
         source/common/src
