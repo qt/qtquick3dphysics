@@ -17,6 +17,7 @@ QT_BEGIN_NAMESPACE
     \qmltype D6Joint
     \inqmlmodule QtQuick3D.Physics
     \since 6.13
+    \inherits PhysicsJoint
     \brief A configurable joint with up to 6 degrees of freedom (3 linear, 3 angular).
 
     The D6Joint allows custom configuration for each axis of movement and rotation.
