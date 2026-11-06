@@ -15,6 +15,7 @@ QT_BEGIN_NAMESPACE
     \qmltype FixedJoint
     \inqmlmodule QtQuick3D.Physics
     \since 6.12
+    \inherits PhysicsJoint
     \brief A fixed joint.
 
     A fixed joint that will keep the orientation of the bodies fixed.

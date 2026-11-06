@@ -19,6 +19,7 @@ QT_BEGIN_NAMESPACE
     \qmltype PrismaticJoint
     \inqmlmodule QtQuick3D.Physics
     \since 6.12
+    \inherits PhysicsJoint
     \brief A prismatic joint.
 
     A prismatic joint permits relative translational movement between two bodies along an axis, but

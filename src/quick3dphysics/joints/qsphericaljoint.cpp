@@ -15,6 +15,7 @@ QT_BEGIN_NAMESPACE
     \qmltype SphericalJoint
     \inqmlmodule QtQuick3D.Physics
     \since 6.12
+    \inherits PhysicsJoint
     \brief A spherical joint.
 
     A spherical joint, also known as a ball-and-socket joint, keeps the origins

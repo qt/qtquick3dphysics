@@ -15,6 +15,7 @@ QT_BEGIN_NAMESPACE
     \qmltype RevoluteJoint
     \inqmlmodule QtQuick3D.Physics
     \since 6.12
+    \inherits PhysicsJoint
     \brief A revolute joint.
 
     A revolute joint, commonly referred to as a a hinge keeps the origins and x-axes

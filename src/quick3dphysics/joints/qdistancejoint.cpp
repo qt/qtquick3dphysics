@@ -17,6 +17,7 @@ QT_BEGIN_NAMESPACE
     \qmltype DistanceJoint
     \inqmlmodule QtQuick3D.Physics
     \since 6.12
+    \inherits PhysicsJoint
     \brief A distance joint.
 
     A distance joint that will keep the origins of the joint within the
