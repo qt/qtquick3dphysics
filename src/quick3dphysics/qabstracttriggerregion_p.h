@@ -25,7 +25,7 @@
 QT_BEGIN_NAMESPACE
 
 // What a node whose shapes are PhysX triggers keeps track of: the bodies
-// overlapping it. TriggerBody reports them; a region could equally act on them.
+// overlapping it. TriggerBody reports them, and GravityField acts on them.
 class Q_QUICK3DPHYSICS_EXPORT QAbstractTriggerRegion : public QAbstractPhysicsNode
 {
     Q_OBJECT

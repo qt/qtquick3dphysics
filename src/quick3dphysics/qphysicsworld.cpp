@@ -21,6 +21,9 @@
 #include "qraycaster_p.h"
 #include "qheightfieldshape_p.h"
 #include "qabstracttriggerregion_p.h"
+#include "qgravityfield_p.h"
+#include "physxnode/qphysxgravity_p.h"
+#include "physxnode/qphysxgravityfield_p.h"
 
 #include "PxPhysicsAPI.h"
 #include "cooking/PxCooking.h"
@@ -37,6 +40,8 @@
 #include <QtGui/qquaternion.h>
 
 #include <QtEnvironmentVariables>
+
+#include <algorithm>
 
 QT_BEGIN_NAMESPACE
 
@@ -945,6 +950,12 @@ void QPhysicsWorld::registerNode(QAbstractPhysicsNode *physicsNode)
 
 void QPhysicsWorld::deregisterNode(QAbstractPhysicsNode *physicsNode)
 {
+    // Before the backend is detached, while it still has what the field
+    // last acted on.
+    if (physicsNode->m_backendObject) {
+        for (auto world : std::as_const(worldManager.worlds))
+            world->releaseGravityField(physicsNode->m_backendObject);
+    }
     for (auto world : std::as_const(worldManager.worlds)) {
         world->m_newPhysicsNodes.removeAll(physicsNode);
         if (physicsNode->m_backendObject) {
@@ -997,6 +1008,11 @@ void QPhysicsWorld::deregisterRaycaster(QRaycaster *raycaster)
     for (auto *world : std::as_const(worldManager.worlds))
         world->m_raycasters.removeAll(raycaster);
     worldManager.orphanRaycasters.removeAll(raycaster);
+}
+
+void QPhysicsWorld::registerGravityField(QPhysXGravityField *field)
+{
+    m_gravityFields.append(field);
 }
 
 void QPhysicsWorld::registerContact(QAbstractPhysicsNode *sender, QAbstractPhysicsNode *receiver,
@@ -1990,6 +2006,8 @@ void QPhysicsWorld::frameFinished(float deltaTime)
     }
     m_newPhysicsNodes.clear();
 
+    applyGravity();
+
     QHash<QQuick3DNode *, QMatrix4x4> transformCache;
     QVarLengthArray<QAbstractPhysXNode *, 8> rebuiltBodies;
 
@@ -2157,6 +2175,84 @@ void QPhysicsWorld::matchOrphanRaycasters()
             ++idx;
         }
     }
+}
+
+void QPhysicsWorld::applyGravity()
+{
+    // Before the nodes are synced, so that a character controller spends what
+    // it is given this frame, and on the poses the last step left everything
+    // in. Nothing here runs QML. A scene without fields stops here.
+    if (m_gravityFields.isEmpty() && m_staleGravityFilters.isEmpty()
+        && m_gravityWakes.isEmpty()) {
+        return;
+    }
+
+    // What fields that have since been destroyed acted on inside their shapes.
+    const auto wakes = std::exchange(m_gravityWakes, {});
+    for (const QPointer<QAbstractPhysicsNode> &node : wakes) {
+        if (node)
+            QPhysXGravity::wake(node, node->m_backendObject);
+    }
+
+    // A field with shapes acts on what is inside them by itself; one without
+    // is applied to the bodies of the scene below.
+    QVarLengthArray<QPhysXGravityField::SceneGravity, 4> sceneFields;
+    for (QPhysXGravityField *field : std::as_const(m_gravityFields)) {
+        if (const auto scene = field->applyGravity(m_staleGravityFilters))
+            sceneFields.append(*scene);
+    }
+
+    // A body asleep under a gravity that has gone, or is no longer let
+    // through to it, has to be woken to fall under what is left. Waking it is
+    // all that is needed: it is then awake when the fields are applied below.
+    const QList<QFilterData> staleFilters = std::exchange(m_staleGravityFilters, {});
+
+    if (sceneFields.isEmpty() && staleFilters.isEmpty())
+        return;
+
+    for (QAbstractPhysXNode *backend : std::as_const(m_physXBodies)) {
+        QAbstractPhysicsNode *node = backend->frontendNode;
+        if (!node)
+            continue;
+        const auto target = QPhysicsGravity::targetOf(node);
+        if (target == QPhysicsGravity::Target::None)
+            continue;
+        // What PhysX keeps out of the pairs of a field with shapes, a field
+        // without keeps out itself.
+        const QFilterData nodeFilterData = node->filterData();
+
+        // The filter groups of the body itself changing can let it in to a
+        // field or keep it out of one. They are only written to the shapes
+        // later this frame, so the change is still pending here. For fields
+        // with shapes, PhysX refilters the body's pairs and reports it
+        // entering or leaving, and the field wakes it in response, but a
+        // field without shapes has no pair.
+        const bool bodyFilterChanged = !sceneFields.isEmpty() && backend->filtersDirty();
+        const bool lostField = std::any_of(staleFilters.cbegin(), staleFilters.cend(),
+                                           [&nodeFilterData](const QFilterData &filter) {
+                                               return !QPhysicsUtils::isFilteredOut(
+                                                       filter, nodeFilterData);
+                                           });
+        if (bodyFilterChanged || lostField)
+            QPhysXGravity::wake(node, backend);
+
+        for (const QPhysXGravityField::SceneGravity &field : std::as_const(sceneFields)) {
+            if (!QPhysicsUtils::isFilteredOut(field.filterData, nodeFilterData))
+                QPhysXGravity::apply(field.gravity, target, node, backend, field.wake);
+        }
+    }
+}
+
+void QPhysicsWorld::releaseGravityField(QAbstractPhysXNode *backend)
+{
+    const auto it = std::find(m_gravityFields.begin(), m_gravityFields.end(), backend);
+    if (it == m_gravityFields.end())
+        return;
+    QPhysXGravityField *field = *it;
+    m_gravityFields.erase(it);
+    m_gravityWakes.append(std::exchange(field->wakesOnRemoval, {}));
+    if (field->staleFilterOnRemoval)
+        m_staleGravityFilters.append(*field->staleFilterOnRemoval);
 }
 
 void QPhysicsWorld::findPhysicsNodes()

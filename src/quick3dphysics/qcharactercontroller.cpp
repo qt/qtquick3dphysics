@@ -58,6 +58,20 @@ QT_BEGIN_NAMESPACE
     \l{PhysicsWorld::gravity}{PhysicsWorld.gravity}. A floating character that has movement
     controls in three dimensions will normally have gravity \c{(0, 0, 0)}.
 
+    A \l GravityField adds its own gravity to this one: one without collision
+    shapes wherever the character is, and one with collision shapes for as
+    long as the character is inside them. A character that is to keep to its
+    own gravity while everything else falls, for instance one swimming or
+    climbing a ladder, is kept out of a field with
+    \l{PhysicsNode::filterGroup}{filterGroup} and
+    \l{PhysicsNode::filterIgnoreGroups}{filterIgnoreGroups}.
+
+    Setting this property to zero stops the character falling at once, which is
+    how a character grabs a ladder or enters water. Leaving a field's shapes
+    does not: the character keeps the speed it built up under the field's
+    gravity, with
+    \l movement applying as usual, until it lands on something.
+
     Default value: \c{(0, 0, 0)}.
 */
 
@@ -65,9 +79,11 @@ QT_BEGIN_NAMESPACE
     \qmlproperty bool CharacterController::midAirControl
 
     This property defines whether the \l movement property has effect when the character is in free
-    fall. This is only relevant if \l gravity in not null. A value of \c true means that the
-    character will change direction in mid-air when \c movement changes. A value of \c false means that
-    the character will continue on its current trajectory until it hits another object.
+    fall. The character is in free fall while its own \l gravity or a \l GravityField is pulling
+    on it, or while it is still moving at the speed it built up under a field whose shapes it has
+    left. A value of \c true means that the character will change direction in
+    mid-air when \c movement changes. A value of \c false means that the character will continue
+    on its current trajectory until it hits another object.
 
     Default value: \c true
 */
@@ -159,7 +175,27 @@ void QCharacterController::setGravity(const QVector3D &newGravity)
     if (m_gravity == newGravity)
         return;
     m_gravity = newGravity;
+    // Zero is how an application stops the character falling, for a ladder or
+    // water, so drop the speed it built up. Leaving a GravityField is not,
+    // and getDisplacement() lets the character coast on after that.
+    if (newGravity.isNull())
+        m_freeFallVelocity = QVector3D(0.0f, 0.0f, 0.0f);
     emit gravityChanged();
+}
+
+void QCharacterController::addEnvironmentGravity(const QVector3D &gravity)
+{
+    m_environmentGravity += gravity;
+}
+
+void QCharacterController::clearEnvironmentGravity()
+{
+    m_environmentGravity = QVector3D(0.0f, 0.0f, 0.0f);
+}
+
+QVector3D QCharacterController::effectiveGravity() const
+{
+    return m_gravity + m_environmentGravity;
 }
 
 // Calculate move based on movement/gravity
@@ -169,21 +205,38 @@ QVector3D QCharacterController::getDisplacement(float deltaTime)
     // Start with basic movement, assuming no other factors
     QVector3D displacement = sceneRotation() * m_movement * deltaTime;
 
-    // modified based on gravity
-    const auto g = m_gravity;
-    if (!g.isNull()) {
+    // modified based on gravity, including what fields contributed
+    // this frame, which is consumed here.
+    const auto g = effectiveGravity();
+    m_environmentGravity = QVector3D(0.0f, 0.0f, 0.0f);
+    // With no gravity left, a character that left a field keeps coasting on
+    // the speed it built up there until it hits something.
+    if (!g.isNull() || !m_freeFallVelocity.isNull()) {
 
         // Avoid "spider mode": we are also supposed to be in free fall if gravity
         // is pointing away from a surface we are touching. I.e. we are NOT in free
         // fall only if gravity has a component in the direction of one of the collisions.
         // Also: if we have "upwards" free fall velocity, that motion needs to stop
         // when we hit the "ceiling"; i.e we are not in free fall at the moment of impact.
-        auto isGrounded = [this](){
+        auto isGrounded = [this, g]() {
             if (m_collisions == Collision::None)
                 return false;
 
+            // Coasting with no gravity: stopped by a contact in the direction
+            // it is moving. A side contact has no known direction, so it only
+            // stops a coast with nothing vertical in it; brushing a wall on the
+            // way down must not strand the character in mid-air.
+            if (g.isNull()) {
+                const float vy = m_freeFallVelocity.y();
+                if ((m_collisions & Collision::Down) && vy <= 0)
+                    return true;
+                if ((m_collisions & Collision::Up) && vy >= 0)
+                    return true;
+                return (m_collisions & Collision::Side) && qFuzzyIsNull(vy);
+            }
+
             // Standard gravity case first
-            if (m_gravity.y() < 0) {
+            if (g.y() < 0) {
                 if (m_collisions & Collision::Down)
                      return true; // We land on the ground
                 if ((m_collisions & Collision::Up) && m_freeFallVelocity.y() > 0)
@@ -191,7 +244,7 @@ QVector3D QCharacterController::getDisplacement(float deltaTime)
             }
 
             // Inverse gravity next: exactly the opposite
-            if (m_gravity.y() > 0) {
+            if (g.y() > 0) {
                 if (m_collisions & Collision::Up)
                      return true;
                 if ((m_collisions & Collision::Down) && m_freeFallVelocity.y() < 0)
@@ -202,7 +255,7 @@ QVector3D QCharacterController::getDisplacement(float deltaTime)
             // know the direction of sideway contacts. We could in theory inspect
             // the mesh, but that is far too complex for an extremely marginal use case.
 
-            if ((m_gravity.x() != 0 || m_gravity.z() != 0) && m_collisions & Collision::Side)
+            if ((g.x() != 0 || g.z() != 0) && m_collisions & Collision::Side)
                 return true;
 
             return false;
@@ -215,6 +268,10 @@ QVector3D QCharacterController::getDisplacement(float deltaTime)
 
             displacement += m_freeFallVelocity * deltaTime;
             m_freeFallVelocity += g * deltaTime;
+        } else if (g.isNull()) {
+            // The coast has ended. Recording the walking speed, as below, would
+            // hand it back on top of the movement when contact is lost.
+            m_freeFallVelocity = QVector3D(0.0f, 0.0f, 0.0f);
         } else {
             m_freeFallVelocity = displacement / deltaTime + g * deltaTime;
             if (m_midAirControl) // free fall only straight down

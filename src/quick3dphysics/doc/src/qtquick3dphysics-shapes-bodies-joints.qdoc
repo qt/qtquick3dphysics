@@ -6,7 +6,7 @@
 \title Qt Quick 3D Physics Shapes, Bodies and Joints
 \brief An overview of Qt Quick 3D Physics objects and their physical shapes
 
-The objects in the simulation are represented by any of the following four types of bodies: \l{StaticRigidBody}, \l{DynamicRigidBody}, \l{CharacterController} and \l{TriggerBody}. The physical shape of a body is represented by subtypes of \l CollisionShape.
+The objects in the simulation are represented by any of the following five types of bodies: \l{StaticRigidBody}, \l{DynamicRigidBody}, \l{CharacterController}, \l{TriggerBody}, and \l{GravityField}. The physical shape of a body is represented by subtypes of \l CollisionShape.
 
 \section1 Shapes
 
@@ -58,6 +58,26 @@ is a child of the  character controller, and its movement is controlled by keybo
 
 There is also the \l {TriggerBody} type which is another special case. As opposed to the other bodies it is not a physical body, meaning it does not interact in collision with other bodies. As the name suggests it is only used to trigger actions when another body enters or leaves its volume as defined by its collision shapes. If another body has \l {PhysicsNode::sendTriggerReports} {sendTriggerReports} set to \c true and its collision volume enters a \l {TriggerBody} the \l{TriggerBody::bodyEntered} {bodyEntered} signal is emitted.
 
+\section2 Gravity field
+
+Like \l {TriggerBody}, the \l {GravityField} type is not a physical body, but where a trigger body
+reports what is inside it, a gravity field acts on bodies: every \l {DynamicRigidBody} and
+\l {CharacterController} it reaches is given the field's own gravity, on top of the gravity it
+already has: the world's for a dynamic rigid body, and its own
+\l {CharacterController::gravity} {gravity} property for a character controller. A field without
+collision shapes reaches every body in the scene, as an alternative to the world's
+\l {PhysicsWorld::gravity} {gravity} that can point toward a position and be kept off some bodies
+with filter groups. A field with collision shapes reaches only the bodies inside them, e.g. for a
+low gravity region or a room where down is sideways. In the default
+\l {GravityField::mode} {Directional} mode the gravity points the same way everywhere. In
+\l {GravityField::mode} {Point} mode it points toward the field's position, which is how a
+spherical or planetary world is built. Bodies do not need \l {PhysicsNode::sendTriggerReports}
+{sendTriggerReports} set to be affected, and the field does not report them; use a
+\l {TriggerBody} for that. A character controller that is to be free of gravity, for instance
+while it swims or climbs a ladder, cannot just set its own gravity to zero: it also has to
+be kept out of the fields around it with \l {PhysicsNode::filterGroup} {filterGroup} and
+\l {PhysicsNode::filterIgnoreGroups} {filterIgnoreGroups}.
+
 The following table shows a summary of the different types of bodies, how they interact and can be used:
 
 \table
@@ -85,6 +105,11 @@ The following table shows a summary of the different types of bodies, how they i
     \li \l {TriggerBody}
     \li None
     \li All shapes
+\row
+    \li \l {GravityField}
+    \li Applies its own gravity to dynamic bodies and character controllers inside its shapes,
+        or to all of them in the scene if it has none
+    \li All shapes, or none
 \endtable
 
 \section1 Physics Materials

@@ -26,6 +26,8 @@ qt_internal_add_qml_module(Quick3DPhysics
         physxnode/qphysxactorbody.cpp physxnode/qphysxactorbody_p.h
         physxnode/qphysxcharactercontroller.cpp physxnode/qphysxcharactercontroller_p.h
         physxnode/qphysxdynamicbody.cpp physxnode/qphysxdynamicbody_p.h
+        physxnode/qphysxgravity.cpp physxnode/qphysxgravity_p.h
+        physxnode/qphysxgravityfield.cpp physxnode/qphysxgravityfield_p.h
         physxnode/qphysxrigidbody.cpp physxnode/qphysxrigidbody_p.h
         physxnode/qphysxstaticbody.cpp physxnode/qphysxstaticbody_p.h
         physxnode/qphysxtriggerbody.cpp physxnode/qphysxtriggerbody_p.h
@@ -45,9 +47,11 @@ qt_internal_add_qml_module(Quick3DPhysics
         qdebugdrawhelper.cpp qdebugdrawhelper_p.h
         qdynamicrigidbody.cpp qdynamicrigidbody_p.h
         qfilterdata_p.h
+        qgravityfield.cpp qgravityfield_p.h
         qheightfieldshape.cpp qheightfieldshape_p.h
         qmeshshape.cpp qmeshshape_p.h
         qphysicscommands.cpp qphysicscommands_p.h
+        qphysicsgravity.cpp qphysicsgravity_p.h
         qphysicsmaterial.cpp qphysicsmaterial_p.h
         qphysicsmeshutils_p_p.h
         qphysicsutils_p.h

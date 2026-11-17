@@ -97,6 +97,10 @@ public:
     PhysicsMaterialProperties materialProperties = PhysicsMaterialProperties::none();
     QAbstractPhysicsNode *frontendNode = nullptr;
     bool isRemoved = false;
+
+protected:
+    // The backend of another node, for a backend that acts on other nodes.
+    static QAbstractPhysXNode *backendOf(const QAbstractPhysicsNode *node);
 };
 
 QT_END_NAMESPACE

@@ -170,4 +170,9 @@ void QAbstractPhysXNode::detachFrontend()
         shape->userData = nullptr;
 }
 
+QAbstractPhysXNode *QAbstractPhysXNode::backendOf(const QAbstractPhysicsNode *node)
+{
+    return node ? node->m_backendObject : nullptr;
+}
+
 QT_END_NAMESPACE

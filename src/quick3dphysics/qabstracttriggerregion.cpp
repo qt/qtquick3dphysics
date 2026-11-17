@@ -45,7 +45,7 @@ void QAbstractTriggerRegion::registerCollision(QAbstractPhysicsNode *collision, 
         ++m_reportedCount;
 
     // Nothing takes a body off this list when it is deleted while still inside,
-    // so the count would keep reporting a body that no longer exists.
+    // and a field dereferences what is on it every frame.
     connect(collision, &QObject::destroyed, this, &QAbstractTriggerRegion::dropDestroyedBody,
             Qt::UniqueConnection);
     reportEntered(collision, reports, receives);

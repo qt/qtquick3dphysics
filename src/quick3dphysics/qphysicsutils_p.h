@@ -89,10 +89,11 @@ Q_ALWAYS_INLINE physx::PxFilterData toPhysXType(const QFilterData &data)
 
 // Whether two nodes are filtered out from each other: either side naming the
 // other's group among the ones it ignores is enough. PhysX asks this in
-// contactReportFilterShader() as it decides what to pair, and a
-// CharacterController, which moves through scene queries rather than pairs,
-// asks it of what it sweeps against, so that the answer is the same either
-// way.
+// contactReportFilterShader() as it decides what to pair. A CharacterController,
+// which moves through scene queries rather than pairs, asks it of what it
+// sweeps against, and a GravityField without shapes, which acts on bodies it
+// never pairs with, asks it of the nodes, so that the answer is the same
+// either way.
 Q_ALWAYS_INLINE bool isFilteredOut(const QFilterData &a, const QFilterData &b)
 {
     const auto isBitSet = [](quint32 value, quint32 position) {

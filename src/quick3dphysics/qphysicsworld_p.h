@@ -20,6 +20,7 @@
 
 #include <QtCore/QLoggingCategory>
 #include <QtCore/QObject>
+#include <QtCore/QPointer>
 #include <QtCore/QTimerEvent>
 #include <QtCore/QElapsedTimer>
 #include <QtCore/QSpan>
@@ -27,6 +28,7 @@
 #include <QtQml/qqml.h>
 #include <QBasicTimer>
 #include <QtQuick3DPhysics/private/qquick3dphysicslocationhit_p.h>
+#include <QtQuick3DPhysics/private/qfilterdata_p.h>
 
 #include <QtQuick3D/private/qquick3dviewport_p.h>
 
@@ -60,6 +62,7 @@ class QPhysXWorld;
 class FrameAnimator;
 class QPhysicsJoint;
 class QRaycaster;
+class QPhysXGravityField;
 
 class Q_QUICK3DPHYSICS_EXPORT QPhysicsWorld : public QObject, public QQmlParserStatus
 {
@@ -135,6 +138,10 @@ public:
 
     static void registerJoint(QPhysicsJoint *joint);
     static void deregisterJoint(QPhysicsJoint *joint);
+
+    // For a field's backend as it is created. It is released again when its
+    // field is deregistered.
+    void registerGravityField(QPhysXGravityField *field);
 
     void registerContact(QAbstractPhysicsNode *sender, QAbstractPhysicsNode *receiver,
                          const QVector<QVector3D> &positions, const QVector<QVector3D> &impulses,
@@ -261,6 +268,8 @@ private:
     void matchOrphanNodes();
     void matchOrphanJoints();
     void matchOrphanRaycasters();
+    void applyGravity();
+    void releaseGravityField(QAbstractPhysXNode *backend);
     void findPhysicsNodes();
     void emitContactCallbacks();
 
@@ -313,6 +322,14 @@ private:
     QList<QAbstractPhysXNode *> m_physXBodies;
     QList<QPhysicsJoint *> m_joints;
     QList<QRaycaster *> m_raycasters;
+    QList<QPhysXGravityField *> m_gravityFields;
+    // The filters through which fields without shapes acted on the scene,
+    // until they were destroyed, got shapes, or changed their filter groups:
+    // the bodies they let through are to be woken, since they have lost a
+    // gravity they may have been resting under.
+    QList<QFilterData> m_staleGravityFilters;
+    // What fields with shapes acted on until they were destroyed.
+    QList<QPointer<QAbstractPhysicsNode>> m_gravityWakes;
     QList<QAbstractPhysicsNode *> m_newPhysicsNodes;
     QHash<QPair<QAbstractCollisionShape *, QAbstractPhysicsNode *>, DebugModelHolder>
             m_DesignStudioDebugModels;

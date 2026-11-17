@@ -20,6 +20,26 @@ MetaInfo {
     }
 
     Type {
+        name: "QtQuick3D.Physics.GravityField"
+        icon: "images/gravityfield16.png"
+
+        Hints {
+            visibleInNavigator: true
+            canBeDroppedInNavigator: true
+            canBeDroppedInFormEditor: false
+            canBeDroppedInView3D: true
+        }
+
+        ItemLibraryEntry {
+            name: "Gravity Field"
+            category: "Components"
+            libraryIcon: "images/gravityfield.png"
+            version: "6.13"
+            requiredImport: "QtQuick3D.Physics"
+        }
+    }
+
+    Type {
         name: "QtQuick3D.Physics.TriggerBody"
         icon: "images/triggerbody16.png"
 

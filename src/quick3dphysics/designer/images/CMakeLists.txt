@@ -7,6 +7,9 @@ qt_copy_or_install(
         physicsworld.png
         physicsworld16.png
         physicsworld@2x.png
+        gravityfield.png
+        gravityfield16.png
+        gravityfield@2x.png
         triggerbody.png
         triggerbody16.png
         triggerbody@2x.png

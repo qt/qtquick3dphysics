@@ -196,10 +196,17 @@ void QPhysXCharacterController::init(QPhysicsWorld *world, QPhysXWorld * /*physX
 void QPhysXCharacterController::sync(float deltaTime,
                                      QHash<QQuick3DNode *, QMatrix4x4> & /*transformCache*/)
 {
-    if (controller == nullptr)
+    if (!frontendNode)
         return;
 
     auto *characterController = static_cast<QCharacterController *>(frontendNode);
+
+    if (controller == nullptr) {
+        // getDisplacement() is never reached to consume this frame's gravity, so
+        // clear it here rather than let it pile up until the controller exists.
+        characterController->clearEnvironmentGravity();
+        return;
+    }
 
     // Update capsule height, radius, stepOffset
     const auto &shapes = characterController->getCollisionShapesList();
@@ -272,6 +279,10 @@ void QPhysXCharacterController::sync(float deltaTime,
     // setCollisions() ran the controller's bindings, which can delete it.
     if (!frontendNode)
         return;
+
+    // A teleport, or a frame with no time in it, never reaches getDisplacement()
+    // to consume this frame's gravity, so clear it here.
+    characterController->clearEnvironmentGravity();
 
     // Materials are shared between nodes, so a change of the material properties moves this
     // node to another material, which the shape of the controller then has to be pointed at.

@@ -65,6 +65,12 @@ public:
     Q_REVISION(6, 6) bool enableShapeHitCallback() const;
     Q_REVISION(6, 6) void setEnableShapeHitCallback(bool newEnableShapeHitCallback);
 
+    // What GravityFields contribute this frame, on top of
+    // the gravity property. Spent and cleared by getDisplacement().
+    void addEnvironmentGravity(const QVector3D &gravity);
+    void clearEnvironmentGravity();
+    QVector3D effectiveGravity() const;
+
 signals:
     void movementChanged();
     void gravityChanged();
@@ -79,6 +85,7 @@ signals:
 private:
     QVector3D m_movement;
     QVector3D m_gravity;
+    QVector3D m_environmentGravity; // what the fields contributed this frame
     bool m_midAirControl = true;
 
     QVector3D m_freeFallVelocity; // actual speed at start of next tick, if free fall

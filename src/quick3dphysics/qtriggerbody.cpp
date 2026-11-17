@@ -16,6 +16,11 @@ QT_BEGIN_NAMESPACE
 
     This type defines a trigger body. A trigger body is a body that does not interact
     physically but is used to detect when objects intersect with its volume.
+
+    \note Only bodies with \l {PhysicsNode::sendTriggerReports}{sendTriggerReports}
+    set to \c true are reported.
+
+    \sa GravityField
 */
 
 /*!

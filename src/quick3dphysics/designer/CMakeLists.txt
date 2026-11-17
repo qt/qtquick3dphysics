@@ -17,6 +17,8 @@ qt_copy_or_install(
         DynamicRigidBodySpecifics.qml
         DynamicRigidBodySection.qml
         FixedJointSpecifics.qml
+        GravityFieldSection.qml
+        GravityFieldSpecifics.qml
         HeightFieldShapeSection.qml
         HeightFieldShapeSpecifics.qml
         JointSection.qml
