@@ -342,7 +342,8 @@ void QRaycaster::updateRaycast(QPhysicsWorld *world)
 
 // Holds both bodies and this ray weakly, since the first of the reports below can leave the
 // rest with a body or a ray that is gone: they run inside the frame, so a handler deletes on
-// the spot rather than between frames. The same reason QTriggerBody::reportEntered does it.
+// the spot rather than between frames. The same reason QAbstractTriggerRegion::reportEntered
+// does it.
 void QRaycaster::updateHit(const QQuick3DPhysicsLocationHit &hit)
 {
     const QPointer<QRaycaster> self(this);

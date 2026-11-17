@@ -35,6 +35,7 @@ qt_internal_add_qml_module(Quick3DPhysics
         qabstractcollisionshape.cpp qabstractcollisionshape_p.h
         qabstractphysicsbody.cpp qabstractphysicsbody_p.h
         qabstractphysicsnode.cpp qabstractphysicsnode_p.h
+        qabstracttriggerregion.cpp qabstracttriggerregion_p.h
         qboxshape.cpp qboxshape_p.h
         qcacheutils.cpp qcacheutils_p.h
         qcapsuleshape.cpp qcapsuleshape_p.h

@@ -19,7 +19,7 @@
 #include "qphysicsutils_p.h"
 #include "qphysicsworld_p.h"
 #include "qstaticphysxobjects_p.h"
-#include "qtriggerbody_p.h"
+#include "qabstracttriggerregion_p.h"
 
 QT_BEGIN_NAMESPACE
 
@@ -38,12 +38,12 @@ public:
 
     void onTrigger(physx::PxTriggerPair *pairs, physx::PxU32 count) override
     {
-        // A body one of whose shapes leaves a trigger as another of them enters
+        // A body one of whose shapes leaves a region as another of them enters
         // it has a lost and a found pair in the same batch, and taking the lost
         // one first would report the body as having left and entered again. So
-        // the found pair is taken first, and only for the trigger and body that
+        // the found pair is taken first, and only for the region and body that
         // has both: every other pair is handled in the order PhysX gave it, so
-        // a body leaving one trigger as it enters another is still reported that
+        // a body leaving one region as it enters another is still reported that
         // way.
         const auto replacesLostOverlap = [pairs, count](physx::PxU32 i) {
             if (pairs[i].status != physx::PxPairFlag::eNOTIFY_TOUCH_FOUND)
@@ -73,13 +73,15 @@ public:
                        | physx::PxTriggerPairFlag::eREMOVED_SHAPE_OTHER))
                     continue;
 
-                QTriggerBody *triggerNode =
-                        static_cast<QTriggerBody *>(pairs[i].triggerActor->userData);
+                // Only cast, not read: what the actors point at may already have
+                // been deleted, and asking what it is dereferences it.
+                auto *triggerCandidate =
+                        static_cast<QAbstractPhysicsNode *>(pairs[i].triggerActor->userData);
 
                 QAbstractPhysicsNode *otherNode =
                         static_cast<QAbstractPhysicsNode *>(pairs[i].otherActor->userData);
 
-                if (!triggerNode || !otherNode) {
+                if (!triggerCandidate || !otherNode) {
                     qWarning() << "QtQuick3DPhysics internal error: null pointer in trigger "
                                   "collision.";
                     continue;
@@ -89,18 +91,24 @@ public:
                 // several pairs and a handler run for one of them can delete a
                 // node a later one points at. Nothing else can: PhysX sends
                 // these from the thread that deletes nodes.
-                if (world->isNodeRemoved(triggerNode) || world->isNodeRemoved(otherNode))
+                if (world->isNodeRemoved(triggerCandidate) || world->isNodeRemoved(otherNode))
                     continue;
 
-                // Passed on so the trigger can tell one pair of a body from
+                // Safe to ask what it is now that it is known to still be there.
+                auto *triggerNode = qobject_cast<QAbstractTriggerRegion *>(triggerCandidate);
+                if (!triggerNode)
+                    continue;
+
+                // Passed on so the region can tell one pair of a body from
                 // another: PhysX reports a pair of shapes and a body is several
                 // of those, so one of them stopping overlapping is not the body
                 // leaving.
-                const QTriggerBody::ShapePair shapes { frontendShape(pairs[i].triggerShape),
-                                                       frontendShape(pairs[i].otherShape) };
+                const QAbstractTriggerRegion::ShapePair shapes {
+                    frontendShape(pairs[i].triggerShape), frontendShape(pairs[i].otherShape)
+                };
 
                 // Whether a body is worth following, and what it is owed, is
-                // the trigger's to decide, once per body rather than once per
+                // the region's to decide, once per body rather than once per
                 // pair: a body that changes its mind while inside would
                 // otherwise be half followed.
                 if (pairs[i].status == physx::PxPairFlag::eNOTIFY_TOUCH_FOUND)

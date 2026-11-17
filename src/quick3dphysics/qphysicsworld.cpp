@@ -20,7 +20,7 @@
 #include "qplaneshape_p.h"
 #include "qraycaster_p.h"
 #include "qheightfieldshape_p.h"
-#include "qtriggerbody_p.h"
+#include "qabstracttriggerregion_p.h"
 
 #include "PxPhysicsAPI.h"
 #include "cooking/PxCooking.h"
@@ -1863,7 +1863,7 @@ void QPhysicsWorld::cleanupRemovedNodes()
 void QPhysicsWorld::invalidateTriggerOverlaps(QSpan<QAbstractPhysXNode *const> rebuiltBodies)
 {
     for (QAbstractPhysXNode *body : std::as_const(m_physXBodies)) {
-        auto *trigger = qobject_cast<QTriggerBody *>(body->frontendNode);
+        auto *trigger = qobject_cast<QAbstractTriggerRegion *>(body->frontendNode);
         if (!trigger)
             continue;
         for (QAbstractPhysXNode *rebuilt : rebuiltBodies) {
@@ -1892,7 +1892,7 @@ void QPhysicsWorld::dropUnreportedTriggerOverlaps()
     // frontend off whatever is deleted, so what still has one here is what
     // is left.
     for (QAbstractPhysXNode *body : std::as_const(m_physXBodies)) {
-        if (auto *trigger = qobject_cast<QTriggerBody *>(body->frontendNode))
+        if (auto *trigger = qobject_cast<QAbstractTriggerRegion *>(body->frontendNode))
             trigger->dropUnreportedOverlaps();
     }
 }
